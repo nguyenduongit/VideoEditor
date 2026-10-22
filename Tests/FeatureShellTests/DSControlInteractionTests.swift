@@ -1,6 +1,7 @@
 import Foundation
 import CoreMedia
 import AVFoundation
+import SwiftUI
 import Testing
 @testable import DesignSystem
 @testable import Domain
@@ -213,5 +214,60 @@ struct DSControlInteractionTests {
             #expect(videoComp.instructions.count == 1)
             #expect(videoComp.renderSize == CanvasAspectRatio.ratio16x9.renderSize)
         }
+    }
+
+    @Test("DSPickerRow initializes and configures options correctly")
+    @MainActor
+    func testDSPickerRowOptions() {
+        var selected = "linear"
+        let options = [
+            DSPickerOption(id: "none", title: "None"),
+            DSPickerOption(id: "linear", title: "Linear", iconName: "line.diagonal"),
+            DSPickerOption(id: "radial", title: "Radial", iconName: "circle")
+        ]
+        let row = DSPickerRow(
+            title: "Mask",
+            selectedID: Binding(get: { selected }, set: { selected = $0 }),
+            options: options,
+            onSelect: { _ in }
+        )
+        _ = row
+        #expect(options.count == 3)
+        #expect(options[1].iconName == "line.diagonal")
+        #expect(selected == "linear")
+    }
+
+    @Test("DSActionButton and DSPlayPauseButton initialize correctly")
+    @MainActor
+    func testActionAndPlayPauseButtons() {
+        var actionFired = false
+        let actionBtn = DSActionButton(title: "Export") {
+            actionFired = true
+        }
+        _ = actionBtn
+        #expect(!actionFired)
+
+        var playPauseFired = false
+        let playBtn = DSPlayPauseButton(isPlaying: false) {
+            playPauseFired = true
+        }
+        _ = playBtn
+        #expect(!playPauseFired)
+    }
+
+    @Test("DSToggleRow and DSRatioSelector initialize correctly")
+    @MainActor
+    func testToggleAndRatioControls() {
+        var isOn = false
+        let toggle = DSToggleRow(title: "Feather", isOn: Binding(get: { isOn }, set: { isOn = $0 }))
+        _ = toggle
+        #expect(!isOn)
+
+        let ratio = DSRatioSelector(
+            selectedTitle: "16:9",
+            options: ["16:9", "9:16", "1:1"],
+            onSelect: { _ in }
+        )
+        _ = ratio
     }
 }

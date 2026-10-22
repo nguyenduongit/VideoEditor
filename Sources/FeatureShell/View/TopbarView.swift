@@ -42,6 +42,8 @@ public struct TopbarView: View {
                 Image(systemName: "arrow.uturn.backward")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(viewModel.timelineViewModel.canUndo ? DSColors.textPrimary : DSColors.textSecondary.opacity(0.4))
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(!viewModel.timelineViewModel.canUndo)
@@ -51,6 +53,8 @@ public struct TopbarView: View {
                 Image(systemName: "arrow.uturn.forward")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(viewModel.timelineViewModel.canRedo ? DSColors.textPrimary : DSColors.textSecondary.opacity(0.4))
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(!viewModel.timelineViewModel.canRedo)
@@ -86,6 +90,7 @@ public struct TopbarView: View {
                 .padding(.vertical, DSSpacing.xs)
                 .background(DSColors.blockBackground)
                 .clipShape(RoundedRectangle(cornerRadius: DSRadius.control))
+                .contentShape(RoundedRectangle(cornerRadius: DSRadius.control))
             }
             .buttonStyle(.plain)
             .help("Import Project Script JSON (⇧⌘I)")

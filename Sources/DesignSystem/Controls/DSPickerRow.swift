@@ -81,6 +81,7 @@ public struct DSPickerRow: View {
                 RoundedRectangle(cornerRadius: DSRadius.small - 1)
                     .stroke(isSelected ? DSColors.toggleCyan.opacity(0.8) : Color.clear, lineWidth: 1)
             )
+            .contentShape(RoundedRectangle(cornerRadius: DSRadius.small - 1))
         }
         .buttonStyle(.plain)
         .help(opt.title)

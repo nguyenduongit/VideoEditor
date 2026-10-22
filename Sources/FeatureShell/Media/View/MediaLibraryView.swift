@@ -75,6 +75,7 @@ public struct MediaLibraryView: View {
                 .padding(DSSpacing.xs)
                 .background(Color.red.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+                .contentShape(RoundedRectangle(cornerRadius: DSRadius.small))
         }
         .buttonStyle(.plain)
     }

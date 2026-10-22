@@ -80,6 +80,7 @@ public struct MediaAssetItemView: View {
             }
             .frame(width: 22, height: 22)
             .shadow(color: Color.black.opacity(0.35), radius: 2, x: 0, y: 1)
+            .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .padding(DSSpacing.xs)

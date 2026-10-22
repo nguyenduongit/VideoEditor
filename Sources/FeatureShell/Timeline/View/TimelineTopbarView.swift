@@ -126,6 +126,8 @@ public struct TimelineTopbarView: View {
                 Image(systemName: "minus.magnifyingglass")
                     .font(.system(size: 11))
                     .foregroundStyle(DSColors.textSecondary)
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Zoom Out (⌘-)")
@@ -141,6 +143,8 @@ public struct TimelineTopbarView: View {
                 Image(systemName: "plus.magnifyingglass")
                     .font(.system(size: 11))
                     .foregroundStyle(DSColors.textSecondary)
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Zoom In (⌘+)")
@@ -149,7 +153,8 @@ public struct TimelineTopbarView: View {
                 Text(zoomPercentageText)
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(DSColors.textSecondary)
-                    .frame(minWidth: 44, alignment: .trailing)
+                    .frame(minWidth: 44, minHeight: 20, alignment: .trailing)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Reset Zoom (⇧Z)")
@@ -197,6 +202,7 @@ private struct TimelineToolbarActionButton: View {
                 RoundedRectangle(cornerRadius: DSRadius.small)
                     .stroke(isHovered && !isDisabled ? Color.white.opacity(0.20) : DSColors.blockBorder, lineWidth: 1)
             )
+            .contentShape(RoundedRectangle(cornerRadius: DSRadius.small))
         }
         .buttonStyle(.plain)
         .disabled(isDisabled || isLoading)

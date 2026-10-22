@@ -61,6 +61,7 @@ public struct DSCollapsibleSection<Content: View>: View {
                     .font(.system(size: 8))
                     .foregroundStyle(DSColors.textSecondary)
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

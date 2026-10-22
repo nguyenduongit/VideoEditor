@@ -48,6 +48,7 @@ public struct DSRatioSelector: View {
                 RoundedRectangle(cornerRadius: DSRadius.small)
                     .stroke(DSColors.inputBorder, lineWidth: 1)
             )
+            .contentShape(RoundedRectangle(cornerRadius: DSRadius.small))
         }
         .menuStyle(.borderlessButton)
         .fixedSize()

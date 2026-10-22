@@ -28,6 +28,7 @@ public struct DSTrafficLights: View {
             Circle()
                 .fill(color)
                 .frame(width: DSSize.trafficLightSize, height: DSSize.trafficLightSize)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }

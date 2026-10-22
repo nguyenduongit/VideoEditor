@@ -21,6 +21,7 @@ public struct DSActionButton: View {
                 .frame(minWidth: DSSize.exportButtonMinWidth, minHeight: DSSize.exportButtonHeight)
                 .background(DSColors.accent)
                 .clipShape(RoundedRectangle(cornerRadius: DSRadius.control))
+                .contentShape(RoundedRectangle(cornerRadius: DSRadius.control))
         }
         .buttonStyle(.plain)
     }

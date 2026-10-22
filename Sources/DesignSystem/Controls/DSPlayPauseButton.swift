@@ -20,6 +20,7 @@ public struct DSPlayPauseButton: View {
                 .frame(width: DSSize.iconButtonSize, height: DSSize.iconButtonSize)
                 .background(DSColors.activeTabBackground)
                 .clipShape(Circle())
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }

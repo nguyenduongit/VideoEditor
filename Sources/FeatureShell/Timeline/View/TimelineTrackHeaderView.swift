@@ -96,6 +96,7 @@ public struct TimelineTrackHeaderView: View {
                 .frame(width: 22, height: 20)
                 .background(isActive ? DSColors.activeTabBackground : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+                .contentShape(RoundedRectangle(cornerRadius: DSRadius.small))
         }
         .buttonStyle(.plain)
         .focusable(false)

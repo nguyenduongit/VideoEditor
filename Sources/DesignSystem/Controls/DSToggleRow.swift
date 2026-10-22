@@ -52,6 +52,7 @@ public struct DSToggleRow: View {
                     .padding(.horizontal, 2)
                     .shadow(color: Color.black.opacity(0.2), radius: 1, x: 0, y: 1)
             }
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
     }

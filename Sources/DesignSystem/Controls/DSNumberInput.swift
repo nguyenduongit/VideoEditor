@@ -112,6 +112,7 @@ public struct DSNumberInput: View {
                 .foregroundStyle(DSColors.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .simultaneousGesture(
                     TapGesture()
