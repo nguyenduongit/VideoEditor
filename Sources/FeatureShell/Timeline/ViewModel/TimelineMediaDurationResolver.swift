@@ -73,7 +73,7 @@ public enum TimelineMediaDurationResolver: Sendable {
         guard status == noErr, durSec.isFinite, !durSec.isNaN, durSec > 0 else {
             return nil
         }
-        return CMTime(seconds: durSec, preferredTimescale: TimeRational.defaultFPS)
+        return CMTime(seconds: durSec, preferredTimescale: 600)
     }
 }
 
