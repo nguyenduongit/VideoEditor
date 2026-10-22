@@ -84,6 +84,7 @@ public final class TimelineCommandExecutor {
 
         guard vm.layers[layerIndex].appendClip(clip) else { return nil }
         vm.onClipsTrimmed?()
+        vm.onClipsRestored?([clip])
         return .removeClip(clipID: clip.id)
     }
 

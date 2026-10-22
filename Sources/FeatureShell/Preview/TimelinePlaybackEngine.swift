@@ -18,14 +18,14 @@ public final class TimelinePlaybackEngine {
     var isSeeking: Bool = false
     private var seekSequence: Int = 0
     private var imageCache: [URL: NSImage] = [:]
-    private var lastStructureSignature: String = ""
+    var lastStructureSignature: String = ""
     public internal(set) var isPlaybackActive: Bool = false
     var lastPropertiesSignature: String = ""
-    private var currentComposition: AVMutableComposition?
-    private var currentLayerTrackIDs: [UUID: CMPersistentTrackID] = [:]
+    var currentComposition: AVMutableComposition?
+    var currentLayerTrackIDs: [UUID: CMPersistentTrackID] = [:]
     var compositionTask: Task<Void, Never>?
-    private var pendingForceResume: Bool = false
-    private let logger = Logger(subsystem: "com.videoeditor", category: "TimelinePlaybackEngine")
+    var pendingForceResume: Bool = false
+    let logger = Logger(subsystem: "com.videoeditor", category: "TimelinePlaybackEngine")
 
     public init() {
         setupTimeObserver()
@@ -118,104 +118,6 @@ public final class TimelinePlaybackEngine {
                 targetTime: targetTime
             )
         }
-    }
-
-    private func tryFastPathUpdate(
-        layers: [TimelineLayer],
-        totalDuration: CMTime,
-        aspectRatio: CanvasAspectRatio,
-        structSig: String,
-        propSig: String
-    ) -> Bool {
-        guard structSig == lastStructureSignature,
-              let composition = currentComposition,
-              let currentItem = player.currentItem else {
-            return false
-        }
-        guard propSig != lastPropertiesSignature else { return true }
-        lastPropertiesSignature = propSig
-
-        let wasPlaying = pendingForceResume || isPlaybackActive || (player.rate != 0)
-        pendingForceResume = false
-        if wasPlaying {
-            isPlaybackActive = true
-        }
-        let duration = CMTimeMaximum(totalDuration, composition.duration)
-        if let newVideoComp = TimelineCompositionBuilder.buildVideoComposition(
-            for: layers,
-            composition: composition,
-            layerTrackIDs: currentLayerTrackIDs,
-            aspectRatio: aspectRatio,
-            duration: duration
-        ) {
-            let compositorChanged = (currentItem.videoComposition?.customVideoCompositorClass != newVideoComp.customVideoCompositorClass)
-            logger.notice("tryFastPathUpdate: set videoComposition, hasCustom=\(newVideoComp.customVideoCompositorClass != nil), changed=\(compositorChanged)")
-            if compositorChanged {
-                let cur = player.currentTime()
-                let newItem = AVPlayerItem(asset: composition)
-                newItem.seekingWaitsForVideoCompositionRendering = true
-                newItem.videoComposition = newVideoComp
-                applyAudioMix(layers: layers, to: newItem)
-                player.replaceCurrentItem(with: newItem)
-                let validCur = (cur.isValid && cur.isNumeric) ? cur : .zero
-                player.seek(to: validCur, toleranceBefore: .zero, toleranceAfter: .zero)
-                if wasPlaying {
-                    resumeIfActive()
-                }
-            } else {
-                currentItem.videoComposition = newVideoComp
-                applyAudioMix(layers: layers, to: currentItem)
-                if wasPlaying {
-                    resumeIfActive()
-                } else if player.rate == 0 {
-                    let cur = player.currentTime()
-                    let validCur = (cur.isValid && cur.isNumeric) ? cur : .zero
-                    player.seek(to: validCur, toleranceBefore: .zero, toleranceAfter: .zero)
-                }
-            }
-        } else {
-            applyAudioMix(layers: layers, to: currentItem)
-            if wasPlaying {
-                resumeIfActive()
-            }
-        }
-        return true
-    }
-
-    private func setupTimeObserver() {
-        let interval = CMTime(value: 1, timescale: 30)
-        timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            Task { @MainActor [weak self] in
-                guard let self, !self.isResyncingComposition, !self.isSeeking else { return }
-                if self.isPlaybackActive && self.player.rate == 0 {
-                    self.player.play()
-                }
-                guard self.player.rate != 0 else { return }
-                self.onTimeUpdate?(time)
-            }
-        }
-    }
-
-    private func computeStructureSignature(layers: [TimelineLayer], aspectRatio: CanvasAspectRatio) -> String {
-        let layersSig = layers.map { layer in
-            let clipsSig = layer.clips.map { clip in
-                let urlStr = clip.mediaURL?.absoluteString ?? ""
-                let spd = clip.properties["speed"]?.asNumber ?? 1.0
-                return "\(clip.id)-\(urlStr)-\(clip.timeRange.start.value)-\(clip.timeRange.duration.value)-\(clip.sourceStartTime.value)-spd:\(spd)"
-            }
-            return "\(layer.id)-[\(clipsSig.joined(separator: ","))]"
-        }.joined(separator: "|")
-        return "\(aspectRatio.rawValue)::\(layersSig)"
-    }
-
-    func computePropertiesSignature(layers: [TimelineLayer]) -> String {
-        layers.map { layer in
-            let clipsSig = layer.clips.map { clip in
-                let propSig = clip.properties.sorted(by: { $0.key < $1.key }).map { "\($0.key)=\($0.value)" }.joined(separator: ";")
-                return "\(clip.id):[\(propSig)]"
-            }
-            return "\(layer.id):hidden=\(layer.isHidden):muted=\(layer.isMuted):[\(clipsSig.joined(separator: ","))]"
-        }.joined(separator: "|")
     }
 
     private func applyComposedTracks(

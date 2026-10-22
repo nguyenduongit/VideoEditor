@@ -1,4 +1,5 @@
 import Foundation
+import CoreMedia
 import Testing
 import Domain
 @testable import FeatureShell
@@ -103,4 +104,78 @@ struct MediaLibraryViewModelTests {
         vm.updateDragSelection(rect: rectBoth, itemFrames: frames)
         #expect(vm.selectedAssetIDs == [id1, id2])
     }
+
+    @Test @MainActor func testDeleteSelectedAndUndoRedo() {
+        let vm = MediaLibraryViewModel(thumbnailService: MockThumbnailService())
+        let id1 = UUID()
+        let asset1 = MediaAsset(id: id1, url: URL(fileURLWithPath: "/tmp/1.mp4"), type: .video)
+        vm.assets = [asset1]
+
+        vm.toggleSelection(for: id1, isCmdPressed: false)
+        vm.deleteSelected()
+        #expect(vm.assets.isEmpty)
+        #expect(vm.canUndo)
+
+        // Undo restores asset
+        let didUndo = vm.undo()
+        #expect(didUndo)
+        #expect(vm.assets.count == 1)
+        #expect(vm.assets.first?.id == id1)
+        #expect(vm.canRedo)
+
+        // Redo removes asset again
+        let didRedo = vm.redo()
+        #expect(didRedo)
+        #expect(vm.assets.isEmpty)
+    }
+
+    @Test @MainActor func testDeleteAssetWithTimelineClipsFullUndoRedo() {
+        let mediaVM = MediaLibraryViewModel(thumbnailService: MockThumbnailService())
+        let timelineVM = TimelineViewModel()
+        let assetID = UUID()
+        let asset = MediaAsset(id: assetID, url: URL(fileURLWithPath: "/tmp/clip.mp4"), type: .video)
+        mediaVM.assets = [asset]
+
+        // Wire undo/redo and callbacks like AppMain
+        mediaVM.onAssetsDeleted = { deleted in
+            let ids = Set(deleted.map(\.id))
+            let urls = Set(deleted.map(\.url))
+            timelineVM.removeClips(forAssetIDs: ids, urls: urls)
+        }
+        mediaVM.onUndoRequested = { [weak timelineVM] in
+            timelineVM?.undo() ?? false
+        }
+        timelineVM.onClipsRestored = { [weak mediaVM] restoredClips in
+            mediaVM?.restoreAssetsForClips(restoredClips)
+        }
+
+        // Add clip to timeline
+        let clip = TimelineClip(
+            assetID: asset.id,
+            name: "Test",
+            kind: .video,
+            timeRange: CMTimeRange(
+                start: .zero,
+                duration: CMTime(seconds: 5, preferredTimescale: 600)
+            ),
+            mediaURL: asset.url
+        )
+        timelineVM.addClip(clip)
+        #expect(timelineVM.layers.first?.clips.count == 1)
+
+        // Delete asset in media library
+        mediaVM.toggleSelection(for: assetID, isCmdPressed: false)
+        mediaVM.deleteSelected()
+
+        #expect(mediaVM.assets.isEmpty)
+        #expect(timelineVM.layers.first?.clips.isEmpty ?? true)
+
+        // Undo restores clip in timeline AND restores asset in media library
+        let undoResult = mediaVM.undo()
+        #expect(undoResult)
+        #expect(timelineVM.layers.first?.clips.count == 1)
+        #expect(mediaVM.assets.count == 1)
+        #expect(mediaVM.assets.first?.id == assetID)
+    }
 }
+

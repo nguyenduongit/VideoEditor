@@ -63,6 +63,16 @@ struct VideoEditorApp: App {
             shellViewModel?.updateTimelinePreview()
         }
 
+        mediaViewModel.onUndoRequested = { [weak timelineViewModel] in
+            timelineViewModel?.undo() ?? false
+        }
+        mediaViewModel.onRedoRequested = { [weak timelineViewModel] in
+            timelineViewModel?.redo() ?? false
+        }
+        timelineViewModel.onClipsRestored = { [weak mediaViewModel] restoredClips in
+            mediaViewModel?.restoreAssetsForClips(restoredClips)
+        }
+
         Self.registerAllTabs(in: registry, mediaViewModel: mediaViewModel)
         _viewModel = State(initialValue: shellViewModel)
 

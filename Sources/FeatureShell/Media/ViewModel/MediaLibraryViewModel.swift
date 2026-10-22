@@ -18,6 +18,15 @@ public final class MediaLibraryViewModel {
     public var onAddAssetToTimeline: ((MediaAsset) -> Void)?
     public var onAddAssetsToTimeline: (([MediaAsset]) -> Void)?
     public var onAssetsDeleted: (([MediaAsset]) -> Void)?
+    public var onUndoRequested: (() -> Bool)?
+    public var onRedoRequested: (() -> Bool)?
+
+    private var deletedAssetsCache: [UUID: MediaAsset] = [:]
+    private var deletedAssetsHistory: [[MediaAsset]] = []
+    private var redoAssetsHistory: [[MediaAsset]] = []
+
+    public var canUndo: Bool { !deletedAssetsHistory.isEmpty }
+    public var canRedo: Bool { !redoAssetsHistory.isEmpty }
 
     public func addAssetToTimeline(_ asset: MediaAsset) {
         if selectedAssetIDs.count > 1 {
@@ -96,6 +105,13 @@ public final class MediaLibraryViewModel {
 
     public func deleteSelected() {
         let deletedAssets = assets.filter { selectedAssetIDs.contains($0.id) }
+        guard !deletedAssets.isEmpty else { return }
+        for asset in deletedAssets {
+            deletedAssetsCache[asset.id] = asset
+        }
+        deletedAssetsHistory.append(deletedAssets)
+        redoAssetsHistory.removeAll()
+
         assets.removeAll { selectedAssetIDs.contains($0.id) }
         for id in selectedAssetIDs {
             thumbnails.removeValue(forKey: id)
@@ -103,6 +119,69 @@ public final class MediaLibraryViewModel {
         selectedAssetIDs.removeAll()
         notifyActiveAssetChange()
         onAssetsDeleted?(deletedAssets)
+    }
+
+    public func restoreAssets(_ restored: [MediaAsset]) {
+        for asset in restored {
+            if !assets.contains(where: { $0.id == asset.id }) {
+                assets.append(asset)
+                loadThumbnail(for: asset)
+                prewarmDuration(for: asset)
+                if asset.type == .audio {
+                    preloadWaveform(for: asset)
+                }
+            }
+        }
+    }
+
+    public func restoreAssetsForClips(_ clips: [TimelineClip]) {
+        for clip in clips {
+            if let assetID = clip.assetID, let asset = deletedAssetsCache[assetID] {
+                restoreAssets([asset])
+            } else if let url = clip.mediaURL, let asset = deletedAssetsCache.values.first(where: { $0.url == url }) {
+                restoreAssets([asset])
+            }
+        }
+    }
+
+    @discardableResult
+    public func undo() -> Bool {
+        if let onUndoRequested, onUndoRequested() {
+            if let last = deletedAssetsHistory.popLast() {
+                redoAssetsHistory.append(last)
+                restoreAssets(last)
+            }
+            return true
+        }
+        if let last = deletedAssetsHistory.popLast() {
+            redoAssetsHistory.append(last)
+            restoreAssets(last)
+            return true
+        }
+        return false
+    }
+
+    @discardableResult
+    public func redo() -> Bool {
+        if let onRedoRequested, onRedoRequested() {
+            if let next = redoAssetsHistory.popLast() {
+                deletedAssetsHistory.append(next)
+                let ids = Set(next.map(\.id))
+                assets.removeAll { ids.contains($0.id) }
+                for id in ids { thumbnails.removeValue(forKey: id) }
+                notifyActiveAssetChange()
+            }
+            return true
+        }
+        if let next = redoAssetsHistory.popLast() {
+            deletedAssetsHistory.append(next)
+            let ids = Set(next.map(\.id))
+            assets.removeAll { ids.contains($0.id) }
+            for id in ids { thumbnails.removeValue(forKey: id) }
+            notifyActiveAssetChange()
+            return true
+        }
+        return false
     }
 
     public func updateDragSelection(rect: CGRect, itemFrames: [UUID: CGRect]) {

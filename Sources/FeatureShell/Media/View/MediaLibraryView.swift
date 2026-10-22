@@ -41,6 +41,17 @@ public struct MediaLibraryView: View {
             viewModel.deleteSelected()
             return .handled
         }
+        .onKeyPress { press in
+            if press.key == KeyEquivalent("z") && press.modifiers == .command {
+                _ = viewModel.undo()
+                return .handled
+            }
+            if press.key == KeyEquivalent("z") && press.modifiers == [.command, .shift] {
+                _ = viewModel.redo()
+                return .handled
+            }
+            return .ignored
+        }
     }
 
     private var toolbarArea: some View {

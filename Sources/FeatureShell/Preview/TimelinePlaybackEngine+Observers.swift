@@ -4,6 +4,20 @@ import CoreMedia
 import Domain
 
 extension TimelinePlaybackEngine {
+    func setupTimeObserver() {
+        let interval = CMTime(value: 1, timescale: 30)
+        timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            Task { @MainActor [weak self] in
+                guard let self, !self.isResyncingComposition, !self.isSeeking else { return }
+                if self.isPlaybackActive && self.player.rate == 0 {
+                    self.player.play()
+                }
+                guard self.player.rate != 0 else { return }
+                self.onTimeUpdate?(time)
+            }
+        }
+    }
+
     func setupPlayerObservers() {
         rateObserver = player.observe(\.rate, options: [.new]) { [weak self] player, _ in
             Task { @MainActor [weak self] in

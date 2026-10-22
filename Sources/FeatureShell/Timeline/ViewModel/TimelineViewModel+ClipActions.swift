@@ -56,17 +56,30 @@ extension TimelineViewModel {
 
     public func removeClips(forAssetIDs assetIDs: Set<UUID>, urls: Set<URL> = []) {
         var removedIDs = Set<UUID>()
-
-        for index in 0..<layers.count {
-            layers[index].clips.removeAll { clip in
+        for layer in layers {
+            for clip in layer.clips {
                 let matchesAssetID = clip.assetID.map { assetIDs.contains($0) } ?? false
                 let matchesURL = clip.mediaURL.map { urls.contains($0) } ?? false
                 if matchesAssetID || matchesURL {
                     removedIDs.insert(clip.id)
-                    return true
                 }
-                return false
             }
+        }
+        guard !removedIDs.isEmpty else { return }
+
+        if let executor = commandExecutor, !isApplyingCommand {
+            let commands = removedIDs.map { TimelineCommand.removeClip(clipID: $0) }
+            executor.execute(commands.count == 1 ? commands[0] : .batch(commands: commands))
+            selectedClipIDs.subtract(removedIDs)
+            cleanEmptyLayers()
+            if currentTime > totalDuration { currentTime = totalDuration }
+            resetZoom()
+            onClipsDeleted?(Array(removedIDs))
+            return
+        }
+
+        for index in 0..<layers.count {
+            layers[index].clips.removeAll { removedIDs.contains($0.id) }
         }
 
         selectedClipIDs.subtract(removedIDs)
@@ -77,9 +90,7 @@ extension TimelineViewModel {
         }
         resetZoom()
 
-        if !removedIDs.isEmpty {
-            onClipsDeleted?(Array(removedIDs))
-        }
+        onClipsDeleted?(Array(removedIDs))
     }
 
     @discardableResult
