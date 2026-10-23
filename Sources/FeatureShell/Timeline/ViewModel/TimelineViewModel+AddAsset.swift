@@ -15,6 +15,11 @@ extension TimelineViewModel {
     public func addAssets(_ assets: [MediaAsset], at time: CMTime? = nil) {
         guard !assets.isEmpty else { return }
 
+        let isTimelineEmpty = !hasClips
+        if isTimelineEmpty, let visual = assets.first(where: { $0.type == .video || $0.type == .image }) {
+            autoAdjustAspectRatio(for: visual.url, type: visual.type)
+        }
+
         let proposedStart = time ?? currentTime
         let targetStart = TimeRational.snapToFrame(time: proposedStart)
 
@@ -103,5 +108,33 @@ extension TimelineViewModel {
             }
         }
         onClipsTrimmed?()
+    }
+
+    func checkAutoAdjustAspectRatio(for clip: TimelineClip) {
+        guard !hasClips, (clip.kind == .video || clip.kind == .image), let url = clip.mediaURL else { return }
+        let type: MediaType = clip.kind == .video ? .video : .image
+        autoAdjustAspectRatio(for: url, type: type)
+    }
+
+    public func autoAdjustAspectRatio(for url: URL, type: MediaType) {
+        if let size = TimelineMediaDimensionResolver.resolveDimension(for: url, type: type) {
+            let matched = CanvasAspectRatio.closest(for: size)
+            if aspectRatio != matched {
+                aspectRatio = matched
+                onAspectRatioChanged?(matched)
+            }
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if let size = await TimelineMediaDimensionResolver.resolveDimensionAsync(for: url, type: type) {
+                let matched = CanvasAspectRatio.closest(for: size)
+                if self.aspectRatio != matched {
+                    self.aspectRatio = matched
+                    self.onAspectRatioChanged?(matched)
+                }
+            }
+        }
     }
 }

@@ -22,6 +22,7 @@ public struct WindowAccessor: NSViewRepresentable {
         window.isMovableByWindowBackground = false
         window.isMovable = false
         window.styleMask.insert(.fullSizeContentView)
+        window.appearance = NSAppearance(named: .darkAqua)
 
         window.standardWindowButton(.closeButton)?.isHidden = true
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true

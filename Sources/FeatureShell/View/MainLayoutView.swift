@@ -28,6 +28,7 @@ public struct MainLayoutView: View {
         }
         .background(DSColors.windowBackground)
         .background(WindowAccessor())
+        .preferredColorScheme(.dark)
         .ignoresSafeArea()
     }
 

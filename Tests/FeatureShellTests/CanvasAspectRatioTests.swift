@@ -114,4 +114,76 @@ struct CanvasAspectRatioTests {
         #expect(shellVM.aspectRatio == .ratio9x16)
         #expect(timelineVM.aspectRatio == .ratio9x16)
     }
+
+    @Test func testNewAspectRatiosPropertiesAndClosestMatching() {
+        let r1x1 = CanvasAspectRatio.ratio1x1
+        #expect(r1x1.width == 1080 && r1x1.height == 1080 && r1x1.title == "1:1")
+        #expect(abs(r1x1.ratio - 1.0) < 0.001)
+
+        let r4x3 = CanvasAspectRatio.ratio4x3
+        #expect(r4x3.width == 1440 && r4x3.height == 1080 && r4x3.title == "4:3")
+        #expect(abs(r4x3.ratio - (4.0 / 3.0)) < 0.001)
+
+        let r3x4 = CanvasAspectRatio.ratio3x4
+        #expect(r3x4.width == 1080 && r3x4.height == 1440 && r3x4.title == "3:4")
+        #expect(abs(r3x4.ratio - (3.0 / 4.0)) < 0.001)
+
+        let r5x7 = CanvasAspectRatio.ratio5x7
+        #expect(r5x7.width == 1080 && r5x7.height == 1512 && r5x7.title == "5:7")
+        #expect(abs(r5x7.ratio - (5.0 / 7.0)) < 0.001)
+
+        let r7x5 = CanvasAspectRatio.ratio7x5
+        #expect(r7x5.width == 1512 && r7x5.height == 1080 && r7x5.title == "7:5")
+        #expect(abs(r7x5.ratio - (7.0 / 5.0)) < 0.001)
+
+        let r21x9 = CanvasAspectRatio.ratio21x9
+        #expect(r21x9.width == 2560 && r21x9.height == 1080 && r21x9.title == "21:9")
+
+        // Closest matching
+        #expect(CanvasAspectRatio.closest(for: CGSize(width: 1920, height: 1080)) == .ratio16x9)
+        #expect(CanvasAspectRatio.closest(for: CGSize(width: 3840, height: 2160)) == .ratio16x9)
+        #expect(CanvasAspectRatio.closest(for: CGSize(width: 1080, height: 1920)) == .ratio9x16)
+        #expect(CanvasAspectRatio.closest(for: CGSize(width: 720, height: 1280)) == .ratio9x16)
+        #expect(CanvasAspectRatio.closest(for: CGSize(width: 1000, height: 1000)) == .ratio1x1)
+        #expect(CanvasAspectRatio.closest(for: CGSize(width: 1200, height: 1600)) == .ratio3x4)
+        #expect(CanvasAspectRatio.closest(for: CGSize(width: 1600, height: 1200)) == .ratio4x3)
+        #expect(CanvasAspectRatio.closest(for: CGSize(width: 1000, height: 1400)) == .ratio5x7)
+        #expect(CanvasAspectRatio.closest(for: CGSize(width: 1400, height: 1000)) == .ratio7x5)
+        #expect(CanvasAspectRatio.closest(for: CGSize(width: 2560, height: 1080)) == .ratio21x9)
+    }
+
+    @Test func testAutoAspectAdjustmentOnFirstClip() {
+        let vm = TimelineViewModel(initialLayers: [])
+        #expect(vm.aspectRatio == .ratio16x9)
+
+        let verticalURL = URL(fileURLWithPath: "/tmp/sample_vertical.mp4")
+        TimelineMediaDimensionResolver.cacheDimension(CGSize(width: 1080, height: 1920), for: verticalURL)
+
+        let firstAsset = MediaAsset(url: verticalURL, type: .video)
+        vm.addAsset(firstAsset, at: .zero)
+
+        // Empty timeline automatically adopts the first clip's aspect ratio (9:16)
+        #expect(vm.aspectRatio == .ratio9x16)
+
+        // Adding a second clip with square aspect ratio does NOT alter the project's aspect ratio
+        let squareURL = URL(fileURLWithPath: "/tmp/sample_square.png")
+        TimelineMediaDimensionResolver.cacheDimension(CGSize(width: 1000, height: 1000), for: squareURL)
+
+        let secondAsset = MediaAsset(url: squareURL, type: .image)
+        vm.addAsset(secondAsset, at: CMTime(value: 6, timescale: 1))
+
+        #expect(vm.aspectRatio == .ratio9x16)
+    }
+
+    @Test func testAutoAspectAdjustmentAudioClipDoesNotChangeRatio() {
+        let vm = TimelineViewModel(initialLayers: [])
+        #expect(vm.aspectRatio == .ratio16x9)
+
+        let audioURL = URL(fileURLWithPath: "/tmp/sample_audio.mp3")
+        let audioAsset = MediaAsset(url: audioURL, type: .audio)
+        vm.addAsset(audioAsset, at: .zero)
+
+        // Audio has no visual dimension, timeline remains default 16:9
+        #expect(vm.aspectRatio == .ratio16x9)
+    }
 }

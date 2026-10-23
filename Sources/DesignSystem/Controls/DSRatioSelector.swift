@@ -6,6 +6,7 @@ public struct DSRatioSelector: View {
     private let selectedTitle: String
     private let options: [String]
     private let onSelect: (String) -> Void
+    @State private var isHovered = false
 
     public init(
         selectedTitle: String,
@@ -29,28 +30,32 @@ public struct DSRatioSelector: View {
                 }
             }
         } label: {
-            HStack(spacing: DSSpacing.xs) {
+            HStack(spacing: 6) {
                 Image(systemName: "aspectratio")
-                    .font(.system(size: 11, weight: .regular))
-                    .foregroundStyle(DSColors.textSecondary)
-                Text(selectedTitle)
-                    .font(.system(size: 11, weight: .medium))
+                    .renderingMode(.template)
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(DSColors.textPrimary)
+                Text(selectedTitle)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
+                    .renderingMode(.template)
+                    .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(DSColors.textSecondary)
             }
-            .padding(.horizontal, DSSpacing.sm)
-            .padding(.vertical, DSSpacing.xs)
-            .background(DSColors.inputBackground)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(isHovered ? Color.white.opacity(0.14) : Color.white.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
             .overlay(
                 RoundedRectangle(cornerRadius: DSRadius.small)
-                    .stroke(DSColors.inputBorder, lineWidth: 1)
+                    .stroke(isHovered ? Color.white.opacity(0.25) : Color.white.opacity(0.12), lineWidth: 1)
             )
-            .contentShape(RoundedRectangle(cornerRadius: DSRadius.small))
+            .contentShape(Rectangle())
         }
-        .menuStyle(.borderlessButton)
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .preferredColorScheme(.dark)
         .fixedSize()
     }
 }

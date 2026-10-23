@@ -35,6 +35,10 @@ public final class TimelineViewModel {
     public var aspectRatio: CanvasAspectRatio = .ratio16x9
     public var onAspectRatioChanged: ((CanvasAspectRatio) -> Void)?
 
+    public var hasClips: Bool {
+        layers.contains(where: { !$0.clips.isEmpty })
+    }
+
     public var selectedClipID: UUID? {
         get { selectedClipIDs.first }
         set {
@@ -141,6 +145,7 @@ public final class TimelineViewModel {
     }
 
     public func addClip(_ clip: TimelineClip, to targetLayerID: UUID? = nil) {
+        checkAutoAdjustAspectRatio(for: clip)
         if let targetLayerID,
            let index = layers.firstIndex(where: { $0.id == targetLayerID && $0.kind == clip.kind && !$0.isLocked && !$0.isHidden }),
            layers[index].appendClip(clip) {
