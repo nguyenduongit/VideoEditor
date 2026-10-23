@@ -162,4 +162,13 @@ struct TimelineVerticalScrollTests {
         #expect(totalContentWidth == 384)
         #expect(totalContentWidth + DSSize.timelineBottomBuffer == DSSize.sidebarWidth)
     }
+
+    @Test("DSContentHeightPreferenceKey reduces max height accurately")
+    func testDSContentHeightPreferenceKey() {
+        var value: CGFloat = 100
+        DSContentHeightPreferenceKey.reduce(value: &value, nextValue: { 250 })
+        #expect(value == 250)
+        DSContentHeightPreferenceKey.reduce(value: &value, nextValue: { 150 })
+        #expect(value == 250)
+    }
 }

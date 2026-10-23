@@ -55,6 +55,14 @@ public struct DSVerticalScrollView<Content: View>: View {
             content
                 .frame(width: width)
                 .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: DSContentHeightPreferenceKey.self,
+                            value: geo.size.height
+                        )
+                    }
+                )
+                .background(
                     DSVerticalScrollViewAnchor(
                         onScrollViewFound: { sv in
                             enclosingScrollView = sv
@@ -62,7 +70,9 @@ public struct DSVerticalScrollView<Content: View>: View {
                         },
                         onMetricsChanged: { offset, cHeight, vHeight in
                             scrollOffset = offset
-                            contentHeight = cHeight
+                            if cHeight > 0 {
+                                contentHeight = max(contentHeight, cHeight)
+                            }
                             viewportHeight = vHeight > 0 ? vHeight : availableH
                         }
                     )
@@ -70,6 +80,17 @@ public struct DSVerticalScrollView<Content: View>: View {
         }
         .frame(width: width, height: availableH)
         .clipped()
+        .onPreferenceChange(DSContentHeightPreferenceKey.self) { newHeight in
+            if newHeight > 0 {
+                contentHeight = newHeight
+                if enclosingScrollView != nil {
+                    let maxScroll = max(0, newHeight - viewportHeight)
+                    if scrollOffset > maxScroll {
+                        scrollTo(targetY: maxScroll)
+                    }
+                }
+            }
+        }
     }
 
     private func scrollBarView(width: CGFloat, availableH: CGFloat) -> some View {
@@ -150,6 +171,10 @@ public final class DSVerticalScrollViewAnchorNSView: NSView {
         onScrollViewFound?(sv)
         setupObservers(for: sv)
         sendMetrics(from: sv)
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let sv = self.enclosingScrollView else { return }
+            self.sendMetrics(from: sv)
+        }
     }
 
     private func setupObservers(for sv: NSScrollView) {
@@ -199,3 +224,14 @@ public final class DSVerticalScrollViewAnchorNSView: NSView {
         }
     }
 }
+
+public struct DSContentHeightPreferenceKey: PreferenceKey {
+    public static let defaultValue: CGFloat = 0
+    public static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        let next = nextValue()
+        if next > 0 {
+            value = max(value, next)
+        }
+    }
+}
+
