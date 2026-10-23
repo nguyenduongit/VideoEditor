@@ -14,19 +14,31 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
         public let opacity: Float
         public let maskParameters: TimelineMaskParameters?
         public let gridConfig: GridConfiguration?
+        public let autoPanConfig: AutoPanConfiguration?
+        public let clipTimeRange: CMTimeRange?
+        public let naturalSize: CGSize
+        public let finalScale: Double
 
         public init(
             trackID: CMPersistentTrackID,
             transform: CGAffineTransform,
             opacity: Float,
             maskParameters: TimelineMaskParameters?,
-            gridConfig: GridConfiguration? = nil
+            gridConfig: GridConfiguration? = nil,
+            autoPanConfig: AutoPanConfiguration? = nil,
+            clipTimeRange: CMTimeRange? = nil,
+            naturalSize: CGSize = .zero,
+            finalScale: Double = 1.0
         ) {
             self.trackID = trackID
             self.transform = transform
             self.opacity = opacity
             self.maskParameters = maskParameters
             self.gridConfig = gridConfig
+            self.autoPanConfig = autoPanConfig
+            self.clipTimeRange = clipTimeRange
+            self.naturalSize = naturalSize
+            self.finalScale = finalScale
         }
     }
 

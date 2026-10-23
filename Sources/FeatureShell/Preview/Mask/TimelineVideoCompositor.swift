@@ -2,6 +2,7 @@ import Foundation
 @preconcurrency import AVFoundation
 import CoreImage
 import CoreVideo
+import Domain
 import os
 
 /// Custom video compositor that performs GPU-accelerated layer blending and masking.
@@ -57,6 +58,22 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
 
             var frameImage = CIImage(cvPixelBuffer: srcBuffer)
             frameImage = frameImage.transformed(by: ciTransform)
+
+            if let autoPan = info.autoPanConfig, autoPan.isEnabled, !autoPan.keyframes.isEmpty,
+               let clipRange = info.clipTimeRange {
+                let compTime = asyncVideoCompositionRequest.compositionTime
+                let localTime = CMTimeSubtract(compTime, clipRange.start).seconds
+                let panOffset = AutoPanEngine.panOffset(
+                    at: localTime,
+                    config: autoPan,
+                    videoWidth: Double(info.naturalSize.width),
+                    scale: info.finalScale,
+                    canvasWidth: Double(canvasSize.width)
+                )
+                if abs(panOffset) > 0.001 {
+                    frameImage = frameImage.transformed(by: CGAffineTransform(translationX: CGFloat(panOffset), y: 0.0))
+                }
+            }
 
             if info.opacity < 1.0 {
                 let alphaVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(max(0.0, info.opacity)))

@@ -49,6 +49,7 @@ public final class TimelineViewModel {
     public let thumbnailService: (any TimelineThumbnailServiceProtocol)?
     public let waveformService: (any AudioWaveformServiceProtocol)?
     public let audioAlignmentService: (any AudioAlignmentServiceProtocol)?
+    public let subjectTrackingService: (any SubjectTrackingServiceProtocol)?
     public var isSyncingAudio: Bool = false
     public var onAudioSyncResult: ((Bool, String) -> Void)?
     public var commandExecutor: TimelineCommandExecutor? {
@@ -92,6 +93,23 @@ public final class TimelineViewModel {
         self.thumbnailService = thumbnailService
         self.waveformService = waveformService
         self.audioAlignmentService = audioAlignmentService
+        self.subjectTrackingService = nil
+        self.layers = initialLayers ?? []
+        self.commandExecutor = TimelineCommandExecutor(viewModel: self)
+        updateUndoRedoState()
+    }
+
+    public init(
+        thumbnailService: (any TimelineThumbnailServiceProtocol)? = nil,
+        waveformService: (any AudioWaveformServiceProtocol)? = nil,
+        audioAlignmentService: (any AudioAlignmentServiceProtocol)? = nil,
+        subjectTrackingService: (any SubjectTrackingServiceProtocol)? = nil,
+        initialLayers: [TimelineLayer]? = nil
+    ) {
+        self.thumbnailService = thumbnailService
+        self.waveformService = waveformService
+        self.audioAlignmentService = audioAlignmentService
+        self.subjectTrackingService = subjectTrackingService
         self.layers = initialLayers ?? []
         self.commandExecutor = TimelineCommandExecutor(viewModel: self)
         updateUndoRedoState()

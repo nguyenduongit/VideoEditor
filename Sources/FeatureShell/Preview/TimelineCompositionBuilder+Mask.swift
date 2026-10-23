@@ -10,9 +10,19 @@ extension TimelineCompositionBuilder {
     static func hasActiveMask(in layers: [TimelineLayer]) -> Bool {
         layers.contains { layer in
             !layer.isHidden && layer.kind == .video && layer.clips.contains { clip in
-                TimelineMaskParameters.extract(from: clip.properties).isMaskActive || hasActiveGrid(in: clip)
+                TimelineMaskParameters.extract(from: clip.properties).isMaskActive
+                    || hasActiveGrid(in: clip)
+                    || hasActiveAutoPan(in: clip)
             }
         }
+    }
+
+    private static func hasActiveAutoPan(in clip: TimelineClip) -> Bool {
+        guard let configStr = clip.properties["autoPanConfig"]?.asString,
+              let config = AutoPanConfiguration.decode(from: configStr) else {
+            return false
+        }
+        return config.isEnabled && !config.keyframes.isEmpty
     }
 
     private static func hasActiveGrid(in clip: TimelineClip) -> Bool {
@@ -85,13 +95,27 @@ extension TimelineCompositionBuilder {
                 let gridConfig = clip.properties["gridConfig"]?.asString.flatMap {
                     GridConfiguration.decode(from: $0)
                 }
+                let autoPanConfig = clip.properties["autoPanConfig"]?.asString.flatMap {
+                    AutoPanConfiguration.decode(from: $0)
+                }
+                let oriented = meta.naturalSize.applying(meta.transform)
+                let srcW = max(1.0, abs(oriented.width))
+                let srcH = max(1.0, abs(oriented.height))
+                let baseScale = min(canvasSize.width / srcW, canvasSize.height / srcH)
+                let userScale = clip.properties["scale"]?.asNumber ?? 1.0
+                let finalScale = max(0.01, baseScale * userScale)
+
                 layerInfos.append(
                     TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
                         trackID: trackID,
                         transform: computed.transform,
                         opacity: computed.opacity,
                         maskParameters: maskParams,
-                        gridConfig: (gridConfig?.isDefault == false) ? gridConfig : nil
+                        gridConfig: (gridConfig?.isDefault == false) ? gridConfig : nil,
+                        autoPanConfig: autoPanConfig,
+                        clipTimeRange: clip.timeRange,
+                        naturalSize: CGSize(width: srcW, height: srcH),
+                        finalScale: finalScale
                     )
                 )
             }

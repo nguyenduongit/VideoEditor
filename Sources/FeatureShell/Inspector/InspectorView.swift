@@ -42,6 +42,11 @@ public struct InspectorView: View {
                         .padding(.leading, DSSize.inspectorContentPadding)
                         .padding(.trailing, DSSpacing.md)
                         .padding(.vertical, DSSpacing.md)
+                } else if viewModel.effectiveTab == "AI" {
+                    AIInspectorView(viewModel: viewModel)
+                        .padding(.leading, DSSize.inspectorContentPadding)
+                        .padding(.trailing, DSSpacing.md)
+                        .padding(.vertical, DSSpacing.md)
                 } else {
                     propertyGroupsList
                         .padding(.leading, DSSize.inspectorContentPadding)

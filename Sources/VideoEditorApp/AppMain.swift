@@ -23,6 +23,7 @@ struct VideoEditorApp: App {
         let timelineThumbnailService = TimelineThumbnailService()
         let audioWaveformService = AudioWaveformService()
         let audioAlignmentService = AudioAlignmentService()
+        let subjectTrackingService = VisionSubjectTrackingService()
         let mediaViewModel = MediaLibraryViewModel(
             thumbnailService: thumbnailService,
             waveformService: audioWaveformService
@@ -30,7 +31,8 @@ struct VideoEditorApp: App {
         let timelineViewModel = TimelineViewModel(
             thumbnailService: timelineThumbnailService,
             waveformService: audioWaveformService,
-            audioAlignmentService: audioAlignmentService
+            audioAlignmentService: audioAlignmentService,
+            subjectTrackingService: subjectTrackingService
         )
         let shellViewModel = ShellViewModel(
             registry: registry,

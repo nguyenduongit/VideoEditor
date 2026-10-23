@@ -2,7 +2,7 @@ import Foundation
 
 extension ClipPropertyRegistry {
     func registerBuiltInDescriptors() {
-        register(descriptors: videoDescriptors, for: .video, tabs: ["Video", "Grid", "Mask"])
+        register(descriptors: videoDescriptors, for: .video, tabs: ["Video", "Grid", "Mask", "AI"])
         register(descriptors: imageDescriptors, for: .image)
         register(descriptors: audioDescriptors, for: .audio)
         register(descriptors: textDescriptors, for: .text)
@@ -14,6 +14,7 @@ extension ClipPropertyRegistry {
             + speedGroupDescriptors(tab: "Video")
             + audioGroupDescriptors(tab: "Video")
             + maskGroupDescriptors(tab: "Mask")
+            + autoPanGroupDescriptors(tab: "AI")
     }
 
     var imageDescriptors: [PropertyDescriptor] {

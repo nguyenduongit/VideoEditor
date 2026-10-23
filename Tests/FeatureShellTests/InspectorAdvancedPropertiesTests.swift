@@ -7,11 +7,11 @@ import CoreMedia
 @Suite("InspectorAdvancedPropertiesTests")
 @MainActor
 struct InspectorAdvancedPropertiesTests {
-    @Test("Video clip provides tabs: Video, Grid, Mask")
+    @Test("Video clip provides tabs: Video, Grid, Mask, AI")
     func testVideoClipTabs() {
         let registry = ClipPropertyRegistry.shared
         let tabs = registry.tabs(for: .video)
-        #expect(tabs == ["Video", "Grid", "Mask"])
+        #expect(tabs == ["Video", "Grid", "Mask", "AI"])
 
         let videoTabDesc = registry.descriptors(for: .video, tab: "Video")
         #expect(videoTabDesc.contains { $0.id == "scale" })
@@ -26,6 +26,10 @@ struct InspectorAdvancedPropertiesTests {
 
         let maskTabDesc = registry.descriptors(for: .video, tab: "Mask")
         #expect(maskTabDesc.contains { $0.id == "maskType" })
+
+        let aiTabDesc = registry.descriptors(for: .video, tab: "AI")
+        #expect(aiTabDesc.contains { $0.id == "autoPanEnabled" })
+        #expect(aiTabDesc.contains { $0.id == "autoPanSmoothness" })
     }
 
     @Test("InspectorViewModel tab switching filters grouped descriptors")
@@ -43,7 +47,7 @@ struct InspectorAdvancedPropertiesTests {
         let inspectorVM = InspectorViewModel(timelineViewModel: vm)
         inspectorVM.syncWithSelection()
 
-        #expect(inspectorVM.availableTabs == ["Video", "Grid", "Mask"])
+        #expect(inspectorVM.availableTabs == ["Video", "Grid", "Mask", "AI"])
 
         // Default tab is Video (contains Transform, Speed, and Audio groups)
         inspectorVM.selectedTab = "Video"
