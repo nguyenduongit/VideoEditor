@@ -7,6 +7,7 @@ public struct DSPositionControl: View {
     @Binding private var xValue: Double
     @Binding private var yValue: Double
     private let step: Double
+    private let isXDisabled: Bool
     private let onEditingChanged: ((Bool) -> Void)?
 
     public init(
@@ -14,12 +15,14 @@ public struct DSPositionControl: View {
         xValue: Binding<Double>,
         yValue: Binding<Double>,
         step: Double = 1.0,
+        isXDisabled: Bool = false,
         onEditingChanged: ((Bool) -> Void)? = nil
     ) {
         self.title = title
         self._xValue = xValue
         self._yValue = yValue
         self.step = step
+        self.isXDisabled = isXDisabled
         self.onEditingChanged = onEditingChanged
     }
 
@@ -38,6 +41,8 @@ public struct DSPositionControl: View {
                 prefix: "X",
                 onEditingChanged: onEditingChanged
             )
+            .disabled(isXDisabled)
+            .opacity(isXDisabled ? 0.45 : 1.0)
             .frame(width: DSSize.inspectorColumnWidth)
 
             // Y block in Column 3

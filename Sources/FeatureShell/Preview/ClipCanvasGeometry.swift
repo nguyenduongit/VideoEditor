@@ -52,11 +52,17 @@ public struct ClipCanvasGeometry: Sendable {
         let clipW = srcW * finalScale
         let clipH = srcH * finalScale
 
+        let autoPan = clip.properties["autoPanConfig"]?.asString.flatMap {
+            AutoPanConfiguration.decode(from: $0)
+        }
+        let isAutoPanActive = autoPan?.isEnabled == true && autoPan?.keyframes.isEmpty == false
+        let effectivePosX = isAutoPanActive ? 0.0 : userPosX
+
         return ClipCanvasGeometry(
-            center: CGPoint(x: userPosX, y: userPosY),
+            center: CGPoint(x: effectivePosX, y: userPosY),
             size: CGSize(width: clipW, height: clipH),
             rotationDegrees: userRotation,
-            positionX: userPosX,
+            positionX: effectivePosX,
             positionY: userPosY
         )
     }

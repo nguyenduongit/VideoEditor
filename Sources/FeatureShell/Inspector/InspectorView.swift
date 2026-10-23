@@ -167,8 +167,9 @@ public struct InspectorView: View {
     }
 
     private func positionRow(desc: PropertyDescriptor, xID: String, yID: String, step: Double) -> some View {
+        let isAutoPanActive = viewModel.isAutoPanActive && (xID == "positionX")
         let xBinding = Binding<Double>(
-            get: { viewModel.liveNumber(for: xID, default: 0.0) },
+            get: { isAutoPanActive ? 0.0 : viewModel.liveNumber(for: xID, default: 0.0) },
             set: { viewModel.updateLiveValue(key: xID, value: $0) }
         )
         let yBinding = Binding<Double>(
@@ -180,6 +181,7 @@ public struct InspectorView: View {
             xValue: xBinding,
             yValue: yBinding,
             step: step,
+            isXDisabled: isAutoPanActive,
             onEditingChanged: { isEditing in
                 viewModel.onSliderEditingChanged(key: desc.id, isEditing: isEditing)
             }

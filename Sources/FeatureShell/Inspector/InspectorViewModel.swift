@@ -45,6 +45,14 @@ public final class InspectorViewModel {
         return tabs.first ?? "General"
     }
 
+    public var isAutoPanActive: Bool {
+        guard let str = liveProperties["autoPanConfig"]?.asString ?? selectedClip?.properties["autoPanConfig"]?.asString,
+              let config = AutoPanConfiguration.decode(from: str) else {
+            return false
+        }
+        return config.isEnabled && !config.keyframes.isEmpty
+    }
+
     public var descriptors: [PropertyDescriptor] {
         guard let clip = selectedClip else { return [] }
         return ClipPropertyRegistry.shared.descriptors(for: clip.kind)

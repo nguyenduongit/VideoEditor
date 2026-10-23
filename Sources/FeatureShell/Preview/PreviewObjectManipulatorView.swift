@@ -140,7 +140,13 @@ public struct PreviewObjectManipulatorView: View {
         let newX = dragInitialPosX + dx
         let newY = dragInitialPosY + dy
 
-        inspectorViewModel.updateLiveValue(key: "positionX", value: (newX * 10.0).rounded() / 10.0)
+        let isAutoPanActive = inspectorViewModel.selectedClip?.properties["autoPanConfig"]?.asString.flatMap {
+            AutoPanConfiguration.decode(from: $0)
+        }?.isEnabled == true
+
+        if !isAutoPanActive {
+            inspectorViewModel.updateLiveValue(key: "positionX", value: (newX * 10.0).rounded() / 10.0)
+        }
         inspectorViewModel.updateLiveValue(key: "positionY", value: (newY * 10.0).rounded() / 10.0)
     }
 

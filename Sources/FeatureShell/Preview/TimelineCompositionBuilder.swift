@@ -210,7 +210,8 @@ struct TimelineCompositionBuilder {
         let userRotation = clip.properties["rotation"]?.asNumber ?? 0.0
         let userOpacity = clip.properties["opacity"]?.asNumber ?? 1.0
 
-        let dx = (canvasSize.width - srcW * finalScale) / 2.0 + userPosX
+        let effectivePosX = isAutoPanActive ? 0.0 : userPosX
+        let dx = (canvasSize.width - srcW * finalScale) / 2.0 + effectivePosX
         let dy = (canvasSize.height - srcH * finalScale) / 2.0 + userPosY
 
         var finalTransform = transform
@@ -219,7 +220,7 @@ struct TimelineCompositionBuilder {
 
         if userRotation != 0.0 {
             let radians = userRotation * .pi / 180.0
-            let cx = canvasSize.width / 2.0 + userPosX
+            let cx = canvasSize.width / 2.0 + effectivePosX
             let cy = canvasSize.height / 2.0 + userPosY
             let rot = CGAffineTransform(translationX: cx, y: cy)
                 .rotated(by: radians)

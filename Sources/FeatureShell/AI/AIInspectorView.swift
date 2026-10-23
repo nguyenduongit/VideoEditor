@@ -138,7 +138,7 @@ public struct AIInspectorView: View {
     }
 
     private var descriptionNote: some View {
-        Text("Auto Pan tự động áp dụng Aspect Fill và lia khung hình để nhân vật chính luôn ở giữa theo trục dọc. Camera chỉ pan trong phạm vi video, tự động dừng lại khi chạm biên để không xuất hiện viền đen. Bạn có thể điều chỉnh thêm Tỉ lệ (Scale) ở tab Video.")
+        Text("Auto Pan tự động căn giữa nhân vật theo trục dọc (Vị trí X do AI bám sát và điều khiển tự động). Camera chỉ pan trong phạm vi video, tự động dừng lại khi chạm biên để không xuất hiện viền đen. Bạn có thể điều chỉnh thêm Tỉ lệ (Scale) và vị trí Y ở tab Video.")
             .font(.system(size: 11))
             .foregroundStyle(DSColors.textSecondary)
             .lineSpacing(2)
