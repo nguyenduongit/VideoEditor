@@ -8,20 +8,30 @@ import DesignSystem
 public struct AIInspectorView: View {
     @Bindable var viewModel: InspectorViewModel
 
-    @State private var isAnalyzing: Bool = false
-    @State private var analysisProgress: Double = 0.0
-    @State private var errorMessage: String? = nil
-
     public init(viewModel: InspectorViewModel) {
         self.viewModel = viewModel
     }
 
+    private var isAnalyzing: Bool {
+        guard let clip = viewModel.selectedClip else { return false }
+        return viewModel.timelineViewModel?.isTrackingSubject(for: clip.id) ?? false
+    }
+
+    private var analysisProgress: Double {
+        guard let clip = viewModel.selectedClip else { return 0.0 }
+        return viewModel.timelineViewModel?.trackingProgress(for: clip.id) ?? 0.0
+    }
+
     private var autoPanConfig: AutoPanConfiguration {
-        guard let str = viewModel.liveProperties["autoPanConfig"]?.asString,
-              let config = AutoPanConfiguration.decode(from: str) else {
-            return .default
+        if let live = viewModel.liveProperties["autoPanConfig"]?.asString,
+           let config = AutoPanConfiguration.decode(from: live) {
+            return config
         }
-        return config
+        if let prop = viewModel.selectedClip?.properties["autoPanConfig"]?.asString,
+           let config = AutoPanConfiguration.decode(from: prop) {
+            return config
+        }
+        return .default
     }
 
     public var body: some View {
@@ -39,6 +49,9 @@ public struct AIInspectorView: View {
                     descriptionNote
                 }
             }
+        }
+        .onChange(of: viewModel.selectedClip?.properties["autoPanConfig"]) {
+            viewModel.syncWithSelection()
         }
     }
 
@@ -149,51 +162,10 @@ public struct AIInspectorView: View {
     }
 
     private func startAnalysis() {
-        guard let clip = viewModel.selectedClip, let url = clip.mediaURL else { return }
-        guard let trackingService = viewModel.timelineViewModel?.subjectTrackingService else { return }
-
-        isAnalyzing = true
-        analysisProgress = 0.0
-
-        let speed = max(0.01, clip.properties["speed"]?.asNumber ?? 1.0)
-        let sourceDuration = CMTimeMultiplyByFloat64(clip.timeRange.duration, multiplier: speed)
-        let mediaRange = CMTimeRange(start: clip.sourceStartTime, duration: sourceDuration)
-
-        Task {
-            do {
-                let rawKeyframes = try await trackingService.trackSubject(
-                    in: url,
-                    timeRange: mediaRange,
-                    samplesPerSecond: 1.5,
-                    smoothness: autoPanConfig.smoothness,
-                    onProgress: { progress in
-                        Task { @MainActor in
-                            analysisProgress = progress
-                        }
-                    }
-                )
-                let keyframes = rawKeyframes.map { kf in
-                    AutoPanKeyframe(
-                        timeSeconds: speed == 1.0 ? kf.timeSeconds : (kf.timeSeconds / speed),
-                        normalizedX: kf.normalizedX,
-                        confidence: kf.confidence
-                    )
-                }
-                await MainActor.run {
-                    var updated = autoPanConfig
-                    updated.isEnabled = true
-                    if updated.zoom < 1.05 {
-                        updated.zoom = 1.25
-                    }
-                    updated.keyframes = keyframes
-                    commitConfig(updated)
-                    isAnalyzing = false
-                }
-            } catch {
-                await MainActor.run {
-                    isAnalyzing = false
-                }
-            }
-        }
+        guard let clip = viewModel.selectedClip else { return }
+        viewModel.timelineViewModel?.startSubjectTracking(
+            for: clip.id,
+            smoothness: autoPanConfig.smoothness
+        )
     }
 }

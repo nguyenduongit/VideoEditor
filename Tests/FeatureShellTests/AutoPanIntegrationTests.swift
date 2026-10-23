@@ -103,4 +103,79 @@ struct AutoPanIntegrationTests {
         let redoneClip = vm.clip(by: clip.id)
         #expect(redoneClip?.properties["autoPanConfig"]?.asString != nil)
     }
+
+    @Test("Background subject tracking survives tab switch and updates clip on completion")
+    func testBackgroundSubjectTrackingSurvivesTabSwitch() async throws {
+        let expectedKeyframes = [
+            AutoPanKeyframe(timeSeconds: 0.0, normalizedX: 0.4),
+            AutoPanKeyframe(timeSeconds: 2.0, normalizedX: 0.6)
+        ]
+        let mockService = MockSubjectTrackingService(keyframes: expectedKeyframes)
+        let vm = TimelineViewModel(
+            subjectTrackingService: mockService,
+            initialLayers: []
+        )
+        let asset = MediaAsset(url: URL(fileURLWithPath: "/tmp/sample_background.mp4"), type: .video)
+        vm.addAsset(asset, at: CMTime.zero)
+
+        guard let clip = vm.layers.first?.clips.first else {
+            Issue.record("Clip not found")
+            return
+        }
+
+        vm.selectClip(clip.id)
+        let inspectorVM = InspectorViewModel(timelineViewModel: vm)
+        inspectorVM.syncWithSelection()
+        inspectorVM.selectedTab = "AI"
+
+        // 1. Start tracking
+        vm.startSubjectTracking(for: clip.id, smoothness: 0.5)
+        #expect(vm.isTrackingSubject(for: clip.id) == true)
+
+        // 2. Simulate user switching to "Video" tab or other tabs while tracking is in progress
+        inspectorVM.selectedTab = "Video"
+        #expect(inspectorVM.selectedTab == "Video")
+        #expect(vm.isTrackingSubject(for: clip.id) == true)
+
+        // 3. Wait for background task to complete
+        for _ in 0..<50 {
+            if !vm.isTrackingSubject(for: clip.id) { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        #expect(vm.isTrackingSubject(for: clip.id) == false)
+        let completedClip = vm.clip(by: clip.id)
+        let configStr = completedClip?.properties["autoPanConfig"]?.asString
+        #expect(configStr != nil)
+
+        let decoded = configStr.flatMap { AutoPanConfiguration.decode(from: $0) }
+        #expect(decoded?.isEnabled == true)
+        #expect(decoded?.keyframes.count == 2)
+
+        // 4. Switch back to "AI" tab and sync
+        inspectorVM.selectedTab = "AI"
+        inspectorVM.syncWithSelection()
+        let liveConfig = inspectorVM.liveProperties["autoPanConfig"]?.asString.flatMap {
+            AutoPanConfiguration.decode(from: $0)
+        }
+        #expect(liveConfig?.isEnabled == true)
+        #expect(liveConfig?.keyframes.count == 2)
+    }
+}
+
+private struct MockSubjectTrackingService: SubjectTrackingServiceProtocol {
+    let keyframes: [AutoPanKeyframe]
+
+    func trackSubject(
+        in mediaURL: URL,
+        timeRange: CMTimeRange,
+        samplesPerSecond: Double,
+        smoothness: Double,
+        onProgress: (@Sendable (Double) -> Void)?
+    ) async throws -> [AutoPanKeyframe] {
+        onProgress?(0.5)
+        try await Task.sleep(nanoseconds: 20_000_000)
+        onProgress?(1.0)
+        return keyframes
+    }
 }
