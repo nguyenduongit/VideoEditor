@@ -82,6 +82,37 @@ struct AutoPanEngineTests {
         #expect(abs(AutoPanEngine.interpolatedNormalizedX(at: 5.0, keyframes: keyframes) - 0.8) < 0.001)
     }
 
+    @Test("catmullRom interpolation yields smooth curve with continuous velocity")
+    func testCatmullRomSpline() {
+        // Points: p0=0.2, p1=0.4, p2=0.6, p3=0.8
+        let v0 = AutoPanEngine.catmullRom(p0: 0.2, p1: 0.4, p2: 0.6, p3: 0.8, t: 0.0)
+        #expect(abs(v0 - 0.4) < 0.001)
+
+        let v1 = AutoPanEngine.catmullRom(p0: 0.2, p1: 0.4, p2: 0.6, p3: 0.8, t: 1.0)
+        #expect(abs(v1 - 0.6) < 0.001)
+
+        let vMid = AutoPanEngine.catmullRom(p0: 0.2, p1: 0.4, p2: 0.6, p3: 0.8, t: 0.5)
+        #expect(abs(vMid - 0.5) < 0.001)
+    }
+
+    @Test("smoothKeyframesGaussian dampens alternating jitter noise across passes")
+    func testGaussianSmoothing() {
+        // High frequency jitter: 0.3, 0.7, 0.3, 0.7
+        let noisy = [
+            AutoPanKeyframe(timeSeconds: 0.0, normalizedX: 0.3),
+            AutoPanKeyframe(timeSeconds: 1.0, normalizedX: 0.7),
+            AutoPanKeyframe(timeSeconds: 2.0, normalizedX: 0.3),
+            AutoPanKeyframe(timeSeconds: 3.0, normalizedX: 0.7)
+        ]
+
+        let smoothed = AutoPanEngine.smoothKeyframesGaussian(noisy, passes: 2)
+        #expect(smoothed.count == 4)
+
+        // After 2 passes of Gaussian 1-2-1 filter, internal values are significantly dampened towards 0.5
+        #expect(smoothed[1].normalizedX < 0.65)
+        #expect(smoothed[2].normalizedX > 0.35)
+    }
+
     @Test("AutoPanConfiguration JSON serialization and deserialization roundtrip")
     func testConfigurationSerialization() {
         let keyframes = [

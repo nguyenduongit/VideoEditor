@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreMedia
 import Domain
 import DesignSystem
 
@@ -50,7 +51,7 @@ public struct AIInspectorView: View {
                 commitConfig(updated)
             }
         )
-        return DSToggleRow(title: "Bật Auto Pan", isOn: binding)
+        return DSToggleRow(title: "Auto Pan", isOn: binding)
     }
 
     @ViewBuilder
@@ -154,12 +155,16 @@ public struct AIInspectorView: View {
         isAnalyzing = true
         analysisProgress = 0.0
 
+        let speed = max(0.01, clip.properties["speed"]?.asNumber ?? 1.0)
+        let sourceDuration = CMTimeMultiplyByFloat64(clip.timeRange.duration, multiplier: speed)
+        let mediaRange = CMTimeRange(start: clip.sourceStartTime, duration: sourceDuration)
+
         Task {
             do {
-                let keyframes = try await trackingService.trackSubject(
+                let rawKeyframes = try await trackingService.trackSubject(
                     in: url,
-                    timeRange: clip.timeRange,
-                    samplesPerSecond: 2.0,
+                    timeRange: mediaRange,
+                    samplesPerSecond: 4.0,
                     smoothness: autoPanConfig.smoothness,
                     onProgress: { progress in
                         Task { @MainActor in
@@ -167,6 +172,13 @@ public struct AIInspectorView: View {
                         }
                     }
                 )
+                let keyframes = rawKeyframes.map { kf in
+                    AutoPanKeyframe(
+                        timeSeconds: speed == 1.0 ? kf.timeSeconds : (kf.timeSeconds / speed),
+                        normalizedX: kf.normalizedX,
+                        confidence: kf.confidence
+                    )
+                }
                 await MainActor.run {
                     var updated = autoPanConfig
                     updated.isEnabled = true

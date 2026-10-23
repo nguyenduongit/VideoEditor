@@ -44,7 +44,8 @@ public enum AutoPanEngine {
         return clampPanOffset(rawPan, videoWidth: videoWidth, scale: scale, canvasWidth: canvasWidth)
     }
 
-    /// Interpolates normalized X of subject at a given time from keyframes using smooth hermite interpolation.
+    /// Interpolates normalized X of subject at a given time from keyframes using Catmull-Rom Spline.
+    /// Catmull-Rom guarantees C1 continuity (continuous velocity) without abrupt acceleration or deceleration.
     public static func interpolatedNormalizedX(
         at timeSeconds: Double,
         keyframes: [AutoPanKeyframe]
@@ -52,26 +53,69 @@ public enum AutoPanEngine {
         guard !keyframes.isEmpty else { return 0.5 }
         if keyframes.count == 1 { return keyframes[0].normalizedX }
 
-        if timeSeconds <= keyframes[0].timeSeconds {
-            return keyframes[0].normalizedX
-        }
-        guard let last = keyframes.last else { return 0.5 }
-        if timeSeconds >= last.timeSeconds {
-            return last.normalizedX
-        }
+        let count = keyframes.count
+        if timeSeconds <= keyframes[0].timeSeconds { return keyframes[0].normalizedX }
+        if timeSeconds >= keyframes[count - 1].timeSeconds { return keyframes[count - 1].normalizedX }
 
-        for i in 0..<(keyframes.count - 1) {
-            let k0 = keyframes[i]
-            let k1 = keyframes[i + 1]
-            if timeSeconds >= k0.timeSeconds && timeSeconds <= k1.timeSeconds {
-                let dt = k1.timeSeconds - k0.timeSeconds
-                guard dt > 0.0001 else { return k0.normalizedX }
-                let progress = (timeSeconds - k0.timeSeconds) / dt
-                let t = progress * progress * (3.0 - 2.0 * progress)
-                return k0.normalizedX + t * (k1.normalizedX - k0.normalizedX)
+        var idx = 0
+        for i in 0..<(count - 1) {
+            if keyframes[i].timeSeconds <= timeSeconds && timeSeconds <= keyframes[i + 1].timeSeconds {
+                idx = i
+                break
             }
         }
-        return 0.5
+
+        let t1 = keyframes[idx].timeSeconds
+        let t2 = keyframes[idx + 1].timeSeconds
+        let timeRange = t2 - t1
+        guard timeRange > 0.0001 else { return keyframes[idx].normalizedX }
+
+        let t = (timeSeconds - t1) / timeRange
+
+        let p0 = keyframes[max(0, idx - 1)].normalizedX
+        let p1 = keyframes[idx].normalizedX
+        let p2 = keyframes[idx + 1].normalizedX
+        let p3 = keyframes[min(count - 1, idx + 2)].normalizedX
+
+        let interpX = catmullRom(p0: p0, p1: p1, p2: p2, p3: p3, t: t)
+        return max(0.0, min(1.0, interpX))
+    }
+
+    /// Catmull-Rom spline interpolation formula ensuring continuous first-derivative velocity.
+    public static func catmullRom(p0: Double, p1: Double, p2: Double, p3: Double, t: Double) -> Double {
+        let t2 = t * t
+        let t3 = t2 * t
+        return 0.5 * (
+            (2.0 * p1) +
+            (-p0 + p2) * t +
+            (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 +
+            (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3
+        )
+    }
+
+    /// Gaussian 1-2-1 smoothing filter applied across keyframe samples to eliminate single-frame detection noise.
+    public static func smoothKeyframesGaussian(
+        _ keyframes: [AutoPanKeyframe],
+        passes: Int = 2
+    ) -> [AutoPanKeyframe] {
+        guard keyframes.count > 2 else { return keyframes }
+        var current = keyframes
+        let count = current.count
+
+        for _ in 0..<max(1, passes) {
+            var smoothed: [AutoPanKeyframe] = []
+            smoothed.reserveCapacity(count)
+            for i in 0..<count {
+                let prev = current[max(0, i - 1)].normalizedX
+                let curr = current[i].normalizedX
+                let next = current[min(count - 1, i + 1)].normalizedX
+
+                let smoothX = (prev + 2.0 * curr + next) / 4.0
+                smoothed.append(AutoPanKeyframe(timeSeconds: current[i].timeSeconds, normalizedX: smoothX, confidence: current[i].confidence))
+            }
+            current = smoothed
+        }
+        return current
     }
 
     /// Computes smoothed pan offset at a given time for the clip.
