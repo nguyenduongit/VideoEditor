@@ -77,53 +77,51 @@ extension TimelineViewModel {
         let proposedStartSec = tRefSec - sRefSec + sTargetSec + offsetSeconds
 
         guard let targetLayerIndex = layers.firstIndex(where: { $0.clips.contains { $0.id == targetClip.id } }) else { return }
-        let targetLayerID = layers[targetLayerIndex].id
+
+        let targetStartCM: CMTime
+        let targetSourceStartCM: CMTime
+        let availableDurationCM: CMTime
 
         if proposedStartSec >= 0 {
             let targetCMTime = CMTime(seconds: proposedStartSec, preferredTimescale: 600)
-            let snappedStart = TimeRational.snapToFrame(time: targetCMTime)
-            let rationalStart = RationalTime(cmTime: snappedStart)
-
-            if let executor = commandExecutor, !isApplyingCommand {
-                executor.execute(
-                    .moveClip(clipID: targetClip.id, targetLayerID: targetLayerID, newStartTime: rationalStart),
-                    title: "Khớp âm thanh"
-                )
-            } else {
-                if let clipIdx = layers[targetLayerIndex].clips.firstIndex(where: { $0.id == targetClip.id }) {
-                    layers[targetLayerIndex].clips[clipIdx].shift(to: snappedStart)
-                    onClipsTrimmed?()
-                }
-            }
+            targetStartCM = TimeRational.snapToFrame(time: targetCMTime)
+            targetSourceStartCM = targetClip.sourceStartTime
+            availableDurationCM = targetClip.timeRange.duration
         } else {
             let negativeOffset = -proposedStartSec
             let advanceCMTime = CMTime(seconds: negativeOffset, preferredTimescale: 600)
-            let newSourceStart = targetClip.sourceStartTime + advanceCMTime
-            let newDurationCM = CMTimeMaximum(TimelineClip.minDuration, targetClip.timeRange.duration - advanceCMTime)
+            targetStartCM = .zero
+            targetSourceStartCM = targetClip.sourceStartTime + advanceCMTime
+            availableDurationCM = CMTimeMaximum(TimelineClip.minDuration, targetClip.timeRange.duration - advanceCMTime)
+        }
 
-            let rationalStart = RationalTime.zero
-            let rationalDuration = RationalTime(cmTime: newDurationCM)
-            let rationalSourceStart = RationalTime(cmTime: newSourceStart)
+        // Tail Auto-Trim: Cap audio duration so it doesn't exceed the reference clip's end time (matching tham khao)
+        let refEnd = refClip.timeRange.end
+        let maxAllowedDuration = CMTimeMaximum(TimelineClip.minDuration, refEnd - targetStartCM)
+        let effectiveDuration = CMTimeMinimum(availableDurationCM, maxAllowedDuration)
 
-            if let executor = commandExecutor, !isApplyingCommand {
-                executor.execute(
-                    .trimClip(
-                        clipID: targetClip.id,
-                        newStart: rationalStart,
-                        newDuration: rationalDuration,
-                        newSourceStart: rationalSourceStart
-                    ),
-                    title: "Khớp âm thanh"
+        let rationalStart = RationalTime(cmTime: targetStartCM)
+        let rationalDuration = RationalTime(cmTime: effectiveDuration)
+        let rationalSourceStart = RationalTime(cmTime: targetSourceStartCM)
+
+        if let executor = commandExecutor, !isApplyingCommand {
+            executor.execute(
+                .trimClip(
+                    clipID: targetClip.id,
+                    newStart: rationalStart,
+                    newDuration: rationalDuration,
+                    newSourceStart: rationalSourceStart
+                ),
+                title: "Khớp âm thanh"
+            )
+        } else {
+            if let clipIdx = layers[targetLayerIndex].clips.firstIndex(where: { $0.id == targetClip.id }) {
+                layers[targetLayerIndex].clips[clipIdx].trim(
+                    newStart: targetStartCM,
+                    newDuration: effectiveDuration,
+                    newSourceStart: targetSourceStartCM
                 )
-            } else {
-                if let clipIdx = layers[targetLayerIndex].clips.firstIndex(where: { $0.id == targetClip.id }) {
-                    layers[targetLayerIndex].clips[clipIdx].trim(
-                        newStart: .zero,
-                        newDuration: newDurationCM,
-                        newSourceStart: newSourceStart
-                    )
-                    onClipsTrimmed?()
-                }
+                onClipsTrimmed?()
             }
         }
     }

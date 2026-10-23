@@ -182,4 +182,56 @@ struct AudioAlignmentTests {
         #expect(undoneAudio.sourceStartTime == .zero)
         #expect(undoneAudio.timeRange.duration == CMTime(value: 8, timescale: 1))
     }
+
+    @Test("syncSelectedAudio automatically trims excess tail of audio when it exceeds video end")
+    func testSyncSelectedAudioAutoTrimsTail() async {
+        let clipVideo = TimelineClip(
+            name: "Video 1",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(value: 5, timescale: 1)),
+            mediaURL: URL(fileURLWithPath: "/tmp/video.mp4")
+        )
+        let clipAudio = TimelineClip(
+            name: "Long Audio",
+            kind: .audio,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(value: 15, timescale: 1)),
+            mediaURL: URL(fileURLWithPath: "/tmp/long_audio.m4a")
+        )
+
+        let layerVideo = TimelineLayer(name: "V1", kind: .video, clips: [clipVideo])
+        let layerAudio = TimelineLayer(name: "A1", kind: .audio, clips: [clipAudio])
+
+        let mockService = MockAudioAlignmentService(
+            resultToReturn: AudioAlignmentResult(
+                offsetSeconds: 0.0,
+                correlation: 0.85,
+                score: 8.5,
+                isMatch: true
+            )
+        )
+
+        let vm = TimelineViewModel(
+            audioAlignmentService: mockService,
+            initialLayers: [layerVideo, layerAudio]
+        )
+
+        vm.selectClip(clipVideo.id)
+        vm.selectClip(clipAudio.id, isCmdPressed: true)
+        vm.syncSelectedAudio()
+
+        for _ in 0..<10 {
+            if vm.layers[1].clips[0].timeRange.duration < CMTime(value: 15, timescale: 1) { break }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+
+        let syncedAudio = vm.layers[1].clips[0]
+        #expect(syncedAudio.timeRange.start == .zero)
+        #expect(abs(CMTimeGetSeconds(syncedAudio.timeRange.duration) - 5.0) < 0.05)
+        #expect(syncedAudio.timeRange.end == clipVideo.timeRange.end)
+
+        // Undo restores full duration
+        _ = vm.undo()
+        let undoneAudio = vm.layers[1].clips[0]
+        #expect(undoneAudio.timeRange.duration == CMTime(value: 15, timescale: 1))
+    }
 }
