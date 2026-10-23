@@ -10,9 +10,17 @@ extension TimelineCompositionBuilder {
     static func hasActiveMask(in layers: [TimelineLayer]) -> Bool {
         layers.contains { layer in
             !layer.isHidden && layer.kind == .video && layer.clips.contains { clip in
-                TimelineMaskParameters.extract(from: clip.properties).isMaskActive
+                TimelineMaskParameters.extract(from: clip.properties).isMaskActive || hasActiveGrid(in: clip)
             }
         }
+    }
+
+    private static func hasActiveGrid(in clip: TimelineClip) -> Bool {
+        guard let configStr = clip.properties["gridConfig"]?.asString,
+              let config = GridConfiguration.decode(from: configStr) else {
+            return false
+        }
+        return !config.isDefault
     }
 
     static func buildMaskVideoComposition(
@@ -74,12 +82,16 @@ extension TimelineCompositionBuilder {
                     canvasSize: canvasSize
                 )
                 let maskParams = TimelineMaskParameters.extract(from: clip.properties)
+                let gridConfig = clip.properties["gridConfig"]?.asString.flatMap {
+                    GridConfiguration.decode(from: $0)
+                }
                 layerInfos.append(
                     TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
                         trackID: trackID,
                         transform: computed.transform,
                         opacity: computed.opacity,
-                        maskParameters: maskParams
+                        maskParameters: maskParams,
+                        gridConfig: (gridConfig?.isDefault == false) ? gridConfig : nil
                     )
                 )
             }

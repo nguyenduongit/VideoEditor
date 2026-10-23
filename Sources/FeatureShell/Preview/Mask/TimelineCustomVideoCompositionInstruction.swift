@@ -3,7 +3,9 @@ import Foundation
 import CoreMedia
 import CoreGraphics
 
-/// Video composition instruction holding layer rendering information and mask parameters.
+import Domain
+
+/// Video composition instruction holding layer rendering information, grid configuration, and mask parameters.
 /// Complies with R3.1 and R4.1 of AGENTS.md.
 public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoCompositionInstructionProtocol, @unchecked Sendable {
     public struct LayerRenderInfo: Sendable {
@@ -11,17 +13,20 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
         public let transform: CGAffineTransform
         public let opacity: Float
         public let maskParameters: TimelineMaskParameters?
+        public let gridConfig: GridConfiguration?
 
         public init(
             trackID: CMPersistentTrackID,
             transform: CGAffineTransform,
             opacity: Float,
-            maskParameters: TimelineMaskParameters?
+            maskParameters: TimelineMaskParameters?,
+            gridConfig: GridConfiguration? = nil
         ) {
             self.trackID = trackID
             self.transform = transform
             self.opacity = opacity
             self.maskParameters = maskParameters
+            self.gridConfig = gridConfig
         }
     }
 

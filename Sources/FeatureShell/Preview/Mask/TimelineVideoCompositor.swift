@@ -61,6 +61,10 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
                 }
             }
 
+            if let gridConfig = info.gridConfig, !gridConfig.isDefault {
+                frameImage = GridSliceCompositor.applyGrid(to: frameImage, config: gridConfig, canvasSize: canvasSize)
+            }
+
             if let maskParams = info.maskParameters, maskParams.isMaskActive {
                 frameImage = TimelineMaskGenerator.applyMask(to: frameImage, params: maskParams, canvasSize: canvasSize)
             }

@@ -37,10 +37,17 @@ public struct InspectorView: View {
     private var contentArea: some View {
         if viewModel.selectedClip != nil {
             DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-                propertyGroupsList
-                    .padding(.leading, DSSize.inspectorContentPadding)
-                    .padding(.trailing, DSSpacing.md)
-                    .padding(.vertical, DSSpacing.md)
+                if viewModel.effectiveTab == "Grid" {
+                    GridInspectorView(viewModel: viewModel)
+                        .padding(.leading, DSSize.inspectorContentPadding)
+                        .padding(.trailing, DSSpacing.md)
+                        .padding(.vertical, DSSpacing.md)
+                } else {
+                    propertyGroupsList
+                        .padding(.leading, DSSize.inspectorContentPadding)
+                        .padding(.trailing, DSSpacing.md)
+                        .padding(.vertical, DSSpacing.md)
+                }
             }
         } else {
             emptyStateView

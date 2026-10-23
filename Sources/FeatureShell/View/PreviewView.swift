@@ -43,6 +43,10 @@ public struct PreviewView: View {
                 inspectorViewModel: viewModel.inspectorViewModel,
                 canvasSize: viewModel.aspectRatio.renderSize
             )
+            GridOnScreenOverlayView(
+                inspectorViewModel: viewModel.inspectorViewModel,
+                canvasSize: viewModel.aspectRatio.renderSize
+            )
         }
         .aspectRatio(viewModel.aspectRatio.ratio, contentMode: .fit)
         .overlay(
