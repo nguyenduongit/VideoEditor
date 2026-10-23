@@ -50,9 +50,13 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
                 Self.logger.error("startRequest: failed to get sourceFrame for trackID=\(info.trackID)")
                 continue
             }
-            Self.logger.notice("startRequest: got sourceFrame for trackID=\(info.trackID), mask=\(info.maskParameters?.shape.rawValue ?? "nil")")
+            let srcHeight = CGFloat(CVPixelBufferGetHeight(srcBuffer))
+            let fSrc = CGAffineTransform(a: 1.0, b: 0.0, c: 0.0, d: -1.0, tx: 0.0, ty: srcHeight)
+            let fDst = CGAffineTransform(a: 1.0, b: 0.0, c: 0.0, d: -1.0, tx: 0.0, ty: canvasSize.height)
+            let ciTransform = fSrc.concatenating(info.transform).concatenating(fDst)
+
             var frameImage = CIImage(cvPixelBuffer: srcBuffer)
-            frameImage = frameImage.transformed(by: info.transform)
+            frameImage = frameImage.transformed(by: ciTransform)
 
             if info.opacity < 1.0 {
                 let alphaVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(max(0.0, info.opacity)))
