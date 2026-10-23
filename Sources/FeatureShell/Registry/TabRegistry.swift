@@ -22,4 +22,8 @@ public final class TabRegistry {
     public func sidebarView(for id: TabID) -> AnyView? {
         descriptors[id]?.makeSidebarView()
     }
+
+    public func sidebarTrailingAccessory(for id: TabID) -> AnyView? {
+        descriptors[id]?.makeSidebarTrailingAccessory()
+    }
 }

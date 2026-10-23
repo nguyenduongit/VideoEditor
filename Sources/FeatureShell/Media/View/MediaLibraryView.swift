@@ -26,7 +26,7 @@ public struct MediaLibraryView: View {
 
     public var body: some View {
         VStack(spacing: DSSpacing.none) {
-            toolbarArea
+            subTabBar
             contentArea
         }
         .focusable()
@@ -42,6 +42,10 @@ public struct MediaLibraryView: View {
             return .handled
         }
         .onKeyPress { press in
+            if press.key == KeyEquivalent("i") && press.modifiers == .command {
+                viewModel.importFiles()
+                return .handled
+            }
             if press.key == KeyEquivalent("z") && press.modifiers == .command {
                 _ = viewModel.undo()
                 return .handled
@@ -54,16 +58,31 @@ public struct MediaLibraryView: View {
         }
     }
 
-    private var toolbarArea: some View {
-        HStack(spacing: DSSpacing.sm) {
-            DSActionButton(title: "Import", action: { viewModel.importFiles() })
+    private var subTabBar: some View {
+        HStack(spacing: DSSpacing.xs) {
+            ForEach(MediaLibraryViewModel.MediaFilter.allCases, id: \.self) { filter in
+                Button(action: {
+                    viewModel.selectedFilter = filter
+                }) {
+                    Text(filter.rawValue)
+                        .font(.system(size: 12, weight: viewModel.selectedFilter == filter ? .semibold : .medium))
+                        .foregroundStyle(viewModel.selectedFilter == filter ? DSColors.textPrimary : DSColors.textSecondary)
+                        .padding(.vertical, DSSpacing.xs)
+                        .padding(.horizontal, DSSpacing.md)
+                        .background(
+                            viewModel.selectedFilter == filter ? Color.white.opacity(0.12) : Color.clear
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
             if !viewModel.selectedAssetIDs.isEmpty {
                 deleteButton
             }
-            Spacer()
             itemCountLabel
         }
-        .padding(.horizontal, DSSpacing.lg)
+        .padding(.horizontal, DSSpacing.md)
         .padding(.vertical, DSSpacing.sm)
     }
 
@@ -81,7 +100,7 @@ public struct MediaLibraryView: View {
     }
 
     private var itemCountLabel: some View {
-        Text("\(viewModel.assets.count) items")
+        Text("\(viewModel.filteredAssets.count) items")
             .font(.system(size: 11, weight: .regular))
             .foregroundStyle(DSColors.textSecondary)
     }
@@ -89,7 +108,7 @@ public struct MediaLibraryView: View {
     private var contentArea: some View {
         DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
             LazyVGrid(columns: columns, spacing: DSSpacing.md) {
-                ForEach(viewModel.assets) { asset in
+                ForEach(viewModel.filteredAssets) { asset in
                     MediaAssetItemView(
                         asset: asset,
                         isSelected: viewModel.selectedAssetIDs.contains(asset.id),

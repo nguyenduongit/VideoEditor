@@ -7,9 +7,30 @@ import Domain
 @Observable
 @MainActor
 public final class MediaLibraryViewModel {
+    public enum MediaFilter: String, CaseIterable, Sendable {
+        case all = "All"
+        case video = "Video"
+        case audio = "Audio"
+        case image = "Image"
+    }
+
     public var assets: [MediaAsset] = []
+    public var selectedFilter: MediaFilter = .all
     public var selectedAssetIDs: Set<UUID> = []
     public var thumbnails: [UUID: Image] = [:]
+
+    public var filteredAssets: [MediaAsset] {
+        switch selectedFilter {
+        case .all:
+            return assets
+        case .video:
+            return assets.filter { $0.type == .video }
+        case .audio:
+            return assets.filter { $0.type == .audio }
+        case .image:
+            return assets.filter { $0.type == .image }
+        }
+    }
 
     private let thumbnailService: any AssetThumbnailServiceProtocol
     private let waveformService: (any AudioWaveformServiceProtocol)?

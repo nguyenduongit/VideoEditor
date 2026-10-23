@@ -35,9 +35,14 @@ public struct MainLayoutView: View {
         let activeTab = viewModel.registry.descriptor(for: viewModel.selectedTabID)
         let sidebarTitle = activeTab?.title ?? "L-Sidebar"
         let sidebarContent = viewModel.registry.sidebarView(for: viewModel.selectedTabID)
+        let sidebarAccessory = viewModel.registry.sidebarTrailingAccessory(for: viewModel.selectedTabID)
 
         return HStack(spacing: DSSpacing.gap) {
-            SidebarView(title: sidebarTitle, customContent: sidebarContent)
+            SidebarView(
+                title: sidebarTitle,
+                customContent: sidebarContent,
+                trailingAccessory: sidebarAccessory
+            )
             PreviewView(viewModel: viewModel)
             InspectorView(viewModel: viewModel.inspectorViewModel)
         }

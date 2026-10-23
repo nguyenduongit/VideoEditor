@@ -177,5 +177,55 @@ struct MediaLibraryViewModelTests {
         #expect(mediaVM.assets.count == 1)
         #expect(mediaVM.assets.first?.id == assetID)
     }
+
+    @Test @MainActor func testMediaFilterFiltering() {
+        let vm = MediaLibraryViewModel(thumbnailService: MockThumbnailService())
+        let video = MediaAsset(id: UUID(), url: URL(fileURLWithPath: "/tmp/v.mp4"), type: .video)
+        let audio = MediaAsset(id: UUID(), url: URL(fileURLWithPath: "/tmp/a.mp3"), type: .audio)
+        let image = MediaAsset(id: UUID(), url: URL(fileURLWithPath: "/tmp/i.png"), type: .image)
+
+        vm.assets = [video, audio, image]
+
+        #expect(vm.selectedFilter == .all)
+        #expect(vm.filteredAssets.count == 3)
+
+        vm.selectedFilter = .video
+        #expect(vm.filteredAssets.count == 1)
+        #expect(vm.filteredAssets.first?.id == video.id)
+
+        vm.selectedFilter = .audio
+        #expect(vm.filteredAssets.count == 1)
+        #expect(vm.filteredAssets.first?.id == audio.id)
+
+        vm.selectedFilter = .image
+        #expect(vm.filteredAssets.count == 1)
+        #expect(vm.filteredAssets.first?.id == image.id)
+
+        vm.selectedFilter = .all
+        #expect(vm.filteredAssets.count == 3)
+    }
+
+    @Test @MainActor func testMediaFilterWithDeleteAndUndo() {
+        let vm = MediaLibraryViewModel(thumbnailService: MockThumbnailService())
+        let video1 = MediaAsset(id: UUID(), url: URL(fileURLWithPath: "/tmp/v1.mp4"), type: .video)
+        let video2 = MediaAsset(id: UUID(), url: URL(fileURLWithPath: "/tmp/v2.mp4"), type: .video)
+        let audio = MediaAsset(id: UUID(), url: URL(fileURLWithPath: "/tmp/a.mp3"), type: .audio)
+
+        vm.assets = [video1, video2, audio]
+        vm.selectedFilter = .video
+        #expect(vm.filteredAssets.count == 2)
+
+        vm.toggleSelection(for: video1.id, isCmdPressed: false)
+        vm.deleteSelected()
+
+        #expect(vm.filteredAssets.count == 1)
+        #expect(vm.filteredAssets.first?.id == video2.id)
+        #expect(vm.assets.count == 2)
+
+        let didUndo = vm.undo()
+        #expect(didUndo)
+        #expect(vm.filteredAssets.count == 2)
+        #expect(vm.assets.count == 3)
+    }
 }
 
