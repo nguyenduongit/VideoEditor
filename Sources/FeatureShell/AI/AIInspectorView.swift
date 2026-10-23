@@ -35,6 +35,7 @@ public struct AIInspectorView: View {
                     toggleRow
                     statusIndicator
                     actionButton
+                    zoomSlider
                     smoothnessSlider
                     descriptionNote
                 }
@@ -98,6 +99,30 @@ public struct AIInspectorView: View {
         }
         .disabled(isAnalyzing)
         .opacity(isAnalyzing ? 0.6 : 1.0)
+    }
+
+    private var zoomSlider: some View {
+        let binding = Binding<Double>(
+            get: { autoPanConfig.zoom },
+            set: { newValue in
+                var updated = autoPanConfig
+                updated.zoom = newValue
+                updateLiveConfig(updated)
+            }
+        )
+        return DSSliderWithInput(
+            title: "Thu phóng",
+            value: binding,
+            range: 1.0...2.5,
+            step: 0.05,
+            defaultValue: 1.25,
+            unit: "×",
+            onEditingChanged: { editing in
+                if !editing {
+                    commitConfig(autoPanConfig)
+                }
+            }
+        )
     }
 
     private var smoothnessSlider: some View {
@@ -182,6 +207,9 @@ public struct AIInspectorView: View {
                 await MainActor.run {
                     var updated = autoPanConfig
                     updated.isEnabled = true
+                    if updated.zoom < 1.05 {
+                        updated.zoom = 1.25
+                    }
                     updated.keyframes = keyframes
                     commitConfig(updated)
                     isAnalyzing = false

@@ -101,9 +101,6 @@ extension TimelineCompositionBuilder {
                 let oriented = meta.naturalSize.applying(meta.transform)
                 let srcW = max(1.0, abs(oriented.width))
                 let srcH = max(1.0, abs(oriented.height))
-                let baseScale = min(canvasSize.width / srcW, canvasSize.height / srcH)
-                let userScale = clip.properties["scale"]?.asNumber ?? 1.0
-                let finalScale = max(0.01, baseScale * userScale)
 
                 layerInfos.append(
                     TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
@@ -115,7 +112,7 @@ extension TimelineCompositionBuilder {
                         autoPanConfig: autoPanConfig,
                         clipTimeRange: clip.timeRange,
                         naturalSize: CGSize(width: srcW, height: srcH),
-                        finalScale: finalScale
+                        finalScale: computed.finalScale
                     )
                 )
             }

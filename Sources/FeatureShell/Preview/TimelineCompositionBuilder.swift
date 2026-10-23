@@ -184,19 +184,32 @@ struct TimelineCompositionBuilder {
         naturalSize: CGSize,
         clip: TimelineClip,
         canvasSize: CGSize
-    ) -> (transform: CGAffineTransform, opacity: Float) {
+    ) -> (transform: CGAffineTransform, opacity: Float, finalScale: CGFloat) {
         let oriented = naturalSize.applying(transform)
         let srcW = max(1.0, abs(oriented.width))
         let srcH = max(1.0, abs(oriented.height))
 
-        let baseScale = min(canvasSize.width / srcW, canvasSize.height / srcH)
+        let autoPan = clip.properties["autoPanConfig"]?.asString.flatMap {
+            AutoPanConfiguration.decode(from: $0)
+        }
+        let isAutoPanActive = autoPan?.isEnabled == true && autoPan?.keyframes.isEmpty == false
+
+        let baseScale: CGFloat
+        if isAutoPanActive {
+            baseScale = max(canvasSize.width / srcW, canvasSize.height / srcH)
+        } else {
+            baseScale = min(canvasSize.width / srcW, canvasSize.height / srcH)
+        }
+
         let userScale = clip.properties["scale"]?.asNumber ?? 1.0
+        let autoPanZoom = isAutoPanActive ? (autoPan?.zoom ?? 1.25) : 1.0
+        let finalScale = max(0.01, baseScale * userScale * autoPanZoom)
+
         let userPosX = clip.properties["positionX"]?.asNumber ?? 0.0
         let userPosY = clip.properties["positionY"]?.asNumber ?? 0.0
         let userRotation = clip.properties["rotation"]?.asNumber ?? 0.0
         let userOpacity = clip.properties["opacity"]?.asNumber ?? 1.0
 
-        let finalScale = baseScale * userScale
         let dx = (canvasSize.width - srcW * finalScale) / 2.0 + userPosX
         let dy = (canvasSize.height - srcH * finalScale) / 2.0 + userPosY
 
@@ -214,7 +227,7 @@ struct TimelineCompositionBuilder {
             finalTransform = finalTransform.concatenating(rot)
         }
 
-        return (finalTransform, Float(userOpacity))
+        return (finalTransform, Float(userOpacity), finalScale)
     }
 
     static func applyVideoTransform(

@@ -119,7 +119,7 @@ struct AutoPanEngineTests {
             AutoPanKeyframe(timeSeconds: 0.5, normalizedX: 0.42, confidence: 0.95),
             AutoPanKeyframe(timeSeconds: 1.5, normalizedX: 0.65, confidence: 0.88)
         ]
-        let original = AutoPanConfiguration(isEnabled: true, smoothness: 0.75, keyframes: keyframes)
+        let original = AutoPanConfiguration(isEnabled: true, zoom: 1.35, smoothness: 0.75, keyframes: keyframes)
 
         guard let encoded = original.encodeToString() else {
             Issue.record("Failed to encode AutoPanConfiguration")
@@ -131,9 +131,16 @@ struct AutoPanEngineTests {
         }
 
         #expect(decoded.isEnabled == true)
+        #expect(abs(decoded.zoom - 1.35) < 0.001)
         #expect(abs(decoded.smoothness - 0.75) < 0.001)
         #expect(decoded.keyframes.count == 2)
         #expect(abs(decoded.keyframes[0].timeSeconds - 0.5) < 0.001)
         #expect(abs(decoded.keyframes[0].normalizedX - 0.42) < 0.001)
+
+        // Backward compatibility: JSON without zoom property defaults to 1.25
+        let legacyJSON = "{\"isEnabled\":true,\"smoothness\":0.5,\"keyframes\":[]}"
+        let legacyDecoded = AutoPanConfiguration.decode(from: legacyJSON)
+        #expect(legacyDecoded != nil)
+        #expect(abs((legacyDecoded?.zoom ?? 0.0) - 1.25) < 0.001)
     }
 }
