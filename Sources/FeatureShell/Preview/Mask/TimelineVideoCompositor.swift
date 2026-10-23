@@ -47,6 +47,13 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
         var canvas = CIImage(color: CIColor.black).cropped(to: CGRect(origin: .zero, size: canvasSize))
 
         for info in instruction.layerInfos.reversed() {
+            if info.isAdjustment {
+                if let config = info.adjustmentConfig, !config.isNeutral {
+                    canvas = ColorGradingEngine.shared.applyGrading(to: canvas, config: config, intensity: info.opacity)
+                }
+                continue
+            }
+
             guard let srcBuffer = asyncVideoCompositionRequest.sourceFrame(byTrackID: info.trackID) else {
                 Self.logger.error("startRequest: failed to get sourceFrame for trackID=\(info.trackID)")
                 continue

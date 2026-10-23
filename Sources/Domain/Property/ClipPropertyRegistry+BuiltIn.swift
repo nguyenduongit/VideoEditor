@@ -75,6 +75,14 @@ extension ClipPropertyRegistry {
                 defaultValue: .number(1.0)
             ),
             PropertyDescriptor(
+                id: "adjustmentConfig",
+                title: "Configuration",
+                tab: "Adjustment",
+                group: "Adjustment",
+                control: .textField,
+                defaultValue: .string(AdjustmentConfiguration().encodeToJSON() ?? "")
+            ),
+            PropertyDescriptor(
                 id: "brightness",
                 title: "Brightness",
                 tab: "Color",

@@ -18,6 +18,8 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
         public let clipTimeRange: CMTimeRange?
         public let naturalSize: CGSize
         public let finalScale: Double
+        public let isAdjustment: Bool
+        public let adjustmentConfig: AdjustmentConfiguration?
 
         public init(
             trackID: CMPersistentTrackID,
@@ -28,7 +30,9 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
             autoPanConfig: AutoPanConfiguration? = nil,
             clipTimeRange: CMTimeRange? = nil,
             naturalSize: CGSize = .zero,
-            finalScale: Double = 1.0
+            finalScale: Double = 1.0,
+            isAdjustment: Bool = false,
+            adjustmentConfig: AdjustmentConfiguration? = nil
         ) {
             self.trackID = trackID
             self.transform = transform
@@ -39,6 +43,8 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
             self.clipTimeRange = clipTimeRange
             self.naturalSize = naturalSize
             self.finalScale = finalScale
+            self.isAdjustment = isAdjustment
+            self.adjustmentConfig = adjustmentConfig
         }
     }
 
@@ -62,7 +68,9 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
         self.layerInfos = layerInfos
         self.canvasSize = canvasSize
         self.passthroughTrackID = kCMPersistentTrackID_Invalid
-        self.requiredSourceTrackIDs = layerInfos.map { NSNumber(value: $0.trackID) }
+        self.requiredSourceTrackIDs = layerInfos
+            .filter { !$0.isAdjustment && $0.trackID != kCMPersistentTrackID_Invalid }
+            .map { NSNumber(value: $0.trackID) }
         super.init()
     }
 }

@@ -9,7 +9,11 @@ import Domain
 extension TimelineCompositionBuilder {
     static func hasActiveMask(in layers: [TimelineLayer]) -> Bool {
         layers.contains { layer in
-            !layer.isHidden && layer.kind == .video && layer.clips.contains { clip in
+            if layer.isHidden { return false }
+            if layer.kind == .adjustment && !layer.clips.isEmpty {
+                return true
+            }
+            return layer.kind == .video && layer.clips.contains { clip in
                 TimelineMaskParameters.extract(from: clip.properties).isMaskActive
                     || hasActiveGrid(in: clip)
                     || hasActiveAutoPan(in: clip)
@@ -43,11 +47,11 @@ extension TimelineCompositionBuilder {
         let canvasSize = aspectRatio.renderSize
         let safeDuration = CMTimeMaximum(duration, CMTime(value: 1, timescale: 30))
         let timeRanges = computeInstructionTimeRanges(layers: layers, duration: safeDuration)
-        let videoLayers = layers.filter { !$0.isHidden && $0.kind == .video }
+        let activeLayers = layers.filter { !$0.isHidden && ($0.kind == .video || $0.kind == .adjustment) }
 
         let customInstructions = buildInstructions(
             timeRanges: timeRanges,
-            videoLayers: videoLayers,
+            layers: activeLayers,
             composition: composition,
             layerTrackIDs: layerTrackIDs,
             canvasSize: canvasSize
@@ -66,7 +70,7 @@ extension TimelineCompositionBuilder {
 
     private static func buildInstructions(
         timeRanges: [CMTimeRange],
-        videoLayers: [TimelineLayer],
+        layers: [TimelineLayer],
         composition: AVMutableComposition,
         layerTrackIDs: [UUID: CMPersistentTrackID],
         canvasSize: CGSize
@@ -74,47 +78,19 @@ extension TimelineCompositionBuilder {
         var customInstructions: [AVVideoCompositionInstructionProtocol] = []
         for range in timeRanges {
             var layerInfos: [TimelineCustomVideoCompositionInstruction.LayerRenderInfo] = []
-            for layer in videoLayers {
+            for layer in layers {
+                if layer.kind == .adjustment {
+                    if let adjInfo = makeAdjustmentRenderInfo(layer: layer, range: range) {
+                        layerInfos.append(adjInfo)
+                    }
+                    continue
+                }
+
                 guard let trackID = layerTrackIDs[layer.id],
                       composition.track(withTrackID: trackID) != nil else { continue }
-
-                let midTime = CMTimeAdd(range.start, CMTimeMultiplyByFloat64(range.duration, multiplier: 0.5))
-                guard let clip = layer.clips.first(where: {
-                    $0.timeRange.containsTime(midTime) || ($0.timeRange.start <= range.start && $0.timeRange.end >= range.end)
-                }) else { continue }
-                let meta = (clip.mediaURL.flatMap { VideoMetadataCache.shared.metadata(for: $0) })
-                    ?? VideoTrackMetadata(transform: .identity, naturalSize: CGSize(width: 1920, height: 1080))
-
-                let computed = computeTransform(
-                    transform: meta.transform,
-                    naturalSize: meta.naturalSize,
-                    clip: clip,
-                    canvasSize: canvasSize
-                )
-                let maskParams = TimelineMaskParameters.extract(from: clip.properties)
-                let gridConfig = clip.properties["gridConfig"]?.asString.flatMap {
-                    GridConfiguration.decode(from: $0)
+                if let vInfo = makeVideoRenderInfo(layer: layer, trackID: trackID, range: range, canvasSize: canvasSize) {
+                    layerInfos.append(vInfo)
                 }
-                let autoPanConfig = clip.properties["autoPanConfig"]?.asString.flatMap {
-                    AutoPanConfiguration.decode(from: $0)
-                }
-                let oriented = meta.naturalSize.applying(meta.transform)
-                let srcW = max(1.0, abs(oriented.width))
-                let srcH = max(1.0, abs(oriented.height))
-
-                layerInfos.append(
-                    TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
-                        trackID: trackID,
-                        transform: computed.transform,
-                        opacity: computed.opacity,
-                        maskParameters: maskParams,
-                        gridConfig: (gridConfig?.isDefault == false) ? gridConfig : nil,
-                        autoPanConfig: autoPanConfig,
-                        clipTimeRange: clip.timeRange,
-                        naturalSize: CGSize(width: srcW, height: srcH),
-                        finalScale: computed.finalScale
-                    )
-                )
             }
 
             let instruction = TimelineCustomVideoCompositionInstruction(
@@ -127,9 +103,75 @@ extension TimelineCompositionBuilder {
         return customInstructions
     }
 
+    private static func makeAdjustmentRenderInfo(
+        layer: TimelineLayer,
+        range: CMTimeRange
+    ) -> TimelineCustomVideoCompositionInstruction.LayerRenderInfo? {
+        let midTime = CMTimeAdd(range.start, CMTimeMultiplyByFloat64(range.duration, multiplier: 0.5))
+        guard let clip = layer.clips.first(where: {
+            $0.timeRange.containsTime(midTime) || ($0.timeRange.start <= range.start && $0.timeRange.end >= range.end)
+        }) else { return nil }
+        let config = clip.properties["adjustmentConfig"]?.asString.flatMap {
+            AdjustmentConfiguration.decode(from: $0)
+        } ?? AdjustmentConfiguration()
+        let opacity = Float(clip.properties["opacity"]?.asNumber ?? 1.0)
+        return TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
+            trackID: kCMPersistentTrackID_Invalid,
+            transform: .identity,
+            opacity: opacity,
+            maskParameters: nil,
+            clipTimeRange: clip.timeRange,
+            isAdjustment: true,
+            adjustmentConfig: config
+        )
+    }
+
+    private static func makeVideoRenderInfo(
+        layer: TimelineLayer,
+        trackID: CMPersistentTrackID,
+        range: CMTimeRange,
+        canvasSize: CGSize
+    ) -> TimelineCustomVideoCompositionInstruction.LayerRenderInfo? {
+        let midTime = CMTimeAdd(range.start, CMTimeMultiplyByFloat64(range.duration, multiplier: 0.5))
+        guard let clip = layer.clips.first(where: {
+            $0.timeRange.containsTime(midTime) || ($0.timeRange.start <= range.start && $0.timeRange.end >= range.end)
+        }) else { return nil }
+        let meta = (clip.mediaURL.flatMap { VideoMetadataCache.shared.metadata(for: $0) })
+            ?? VideoTrackMetadata(transform: .identity, naturalSize: CGSize(width: 1920, height: 1080))
+
+        let computed = computeTransform(
+            transform: meta.transform,
+            naturalSize: meta.naturalSize,
+            clip: clip,
+            canvasSize: canvasSize
+        )
+        let maskParams = TimelineMaskParameters.extract(from: clip.properties)
+        let gridConfig = clip.properties["gridConfig"]?.asString.flatMap {
+            GridConfiguration.decode(from: $0)
+        }
+        let autoPanConfig = clip.properties["autoPanConfig"]?.asString.flatMap {
+            AutoPanConfiguration.decode(from: $0)
+        }
+        let oriented = meta.naturalSize.applying(meta.transform)
+        let srcW = max(1.0, abs(oriented.width))
+        let srcH = max(1.0, abs(oriented.height))
+
+        return TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
+            trackID: trackID,
+            transform: computed.transform,
+            opacity: computed.opacity,
+            maskParameters: maskParams,
+            gridConfig: (gridConfig?.isDefault == false) ? gridConfig : nil,
+            autoPanConfig: autoPanConfig,
+            clipTimeRange: clip.timeRange,
+            naturalSize: CGSize(width: srcW, height: srcH),
+            finalScale: computed.finalScale
+        )
+    }
+
     private static func computeInstructionTimeRanges(layers: [TimelineLayer], duration: CMTime) -> [CMTimeRange] {
         var points: [CMTime] = [.zero, duration]
-        for layer in layers where !layer.isHidden && layer.kind == .video {
+        for layer in layers where !layer.isHidden && (layer.kind == .video || layer.kind == .adjustment) {
             for clip in layer.clips {
                 let s = clip.timeRange.start
                 let e = clip.timeRange.end

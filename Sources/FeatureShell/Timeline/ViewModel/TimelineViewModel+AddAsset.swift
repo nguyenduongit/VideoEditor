@@ -60,7 +60,7 @@ extension TimelineViewModel {
         )
     }
 
-    private func allocateLayerID(for clip: TimelineClip, in simulatedLayers: inout [TimelineLayer]) -> UUID {
+    func allocateLayerID(for clip: TimelineClip, in simulatedLayers: inout [TimelineLayer]) -> UUID {
         let candidateIndex = simulatedLayers.firstIndex { layer in
             guard layer.kind == clip.kind && !layer.isLocked && !layer.isHidden else { return false }
             return !layer.clips.contains { existing in
@@ -82,7 +82,7 @@ extension TimelineViewModel {
         return newLayerID
     }
 
-    private func applyAddedClips(_ items: [(clip: TimelineClip, targetLayerID: UUID)]) {
+    func applyAddedClips(_ items: [(clip: TimelineClip, targetLayerID: UUID)]) {
         if let executor = commandExecutor, !isApplyingCommand {
             let commands = items.map { item in
                 TimelineCommand.addClip(layerID: item.targetLayerID, clip: item.clip.toScript())

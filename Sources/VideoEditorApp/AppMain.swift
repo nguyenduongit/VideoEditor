@@ -75,7 +75,7 @@ struct VideoEditorApp: App {
             mediaViewModel?.restoreAssetsForClips(restoredClips)
         }
 
-        Self.registerAllTabs(in: registry, mediaViewModel: mediaViewModel)
+        Self.registerAllTabs(in: registry, mediaViewModel: mediaViewModel, timelineViewModel: timelineViewModel)
         _viewModel = State(initialValue: shellViewModel)
 
         let scriptEngine = TimelineScriptEngine(
@@ -132,11 +132,12 @@ struct VideoEditorApp: App {
 
     private static func registerAllTabs(
         in registry: TabRegistry,
-        mediaViewModel: MediaLibraryViewModel
+        mediaViewModel: MediaLibraryViewModel,
+        timelineViewModel: TimelineViewModel
     ) {
         registry.register(MediaTabDescriptor(mediaViewModel: mediaViewModel))
         registry.register(AudioTabDescriptor())
         registry.register(TextTabDescriptor())
-        registry.register(AdjustmentTabDescriptor())
+        registry.register(AdjustmentTabDescriptor(timelineViewModel: timelineViewModel))
     }
 }
