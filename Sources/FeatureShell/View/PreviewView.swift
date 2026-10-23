@@ -32,6 +32,13 @@ public struct PreviewView: View {
         ZStack {
             Color.black
             previewContent
+            if viewModel.activePreviewAsset == nil {
+                PreviewObjectManipulatorView(
+                    timelineViewModel: viewModel.timelineViewModel,
+                    inspectorViewModel: viewModel.inspectorViewModel,
+                    canvasSize: viewModel.aspectRatio.renderSize
+                )
+            }
             MaskOnScreenOverlayView(
                 inspectorViewModel: viewModel.inspectorViewModel,
                 canvasSize: viewModel.aspectRatio.renderSize
