@@ -2,6 +2,7 @@ import Foundation
 import CoreMedia
 import CoreGraphics
 import CoreImage
+import AVFoundation
 #if os(macOS)
 import AppKit
 #endif
@@ -191,5 +192,54 @@ struct TextIntegrationTests {
             try? pngData.write(to: URL(fileURLWithPath: outPath))
         }
         #endif
+    }
+
+    @Test func testTextClipDragSyncsGeometryAndRenderEngine() {
+        let timelineVM = TimelineViewModel(initialLayers: [])
+        timelineVM.addTextClip(named: "MoveMe", config: TextConfiguration(content: "MoveMe", positionX: 0, positionY: 0))
+        guard let clip = timelineVM.layers.flatMap(\.clips).first(where: { $0.kind == .text }) else {
+            Issue.record("No text clip found")
+            return
+        }
+
+        timelineVM.selectClip(clip.id)
+        let inspectorVM = InspectorViewModel(timelineViewModel: timelineVM)
+        inspectorVM.syncWithSelection()
+
+        // Simulate dragging text on canvas
+        inspectorVM.updateLiveValue(key: "positionX", value: 150.0)
+        inspectorVM.updateLiveValue(key: "positionY", value: -250.0)
+
+        // Verify live properties on clip
+        guard let updatedClip = timelineVM.clip(by: clip.id) else {
+            Issue.record("Clip not found after update")
+            return
+        }
+        #expect(updatedClip.properties["positionX"]?.asNumber == 150.0)
+        #expect(updatedClip.properties["positionY"]?.asNumber == -250.0)
+
+        // Verify bounding box geometry
+        let canvasSize = CGSize(width: 1920, height: 1080)
+        let geom = ClipCanvasGeometry.compute(for: updatedClip, canvasSize: canvasSize)
+        #expect(geom.positionX == 150.0)
+        #expect(geom.positionY == -250.0)
+
+        // Verify composition instructions pass the updated coordinates to render engine
+        let composition = AVMutableComposition()
+        let customComp = TimelineCompositionBuilder.buildMaskVideoComposition(
+            for: timelineVM.layers,
+            composition: composition,
+            layerTrackIDs: [:],
+            aspectRatio: .ratio16x9,
+            duration: CMTime(value: 5, timescale: 1)
+        )
+        guard let instruction = customComp?.instructions.first as? TimelineCustomVideoCompositionInstruction,
+              let textInfo = instruction.layerInfos.first(where: { $0.isText }) else {
+            Issue.record("No text instruction found")
+            return
+        }
+
+        #expect(textInfo.textConfig?.positionX == 150.0)
+        #expect(textInfo.textConfig?.positionY == -250.0)
     }
 }

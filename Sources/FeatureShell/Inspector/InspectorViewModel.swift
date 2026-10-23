@@ -124,6 +124,15 @@ public final class InspectorViewModel {
     public func commitTextProperty(key: String, text: String) {
         guard let clip = selectedClip, let timelineViewModel else { return }
         liveProperties[key] = .string(text)
+        if key == "textConfig", let cfg = TextConfiguration.decode(from: text) {
+            liveProperties["positionX"] = .number(cfg.positionX)
+            liveProperties["positionY"] = .number(cfg.positionY)
+            liveProperties["scale"] = .number(cfg.scale)
+            liveProperties["rotation"] = .number(cfg.rotation)
+            liveProperties["opacity"] = .number(cfg.opacity)
+            liveProperties["fontSize"] = .number(cfg.fontSize)
+            liveProperties["textContent"] = .string(cfg.content)
+        }
         let cmd = TimelineCommand.updateClipProperties(clipID: clip.id, properties: liveProperties)
         timelineViewModel.commandExecutor?.execute(cmd)
         syncWithSelection()
@@ -135,6 +144,20 @@ public final class InspectorViewModel {
             dragInitialProperties = clip.properties
         }
         liveProperties[key] = .number(value)
+        if clip.kind == .text {
+            var cfg = liveProperties["textConfig"]?.asString.flatMap { TextConfiguration.decode(from: $0) }
+                ?? clip.properties["textConfig"]?.asString.flatMap { TextConfiguration.decode(from: $0) }
+                ?? TextConfiguration()
+            if key == "positionX" { cfg.positionX = value }
+            else if key == "positionY" { cfg.positionY = value }
+            else if key == "scale" { cfg.scale = value }
+            else if key == "rotation" { cfg.rotation = value }
+            else if key == "opacity" { cfg.opacity = value }
+            else if key == "fontSize" { cfg.fontSize = value }
+            if let json = cfg.encodeToJSON() {
+                liveProperties["textConfig"] = .string(json)
+            }
+        }
         if key == "speed" {
             let oldSpeed = max(0.01, dragInitialProperties?["speed"]?.asNumber ?? clip.properties["speed"]?.asNumber ?? 1.0)
             let currentDur = CMTimeGetSeconds(clip.timeRange.duration)
@@ -156,6 +179,15 @@ public final class InspectorViewModel {
             dragInitialProperties = clip.properties
         }
         liveProperties[key] = .string(text)
+        if key == "textConfig", let cfg = TextConfiguration.decode(from: text) {
+            liveProperties["positionX"] = .number(cfg.positionX)
+            liveProperties["positionY"] = .number(cfg.positionY)
+            liveProperties["scale"] = .number(cfg.scale)
+            liveProperties["rotation"] = .number(cfg.rotation)
+            liveProperties["opacity"] = .number(cfg.opacity)
+            liveProperties["fontSize"] = .number(cfg.fontSize)
+            liveProperties["textContent"] = .string(cfg.content)
+        }
         guard let clip = selectedClip, let timelineViewModel else { return }
         timelineViewModel.updateClipLiveProperties(clipID: clip.id, properties: liveProperties)
     }

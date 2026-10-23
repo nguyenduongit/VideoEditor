@@ -140,9 +140,18 @@ extension TimelineCompositionBuilder {
         guard let clip = layer.clips.first(where: {
             $0.timeRange.containsTime(midTime) || ($0.timeRange.start <= range.start && $0.timeRange.end >= range.end)
         }) else { return nil }
-        let config = clip.properties["textConfig"]?.asString.flatMap {
+        var config = clip.properties["textConfig"]?.asString.flatMap {
             TextConfiguration.decode(from: $0)
         } ?? TextConfiguration(content: clip.properties["textContent"]?.asString ?? clip.name)
+
+        if let px = clip.properties["positionX"]?.asNumber { config.positionX = px }
+        if let py = clip.properties["positionY"]?.asNumber { config.positionY = py }
+        if let s = clip.properties["scale"]?.asNumber { config.scale = s }
+        if let r = clip.properties["rotation"]?.asNumber { config.rotation = r }
+        if let op = clip.properties["opacity"]?.asNumber { config.opacity = op }
+        if let content = clip.properties["textContent"]?.asString { config.content = content }
+        if let size = clip.properties["fontSize"]?.asNumber { config.fontSize = size }
+
         let opacity = Float(clip.properties["opacity"]?.asNumber ?? config.opacity)
         return TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
             trackID: kCMPersistentTrackID_Invalid,
