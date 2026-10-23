@@ -35,7 +35,6 @@ public struct AIInspectorView: View {
                     toggleRow
                     statusIndicator
                     actionButton
-                    zoomSlider
                     smoothnessSlider
                     descriptionNote
                 }
@@ -101,30 +100,6 @@ public struct AIInspectorView: View {
         .opacity(isAnalyzing ? 0.6 : 1.0)
     }
 
-    private var zoomSlider: some View {
-        let binding = Binding<Double>(
-            get: { autoPanConfig.zoom },
-            set: { newValue in
-                var updated = autoPanConfig
-                updated.zoom = newValue
-                updateLiveConfig(updated)
-            }
-        )
-        return DSSliderWithInput(
-            title: "Thu phóng",
-            value: binding,
-            range: 1.0...2.5,
-            step: 0.05,
-            defaultValue: 1.25,
-            unit: "×",
-            onEditingChanged: { editing in
-                if !editing {
-                    commitConfig(autoPanConfig)
-                }
-            }
-        )
-    }
-
     private var smoothnessSlider: some View {
         let binding = Binding<Double>(
             get: { autoPanConfig.smoothness },
@@ -150,7 +125,7 @@ public struct AIInspectorView: View {
     }
 
     private var descriptionNote: some View {
-        Text("Auto Pan tự động di chuyển khung hình để nhân vật chính luôn ở giữa theo trục dọc. Camera chỉ pan trong phạm vi video, tự động dừng lại khi chạm biên để không xuất hiện viền đen.")
+        Text("Auto Pan tự động áp dụng Aspect Fill và lia khung hình để nhân vật chính luôn ở giữa theo trục dọc. Camera chỉ pan trong phạm vi video, tự động dừng lại khi chạm biên để không xuất hiện viền đen. Bạn có thể điều chỉnh thêm Tỉ lệ (Scale) ở tab Video.")
             .font(.system(size: 11))
             .foregroundStyle(DSColors.textSecondary)
             .lineSpacing(2)

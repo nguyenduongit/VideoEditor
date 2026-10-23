@@ -202,7 +202,7 @@ struct TimelineCompositionBuilder {
         }
 
         let userScale = clip.properties["scale"]?.asNumber ?? 1.0
-        let autoPanZoom = isAutoPanActive ? (autoPan?.zoom ?? 1.25) : 1.0
+        let autoPanZoom = isAutoPanActive ? (autoPan?.zoom ?? 1.0) : 1.0
         let finalScale = max(0.01, baseScale * userScale * autoPanZoom)
 
         let userPosX = clip.properties["positionX"]?.asNumber ?? 0.0

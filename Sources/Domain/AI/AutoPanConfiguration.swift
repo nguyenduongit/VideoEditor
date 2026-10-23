@@ -17,13 +17,13 @@ public struct AutoPanKeyframe: Codable, Sendable, Equatable {
 /// Complies with R2.3, R4.3, and R5.5 of AGENTS.md.
 public struct AutoPanConfiguration: Codable, Sendable, Equatable {
     public var isEnabled: Bool
-    public var zoom: Double // 1.0 (fit) to 2.5 (zoomed in), default 1.25
+    public var zoom: Double // Backward compatibility, defaults to 1.0 (Aspect Fill handled automatically)
     public var smoothness: Double // 0.0 (fast) to 1.0 (ultra-smooth), default 0.5
     public var keyframes: [AutoPanKeyframe]
 
     public init(
         isEnabled: Bool = false,
-        zoom: Double = 1.25,
+        zoom: Double = 1.0,
         smoothness: Double = 0.5,
         keyframes: [AutoPanKeyframe] = []
     ) {
@@ -33,7 +33,7 @@ public struct AutoPanConfiguration: Codable, Sendable, Equatable {
         self.keyframes = keyframes
     }
 
-    public static let `default` = AutoPanConfiguration(isEnabled: false, zoom: 1.25, smoothness: 0.5, keyframes: [])
+    public static let `default` = AutoPanConfiguration(isEnabled: false, zoom: 1.0, smoothness: 0.5, keyframes: [])
 
     enum CodingKeys: String, CodingKey {
         case isEnabled
@@ -45,7 +45,7 @@ public struct AutoPanConfiguration: Codable, Sendable, Equatable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? false
-        self.zoom = try container.decodeIfPresent(Double.self, forKey: .zoom) ?? 1.25
+        self.zoom = try container.decodeIfPresent(Double.self, forKey: .zoom) ?? 1.0
         self.smoothness = try container.decodeIfPresent(Double.self, forKey: .smoothness) ?? 0.5
         self.keyframes = try container.decodeIfPresent([AutoPanKeyframe].self, forKey: .keyframes) ?? []
     }

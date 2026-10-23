@@ -137,10 +137,10 @@ struct AutoPanEngineTests {
         #expect(abs(decoded.keyframes[0].timeSeconds - 0.5) < 0.001)
         #expect(abs(decoded.keyframes[0].normalizedX - 0.42) < 0.001)
 
-        // Backward compatibility: JSON without zoom property defaults to 1.25
+        // Backward compatibility: JSON without zoom property defaults to 1.0
         let legacyJSON = "{\"isEnabled\":true,\"smoothness\":0.5,\"keyframes\":[]}"
         let legacyDecoded = AutoPanConfiguration.decode(from: legacyJSON)
         #expect(legacyDecoded != nil)
-        #expect(abs((legacyDecoded?.zoom ?? 0.0) - 1.25) < 0.001)
+        #expect(abs((legacyDecoded?.zoom ?? 0.0) - 1.0) < 0.001)
     }
 }
