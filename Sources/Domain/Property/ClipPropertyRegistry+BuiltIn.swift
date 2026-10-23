@@ -6,7 +6,7 @@ extension ClipPropertyRegistry {
         register(descriptors: imageDescriptors, for: .image)
         register(descriptors: audioDescriptors, for: .audio)
         register(descriptors: textDescriptors, for: .text)
-        register(descriptors: adjustmentDescriptors, for: .adjustment)
+        register(descriptors: adjustmentDescriptors, for: .adjustment, tabs: ["Basic", "HSL"])
     }
 
     var videoDescriptors: [PropertyDescriptor] {
@@ -69,32 +69,32 @@ extension ClipPropertyRegistry {
             PropertyDescriptor(
                 id: "opacity",
                 title: "Intensity",
-                tab: "Adjustment",
-                group: "Adjustment",
+                tab: "Basic",
+                group: "Basic",
                 control: .slider(min: 0.0, max: 1.0, step: 0.01, unit: "%"),
                 defaultValue: .number(1.0)
             ),
             PropertyDescriptor(
                 id: "adjustmentConfig",
                 title: "Configuration",
-                tab: "Adjustment",
-                group: "Adjustment",
+                tab: "Basic",
+                group: "Basic",
                 control: .textField,
                 defaultValue: .string(AdjustmentConfiguration().encodeToJSON() ?? "")
             ),
             PropertyDescriptor(
                 id: "brightness",
                 title: "Brightness",
-                tab: "Color",
-                group: "Color",
+                tab: "Basic",
+                group: "Basic",
                 control: .slider(min: -1.0, max: 1.0, step: 0.05),
                 defaultValue: .number(0.0)
             ),
             PropertyDescriptor(
                 id: "contrast",
                 title: "Contrast",
-                tab: "Color",
-                group: "Color",
+                tab: "Basic",
+                group: "Basic",
                 control: .slider(min: 0.0, max: 2.0, step: 0.05),
                 defaultValue: .number(1.0)
             )

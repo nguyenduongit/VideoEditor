@@ -37,7 +37,7 @@ public struct InspectorView: View {
     private var contentArea: some View {
         if viewModel.selectedClip != nil {
             DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-                if viewModel.selectedClip?.kind == .adjustment || viewModel.effectiveTab == "Adjustment" {
+                if viewModel.selectedClip?.kind == .adjustment || viewModel.effectiveTab == "Basic" || viewModel.effectiveTab == "HSL" {
                     AdjustmentInspectorView(viewModel: viewModel)
                         .padding(.leading, DSSize.inspectorContentPadding)
                         .padding(.trailing, DSSpacing.md)

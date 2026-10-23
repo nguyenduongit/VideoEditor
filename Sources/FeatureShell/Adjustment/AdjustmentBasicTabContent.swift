@@ -23,15 +23,15 @@ public struct AdjustmentBasicTabContent: View {
     private var intensitySection: some View {
         DSCollapsibleSection(title: "Cường độ áp dụng", defaultExpanded: true) {
             let opacityBinding = Binding<Double>(
-                get: { viewModel.liveNumber(for: "opacity", default: 1.0) * 100.0 },
-                set: { viewModel.updateLiveValue(key: "opacity", value: $0 / 100.0) }
+                get: { viewModel.liveNumber(for: "opacity", default: 1.0) },
+                set: { viewModel.updateLiveValue(key: "opacity", value: $0) }
             )
             DSSliderWithInput(
                 title: "Cường độ",
                 value: opacityBinding,
-                range: 0.0...100.0,
-                step: 1.0,
-                defaultValue: 100.0,
+                range: 0.0...1.0,
+                step: 0.01,
+                defaultValue: 1.0,
                 unit: "%",
                 onEditingChanged: { editing in
                     viewModel.onSliderEditingChanged(key: "opacity", isEditing: editing)

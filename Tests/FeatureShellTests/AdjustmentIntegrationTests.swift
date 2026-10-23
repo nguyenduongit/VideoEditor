@@ -94,4 +94,19 @@ struct AdjustmentIntegrationTests {
         let output = ColorGradingEngine.shared.applyGrading(to: baseImage, config: config, intensity: 1.0)
         #expect(output.extent == extent)
     }
+
+    @Test("Adjustment clip provides 2 main tabs Basic and HSL in InspectorViewModel without subtabs")
+    func testAdjustmentClipMainTabs() {
+        let vm = TimelineViewModel(initialLayers: [])
+        vm.addAdjustmentClip(named: "Test Adj")
+        let inspectorVM = InspectorViewModel(timelineViewModel: vm)
+        inspectorVM.syncWithSelection()
+
+        #expect(inspectorVM.selectedClip?.kind == .adjustment)
+        #expect(inspectorVM.availableTabs == ["Basic", "HSL"])
+        #expect(inspectorVM.effectiveTab == "Basic")
+
+        inspectorVM.selectedTab = "HSL"
+        #expect(inspectorVM.effectiveTab == "HSL")
+    }
 }
