@@ -5,7 +5,7 @@ extension ClipPropertyRegistry {
         register(descriptors: videoDescriptors, for: .video, tabs: ["Video", "Grid", "Mask", "AI"])
         register(descriptors: imageDescriptors, for: .image)
         register(descriptors: audioDescriptors, for: .audio)
-        register(descriptors: textDescriptors, for: .text)
+        register(descriptors: textDescriptors, for: .text, tabs: ["Văn bản", "Hiệu ứng"])
         register(descriptors: adjustmentDescriptors, for: .adjustment, tabs: ["Basic", "HSL"])
     }
 
@@ -46,59 +46,30 @@ extension ClipPropertyRegistry {
     var textDescriptors: [PropertyDescriptor] {
         [
             PropertyDescriptor(
+                id: "textConfig",
+                title: "Configuration",
+                tab: "Văn bản",
+                group: "Văn bản",
+                control: .textField,
+                defaultValue: .string(TextConfiguration().encodeToJSON() ?? "")
+            ),
+            PropertyDescriptor(
                 id: "textContent",
                 title: "Text",
-                tab: "Text",
-                group: "Text",
+                tab: "Văn bản",
+                group: "Văn bản",
                 control: .textField,
-                defaultValue: .string("Sample Text")
+                defaultValue: .string("Văn bản")
             ),
             PropertyDescriptor(
                 id: "fontSize",
                 title: "Font Size",
-                tab: "Text",
-                group: "Text",
-                control: .slider(min: 12.0, max: 120.0, step: 1.0, unit: "pt"),
-                defaultValue: .number(36.0)
+                tab: "Văn bản",
+                group: "Văn bản",
+                control: .slider(min: 12.0, max: 160.0, step: 1.0, unit: "pt"),
+                defaultValue: .number(48.0)
             )
-        ] + transformDescriptors(tab: "Transform", includeUniform: false)
-    }
-
-    var adjustmentDescriptors: [PropertyDescriptor] {
-        [
-            PropertyDescriptor(
-                id: "opacity",
-                title: "Intensity",
-                tab: "Basic",
-                group: "Basic",
-                control: .slider(min: 0.0, max: 1.0, step: 0.01, unit: "%"),
-                defaultValue: .number(1.0)
-            ),
-            PropertyDescriptor(
-                id: "adjustmentConfig",
-                title: "Configuration",
-                tab: "Basic",
-                group: "Basic",
-                control: .textField,
-                defaultValue: .string(AdjustmentConfiguration().encodeToJSON() ?? "")
-            ),
-            PropertyDescriptor(
-                id: "brightness",
-                title: "Brightness",
-                tab: "Basic",
-                group: "Basic",
-                control: .slider(min: -1.0, max: 1.0, step: 0.05),
-                defaultValue: .number(0.0)
-            ),
-            PropertyDescriptor(
-                id: "contrast",
-                title: "Contrast",
-                tab: "Basic",
-                group: "Basic",
-                control: .slider(min: 0.0, max: 2.0, step: 0.05),
-                defaultValue: .number(1.0)
-            )
-        ]
+        ] + transformDescriptors(tab: "Hiệu ứng", includeUniform: false)
     }
 
     private func audioGroupDescriptors(tab: String = "Audio") -> [PropertyDescriptor] {

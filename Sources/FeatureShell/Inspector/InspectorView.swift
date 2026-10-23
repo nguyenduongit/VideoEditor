@@ -42,6 +42,11 @@ public struct InspectorView: View {
                         .padding(.leading, DSSize.inspectorContentPadding)
                         .padding(.trailing, DSSpacing.md)
                         .padding(.vertical, DSSpacing.md)
+                } else if viewModel.selectedClip?.kind == .text || viewModel.effectiveTab == "Văn bản" || viewModel.effectiveTab == "Hiệu ứng" {
+                    TextInspectorView(viewModel: viewModel)
+                        .padding(.leading, DSSize.inspectorContentPadding)
+                        .padding(.trailing, DSSpacing.md)
+                        .padding(.vertical, DSSpacing.md)
                 } else if viewModel.effectiveTab == "Grid" {
                     GridInspectorView(viewModel: viewModel)
                         .padding(.leading, DSSize.inspectorContentPadding)

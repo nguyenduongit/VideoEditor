@@ -31,6 +31,26 @@ public struct ClipCanvasGeometry: Sendable {
         for clip: TimelineClip,
         canvasSize: CGSize
     ) -> ClipCanvasGeometry {
+        if clip.kind == .text {
+            let config = clip.properties["textConfig"]?.asString.flatMap {
+                TextConfiguration.decode(from: $0)
+            } ?? TextConfiguration(content: clip.properties["textContent"]?.asString ?? clip.name)
+            let rawSize = TextRendererEngine.shared.measureSize(for: config, canvasSize: canvasSize)
+            let userScale = clip.properties["scale"]?.asNumber ?? config.scale
+            let userPosX = clip.properties["positionX"]?.asNumber ?? config.positionX
+            let userPosY = clip.properties["positionY"]?.asNumber ?? config.positionY
+            let userRotation = clip.properties["rotation"]?.asNumber ?? config.rotation
+            let clipW = max(30.0, rawSize.width * userScale)
+            let clipH = max(20.0, rawSize.height * userScale)
+            return ClipCanvasGeometry(
+                center: CGPoint(x: userPosX, y: userPosY),
+                size: CGSize(width: clipW, height: clipH),
+                rotationDegrees: userRotation,
+                positionX: userPosX,
+                positionY: userPosY
+            )
+        }
+
         let meta: VideoTrackMetadata
         if let url = clip.mediaURL, let cached = VideoMetadataCache.shared.metadata(for: url) {
             meta = cached
@@ -133,8 +153,8 @@ public struct PreviewHitTester: Sendable {
         )
 
         for layer in layers {
-            // Audio layers and hidden/locked layers are excluded from preview direct manipulation
-            guard !layer.isHidden, !layer.isLocked, layer.kind != .audio else { continue }
+            // Audio/adjustment layers and hidden/locked layers are excluded from preview direct manipulation
+            guard !layer.isHidden, !layer.isLocked, layer.kind != .audio, layer.kind != .adjustment else { continue }
 
             for clip in layer.clips {
                 let start = clip.timeRange.start

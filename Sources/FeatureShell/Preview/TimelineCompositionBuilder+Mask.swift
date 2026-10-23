@@ -10,7 +10,7 @@ extension TimelineCompositionBuilder {
     static func hasActiveMask(in layers: [TimelineLayer]) -> Bool {
         layers.contains { layer in
             if layer.isHidden { return false }
-            if layer.kind == .adjustment && !layer.clips.isEmpty {
+            if (layer.kind == .adjustment || layer.kind == .text) && !layer.clips.isEmpty {
                 return true
             }
             return layer.kind == .video && layer.clips.contains { clip in
@@ -47,7 +47,7 @@ extension TimelineCompositionBuilder {
         let canvasSize = aspectRatio.renderSize
         let safeDuration = CMTimeMaximum(duration, CMTime(value: 1, timescale: 30))
         let timeRanges = computeInstructionTimeRanges(layers: layers, duration: safeDuration)
-        let activeLayers = layers.filter { !$0.isHidden && ($0.kind == .video || $0.kind == .adjustment) }
+        let activeLayers = layers.filter { !$0.isHidden && ($0.kind == .video || $0.kind == .adjustment || $0.kind == .text) }
 
         let customInstructions = buildInstructions(
             timeRanges: timeRanges,
@@ -82,6 +82,12 @@ extension TimelineCompositionBuilder {
                 if layer.kind == .adjustment {
                     if let adjInfo = makeAdjustmentRenderInfo(layer: layer, range: range) {
                         layerInfos.append(adjInfo)
+                    }
+                    continue
+                }
+                if layer.kind == .text {
+                    if let textInfo = makeTextRenderInfo(layer: layer, range: range) {
+                        layerInfos.append(textInfo)
                     }
                     continue
                 }
@@ -123,6 +129,29 @@ extension TimelineCompositionBuilder {
             clipTimeRange: clip.timeRange,
             isAdjustment: true,
             adjustmentConfig: config
+        )
+    }
+
+    private static func makeTextRenderInfo(
+        layer: TimelineLayer,
+        range: CMTimeRange
+    ) -> TimelineCustomVideoCompositionInstruction.LayerRenderInfo? {
+        let midTime = CMTimeAdd(range.start, CMTimeMultiplyByFloat64(range.duration, multiplier: 0.5))
+        guard let clip = layer.clips.first(where: {
+            $0.timeRange.containsTime(midTime) || ($0.timeRange.start <= range.start && $0.timeRange.end >= range.end)
+        }) else { return nil }
+        let config = clip.properties["textConfig"]?.asString.flatMap {
+            TextConfiguration.decode(from: $0)
+        } ?? TextConfiguration(content: clip.properties["textContent"]?.asString ?? clip.name)
+        let opacity = Float(clip.properties["opacity"]?.asNumber ?? config.opacity)
+        return TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
+            trackID: kCMPersistentTrackID_Invalid,
+            transform: .identity,
+            opacity: opacity,
+            maskParameters: nil,
+            clipTimeRange: clip.timeRange,
+            isText: true,
+            textConfig: config
         )
     }
 
@@ -171,7 +200,7 @@ extension TimelineCompositionBuilder {
 
     private static func computeInstructionTimeRanges(layers: [TimelineLayer], duration: CMTime) -> [CMTimeRange] {
         var points: [CMTime] = [.zero, duration]
-        for layer in layers where !layer.isHidden && (layer.kind == .video || layer.kind == .adjustment) {
+        for layer in layers where !layer.isHidden && (layer.kind == .video || layer.kind == .adjustment || layer.kind == .text) {
             for clip in layer.clips {
                 let s = clip.timeRange.start
                 let e = clip.timeRange.end

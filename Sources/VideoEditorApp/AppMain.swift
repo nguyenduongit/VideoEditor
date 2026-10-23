@@ -137,7 +137,7 @@ struct VideoEditorApp: App {
     ) {
         registry.register(MediaTabDescriptor(mediaViewModel: mediaViewModel))
         registry.register(AudioTabDescriptor())
-        registry.register(TextTabDescriptor())
+        registry.register(TextTabDescriptor(timelineViewModel: timelineViewModel))
         registry.register(AdjustmentTabDescriptor(timelineViewModel: timelineViewModel))
     }
 }

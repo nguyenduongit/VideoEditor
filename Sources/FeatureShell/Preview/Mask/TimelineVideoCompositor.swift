@@ -54,6 +54,15 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
                 continue
             }
 
+            if info.isText {
+                if let config = info.textConfig {
+                    if let textImage = TextRendererEngine.shared.renderImage(for: config, canvasSize: canvasSize) {
+                        canvas = textImage.composited(over: canvas)
+                    }
+                }
+                continue
+            }
+
             guard let srcBuffer = asyncVideoCompositionRequest.sourceFrame(byTrackID: info.trackID) else {
                 Self.logger.error("startRequest: failed to get sourceFrame for trackID=\(info.trackID)")
                 continue
