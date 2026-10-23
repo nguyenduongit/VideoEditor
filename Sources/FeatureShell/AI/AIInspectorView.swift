@@ -189,7 +189,7 @@ public struct AIInspectorView: View {
                 let rawKeyframes = try await trackingService.trackSubject(
                     in: url,
                     timeRange: mediaRange,
-                    samplesPerSecond: 4.0,
+                    samplesPerSecond: 1.5,
                     smoothness: autoPanConfig.smoothness,
                     onProgress: { progress in
                         Task { @MainActor in
