@@ -182,4 +182,37 @@ struct PreviewObjectManipulatorTests {
         #expect(redoneClip?.properties["positionX"]?.asNumber == 120.0)
         #expect(redoneClip?.properties["positionY"]?.asNumber == -45.0)
     }
+
+    @Test func testDragTranslationDirectionMatchesScreenOrientation() {
+        let canvasSize = CGSize(width: 1920, height: 1080)
+        let viewSize = CGSize(width: 960, height: 540)
+
+        // Center position (0, 0) maps to screen center (480, 270)
+        let centerPt = ClipCanvasGeometry.screenCenter(
+            positionX: 0,
+            positionY: 0,
+            canvasSize: canvasSize,
+            viewSize: viewSize
+        )
+        #expect(centerPt.x == 480)
+        #expect(centerPt.y == 270)
+
+        // Moving UP on screen (negative Y in screen coords): positionY should decrease
+        let upPt = ClipCanvasGeometry.screenCenter(
+            positionX: 0,
+            positionY: -100,
+            canvasSize: canvasSize,
+            viewSize: viewSize
+        )
+        #expect(upPt.y < centerPt.y) // Screen Y is smaller (higher up on screen)
+
+        // Moving DOWN on screen (positive Y in screen coords): positionY should increase
+        let downPt = ClipCanvasGeometry.screenCenter(
+            positionX: 0,
+            positionY: 100,
+            canvasSize: canvasSize,
+            viewSize: viewSize
+        )
+        #expect(downPt.y > centerPt.y) // Screen Y is larger (lower down on screen)
+    }
 }

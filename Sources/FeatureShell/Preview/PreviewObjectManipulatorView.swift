@@ -56,7 +56,7 @@ public struct PreviewObjectManipulatorView: View {
     private func selectionOutline(for clip: TimelineClip, viewSize: CGSize) -> some View {
         let geom = ClipCanvasGeometry.compute(for: clip, canvasSize: canvasSize)
         let scale = MaskOnScreenMath.scale(canvasSize: canvasSize, viewSize: viewSize)
-        let center = MaskOnScreenMath.screenCenter(
+        let center = ClipCanvasGeometry.screenCenter(
             positionX: geom.positionX,
             positionY: geom.positionY,
             canvasSize: canvasSize,
@@ -136,7 +136,7 @@ public struct PreviewObjectManipulatorView: View {
         guard scale > 0.0001 else { return }
 
         let dx = Double(g.translation.width / scale)
-        let dy = Double(-g.translation.height / scale)
+        let dy = Double(g.translation.height / scale)
         let newX = dragInitialPosX + dx
         let newY = dragInitialPosY + dy
 

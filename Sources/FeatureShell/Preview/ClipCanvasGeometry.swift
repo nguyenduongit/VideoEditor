@@ -61,6 +61,32 @@ public struct ClipCanvasGeometry: Sendable {
         )
     }
 
+    /// Converts a screen point to canvas-relative coordinates (X, Y) matching preview rendering.
+    public static func canvasPoint(
+        from screenPoint: CGPoint,
+        canvasSize: CGSize,
+        viewSize: CGSize
+    ) -> (x: Double, y: Double) {
+        let scale = max(0.001, viewSize.width / max(1.0, canvasSize.width))
+        let x = Double((screenPoint.x - viewSize.width / 2.0) / scale)
+        let y = Double((screenPoint.y - viewSize.height / 2.0) / scale)
+        return (x, y)
+    }
+
+    /// Converts canvas center-relative position (X, Y) to on-screen CGPoint in viewport coordinates.
+    public static func screenCenter(
+        positionX: Double,
+        positionY: Double,
+        canvasSize: CGSize,
+        viewSize: CGSize
+    ) -> CGPoint {
+        let scale = max(0.001, viewSize.width / max(1.0, canvasSize.width))
+        return CGPoint(
+            x: viewSize.width / 2.0 + CGFloat(positionX) * scale,
+            y: viewSize.height / 2.0 + CGFloat(positionY) * scale
+        )
+    }
+
     /// Checks if a canvas-relative coordinate (x, y) falls inside the clip's rotated boundary.
     public func contains(canvasPoint: (x: Double, y: Double)) -> Bool {
         let dx = canvasPoint.x - positionX
@@ -94,8 +120,8 @@ public struct PreviewHitTester: Sendable {
         viewSize: CGSize
     ) -> TimelineClip? {
         guard viewSize.width > 0, viewSize.height > 0 else { return nil }
-        let canvasPt = MaskOnScreenMath.canvasPosition(
-            screenPoint: screenPoint,
+        let canvasPt = ClipCanvasGeometry.canvasPoint(
+            from: screenPoint,
             canvasSize: canvasSize,
             viewSize: viewSize
         )
