@@ -163,12 +163,20 @@ struct TimelineVerticalScrollTests {
         #expect(totalContentWidth + DSSize.timelineBottomBuffer == DSSize.sidebarWidth)
     }
 
-    @Test("DSContentHeightPreferenceKey reduces max height accurately")
+    @Test("DSContentHeightPreferenceKey updates dynamically on expansion and collapse")
     func testDSContentHeightPreferenceKey() {
-        var value: CGFloat = 100
-        DSContentHeightPreferenceKey.reduce(value: &value, nextValue: { 250 })
-        #expect(value == 250)
-        DSContentHeightPreferenceKey.reduce(value: &value, nextValue: { 150 })
-        #expect(value == 250)
+        var value: CGFloat = 0
+        DSContentHeightPreferenceKey.reduce(value: &value, nextValue: { 750 })
+        #expect(value == 750)
+        DSContentHeightPreferenceKey.reduce(value: &value, nextValue: { 480 })
+        #expect(value == 480)
+
+        // Math test: when expanded (750 > 500) -> scrollable
+        let mathExpanded = TimelineVerticalScrollBarMath(containerHeight: 500, contentHeight: 750, viewportHeight: 500, scrollOffset: 0)
+        #expect(mathExpanded.isScrollable)
+
+        // Math test: when collapsed (480 <= 500) -> non-scrollable (scrollbar disappears)
+        let mathCollapsed = TimelineVerticalScrollBarMath(containerHeight: 500, contentHeight: 480, viewportHeight: 500, scrollOffset: 0)
+        #expect(!mathCollapsed.isScrollable)
     }
 }

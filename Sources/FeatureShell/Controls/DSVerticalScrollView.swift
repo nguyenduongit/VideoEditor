@@ -68,11 +68,8 @@ public struct DSVerticalScrollView<Content: View>: View {
                             enclosingScrollView = sv
                             updateMetrics(from: sv)
                         },
-                        onMetricsChanged: { offset, cHeight, vHeight in
+                        onMetricsChanged: { offset, _, vHeight in
                             scrollOffset = offset
-                            if cHeight > 0 {
-                                contentHeight = max(contentHeight, cHeight)
-                            }
                             viewportHeight = vHeight > 0 ? vHeight : availableH
                         }
                     )
@@ -83,7 +80,10 @@ public struct DSVerticalScrollView<Content: View>: View {
         .onPreferenceChange(DSContentHeightPreferenceKey.self) { newHeight in
             if newHeight > 0 {
                 contentHeight = newHeight
-                if enclosingScrollView != nil {
+                if let sv = enclosingScrollView {
+                    if let doc = sv.documentView, doc.frame.height != newHeight {
+                        doc.setFrameSize(NSSize(width: doc.frame.width, height: newHeight))
+                    }
                     let maxScroll = max(0, newHeight - viewportHeight)
                     if scrollOffset > maxScroll {
                         scrollTo(targetY: maxScroll)
@@ -108,7 +108,6 @@ public struct DSVerticalScrollView<Content: View>: View {
 
     private func updateMetrics(from sv: NSScrollView) {
         scrollOffset = sv.contentView.bounds.origin.y
-        contentHeight = sv.documentView?.bounds.height ?? 0
         viewportHeight = sv.contentView.bounds.height
     }
 
@@ -230,7 +229,7 @@ public struct DSContentHeightPreferenceKey: PreferenceKey {
     public static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         let next = nextValue()
         if next > 0 {
-            value = max(value, next)
+            value = next
         }
     }
 }
