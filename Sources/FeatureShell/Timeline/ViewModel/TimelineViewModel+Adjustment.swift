@@ -12,8 +12,15 @@ extension TimelineViewModel {
     ) {
         let proposedStart = time ?? currentTime
         let targetStart = TimeRational.snapToFrame(time: proposedStart)
-        let defaultDuration = CMTime(value: 5 * Int64(TimeRational.defaultFPS), timescale: TimeRational.defaultFPS)
-        let timeRange = CMTimeRange(start: targetStart, duration: defaultDuration)
+        var resolvedDuration = CMTime(value: 5 * Int64(TimeRational.defaultFPS), timescale: TimeRational.defaultFPS)
+        let mediaClips = layers.flatMap(\.clips).filter { $0.kind == .video || $0.kind == .image }
+        if let currentMediaClip = mediaClips.first(where: { $0.timeRange.containsTime(targetStart) }) {
+            let remaining = CMTimeSubtract(currentMediaClip.timeRange.end, targetStart)
+            if remaining > .zero {
+                resolvedDuration = remaining
+            }
+        }
+        let timeRange = CMTimeRange(start: targetStart, duration: resolvedDuration)
 
         var properties = ClipPropertyRegistry.shared.defaultProperties(for: .adjustment)
         if let json = config.encodeToJSON() {
@@ -32,6 +39,5 @@ extension TimelineViewModel {
         let layerID = allocateLayerID(for: clip, in: &simulatedLayers)
         applyAddedClips([(clip, layerID)])
         selectedClipIDs = [clip.id]
-        resetZoom()
     }
 }

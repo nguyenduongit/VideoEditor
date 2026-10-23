@@ -56,6 +56,12 @@ public struct TimelineClipBlockPreviewView: View {
 
     private var headerBar: some View {
         HStack(spacing: DSSpacing.xs) {
+            if kind == .adjustment {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Color.white.opacity(0.9))
+            }
+
             Text(name)
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(Color.white)
@@ -82,6 +88,7 @@ public struct TimelineClipBlockPreviewView: View {
         switch kind {
         case .video: return DSColors.clipVideoHeader
         case .audio: return DSColors.clipAudioHeader
+        case .adjustment: return DSColors.clipAdjustmentHeader
         default: return DSColors.clipHeaderBackground
         }
     }

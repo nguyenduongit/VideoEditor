@@ -142,19 +142,60 @@ public struct TimelineClipView: View {
         return CMTime(seconds: newSrc, preferredTimescale: 600)
     }
 
+    @ViewBuilder
     private func centerBody(width: CGFloat) -> some View {
         let activeDurSec = max(1.0 / Double(TimeRational.defaultFPS), Double(width / pixelsPerSecond))
         let activeDur = CMTime(seconds: activeDurSec, preferredTimescale: 600)
-        return VStack(spacing: 0) {
-            ClipHeaderBarView(
-                name: clip.name,
-                duration: activeDur,
-                kind: clip.kind
-            )
-            clipMediaBody(width: width)
+        if clip.kind == .adjustment {
+            adjustmentClipBody(width: width, duration: activeDur)
+        } else {
+            VStack(spacing: 0) {
+                ClipHeaderBarView(
+                    name: clip.name,
+                    duration: activeDur,
+                    kind: clip.kind
+                )
+                clipMediaBody(width: width)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
         }
+    }
+
+    private func adjustmentClipBody(width: CGFloat, duration: CMTime) -> some View {
+        HStack(spacing: DSSpacing.xs) {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(Color.white)
+
+            Text(clip.name)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Color.white)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            if width >= 80 {
+                Text(TimeRational.formatTimecode(time: duration))
+                    .font(.system(size: 8, weight: .regular, design: .monospaced))
+                    .foregroundStyle(Color.white.opacity(0.8))
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, DSSpacing.xs + 2)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
+        .background(
+            LinearGradient(
+                colors: [DSColors.clipAdjustment, DSColors.clipAdjustment.opacity(0.85)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .overlay(
+            Rectangle().fill(Color.white.opacity(0.20)).frame(height: 0.5),
+            alignment: .top
+        )
     }
 
     private var isAudioMuted: Bool {
@@ -199,61 +240,6 @@ public struct TimelineClipView: View {
         case .image, .text, .adjustment:
             Spacer(minLength: 0)
         }
-    }
-
-    private var moveGesture: some Gesture {
-        DragGesture(minimumDistance: 2, coordinateSpace: .global)
-            .onChanged { handleMoveChanged(value: $0) }
-            .onEnded { handleMoveEnded(value: $0) }
-    }
-
-    private func handleMoveChanged(value: DragGesture.Value) {
-        guard !isHoveringLeftTrim && !isHoveringRightTrim else { return }
-        guard !isLocked else { return }
-
-        if !isSelected { onSelect(false) }
-        let rawDx = value.translation.width
-        dragY = value.translation.height
-        let deltaSeconds = Double(rawDx / pixelsPerSecond)
-        let currentStartSec = CMTimeGetSeconds(clip.timeRange.start)
-        var rawStartSec = max(0, currentStartSec + deltaSeconds)
-
-        if abs(dragY) < 15 && groupDragOffset == 0 {
-            if let prevEnd = previousClipEnd { rawStartSec = max(rawStartSec, CMTimeGetSeconds(prevEnd)) }
-            if let nextStart = nextClipStart {
-                let maxStartSec = max(0, CMTimeGetSeconds(nextStart) - CMTimeGetSeconds(clip.timeRange.duration))
-                rawStartSec = min(rawStartSec, maxStartSec)
-            }
-        }
-
-        let rawStart = CMTime(seconds: rawStartSec, preferredTimescale: 600)
-        let threshold = TimelineSnapEngine.thresholdTime(pixelsPerSecond: pixelsPerSecond)
-        let (snappedStart, didSnap) = TimelineSnapEngine.snapClipMove(
-            proposedStart: rawStart, duration: clip.timeRange.duration,
-            candidates: snapCandidates, threshold: threshold
-        )
-        var effectiveStart = didSnap ? snappedStart : TimeRational.snapToFrame(time: rawStart)
-
-        if abs(dragY) < 15 && groupDragOffset == 0 {
-            if let prevEnd = previousClipEnd, effectiveStart < prevEnd { effectiveStart = prevEnd }
-            if let nextStart = nextClipStart {
-                let maxStart = CMTimeSubtract(nextStart, clip.timeRange.duration)
-                if maxStart >= .zero && effectiveStart > maxStart { effectiveStart = maxStart }
-            }
-        }
-
-        let effectiveDx = CGFloat(CMTimeGetSeconds(effectiveStart) - currentStartSec) * pixelsPerSecond
-        dragOffset = effectiveDx
-        onMove(effectiveStart, dragY)
-    }
-
-    private func handleMoveEnded(value: DragGesture.Value) {
-        guard !isHoveringLeftTrim && !isHoveringRightTrim else { return }
-        guard !isLocked else { return }
-        dragOffset = 0
-        dragY = 0
-        if !isSelected { onSelect(false) }
-        onMoveEnd()
     }
 
     private func updateFade(fadeIn: Double, fadeOut: Double, isCommitted: Bool) {

@@ -20,13 +20,19 @@ public struct ClipHeaderBarView: View {
                 fadeHandle
             }
 
+            if kind == .adjustment {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Color.white.opacity(0.9))
+            }
+
             Text(name)
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(Color.white)
                 .lineLimit(1)
                 .truncationMode(.middle)
 
-            if kind == .video {
+            if kind == .video || kind == .adjustment {
                 Text(TimeRational.formatTimecode(time: duration))
                     .font(.system(size: 8, weight: .regular, design: .monospaced))
                     .foregroundStyle(Color.white.opacity(0.7))
@@ -56,6 +62,8 @@ public struct ClipHeaderBarView: View {
             return DSColors.clipVideoHeader
         case .audio:
             return DSColors.clipAudioHeader
+        case .adjustment:
+            return DSColors.clipAdjustmentHeader
         default:
             return DSColors.clipHeaderBackground
         }
