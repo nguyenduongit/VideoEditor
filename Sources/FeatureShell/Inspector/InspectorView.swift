@@ -39,7 +39,7 @@ public struct InspectorView: View {
             DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
                 propertyGroupsList
                     .padding(.leading, DSSize.inspectorContentPadding)
-                    .padding(.trailing, DSSpacing.xs)
+                    .padding(.trailing, DSSpacing.md)
                     .padding(.vertical, DSSpacing.md)
             }
         } else {

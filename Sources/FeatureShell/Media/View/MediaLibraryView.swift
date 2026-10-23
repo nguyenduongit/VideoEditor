@@ -106,7 +106,7 @@ public struct MediaLibraryView: View {
                 }
             }
             .padding(.leading, DSSpacing.lg)
-            .padding(.trailing, DSSpacing.xs)
+            .padding(.trailing, DSSpacing.sm)
             .padding(.vertical, DSSpacing.lg)
         }
         .coordinateSpace(name: "MediaGridSpace")

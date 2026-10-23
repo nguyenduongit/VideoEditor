@@ -24,12 +24,17 @@ public struct DSVerticalScrollView<Content: View>: View {
 
     public var body: some View {
         GeometryReader { geo in
+            let availableW = geo.size.width
             let availableH = geo.size.height
+            let scrollerW = DSSize.timelineBottomBuffer
+            let contentW = max(0, availableW - scrollerW)
+
             HStack(spacing: DSSpacing.none) {
-                scrollContentView(availableH: availableH)
-                scrollBarView(availableH: availableH)
+                scrollContentView(width: contentW, availableH: availableH)
+                scrollBarView(width: scrollerW, availableH: availableH)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(width: availableW, height: availableH)
+            .clipped()
             .onAppear {
                 viewportHeight = availableH
                 if let sv = enclosingScrollView {
@@ -45,9 +50,10 @@ public struct DSVerticalScrollView<Content: View>: View {
         }
     }
 
-    private func scrollContentView(availableH: CGFloat) -> some View {
+    private func scrollContentView(width: CGFloat, availableH: CGFloat) -> some View {
         ScrollView(.vertical, showsIndicators: false) {
             content
+                .frame(width: width)
                 .background(
                     DSVerticalScrollViewAnchor(
                         onScrollViewFound: { sv in
@@ -62,10 +68,11 @@ public struct DSVerticalScrollView<Content: View>: View {
                     )
                 )
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: width, height: availableH)
+        .clipped()
     }
 
-    private func scrollBarView(availableH: CGFloat) -> some View {
+    private func scrollBarView(width: CGFloat, availableH: CGFloat) -> some View {
         TimelineVerticalScrollBarView(
             scrollOffset: $scrollOffset,
             contentHeight: contentHeight,
@@ -75,7 +82,7 @@ public struct DSVerticalScrollView<Content: View>: View {
                 scrollTo(targetY: targetY)
             }
         )
-        .frame(width: DSSize.timelineBottomBuffer)
+        .frame(width: width, height: availableH)
     }
 
     private func updateMetrics(from sv: NSScrollView) {
@@ -138,6 +145,8 @@ public final class DSVerticalScrollViewAnchorNSView: NSView {
 
     func reportMetrics() {
         guard let sv = enclosingScrollView else { return }
+        sv.hasVerticalScroller = false
+        sv.verticalScroller = nil
         onScrollViewFound?(sv)
         setupObservers(for: sv)
         sendMetrics(from: sv)

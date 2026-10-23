@@ -26,7 +26,7 @@ public enum DSSize {
     public static let timelineBottomBuffer: CGFloat = 16
     public static let timelineTopBuffer: CGFloat = 80
     public static let slimScrollerHeight: CGFloat = 7
-    public static let inspectorColumnWidth: CGFloat = 88
+    public static let inspectorColumnWidth: CGFloat = 85
     public static let inspectorColumnSpacing: CGFloat = 8
     public static let inspectorContentPadding: CGFloat = 12
 }

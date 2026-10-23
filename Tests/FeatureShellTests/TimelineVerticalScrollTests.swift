@@ -116,4 +116,50 @@ struct TimelineVerticalScrollTests {
         #expect(DSSize.timelineBottomBuffer == 16)
         #expect(DSSize.sidebarWidth == 400)
     }
+
+    @Test("TimelineVerticalScrollBarView thumb renders symmetrically with balanced margins")
+    func testTimelineVerticalScrollBarViewRenderedSymmetry() {
+        let binding = Binding.constant(CGFloat(50))
+        let view = TimelineVerticalScrollBarView(
+            scrollOffset: binding,
+            contentHeight: 1200,
+            viewportHeight: 400,
+            backgroundColor: DSColors.blockBackground,
+            onScrollTo: { _ in }
+        )
+        .frame(width: DSSize.timelineBottomBuffer, height: 200)
+
+        let renderer = ImageRenderer(content: view)
+        guard let cgImage = renderer.cgImage else {
+            Issue.record("Failed to render TimelineVerticalScrollBarView")
+            return
+        }
+        let rep = NSBitmapImageRep(cgImage: cgImage)
+        #expect(rep.pixelsWide == Int(DSSize.timelineBottomBuffer))
+
+        var leftMargin = 0
+        var rightMargin = 0
+        var thumbWidth = 0
+        for x in 0..<rep.pixelsWide {
+            let r = Int((rep.colorAt(x: x, y: 20)?.redComponent ?? 0) * 255)
+            if r > 80 {
+                thumbWidth += 1
+            } else if thumbWidth == 0 {
+                leftMargin += 1
+            } else {
+                rightMargin += 1
+            }
+        }
+        #expect(thumbWidth == Int(DSSize.slimScrollerHeight))
+        #expect(abs(leftMargin - rightMargin) <= 1)
+    }
+
+    @Test("Sidebar width tokens align exactly with scrollbar gutter")
+    func testSidebarWidthTokensAlignment() {
+        let controlsWidth = DSSize.inspectorColumnWidth * 4 + DSSize.inspectorColumnSpacing * 3
+        let paddingWidth = DSSize.inspectorContentPadding + DSSpacing.md
+        let totalContentWidth = controlsWidth + paddingWidth
+        #expect(totalContentWidth == 384)
+        #expect(totalContentWidth + DSSize.timelineBottomBuffer == DSSize.sidebarWidth)
+    }
 }
