@@ -75,18 +75,17 @@ public struct GridOnScreenOverlayView: View {
     private func horizontalDividers(config: GridConfiguration, viewSize: CGSize) -> some View {
         if config.rows > 1 {
             ForEach(0..<(config.rows - 1), id: \.self) { i in
-                if i < config.rowOffsets.count && i < config.rowHeights.count {
-                    let normY = config.rowOffsets[i] + config.rowHeights[i]
+                if i < config.rowDividers.count {
+                    let normY = config.rowDividers[i]
                     let y = CGFloat(normY) * viewSize.height
 
                     ZStack {
-                        // Visual line
                         Rectangle()
                             .fill(Color.white.opacity(0.85))
                             .frame(width: viewSize.width, height: 1.5)
                             .shadow(color: Color.black.opacity(0.6), radius: 1)
                     }
-                    .frame(width: viewSize.width, height: 20)
+                    .frame(width: viewSize.width, height: 24)
                     .contentShape(Rectangle())
                     .position(x: viewSize.width / 2.0, y: y)
                     .gesture(horizontalDragGesture(dividerIndex: i, viewSize: viewSize))
@@ -99,18 +98,17 @@ public struct GridOnScreenOverlayView: View {
     private func verticalDividers(config: GridConfiguration, viewSize: CGSize) -> some View {
         if config.columns > 1 {
             ForEach(0..<(config.columns - 1), id: \.self) { j in
-                if j < config.colOffsets.count && j < config.colWidths.count {
-                    let normX = config.colOffsets[j] + config.colWidths[j]
+                if j < config.colDividers.count {
+                    let normX = config.colDividers[j]
                     let x = CGFloat(normX) * viewSize.width
 
                     ZStack {
-                        // Visual line
                         Rectangle()
                             .fill(Color.white.opacity(0.85))
                             .frame(width: 1.5, height: viewSize.height)
                             .shadow(color: Color.black.opacity(0.6), radius: 1)
                     }
-                    .frame(width: 20, height: viewSize.height)
+                    .frame(width: 24, height: viewSize.height)
                     .contentShape(Rectangle())
                     .position(x: x, y: viewSize.height / 2.0)
                     .gesture(verticalDragGesture(dividerIndex: j, viewSize: viewSize))

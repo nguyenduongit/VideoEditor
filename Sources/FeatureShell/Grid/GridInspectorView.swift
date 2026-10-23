@@ -109,12 +109,14 @@ public struct GridInspectorView: View {
                 publishLiveConfig()
             }
         )
+        let bounds = localConfig.rowBounds(for: row)
+        let baseH = bounds.bottom - bounds.top
         return DSSliderWithInput(
             title: "Row \(row + 1) Height",
             value: binding,
             range: 0.05...2.5,
             step: 0.01,
-            defaultValue: 1.0 / Double(localConfig.rows),
+            defaultValue: baseH,
             unit: "%",
             onEditingChanged: { editing in
                 isDraggingSlider = editing
@@ -131,12 +133,14 @@ public struct GridInspectorView: View {
                 publishLiveConfig()
             }
         )
+        let bounds = localConfig.colBounds(for: col)
+        let baseW = bounds.right - bounds.left
         return DSSliderWithInput(
             title: "Column \(col + 1) Width",
             value: binding,
             range: 0.05...2.5,
             step: 0.01,
-            defaultValue: 1.0 / Double(localConfig.columns),
+            defaultValue: baseW,
             unit: "%",
             onEditingChanged: { editing in
                 isDraggingSlider = editing

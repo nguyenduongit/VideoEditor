@@ -20,6 +20,8 @@ public enum GridTarget: Codable, Sendable, Equatable, Hashable {
 public struct GridConfiguration: Codable, Sendable, Equatable {
     public var rows: Int
     public var columns: Int
+    public var rowDividers: [Double]
+    public var colDividers: [Double]
     public var rowHeights: [Double]
     public var colWidths: [Double]
     public var rowOffsets: [Double]
@@ -33,10 +35,12 @@ public struct GridConfiguration: Codable, Sendable, Equatable {
         self.columns = safeCols
 
         let defaultRowH = 1.0 / Double(safeRows)
+        self.rowDividers = (1..<safeRows).map { Double($0) * defaultRowH }
         self.rowHeights = Array(repeating: defaultRowH, count: safeRows)
         self.rowOffsets = (0..<safeRows).map { Double($0) * defaultRowH }
 
         let defaultColW = 1.0 / Double(safeCols)
+        self.colDividers = (1..<safeCols).map { Double($0) * defaultColW }
         self.colWidths = Array(repeating: defaultColW, count: safeCols)
         self.colOffsets = (0..<safeCols).map { Double($0) * defaultColW }
 
@@ -46,14 +50,22 @@ public struct GridConfiguration: Codable, Sendable, Equatable {
     public init(
         rows: Int,
         columns: Int,
+        rowDividers: [Double]? = nil,
+        colDividers: [Double]? = nil,
         rowHeights: [Double],
         colWidths: [Double],
         rowOffsets: [Double],
         colOffsets: [Double],
         selectedTarget: GridTarget? = nil
     ) {
-        self.rows = max(1, rows)
-        self.columns = max(1, columns)
+        let safeRows = max(1, rows)
+        let safeCols = max(1, columns)
+        self.rows = safeRows
+        self.columns = safeCols
+        let defaultRowH = 1.0 / Double(safeRows)
+        let defaultColW = 1.0 / Double(safeCols)
+        self.rowDividers = rowDividers ?? ((1..<safeRows).map { Double($0) * defaultRowH })
+        self.colDividers = colDividers ?? ((1..<safeCols).map { Double($0) * defaultColW })
         self.rowHeights = rowHeights
         self.colWidths = colWidths
         self.rowOffsets = rowOffsets
@@ -61,13 +73,54 @@ public struct GridConfiguration: Codable, Sendable, Equatable {
         self.selectedTarget = selectedTarget
     }
 
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let r = try container.decode(Int.self, forKey: .rows)
+        let c = try container.decode(Int.self, forKey: .columns)
+        self.rows = max(1, r)
+        self.columns = max(1, c)
+        let defaultRowH = 1.0 / Double(self.rows)
+        let defaultColW = 1.0 / Double(self.columns)
+        self.rowDividers = (try? container.decode([Double].self, forKey: .rowDividers))
+            ?? ((1..<self.rows).map { Double($0) * defaultRowH })
+        self.colDividers = (try? container.decode([Double].self, forKey: .colDividers))
+            ?? ((1..<self.columns).map { Double($0) * defaultColW })
+        self.rowHeights = try container.decode([Double].self, forKey: .rowHeights)
+        self.colWidths = try container.decode([Double].self, forKey: .colWidths)
+        self.rowOffsets = try container.decode([Double].self, forKey: .rowOffsets)
+        self.colOffsets = try container.decode([Double].self, forKey: .colOffsets)
+        self.selectedTarget = try? container.decode(GridTarget.self, forKey: .selectedTarget)
+    }
+
+    public func rowBounds(for index: Int) -> (top: Double, bottom: Double) {
+        guard index >= 0 && index < rows else { return (0.0, 1.0) }
+        let top = (index == 0) ? 0.0 : (index - 1 < rowDividers.count ? rowDividers[index - 1] : 0.0)
+        let bottom = (index == rows - 1) ? 1.0 : (index < rowDividers.count ? rowDividers[index] : 1.0)
+        return (top, bottom)
+    }
+
+    public func colBounds(for index: Int) -> (left: Double, right: Double) {
+        guard index >= 0 && index < columns else { return (0.0, 1.0) }
+        let left = (index == 0) ? 0.0 : (index - 1 < colDividers.count ? colDividers[index - 1] : 0.0)
+        let right = (index == columns - 1) ? 1.0 : (index < colDividers.count ? colDividers[index] : 1.0)
+        return (left, right)
+    }
+
     public var isDefault: Bool {
         guard rowHeights.count == rows, colWidths.count == columns,
-              rowOffsets.count == rows, colOffsets.count == columns else {
+              rowOffsets.count == rows, colOffsets.count == columns,
+              rowDividers.count == max(0, rows - 1),
+              colDividers.count == max(0, columns - 1) else {
             return false
         }
         let expectedRowH = 1.0 / Double(rows)
         let expectedColW = 1.0 / Double(columns)
+        for (idx, d) in rowDividers.enumerated() {
+            if abs(d - Double(idx + 1) * expectedRowH) > 0.001 { return false }
+        }
+        for (idx, d) in colDividers.enumerated() {
+            if abs(d - Double(idx + 1) * expectedColW) > 0.001 { return false }
+        }
         for (idx, h) in rowHeights.enumerated() {
             if abs(h - expectedRowH) > 0.001 || abs(rowOffsets[idx] - Double(idx) * expectedRowH) > 0.001 {
                 return false

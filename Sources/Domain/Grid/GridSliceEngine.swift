@@ -76,18 +76,29 @@ public enum GridSliceEngine {
         lineIndex: Int,
         newY: Double
     ) {
-        guard lineIndex >= 0, lineIndex < config.rows - 1 else { return }
-        let topY = config.rowOffsets[lineIndex]
-        let bottomY = config.rowOffsets[lineIndex + 1] + config.rowHeights[lineIndex + 1]
+        guard lineIndex >= 0, lineIndex < config.rowDividers.count else { return }
+        let prevY = (lineIndex == 0) ? 0.0 : config.rowDividers[lineIndex - 1]
+        let nextY = (lineIndex == config.rowDividers.count - 1) ? 1.0 : config.rowDividers[lineIndex + 1]
 
-        let minY = topY + minDimension
-        let maxY = bottomY - minDimension
+        let minY = prevY + minDimension
+        let maxY = nextY - minDimension
         guard minY < maxY else { return }
 
         let clampedY = max(minY, min(maxY, newY))
-        config.rowHeights[lineIndex] = clampedY - topY
-        config.rowOffsets[lineIndex + 1] = clampedY
-        config.rowHeights[lineIndex + 1] = bottomY - clampedY
+        config.rowDividers[lineIndex] = clampedY
+
+        // Update partition sizes for the adjacent rows without applying scale distortion
+        let rowAbove = lineIndex
+        let rowBelow = lineIndex + 1
+
+        let boundsAbove = config.rowBounds(for: rowAbove)
+        let boundsBelow = config.rowBounds(for: rowBelow)
+
+        config.rowHeights[rowAbove] = boundsAbove.bottom - boundsAbove.top
+        config.rowOffsets[rowAbove] = boundsAbove.top
+
+        config.rowHeights[rowBelow] = boundsBelow.bottom - boundsBelow.top
+        config.rowOffsets[rowBelow] = boundsBelow.top
     }
 
     public static func moveVerticalDivider(
@@ -95,17 +106,28 @@ public enum GridSliceEngine {
         lineIndex: Int,
         newX: Double
     ) {
-        guard lineIndex >= 0, lineIndex < config.columns - 1 else { return }
-        let leftX = config.colOffsets[lineIndex]
-        let rightX = config.colOffsets[lineIndex + 1] + config.colWidths[lineIndex + 1]
+        guard lineIndex >= 0, lineIndex < config.colDividers.count else { return }
+        let prevX = (lineIndex == 0) ? 0.0 : config.colDividers[lineIndex - 1]
+        let nextX = (lineIndex == config.colDividers.count - 1) ? 1.0 : config.colDividers[lineIndex + 1]
 
-        let minX = leftX + minDimension
-        let maxX = rightX - minDimension
+        let minX = prevX + minDimension
+        let maxX = nextX - minDimension
         guard minX < maxX else { return }
 
         let clampedX = max(minX, min(maxX, newX))
-        config.colWidths[lineIndex] = clampedX - leftX
-        config.colOffsets[lineIndex + 1] = clampedX
-        config.colWidths[lineIndex + 1] = rightX - clampedX
+        config.colDividers[lineIndex] = clampedX
+
+        // Update partition sizes for the adjacent columns without applying scale distortion
+        let colLeft = lineIndex
+        let colRight = lineIndex + 1
+
+        let boundsLeft = config.colBounds(for: colLeft)
+        let boundsRight = config.colBounds(for: colRight)
+
+        config.colWidths[colLeft] = boundsLeft.right - boundsLeft.left
+        config.colOffsets[colLeft] = boundsLeft.left
+
+        config.colWidths[colRight] = boundsRight.right - boundsRight.left
+        config.colOffsets[colRight] = boundsRight.left
     }
 }

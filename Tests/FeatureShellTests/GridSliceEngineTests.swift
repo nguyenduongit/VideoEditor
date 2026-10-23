@@ -95,9 +95,12 @@ struct GridSliceEngineTests {
     @Test("moveHorizontalDivider adjusts adjacent rows without affecting other rows")
     func testMoveHorizontalDivider() {
         var config = GridConfiguration(rows: 3, columns: 1)
+        #expect(config.rowDividers.count == 2)
+        #expect(abs(config.rowDividers[0] - 1.0 / 3.0) < 0.001)
         // Move divider between row 0 and 1 down to y = 0.45
         GridSliceEngine.moveHorizontalDivider(config: &config, lineIndex: 0, newY: 0.45)
 
+        #expect(abs(config.rowDividers[0] - 0.45) < 0.001)
         #expect(abs(config.rowHeights[0] - 0.45) < 0.001)
         #expect(abs(config.rowOffsets[1] - 0.45) < 0.001)
         // Row 1 bottom was initially at 2/3 ≈ 0.6667
@@ -105,19 +108,34 @@ struct GridSliceEngineTests {
         #expect(abs(config.rowHeights[1] - expectedRow1H) < 0.001)
         // Row 2 is unchanged
         #expect(abs(config.rowOffsets[2] - (2.0 / 3.0)) < 0.001)
+
+        // Verify that divider movement maintains unscaled 1:1 slices (srcH == dstH)
+        let bounds0 = config.rowBounds(for: 0)
+        let bounds1 = config.rowBounds(for: 1)
+        #expect(abs((bounds0.bottom - bounds0.top) - config.rowHeights[0]) < 0.001)
+        #expect(abs((bounds1.bottom - bounds1.top) - config.rowHeights[1]) < 0.001)
     }
 
     @Test("moveVerticalDivider adjusts adjacent columns without affecting other columns")
     func testMoveVerticalDivider() {
         var config = GridConfiguration(rows: 1, columns: 3)
+        #expect(config.colDividers.count == 2)
+        #expect(abs(config.colDividers[0] - 1.0 / 3.0) < 0.001)
         // Move divider between column 0 and 1 to x = 0.2
         GridSliceEngine.moveVerticalDivider(config: &config, lineIndex: 0, newX: 0.2)
 
+        #expect(abs(config.colDividers[0] - 0.2) < 0.001)
         #expect(abs(config.colWidths[0] - 0.2) < 0.001)
         #expect(abs(config.colOffsets[1] - 0.2) < 0.001)
         let expectedCol1W = (2.0 / 3.0) - 0.2
         #expect(abs(config.colWidths[1] - expectedCol1W) < 0.001)
         #expect(abs(config.colOffsets[2] - (2.0 / 3.0)) < 0.001)
+
+        // Verify unscaled 1:1 slices (srcW == dstW)
+        let bounds0 = config.colBounds(for: 0)
+        let bounds1 = config.colBounds(for: 1)
+        #expect(abs((bounds0.right - bounds0.left) - config.colWidths[0]) < 0.001)
+        #expect(abs((bounds1.right - bounds1.left) - config.colWidths[1]) < 0.001)
     }
 
     @Test("updateGridDimensions reallocates subdivisions cleanly and clamps selection")

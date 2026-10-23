@@ -77,57 +77,23 @@ public struct GridInteractiveSquareView: View {
 
     private var horizontalDividersView: some View {
         ForEach(0..<(config.rows - 1), id: \.self) { lineIdx in
-            let yPos = config.rowOffsets[lineIdx + 1] * squareSize
-            ZStack {
-                Rectangle()
-                    .fill(Color.white.opacity(0.4))
-                    .frame(width: squareSize, height: 1.5)
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(width: squareSize, height: 16)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture()
-                            .onChanged { gesture in
-                                let targetY = gesture.location.y / squareSize
-                                GridSliceEngine.moveHorizontalDivider(
-                                    config: &config,
-                                    lineIndex: lineIdx,
-                                    newY: targetY
-                                )
-                            }
-                            .onEnded { _ in onCommit() }
-                    )
-            }
-            .position(x: squareSize / 2, y: yPos)
+            let normY = lineIdx < config.rowDividers.count ? config.rowDividers[lineIdx] : config.rowOffsets[lineIdx + 1]
+            let yPos = normY * squareSize
+            Rectangle()
+                .fill(Color.white.opacity(0.45))
+                .frame(width: squareSize, height: 1.5)
+                .position(x: squareSize / 2, y: yPos)
         }
     }
 
     private var verticalDividersView: some View {
         ForEach(0..<(config.columns - 1), id: \.self) { lineIdx in
-            let xPos = config.colOffsets[lineIdx + 1] * squareSize
-            ZStack {
-                Rectangle()
-                    .fill(Color.white.opacity(0.4))
-                    .frame(width: 1.5, height: squareSize)
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(width: 16, height: squareSize)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture()
-                            .onChanged { gesture in
-                                let targetX = gesture.location.x / squareSize
-                                GridSliceEngine.moveVerticalDivider(
-                                    config: &config,
-                                    lineIndex: lineIdx,
-                                    newX: targetX
-                                )
-                            }
-                            .onEnded { _ in onCommit() }
-                    )
-            }
-            .position(x: xPos, y: squareSize / 2)
+            let normX = lineIdx < config.colDividers.count ? config.colDividers[lineIdx] : config.colOffsets[lineIdx + 1]
+            let xPos = normX * squareSize
+            Rectangle()
+                .fill(Color.white.opacity(0.45))
+                .frame(width: 1.5, height: squareSize)
+                .position(x: xPos, y: squareSize / 2)
         }
     }
 

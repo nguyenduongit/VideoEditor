@@ -22,22 +22,26 @@ public enum GridSliceCompositor {
 
         let canvasW = canvasSize.width
         let canvasH = canvasSize.height
-        let defaultRowH = canvasH / CGFloat(config.rows)
-        let defaultColW = canvasW / CGFloat(config.columns)
 
         var output = CIImage(color: CIColor.clear).cropped(to: CGRect(origin: .zero, size: canvasSize))
 
         for r in 0..<config.rows {
-            // CoreImage Y=0 is bottom
-            let srcY = CGFloat(config.rows - 1 - r) * defaultRowH
-            let srcH = defaultRowH
+            let rowBounds = config.rowBounds(for: r)
+            let baseRowH = rowBounds.bottom - rowBounds.top
+
+            // In CoreImage, Y=0 is bottom:
+            let srcY = CGFloat(1.0 - rowBounds.bottom) * canvasH
+            let srcH = CGFloat(baseRowH) * canvasH
 
             let dstH = CGFloat(config.rowHeights[r]) * canvasH
             let dstY = (1.0 - CGFloat(config.rowOffsets[r]) - CGFloat(config.rowHeights[r])) * canvasH
 
             for c in 0..<config.columns {
-                let srcX = CGFloat(c) * defaultColW
-                let srcW = defaultColW
+                let colBounds = config.colBounds(for: c)
+                let baseColW = colBounds.right - colBounds.left
+
+                let srcX = CGFloat(colBounds.left) * canvasW
+                let srcW = CGFloat(baseColW) * canvasW
 
                 let dstW = CGFloat(config.colWidths[c]) * canvasW
                 let dstX = CGFloat(config.colOffsets[c]) * canvasW
