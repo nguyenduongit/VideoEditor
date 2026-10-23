@@ -7,11 +7,11 @@ import CoreMedia
 @Suite("InspectorAdvancedPropertiesTests")
 @MainActor
 struct InspectorAdvancedPropertiesTests {
-    @Test("Video clip provides tabs: Video, Audio, Mask")
+    @Test("Video clip provides tabs: Video, Grid, Mask")
     func testVideoClipTabs() {
         let registry = ClipPropertyRegistry.shared
         let tabs = registry.tabs(for: .video)
-        #expect(tabs == ["Video", "Audio", "Mask"])
+        #expect(tabs == ["Video", "Grid", "Mask"])
 
         let videoTabDesc = registry.descriptors(for: .video, tab: "Video")
         #expect(videoTabDesc.contains { $0.id == "scale" })
@@ -22,9 +22,7 @@ struct InspectorAdvancedPropertiesTests {
         #expect(videoTabDesc.contains { $0.id == "speed" })
         #expect(videoTabDesc.contains { $0.id == "duration" })
         #expect(videoTabDesc.contains { $0.id == "pitchPreservation" })
-
-        let audioTabDesc = registry.descriptors(for: .video, tab: "Audio")
-        #expect(audioTabDesc.contains { $0.id == "volume" })
+        #expect(videoTabDesc.contains { $0.id == "volume" })
 
         let maskTabDesc = registry.descriptors(for: .video, tab: "Mask")
         #expect(maskTabDesc.contains { $0.id == "maskType" })
@@ -45,14 +43,15 @@ struct InspectorAdvancedPropertiesTests {
         let inspectorVM = InspectorViewModel(timelineViewModel: vm)
         inspectorVM.syncWithSelection()
 
-        #expect(inspectorVM.availableTabs == ["Video", "Audio", "Mask"])
+        #expect(inspectorVM.availableTabs == ["Video", "Grid", "Mask"])
 
-        // Default tab is Video (contains Transform and Speed groups)
+        // Default tab is Video (contains Transform, Speed, and Audio groups)
         inspectorVM.selectedTab = "Video"
         let videoGroups = inspectorVM.groupedDescriptors
-        #expect(videoGroups.count == 2)
+        #expect(videoGroups.count == 3)
         #expect(videoGroups.map(\.group).contains("Transform"))
         #expect(videoGroups.map(\.group).contains("Speed"))
+        #expect(videoGroups.map(\.group).contains("Audio"))
         let transformDesc = videoGroups.first(where: { $0.group == "Transform" })?.descriptors.map(\.id) ?? []
         #expect(transformDesc.contains("scale"))
         #expect(transformDesc.contains("uniformScale"))
@@ -61,13 +60,13 @@ struct InspectorAdvancedPropertiesTests {
         let speedDesc = videoGroups.first(where: { $0.group == "Speed" })?.descriptors.map(\.id) ?? []
         #expect(speedDesc.contains("speed"))
         #expect(speedDesc.contains("duration"))
+        let audioDesc = videoGroups.first(where: { $0.group == "Audio" })?.descriptors.map(\.id) ?? []
+        #expect(audioDesc.contains("volume"))
 
-        // Switch to Audio tab
-        inspectorVM.selectedTab = "Audio"
-        let audioGroups = inspectorVM.groupedDescriptors
-        #expect(audioGroups.count == 1)
-        #expect(audioGroups.first?.group == "Audio")
-        #expect(audioGroups.first?.descriptors.map(\.id).contains("volume") == true)
+        // Switch to Grid tab
+        inspectorVM.selectedTab = "Grid"
+        let gridGroups = inspectorVM.groupedDescriptors
+        #expect(gridGroups.isEmpty)
 
         // Switch to Mask tab
         inspectorVM.selectedTab = "Mask"

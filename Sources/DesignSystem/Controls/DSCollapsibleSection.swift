@@ -7,15 +7,17 @@ public struct DSCollapsibleSection<Content: View>: View {
     private let onReset: (() -> Void)?
     private let content: () -> Content
 
-    @State private var isExpanded: Bool = true
+    @State private var isExpanded: Bool
     @State private var isHoveredReset = false
 
     public init(
         title: String,
+        defaultExpanded: Bool = true,
         onReset: (() -> Void)? = nil,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.title = title
+        self._isExpanded = State(initialValue: defaultExpanded)
         self.onReset = onReset
         self.content = content
     }

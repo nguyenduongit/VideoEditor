@@ -2,7 +2,7 @@ import Foundation
 
 extension ClipPropertyRegistry {
     func registerBuiltInDescriptors() {
-        register(descriptors: videoDescriptors, for: .video, tabs: ["Video", "Audio", "Mask"])
+        register(descriptors: videoDescriptors, for: .video, tabs: ["Video", "Grid", "Mask"])
         register(descriptors: imageDescriptors, for: .image)
         register(descriptors: audioDescriptors, for: .audio)
         register(descriptors: textDescriptors, for: .text)
@@ -12,7 +12,7 @@ extension ClipPropertyRegistry {
     var videoDescriptors: [PropertyDescriptor] {
         transformDescriptors(tab: "Video", includeUniform: true)
             + speedGroupDescriptors(tab: "Video")
-            + audioGroupDescriptors
+            + audioGroupDescriptors(tab: "Video")
             + maskGroupDescriptors(tab: "Mask")
     }
 
@@ -30,7 +30,7 @@ extension ClipPropertyRegistry {
     }
 
     var audioDescriptors: [PropertyDescriptor] {
-        audioGroupDescriptors + [
+        audioGroupDescriptors(tab: "Audio") + [
             PropertyDescriptor(
                 id: "pan",
                 title: "Balance",
@@ -92,12 +92,12 @@ extension ClipPropertyRegistry {
         ]
     }
 
-    private var audioGroupDescriptors: [PropertyDescriptor] {
+    private func audioGroupDescriptors(tab: String = "Audio") -> [PropertyDescriptor] {
         [
             PropertyDescriptor(
                 id: "volume",
                 title: "Volume",
-                tab: "Audio",
+                tab: tab,
                 group: "Audio",
                 control: .slider(min: 0.0, max: 2.0, step: 0.01, unit: "%"),
                 defaultValue: .number(1.0)
@@ -105,7 +105,7 @@ extension ClipPropertyRegistry {
             PropertyDescriptor(
                 id: "fadeIn",
                 title: "Fade in",
-                tab: "Audio",
+                tab: tab,
                 group: "Audio",
                 control: .slider(min: 0.0, max: 10.0, step: 0.1, unit: "s"),
                 defaultValue: .number(0.0)
@@ -113,7 +113,7 @@ extension ClipPropertyRegistry {
             PropertyDescriptor(
                 id: "fadeOut",
                 title: "Fade out",
-                tab: "Audio",
+                tab: tab,
                 group: "Audio",
                 control: .slider(min: 0.0, max: 10.0, step: 0.1, unit: "s"),
                 defaultValue: .number(0.0)

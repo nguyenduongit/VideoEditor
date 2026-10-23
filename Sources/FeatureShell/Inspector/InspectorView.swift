@@ -82,6 +82,7 @@ public struct InspectorView: View {
                 ForEach(viewModel.groupedDescriptors, id: \.group) { group in
                     DSCollapsibleSection(
                         title: group.group,
+                        defaultExpanded: isGroupDefaultExpanded(group.group),
                         onReset: { viewModel.resetGroup(name: group.group) }
                     ) {
                         VStack(alignment: .leading, spacing: DSSpacing.md) {
@@ -93,6 +94,13 @@ public struct InspectorView: View {
                 }
             }
         }
+    }
+
+    private func isGroupDefaultExpanded(_ groupName: String) -> Bool {
+        if groupName == "Audio" && viewModel.selectedClip?.kind == .video {
+            return false
+        }
+        return true
     }
 
     @ViewBuilder
