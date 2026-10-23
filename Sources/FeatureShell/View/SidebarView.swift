@@ -19,6 +19,7 @@ public struct SidebarView: View {
             .frame(width: DSSize.sidebarWidth)
             .frame(maxHeight: .infinity)
         }
+        .frame(width: DSSize.sidebarWidth)
     }
 
     private var headerBar: some View {

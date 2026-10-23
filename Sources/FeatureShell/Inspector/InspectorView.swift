@@ -24,6 +24,7 @@ public struct InspectorView: View {
             .frame(width: DSSize.sidebarWidth)
             .frame(maxHeight: .infinity)
         }
+        .frame(width: DSSize.sidebarWidth)
         .onAppear {
             viewModel.syncWithSelection()
         }
@@ -35,9 +36,10 @@ public struct InspectorView: View {
     @ViewBuilder
     private var contentArea: some View {
         if viewModel.selectedClip != nil {
-            ScrollView(.vertical, showsIndicators: true) {
+            DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
                 propertyGroupsList
-                    .padding(.horizontal, DSSize.inspectorContentPadding)
+                    .padding(.leading, DSSize.inspectorContentPadding)
+                    .padding(.trailing, DSSpacing.xs)
                     .padding(.vertical, DSSpacing.md)
             }
         } else {

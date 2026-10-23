@@ -87,7 +87,7 @@ public struct MediaLibraryView: View {
     }
 
     private var contentArea: some View {
-        ScrollView {
+        DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
             LazyVGrid(columns: columns, spacing: DSSpacing.md) {
                 ForEach(viewModel.assets) { asset in
                     MediaAssetItemView(
@@ -105,7 +105,9 @@ public struct MediaLibraryView: View {
                     .background(frameReporter(for: asset.id))
                 }
             }
-            .padding(DSSpacing.lg)
+            .padding(.leading, DSSpacing.lg)
+            .padding(.trailing, DSSpacing.xs)
+            .padding(.vertical, DSSpacing.lg)
         }
         .coordinateSpace(name: "MediaGridSpace")
         .overlay(alignment: .topLeading) {

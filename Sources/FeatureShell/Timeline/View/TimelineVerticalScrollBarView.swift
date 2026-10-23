@@ -44,6 +44,7 @@ public struct TimelineVerticalScrollBarView: View {
     @Binding private var scrollOffset: CGFloat
     private let contentHeight: CGFloat
     private let viewportHeight: CGFloat
+    private let backgroundColor: Color
     private let onScrollTo: (CGFloat) -> Void
 
     @State private var isDragging: Bool = false
@@ -54,11 +55,13 @@ public struct TimelineVerticalScrollBarView: View {
         scrollOffset: Binding<CGFloat>,
         contentHeight: CGFloat,
         viewportHeight: CGFloat,
+        backgroundColor: Color = DSColors.layerTrackBackground,
         onScrollTo: @escaping (CGFloat) -> Void
     ) {
         self._scrollOffset = scrollOffset
         self.contentHeight = contentHeight
         self.viewportHeight = viewportHeight
+        self.backgroundColor = backgroundColor
         self.onScrollTo = onScrollTo
     }
 
@@ -72,7 +75,7 @@ public struct TimelineVerticalScrollBarView: View {
             )
 
             ZStack(alignment: .top) {
-                DSColors.layerTrackBackground
+                backgroundColor
                     .frame(width: DSSize.timelineBottomBuffer)
 
                 if math.isScrollable {

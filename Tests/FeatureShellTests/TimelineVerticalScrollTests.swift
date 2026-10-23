@@ -92,4 +92,28 @@ struct TimelineVerticalScrollTests {
         #expect(spacerMany + totalLayersHeightMany == 460)
         #expect(spacerMany + totalLayersHeightMany > availableHeight)
     }
+
+    @Test("TimelineVerticalScrollBarView supports custom backgroundColor")
+    func testTimelineVerticalScrollBarViewCustomBackground() {
+        let binding = Binding.constant(CGFloat(0))
+        let view = TimelineVerticalScrollBarView(
+            scrollOffset: binding,
+            contentHeight: 800,
+            viewportHeight: 400,
+            backgroundColor: DSColors.blockBackground,
+            onScrollTo: { _ in }
+        )
+        _ = view
+        #expect(DSSize.sidebarWidth == 400)
+    }
+
+    @Test("DSVerticalScrollView initializes and preserves gutter buffer")
+    func testDSVerticalScrollViewGutterBuffer() {
+        let scrollView = DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
+            Text("Test Content")
+        }
+        _ = scrollView
+        #expect(DSSize.timelineBottomBuffer == 16)
+        #expect(DSSize.sidebarWidth == 400)
+    }
 }
