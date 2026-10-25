@@ -138,7 +138,7 @@ struct TextIntegrationTests {
 
     @Test func testInspectorTabsForTextClip() {
         let tabs = ClipPropertyRegistry.shared.tabs(for: .text)
-        #expect(tabs == ["Văn bản", "Hiệu ứng"])
+        #expect(tabs == ["Text", "Style", "Animation"])
 
         let timelineVM = TimelineViewModel(initialLayers: [])
         timelineVM.addTextClip(named: "Tiêu đề", config: TextConfiguration(content: "Tiêu đề"))
@@ -152,8 +152,8 @@ struct TextIntegrationTests {
         inspectorVM.syncWithSelection()
 
         #expect(inspectorVM.selectedClip?.id == clip.id)
-        #expect(inspectorVM.availableTabs == ["Văn bản", "Hiệu ứng"])
-        #expect(inspectorVM.effectiveTab == "Văn bản")
+        #expect(inspectorVM.availableTabs == ["Text", "Style", "Animation"])
+        #expect(inspectorVM.effectiveTab == "Text")
     }
 
     @Test func testTimelineCompositionBuilderWithTextLayer() {
@@ -241,5 +241,32 @@ struct TextIntegrationTests {
 
         #expect(textInfo.textConfig?.positionX == 150.0)
         #expect(textInfo.textConfig?.positionY == -250.0)
+    }
+
+    @Test func testTextColorSwatchesAndPresetColorMatching() {
+        let swatches = TextColorSwatchesRow.defaultSwatches
+        #expect(swatches.count == 9)
+        #expect(swatches.contains("#FDE047"))
+        #expect(swatches.contains("#F97316"))
+        #expect(swatches.contains("#06B6D4"))
+        #expect(swatches.contains("#EF4444"))
+
+        let neon = TextPreset.templates.first { $0.id == "neon_yellow" }
+        #expect(neon != nil)
+        #expect(neon?.config.textColorHex == "#FDE047")
+        #expect(neon?.config.shadowColorHex == "#F97316")
+
+        #expect(TextColorSwatchesRow.isColorMatching(swatchHex: "#FDE047", selectedHex: "#FDE047"))
+        #expect(TextColorSwatchesRow.isColorMatching(swatchHex: "#FDE047", selectedHex: "#fde047"))
+        #expect(TextColorSwatchesRow.isColorMatching(swatchHex: "#FDE047", selectedHex: "#FDE047FF"))
+
+        #expect(TextColorSwatchesRow.isColorMatching(swatchHex: "#FDE047", selectedHex: "#FFF566"))
+        #expect(TextColorSwatchesRow.isColorMatching(swatchHex: "#FDE047", selectedHex: "#FFEA00"))
+        #expect(TextColorSwatchesRow.isColorMatching(swatchHex: "#F97316", selectedHex: "#FF7A45"))
+        #expect(TextColorSwatchesRow.isColorMatching(swatchHex: "#06B6D4", selectedHex: "#36CFC9"))
+        #expect(TextColorSwatchesRow.isColorMatching(swatchHex: "#EF4444", selectedHex: "#CF1322"))
+
+        let isMatched = swatches.contains { TextColorSwatchesRow.isColorMatching(swatchHex: $0, selectedHex: "#FFF1B8") }
+        #expect(!isMatched)
     }
 }

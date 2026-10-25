@@ -189,4 +189,81 @@ struct TimelineCompositionBuilderTests {
         #expect(abs(transform.a - 4.5) < 0.01)
         #expect(abs(transform.d - 4.5) < 0.01)
     }
+
+    @Test func testPreviewAnd4KExportShareIdenticalLogicalFramingAndPositionScaling() async throws {
+        let tempDir = FileManager.default.temporaryDirectory
+        let videoURL = tempDir.appendingPathComponent("test_4k_parity_\(UUID().uuidString).mp4")
+        try await Self.createTestVideoFile(url: videoURL, durationSeconds: 1.0)
+        defer { try? FileManager.default.removeItem(at: videoURL) }
+
+        var gridCfg = GridConfiguration(rows: 3, columns: 1, isEnabled: true, legStretchRatio: 1.15, isDynamicLines: true)
+        GridSliceEngine.setBodyLines(config: &gridCfg, waistY: 0.50, ankleY: 0.84)
+        let gridJSON = try #require(gridCfg.encodeToString())
+
+        let clip = TimelineClip(
+            name: "4K Clip",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 1.0, preferredTimescale: 600)),
+            mediaURL: videoURL,
+            properties: [
+                "scale": .number(1.39),
+                "positionX": .number(0.0),
+                "positionY": .number(-196.0),
+                "gridConfig": .string(gridJSON)
+            ]
+        )
+        let layer = TimelineLayer(kind: .video, clips: [clip])
+        let composition = AVMutableComposition()
+        let tracksData = await TimelineCompositionBuilder.buildTracks(
+            for: composition,
+            from: [layer],
+            aspectRatio: .ratio16x9
+        )
+        let trackID = try #require(tracksData.instructions.first?.trackID)
+        let trackMap = [layer.id: trackID]
+        let duration = CMTime(seconds: 1.0, preferredTimescale: 600)
+
+        let previewComp = try #require(TimelineCompositionBuilder.buildVideoComposition(
+            for: [layer],
+            composition: composition,
+            layerTrackIDs: trackMap,
+            aspectRatio: .ratio16x9,
+            duration: duration,
+            renderSize: nil
+        ))
+        let export4KComp = try #require(TimelineCompositionBuilder.buildVideoComposition(
+            for: [layer],
+            composition: composition,
+            layerTrackIDs: trackMap,
+            aspectRatio: .ratio16x9,
+            duration: duration,
+            renderSize: CGSize(width: 3840, height: 2160)
+        ))
+
+        #expect(previewComp.renderSize == CGSize(width: 1920, height: 1080))
+        #expect(export4KComp.renderSize == CGSize(width: 3840, height: 2160))
+
+        let previewInst = try #require(previewComp.instructions.first as? TimelineCustomVideoCompositionInstruction)
+        let exportInst = try #require(export4KComp.instructions.first as? TimelineCustomVideoCompositionInstruction)
+
+        // Both must operate in the identical 1920x1080 logical coordinate space before final 4K rasterization
+        #expect(previewInst.canvasSize == CGSize(width: 1920, height: 1080))
+        #expect(exportInst.canvasSize == CGSize(width: 1920, height: 1080))
+        #expect(previewInst.layerInfos.first?.transform == exportInst.layerInfos.first?.transform)
+
+        // Direct computeTransform in 4K must also scale positionY (-196 -> -392) proportionally
+        let t1080 = TimelineCompositionBuilder.computeTransform(
+            transform: .identity,
+            naturalSize: CGSize(width: 3840, height: 2160),
+            clip: clip,
+            canvasSize: CGSize(width: 1920, height: 1080)
+        )
+        let t4K = TimelineCompositionBuilder.computeTransform(
+            transform: .identity,
+            naturalSize: CGSize(width: 3840, height: 2160),
+            clip: clip,
+            canvasSize: CGSize(width: 3840, height: 2160)
+        )
+        #expect(abs((t4K.transform.ty / 2160.0) - (t1080.transform.ty / 1080.0)) < 0.0001)
+    }
 }

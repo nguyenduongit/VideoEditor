@@ -218,7 +218,9 @@ public final class TimelineViewModel {
             AutoPanKeyframe(
                 timeSeconds: speed == 1.0 ? kf.timeSeconds : (kf.timeSeconds / speed),
                 normalizedX: kf.normalizedX,
-                confidence: kf.confidence
+                confidence: kf.confidence,
+                waistY: kf.waistY,
+                ankleY: kf.ankleY
             )
         }
 
@@ -228,11 +230,20 @@ public final class TimelineViewModel {
             } ?? .default
             config.isEnabled = true
             config.keyframes = keyframes
+            var props = currentClip.properties
             if let encoded = config.encodeToString() {
-                var props = currentClip.properties
                 props["autoPanConfig"] = .string(encoded)
-                commitClipProperties(clipID: clipID, properties: props)
             }
+            if let gridStr = props["gridConfig"]?.asString,
+               var gridCfg = GridConfiguration.decode(from: gridStr),
+               let lines = AutoPanEngine.representativeBodyLines(from: keyframes) {
+                gridCfg.isDynamicLines = true
+                GridSliceEngine.setBodyLines(config: &gridCfg, waistY: lines.waistY, ankleY: lines.ankleY)
+                if let gridEncoded = gridCfg.encodeToString() {
+                    props["gridConfig"] = .string(gridEncoded)
+                }
+            }
+            commitClipProperties(clipID: clipID, properties: props)
         }
     }
 

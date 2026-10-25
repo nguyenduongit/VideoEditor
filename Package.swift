@@ -13,6 +13,9 @@ let package = Package(
         .library(name: "FeatureShell", targets: ["FeatureShell"]),
         .library(name: "Infrastructure", targets: ["Infrastructure"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/supabase/supabase-swift", from: "2.0.0"),
+    ],
     targets: [
         .target(
             name: "Domain",
@@ -45,7 +48,8 @@ let package = Package(
                 "Domain",
                 "DesignSystem",
                 "FeatureShell",
-                "Infrastructure"
+                "Infrastructure",
+                .product(name: "Supabase", package: "supabase-swift")
             ],
             path: "Sources/VideoEditorApp"
         ),

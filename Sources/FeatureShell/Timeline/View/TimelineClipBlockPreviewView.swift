@@ -33,15 +33,56 @@ public struct TimelineClipBlockPreviewView: View {
             RoundedRectangle(cornerRadius: DSRadius.small)
                 .fill(clipBackgroundColor)
 
-            VStack(spacing: 0) {
-                headerBar
-                bodyContent
+            if kind.isAuxiliary {
+                auxiliaryPreviewContent
+                    .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+            } else {
+                VStack(spacing: 0) {
+                    headerBar
+                    bodyContent
+                }
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
             }
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
 
             borderOverlay
         }
         .frame(width: width, height: height)
+    }
+
+    private var auxiliaryPreviewContent: some View {
+        HStack(spacing: DSSpacing.xs) {
+            Image(systemName: kind.iconName)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(Color.white)
+
+            Text(name)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Color.white)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            if width >= 80 {
+                Text(TimeRational.formatTimecode(time: duration))
+                    .font(.system(size: 8, weight: .regular, design: .monospaced))
+                    .foregroundStyle(Color.white.opacity(0.8))
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, DSSpacing.xs + 2)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            LinearGradient(
+                colors: [kind.color, kind.color.opacity(0.85)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .overlay(
+            Rectangle().fill(Color.white.opacity(0.20)).frame(height: 0.5),
+            alignment: .top
+        )
     }
 
     private var clipBackgroundColor: Color {

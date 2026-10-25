@@ -23,6 +23,15 @@ public struct TopbarView: View {
             }
             .frame(height: DSSize.topbarHeight)
         }
+        .sheet(isPresented: Binding(
+            get: { viewModel.exportViewModel.isPresented },
+            set: { viewModel.exportViewModel.isPresented = $0 }
+        )) {
+            ExportDialogView(
+                viewModel: viewModel.exportViewModel,
+                timelineViewModel: viewModel.timelineViewModel
+            )
+        }
     }
 
     private var leftColumn: some View {
@@ -78,26 +87,57 @@ public struct TopbarView: View {
 
     private var rightColumn: some View {
         HStack(spacing: DSSpacing.sm) {
-            Button(action: handleImport) {
-                HStack(spacing: DSSpacing.xs) {
-                    Image(systemName: "square.and.arrow.down")
-                        .font(.system(size: 10, weight: .semibold))
-                    Text("Import Script")
-                        .font(.system(size: 11, weight: .medium))
-                }
-                .foregroundStyle(DSColors.textSecondary)
-                .padding(.horizontal, DSSpacing.sm)
-                .padding(.vertical, DSSpacing.xs)
-                .background(DSColors.blockBackground)
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.control))
-                .contentShape(RoundedRectangle(cornerRadius: DSRadius.control))
-            }
-            .buttonStyle(.plain)
-            .help("Import Project Script JSON (⇧⌘I)")
-
-            DSActionButton(title: "Export Script", action: handleExport)
-                .help("Export Project Script JSON (⇧⌘S)")
+            importScriptButton
+            exportScriptButton
+            exportVideoButton
         }
+    }
+
+    private var importScriptButton: some View {
+        Button(action: handleImport) {
+            HStack(spacing: DSSpacing.xs) {
+                Image(systemName: "square.and.arrow.down")
+                    .font(.system(size: 10, weight: .semibold))
+                Text("Import Script")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundStyle(DSColors.textSecondary)
+            .padding(.horizontal, DSSpacing.sm)
+            .padding(.vertical, DSSpacing.xs)
+            .background(DSColors.blockBackground)
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.control))
+            .contentShape(RoundedRectangle(cornerRadius: DSRadius.control))
+        }
+        .buttonStyle(.plain)
+        .help("Import Project Script JSON (⇧⌘I)")
+    }
+
+    private var exportScriptButton: some View {
+        Button(action: handleExportScript) {
+            HStack(spacing: DSSpacing.xs) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 10, weight: .semibold))
+                Text("Export Script")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundStyle(DSColors.textSecondary)
+            .padding(.horizontal, DSSpacing.sm)
+            .padding(.vertical, DSSpacing.xs)
+            .background(DSColors.blockBackground)
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.control))
+            .contentShape(RoundedRectangle(cornerRadius: DSRadius.control))
+        }
+        .buttonStyle(.plain)
+        .help("Export Project Script JSON (⇧⌘S)")
+    }
+
+    private var exportVideoButton: some View {
+        DSActionButton(
+            title: "Xuất Video",
+            icon: "film.fill",
+            action: handleOpenExportDialog
+        )
+        .help("Xuất dự án ra video MP4 (⌘E)")
     }
 
     private func handleClose() {
@@ -120,7 +160,11 @@ public struct TopbarView: View {
         viewModel.updateTimelinePreview()
     }
 
-    private func handleExport() {
+    private func handleExportScript() {
         TimelineProjectIO.exportProjectScript(from: viewModel.timelineViewModel)
+    }
+
+    private func handleOpenExportDialog() {
+        viewModel.exportViewModel.openDialog()
     }
 }

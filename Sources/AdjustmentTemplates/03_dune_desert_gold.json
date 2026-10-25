@@ -1,0 +1,58 @@
+{
+  "id": "dune_desert_gold",
+  "schemaVersion": 1,
+  "name": "Sa Mạc Vàng",
+  "description": "Tông vàng cát hổ phách kiểu phim Dune, khử xanh dương và nâng Matte",
+  "category": "Điện ảnh",
+  "tags": ["dune", "desert", "amber", "gold", "cinema"],
+  "previewBadge": "DUNE",
+  "previewColorsHex": ["#78350F", "#FBBF24"],
+  "config": {
+    "isEnabled": true,
+    "basic": {
+      "temp": 34.0,
+      "tint": -8.0,
+      "saturation": -18.0,
+      "exposure": 3.0,
+      "contrast": 14.0,
+      "highlight": -18.0,
+      "shadow": 22.0,
+      "white": -6.0,
+      "black": 8.0,
+      "brilliance": 10.0
+    },
+    "hsl": {
+      "orange": { "hue": -6.0, "saturation": 16.0, "luminance": 6.0 },
+      "yellow": { "hue": -18.0, "saturation": 24.0, "luminance": 10.0 },
+      "green": { "hue": -35.0, "saturation": -55.0, "luminance": -10.0 },
+      "cyan": { "hue": 0.0, "saturation": -45.0, "luminance": -5.0 },
+      "blue": { "hue": 0.0, "saturation": -50.0, "luminance": -12.0 }
+    },
+    "wheels": {
+      "lift": { "x": 0.12, "y": 0.06, "luma": 4.0 },
+      "gamma": { "x": 0.16, "y": 0.10, "luma": 0.0 },
+      "gain": { "x": 0.20, "y": 0.14, "luma": -4.0 }
+    },
+    "curves": {
+      "master": [
+        { "x": 0.0, "y": 0.06 },
+        { "x": 0.3, "y": 0.28 },
+        { "x": 0.75, "y": 0.78 },
+        { "x": 1.0, "y": 0.94 }
+      ],
+      "blue": [
+        { "x": 0.0, "y": 0.0 },
+        { "x": 0.5, "y": 0.42 },
+        { "x": 1.0, "y": 0.85 }
+      ]
+    },
+    "effects": {
+      "vignetteAmount": 30.0,
+      "vignetteMidpoint": 50.0,
+      "vignetteFeather": 70.0,
+      "grainAmount": 22.0,
+      "grainSize": 45.0,
+      "sharpenAmount": 15.0
+    }
+  }
+}

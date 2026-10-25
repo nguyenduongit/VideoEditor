@@ -13,9 +13,12 @@ public struct TextInspectorView: View {
     }
 
     public var body: some View {
-        if viewModel.effectiveTab == "Hiệu ứng" {
+        switch viewModel.effectiveTab {
+        case "Style", "Hiệu ứng":
             TextEffectsTabContent(viewModel: viewModel)
-        } else {
+        case "Animation":
+            TextAnimationTabContent(viewModel: viewModel)
+        default:
             TextBasicTabContent(viewModel: viewModel)
         }
     }

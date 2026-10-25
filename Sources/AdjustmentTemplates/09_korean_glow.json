@@ -1,0 +1,51 @@
+{
+  "id": "korean_glow",
+  "schemaVersion": 1,
+  "name": "Hàn Quốc",
+  "description": "Da trắng hồng trong trẻo, nâng sáng vùng tối mềm mại chuẩn K-Drama",
+  "category": "Chân dung & Vlog",
+  "tags": ["korean", "portrait", "skin", "glow", "pastel", "k-drama"],
+  "previewBadge": "SKIN",
+  "previewColorsHex": ["#F2A6BF", "#FAE0D9"],
+  "config": {
+    "isEnabled": true,
+    "basic": {
+      "temp": 4.0,
+      "tint": 8.0,
+      "saturation": -8.0,
+      "exposure": 8.0,
+      "contrast": -6.0,
+      "highlight": 10.0,
+      "shadow": 24.0,
+      "white": 12.0,
+      "black": 8.0,
+      "brilliance": 14.0
+    },
+    "hsl": {
+      "red": { "hue": 4.0, "saturation": -8.0, "luminance": 14.0 },
+      "orange": { "hue": 6.0, "saturation": -10.0, "luminance": 22.0 },
+      "magenta": { "hue": -4.0, "saturation": 12.0, "luminance": 10.0 }
+    },
+    "wheels": {
+      "lift": { "x": 0.04, "y": 0.02, "luma": 6.0 },
+      "gamma": { "x": 0.06, "y": 0.04, "luma": 8.0 },
+      "gain": { "x": 0.08, "y": 0.03, "luma": 5.0 }
+    },
+    "curves": {
+      "master": [
+        { "x": 0.0, "y": 0.05 },
+        { "x": 0.35, "y": 0.41 },
+        { "x": 0.72, "y": 0.77 },
+        { "x": 1.0, "y": 0.99 }
+      ]
+    },
+    "effects": {
+      "vignetteAmount": -12.0,
+      "vignetteMidpoint": 65.0,
+      "vignetteFeather": 80.0,
+      "grainAmount": 4.0,
+      "grainSize": 25.0,
+      "sharpenAmount": 12.0
+    }
+  }
+}

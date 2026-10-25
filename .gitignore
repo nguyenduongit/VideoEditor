@@ -14,3 +14,12 @@ DerivedData/
 # Artifacts
 *.ipa
 *.app
+
+# Node & Environment
+node_modules/
+.env
+.env*.local
+
+# Scratch
+scratch/
+

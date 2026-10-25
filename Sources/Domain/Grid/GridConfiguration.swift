@@ -27,12 +27,24 @@ public struct GridConfiguration: Codable, Sendable, Equatable {
     public var rowOffsets: [Double]
     public var colOffsets: [Double]
     public var selectedTarget: GridTarget?
+    public var isEnabled: Bool
+    public var legStretchRatio: Double
+    public var isDynamicLines: Bool
 
-    public init(rows: Int = 3, columns: Int = 1) {
+    public init(
+        rows: Int = 3,
+        columns: Int = 1,
+        isEnabled: Bool = true,
+        legStretchRatio: Double = 1.0,
+        isDynamicLines: Bool = false
+    ) {
         let safeRows = max(1, min(10, rows))
         let safeCols = max(1, min(10, columns))
         self.rows = safeRows
         self.columns = safeCols
+        self.isEnabled = isEnabled
+        self.legStretchRatio = max(0.9, min(1.3, legStretchRatio))
+        self.isDynamicLines = isDynamicLines
 
         let defaultRowH = 1.0 / Double(safeRows)
         self.rowDividers = (1..<safeRows).map { Double($0) * defaultRowH }
@@ -56,12 +68,18 @@ public struct GridConfiguration: Codable, Sendable, Equatable {
         colWidths: [Double],
         rowOffsets: [Double],
         colOffsets: [Double],
-        selectedTarget: GridTarget? = nil
+        selectedTarget: GridTarget? = nil,
+        isEnabled: Bool = true,
+        legStretchRatio: Double = 1.0,
+        isDynamicLines: Bool = false
     ) {
         let safeRows = max(1, rows)
         let safeCols = max(1, columns)
         self.rows = safeRows
         self.columns = safeCols
+        self.isEnabled = isEnabled
+        self.legStretchRatio = max(0.9, min(1.3, legStretchRatio))
+        self.isDynamicLines = isDynamicLines
         let defaultRowH = 1.0 / Double(safeRows)
         let defaultColW = 1.0 / Double(safeCols)
         self.rowDividers = rowDividers ?? ((1..<safeRows).map { Double($0) * defaultRowH })
@@ -79,6 +97,10 @@ public struct GridConfiguration: Codable, Sendable, Equatable {
         let c = try container.decode(Int.self, forKey: .columns)
         self.rows = max(1, r)
         self.columns = max(1, c)
+        self.isEnabled = (try? container.decode(Bool.self, forKey: .isEnabled)) ?? true
+        let decodedRatio = (try? container.decode(Double.self, forKey: .legStretchRatio)) ?? 1.0
+        self.legStretchRatio = max(0.9, min(1.3, decodedRatio))
+        self.isDynamicLines = (try? container.decode(Bool.self, forKey: .isDynamicLines)) ?? false
         let defaultRowH = 1.0 / Double(self.rows)
         let defaultColW = 1.0 / Double(self.columns)
         self.rowDividers = (try? container.decode([Double].self, forKey: .rowDividers))
@@ -107,6 +129,8 @@ public struct GridConfiguration: Codable, Sendable, Equatable {
     }
 
     public var isDefault: Bool {
+        guard isEnabled else { return true }
+        if abs(legStretchRatio - 1.0) > 0.001 { return false }
         guard rowHeights.count == rows, colWidths.count == columns,
               rowOffsets.count == rows, colOffsets.count == columns,
               rowDividers.count == max(0, rows - 1),

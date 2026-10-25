@@ -17,7 +17,8 @@ public struct InspectorView: View {
             VStack(alignment: .leading, spacing: DSSpacing.none) {
                 DSInspectorTabBar(
                     tabs: viewModel.availableTabs,
-                    selectedTab: $viewModel.selectedTab
+                    selectedTab: $viewModel.selectedTab,
+                    fallbackTitle: "AI Trợ lý"
                 )
                 contentArea
             }
@@ -37,8 +38,13 @@ public struct InspectorView: View {
     private var contentArea: some View {
         if viewModel.selectedClip != nil {
             DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-                if viewModel.selectedClip?.kind == .adjustment || viewModel.effectiveTab == "Basic" || viewModel.effectiveTab == "HSL" {
+                if viewModel.selectedClip?.kind == .adjustment {
                     AdjustmentInspectorView(viewModel: viewModel)
+                        .padding(.leading, DSSize.inspectorContentPadding)
+                        .padding(.trailing, DSSpacing.md)
+                        .padding(.vertical, DSSpacing.md)
+                } else if viewModel.effectiveTab == "Adjustment" {
+                    UnifiedColorInspectorView(viewModel: viewModel)
                         .padding(.leading, DSSize.inspectorContentPadding)
                         .padding(.trailing, DSSpacing.md)
                         .padding(.vertical, DSSpacing.md)
@@ -47,12 +53,7 @@ public struct InspectorView: View {
                         .padding(.leading, DSSize.inspectorContentPadding)
                         .padding(.trailing, DSSpacing.md)
                         .padding(.vertical, DSSpacing.md)
-                } else if viewModel.effectiveTab == "Grid" {
-                    GridInspectorView(viewModel: viewModel)
-                        .padding(.leading, DSSize.inspectorContentPadding)
-                        .padding(.trailing, DSSpacing.md)
-                        .padding(.vertical, DSSpacing.md)
-                } else if viewModel.effectiveTab == "AI" {
+                } else if viewModel.effectiveTab == "AI" || viewModel.effectiveTab == "Grid" {
                     AIInspectorView(viewModel: viewModel)
                         .padding(.leading, DSSize.inspectorContentPadding)
                         .padding(.trailing, DSSpacing.md)
@@ -65,27 +66,8 @@ public struct InspectorView: View {
                 }
             }
         } else {
-            emptyStateView
+            AIChatPanelView(viewModel: viewModel.aiChatViewModel)
         }
-    }
-
-    private var emptyStateView: some View {
-        VStack(spacing: DSSpacing.sm) {
-            Spacer()
-            Image(systemName: "slider.horizontal.3")
-                .font(.system(size: 28))
-                .foregroundStyle(DSColors.textSecondary.opacity(0.6))
-            Text("Chưa chọn đối tượng")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(DSColors.textPrimary)
-            Text("Chọn một clip trên timeline để xem và tùy chỉnh các thuộc tính.")
-                .font(.system(size: 11))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(DSColors.textSecondary)
-                .padding(.horizontal, DSSpacing.lg)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var propertyGroupsList: some View {

@@ -163,4 +163,99 @@ struct GridSliceEngineTests {
         #expect(result.extent.size.width == 300)
         #expect(result.extent.size.height == 300)
     }
+
+    @Test("GridConfiguration isEnabled defaults to true and when false isDefault returns true")
+    func testGridConfigurationIsEnabledAndBypass() {
+        var config = GridConfiguration(rows: 3, columns: 1)
+        #expect(config.isEnabled == true)
+        #expect(config.isDefault == true)
+
+        // Make modifications so it is no longer default
+        GridSliceEngine.scaleRow(config: &config, index: 1, newHeight: 0.6)
+        #expect(config.isDefault == false)
+
+        // Disable grid: isDefault must return true to bypass compositor processing
+        config.isEnabled = false
+        #expect(config.isDefault == true)
+
+        // Re-enable grid: isDefault should reflect the modified layout again
+        config.isEnabled = true
+        #expect(config.isDefault == false)
+    }
+
+    @Test("GridConfiguration serialization preserves isEnabled state")
+    func testGridConfigurationSerializationPreservesIsEnabled() {
+        let config = GridConfiguration(rows: 2, columns: 2, isEnabled: false)
+        guard let json = config.encodeToString(),
+              let decoded = GridConfiguration.decode(from: json) else {
+            Issue.record("Failed to serialize or deserialize GridConfiguration")
+            return
+        }
+        #expect(decoded.isEnabled == false)
+        #expect(decoded.isDefault == true)
+    }
+
+    @Test("TimelineCompositionBuilder keeps compositor active on grid toggle to prevent black flashing")
+    func testCompositorPreservedOnGridToggle() {
+        var config = GridConfiguration(rows: 3, columns: 1)
+        GridSliceEngine.scaleRow(config: &config, index: 1, newHeight: 0.5)
+
+        guard let enabledJSON = config.encodeToString() else {
+            Issue.record("Encoding failed")
+            return
+        }
+        config.isEnabled = false
+        guard let disabledJSON = config.encodeToString() else {
+            Issue.record("Encoding failed")
+            return
+        }
+
+        let clipEnabled = TimelineClip(
+            name: "Clip1",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(value: 5, timescale: 1)),
+            properties: ["gridConfig": .string(enabledJSON)]
+        )
+        let layerEnabled = TimelineLayer(name: "V1", kind: .video, clips: [clipEnabled])
+        #expect(TimelineCompositionBuilder.hasActiveMask(in: [layerEnabled]) == true)
+
+        let clipDisabled = TimelineClip(
+            name: "Clip2",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(value: 5, timescale: 1)),
+            properties: ["gridConfig": .string(disabledJSON)]
+        )
+        let layerDisabled = TimelineLayer(name: "V1", kind: .video, clips: [clipDisabled])
+        #expect(TimelineCompositionBuilder.hasActiveMask(in: [layerDisabled]) == true)
+    }
+
+    @Test("applyLegStretch clamps ratio to 0.9...1.3 and resolvedConfig interpolates dynamic lines with constant stretch")
+    func testLegStretchRatioClampingAndDynamicResolution() {
+        var config = GridConfiguration(rows: 3, columns: 1, isEnabled: true, legStretchRatio: 1.0, isDynamicLines: true)
+        GridSliceEngine.applyLegStretch(config: &config, ratio: 1.50)
+        #expect(abs(config.legStretchRatio - 1.30) < 0.0001)
+
+        GridSliceEngine.applyLegStretch(config: &config, ratio: 0.75)
+        #expect(abs(config.legStretchRatio - 0.90) < 0.0001)
+
+        GridSliceEngine.applyLegStretch(config: &config, ratio: 1.15)
+        #expect(abs(config.legStretchRatio - 1.15) < 0.0001)
+
+        // Simulate dancer stepping forward from t=0 (far: waist=0.45, ankle=0.75, baseH=0.30)
+        // to t=2 (near: waist=0.40, ankle=0.88, baseH=0.48)
+        let keyframes = [
+            AutoPanKeyframe(timeSeconds: 0.0, normalizedX: 0.5, waistY: 0.45, ankleY: 0.75),
+            AutoPanKeyframe(timeSeconds: 2.0, normalizedX: 0.5, waistY: 0.40, ankleY: 0.88)
+        ]
+
+        let resolvedStart = GridSliceEngine.resolvedConfig(from: config, at: 0.0, keyframes: keyframes)
+        #expect(abs(resolvedStart.rowDividers[0] - 0.45) < 0.001)
+        #expect(abs(resolvedStart.rowDividers[1] - 0.75) < 0.001)
+        #expect(abs(resolvedStart.rowHeights[1] - (0.30 * 1.15)) < 0.001)
+
+        let resolvedEnd = GridSliceEngine.resolvedConfig(from: config, at: 2.0, keyframes: keyframes)
+        #expect(abs(resolvedEnd.rowDividers[0] - 0.40) < 0.001)
+        #expect(abs(resolvedEnd.rowDividers[1] - 0.88) < 0.001)
+        #expect(abs(resolvedEnd.rowHeights[1] - (0.48 * 1.15)) < 0.001)
+    }
 }

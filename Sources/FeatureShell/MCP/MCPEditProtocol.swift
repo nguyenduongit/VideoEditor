@@ -1,20 +1,52 @@
 import Foundation
 import Domain
+import CoreMedia
+import AVFoundation
+@preconcurrency import CoreImage
 
 /// Router and JSON-RPC 2.0 message handler for Model Context Protocol AI agents.
 @MainActor
 public final class MCPTimelineToolDispatcher: MCPServerDelegate {
-    private let scriptEngine: TimelineScriptEngine
+    let scriptEngine: TimelineScriptEngine
+    public weak var mediaLibraryViewModel: MediaLibraryViewModel?
 
-    public init(scriptEngine: TimelineScriptEngine) {
+    public init(scriptEngine: TimelineScriptEngine, mediaLibraryViewModel: MediaLibraryViewModel? = nil) {
         self.scriptEngine = scriptEngine
+        self.mediaLibraryViewModel = mediaLibraryViewModel
     }
 
     public enum ToolName: String, CaseIterable {
         case getTimelineState = "timeline_get_state"
+        case getLibraryCatalog = "library_get_catalog"
+        case addMediaAsset = "timeline_add_media_asset"
+        case syncAudio = "timeline_sync_audio"
+        case applyTemplate = "timeline_apply_template"
+        case editClip = "timeline_edit_clip"
         case executeCommands = "timeline_execute_commands"
         case loadProjectScript = "timeline_load_project_script"
         case exportProjectScript = "timeline_export_project_script"
+        case getClipColorTelemetry = "timeline_get_clip_color_telemetry"
+        case aiVisionFraming = "timeline_ai_vision_framing"
+    }
+
+    public func handleToolCallAsync(toolName: String, argumentsJSON: String = "{}") async throws -> String {
+        if toolName == ToolName.syncAudio.rawValue {
+            let assets = mediaLibraryViewModel?.assets ?? []
+            let data = argumentsJSON.data(using: .utf8) ?? Data("{}".utf8)
+            let dict = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any]) ?? [:]
+            let muteVideo = (dict["muteVideo"] as? Bool) ?? true
+            let res = await scriptEngine.currentViewModel.performAISyncAudio(availableAssets: assets, muteVideo: muteVideo)
+            let status = res.isSuccess ? "success" : "error"
+            return "{\"status\":\"\(status)\",\"message\":\"\(res.message)\"}"
+        }
+        if toolName == ToolName.aiVisionFraming.rawValue {
+            let assets = mediaLibraryViewModel?.assets ?? []
+            let req = AIVisionFramingRequest.fromJSON(argumentsJSON)
+            let res = await scriptEngine.currentViewModel.performAIVisionFraming(request: req, availableAssets: assets)
+            let status = res.isSuccess ? "success" : "error"
+            return "{\"status\":\"\(status)\",\"message\":\"\(res.message)\"}"
+        }
+        return try handleToolCall(toolName: toolName, argumentsJSON: argumentsJSON)
     }
 
     public func handleToolCall(toolName: String, argumentsJSON: String = "{}") throws -> String {
@@ -25,12 +57,22 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
         switch tool {
         case .getTimelineState, .exportProjectScript:
             return try scriptEngine.exportProjectJSON(prettyPrinted: true)
-
+        case .getLibraryCatalog:
+            return try getLibraryCatalogArgument()
+        case .addMediaAsset:
+            return try addMediaAssetArgument(argumentsJSON)
+        case .syncAudio, .aiVisionFraming:
+            return "{\"status\":\"pending_async\"}"
+        case .applyTemplate:
+            return try applyTemplateArgument(argumentsJSON)
+        case .editClip:
+            return try editClipArgument(argumentsJSON)
         case .executeCommands:
             return try executeCommandsArgument(argumentsJSON)
-
         case .loadProjectScript:
             return try loadProjectArgument(argumentsJSON)
+        case .getClipColorTelemetry:
+            return try getClipColorTelemetryArgument(argumentsJSON)
         }
     }
 
@@ -67,6 +109,55 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
             try scriptEngine.loadProjectJSON(argumentsJSON)
         }
         return "{\"status\": \"success\"}"
+    }
+
+    private func getClipColorTelemetryArgument(_ argumentsJSON: String) throws -> String {
+        guard let data = argumentsJSON.data(using: .utf8),
+              let dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let clipId = dict["clipId"] as? String else {
+            throw AppError.invalidParameter("Missing required parameter: clipId")
+        }
+
+        let vm = scriptEngine.currentViewModel
+        var targetClip: TimelineClip?
+        for layer in vm.layers {
+            if let c = layer.clips.first(where: { $0.id.uuidString == clipId || $0.name == clipId }) {
+                targetClip = c
+                break
+            }
+        }
+
+        guard let clip = targetClip else {
+            throw AppError.invalidParameter("Clip not found with ID: \(clipId)")
+        }
+
+        let telemetry: ColorTelemetryProfile
+        if let mediaURL = clip.mediaURL {
+            let sampleTime = CMTimeAdd(clip.sourceStartTime, CMTimeMultiplyByFloat64(clip.timeRange.duration, multiplier: 0.5))
+            if let image = extractImageSynchronously(from: mediaURL, at: sampleTime) {
+                telemetry = HistogramEngine.shared.analyzeTelemetry(from: image)
+            } else {
+                telemetry = ColorTelemetryProfile()
+            }
+        } else {
+            telemetry = ColorTelemetryProfile()
+        }
+
+        let resData = try JSONEncoder().encode(telemetry)
+        return String(decoding: resData, as: UTF8.self)
+    }
+
+    private func extractImageSynchronously(from url: URL, at time: CMTime) -> CIImage? {
+        let asset = AVURLAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 320, height: 180)
+        generator.requestedTimeToleranceBefore = .positiveInfinity
+        generator.requestedTimeToleranceAfter = .positiveInfinity
+        if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
+            return CIImage(cgImage: cgImage)
+        }
+        return nil
     }
 
     // MARK: - MCPServerDelegate (JSON-RPC 2.0)

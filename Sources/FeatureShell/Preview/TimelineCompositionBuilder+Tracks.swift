@@ -23,9 +23,16 @@ extension TimelineCompositionBuilder {
                 videoTrack.insertEmptyTimeRange(CMTimeRange(start: currentVideoTime, duration: gap))
             }
             let insertAt = CMTimeMaximum(targetStart, currentVideoTime)
-            try videoTrack.insertTimeRange(sourceRange, of: assetVideo, at: insertAt)
-            if abs(speed - 1.0) > 0.001 {
-                let scaledRange = CMTimeRange(start: insertAt, duration: sourceRange.duration)
+            let trackRange = (try? await assetVideo.load(.timeRange)) ?? CMTimeRange(start: .zero, duration: sourceRange.end)
+            let availDur = CMTimeMaximum(.zero, CMTimeSubtract(trackRange.end, sourceRange.start))
+            let actualSourceDur = CMTimeMinimum(sourceRange.duration, availDur)
+            guard actualSourceDur > .zero else { return }
+
+            let validSourceRange = CMTimeRange(start: sourceRange.start, duration: actualSourceDur)
+            try videoTrack.insertTimeRange(validSourceRange, of: assetVideo, at: insertAt)
+            let insertedDur = CMTimeMaximum(.zero, CMTimeSubtract(videoTrack.timeRange.end, insertAt))
+            if insertedDur > .zero && (abs(speed - 1.0) > 0.001 || abs(CMTimeGetSeconds(insertedDur) - CMTimeGetSeconds(clip.timeRange.duration)) > 0.002) {
+                let scaledRange = CMTimeRange(start: insertAt, duration: insertedDur)
                 videoTrack.scaleTimeRange(scaledRange, toDuration: clip.timeRange.duration)
             }
             currentVideoTime = insertAt + clip.timeRange.duration

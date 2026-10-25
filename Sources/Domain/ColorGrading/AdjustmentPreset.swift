@@ -1,174 +1,106 @@
 import Foundation
 
-/// Mẫu thiết lập sẵn thông số màu (Color Grading Template)
-public struct AdjustmentPreset: Identifiable, Equatable, Sendable {
+/// Danh mục phân loại mẫu chỉnh màu (Adjustment Template Category) đồng bộ với Supabase
+public enum AdjustmentTemplateCategory: String, Codable, Sendable, CaseIterable, Identifiable {
+    case all = "Tất cả"
+    case cinematic = "Điện ảnh"
+    case filmVintage = "Phim & Cổ điển"
+    case portraitVlog = "Chân dung & Vlog"
+    case cyberNeon = "Cyber & Đêm"
+    case moodyMono = "Moody & B&W"
+
+    public var id: String { rawValue }
+}
+
+/// Mẫu thiết lập sẵn thông số màu (Color Grading Template Script) tuần tự hóa JSON độc lập và tương thích Supabase `jsonb`.
+/// Khai thác toàn diện cả 5 hệ màu: Basic, 8-Channel HSL, 3-Way Color Wheels, RGB/Luma Curves, và Effects (Vignette, Grain, Sharpen).
+/// Tuân thủ AGENTS.md R2.3 (thuần Domain), R5.5 (Serialization) và R5.6 (Forward Compatibility).
+public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
     public let id: String
-    public let name: String
-    public let description: String
-    public let config: AdjustmentConfiguration
+    public var schemaVersion: Int
+    public var name: String
+    public var description: String
+    public var category: AdjustmentTemplateCategory
+    public var tags: [String]
+    public var previewBadge: String?
+    public var previewColorsHex: [String]
+    public var config: AdjustmentConfiguration
 
     public init(
         id: String,
+        schemaVersion: Int = 1,
         name: String,
         description: String,
+        category: AdjustmentTemplateCategory = .cinematic,
+        tags: [String] = [],
+        previewBadge: String? = nil,
+        previewColorsHex: [String] = ["#1A8099", "#D97326"],
         config: AdjustmentConfiguration
     ) {
         self.id = id
+        self.schemaVersion = schemaVersion
         self.name = name
         self.description = description
+        self.category = category
+        self.tags = tags
+        self.previewBadge = previewBadge
+        self.previewColorsHex = previewColorsHex.isEmpty ? ["#27272A", "#52525B"] : previewColorsHex
         self.config = config
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        self.schemaVersion = (try? c.decodeIfPresent(Int.self, forKey: .schemaVersion)) ?? 1
+        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Mẫu chỉnh màu"
+        self.description = (try? c.decodeIfPresent(String.self, forKey: .description)) ?? ""
+        self.category = (try? c.decodeIfPresent(AdjustmentTemplateCategory.self, forKey: .category)) ?? .cinematic
+        self.tags = (try? c.decodeIfPresent([String].self, forKey: .tags)) ?? []
+        self.previewBadge = try? c.decodeIfPresent(String.self, forKey: .previewBadge)
+        let decodedColors = (try? c.decodeIfPresent([String].self, forKey: .previewColorsHex)) ?? []
+        self.previewColorsHex = decodedColors.isEmpty ? ["#27272A", "#52525B"] : decodedColors
+        self.config = (try? c.decodeIfPresent(AdjustmentConfiguration.self, forKey: .config)) ?? AdjustmentConfiguration()
+    }
+
+    public func encodeToJSON(prettyPrinted: Bool = true) -> String? {
+        let encoder = JSONEncoder()
+        if prettyPrinted {
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        }
+        // Giải thích try?: Trả về nil nếu dữ liệu float không hợp lệ (NaN/Infinite)
+        guard let data = try? encoder.encode(self) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    public static func decode(from jsonString: String) -> AdjustmentPreset? {
+        guard let data = jsonString.data(using: .utf8) else { return nil }
+        // Giải thích try?: Bỏ qua an toàn nếu JSON từ server bị lỗi cú pháp (R5.6)
+        return try? JSONDecoder().decode(AdjustmentPreset.self, from: data)
+    }
+
+    /// Danh sách các phân hệ đang kích hoạt trong preset (dùng hiển thị huy hiệu kỹ thuật trên UI)
+    public var activeModuleBadges: [String] {
+        var result: [String] = []
+        if !config.basic.isNeutral { result.append("Basic") }
+        if !config.hsl.isNeutral { result.append("HSL") }
+        if !config.wheels.isNeutral { result.append("Wheels") }
+        if !config.curves.isNeutral { result.append("Curves") }
+        if !config.effects.isNeutral { result.append("FX") }
+        if !config.lut.isNeutral { result.append("LUT") }
+        return result
     }
 
     public static let `default` = AdjustmentPreset(
         id: "default",
         name: "Mặc định",
         description: "Màu nguyên bản không chỉnh sửa",
+        category: .cinematic,
+        previewColorsHex: ["#27272A", "#18181B"],
         config: AdjustmentConfiguration()
     )
 
-    public static let templates: [AdjustmentPreset] = [
-        AdjustmentPreset(
-            id: "cinematic",
-            name: "Điện ảnh",
-            description: "Tông Teal & Orange tương phản chuẩn Hollywood",
-            config: {
-                var hsl = HSLAdjustments()
-                hsl.orange = HSLChannel(hue: -15, saturation: 20, luminance: 10)
-                hsl.blue = HSLChannel(hue: -10, saturation: 35, luminance: -10)
-                hsl.cyan = HSLChannel(hue: 5, saturation: 25, luminance: -5)
-                return AdjustmentConfiguration(
-                    basic: BasicGradingParameters(
-                        temp: 15, tint: 5, saturation: 5,
-                        exposure: 2, contrast: 18, highlight: -20, shadow: 15,
-                        white: 5, black: -5, brilliance: 12
-                    ),
-                    hsl: hsl
-                )
-            }()
-        ),
-        AdjustmentPreset(
-            id: "sunset",
-            name: "Hoàng hôn",
-            description: "Ánh nắng vàng cam ấm áp, lãng mạn",
-            config: {
-                var hsl = HSLAdjustments()
-                hsl.orange = HSLChannel(hue: -10, saturation: 30, luminance: 15)
-                hsl.yellow = HSLChannel(hue: -15, saturation: 25, luminance: 10)
-                hsl.red = HSLChannel(hue: 5, saturation: 20, luminance: 5)
-                return AdjustmentConfiguration(
-                    basic: BasicGradingParameters(
-                        temp: 40, tint: -5, saturation: 15,
-                        exposure: 5, contrast: 10, highlight: -10, shadow: 20,
-                        white: 10, black: 0, brilliance: 20
-                    ),
-                    hsl: hsl
-                )
-            }()
-        ),
-        AdjustmentPreset(
-            id: "cold_blue",
-            name: "Băng giá",
-            description: "Tông xanh lạnh buốt, trong trẻo tinh tế",
-            config: {
-                var hsl = HSLAdjustments()
-                hsl.blue = HSLChannel(hue: 0, saturation: 30, luminance: 10)
-                hsl.cyan = HSLChannel(hue: -5, saturation: 25, luminance: 15)
-                return AdjustmentConfiguration(
-                    basic: BasicGradingParameters(
-                        temp: -35, tint: 5, saturation: -5,
-                        exposure: 8, contrast: 12, highlight: -15, shadow: 15,
-                        white: 15, black: -5, brilliance: 10
-                    ),
-                    hsl: hsl
-                )
-            }()
-        ),
-        AdjustmentPreset(
-            id: "korean_glow",
-            name: "Hàn Quốc",
-            description: "Da trắng hồng mịn màng rạng rỡ, khử vàng",
-            config: {
-                var hsl = HSLAdjustments()
-                hsl.orange = HSLChannel(hue: -18, saturation: -15, luminance: 25)
-                hsl.yellow = HSLChannel(hue: 10, saturation: -20, luminance: 10)
-                hsl.red = HSLChannel(hue: 10, saturation: 15, luminance: 8)
-                return AdjustmentConfiguration(
-                    basic: BasicGradingParameters(
-                        temp: -10, tint: 12, saturation: 0,
-                        exposure: 14, contrast: 5, highlight: -15, shadow: 25,
-                        white: 8, black: 5, brilliance: 22
-                    ),
-                    hsl: hsl
-                )
-            }()
-        ),
-        AdjustmentPreset(
-            id: "vintage",
-            name: "Cổ điển",
-            description: "Màu phim hoài niệm Vintage Film, vùng tối ấm mượt",
-            config: {
-                var hsl = HSLAdjustments()
-                hsl.yellow = HSLChannel(hue: -10, saturation: 15, luminance: 5)
-                hsl.green = HSLChannel(hue: 15, saturation: -25, luminance: -5)
-                return AdjustmentConfiguration(
-                    basic: BasicGradingParameters(
-                        temp: 25, tint: -6, saturation: -12,
-                        exposure: -2, contrast: -5, highlight: -25, shadow: 35,
-                        white: -10, black: 18, brilliance: -5
-                    ),
-                    hsl: hsl
-                )
-            }()
-        ),
-        AdjustmentPreset(
-            id: "cyberpunk",
-            name: "Cyberpunk",
-            description: "Ánh sáng neon tím hồng và xanh lam tương phản cao",
-            config: {
-                var hsl = HSLAdjustments()
-                hsl.purple = HSLChannel(hue: 15, saturation: 45, luminance: 10)
-                hsl.magenta = HSLChannel(hue: -10, saturation: 40, luminance: 15)
-                hsl.cyan = HSLChannel(hue: -10, saturation: 40, luminance: 10)
-                return AdjustmentConfiguration(
-                    basic: BasicGradingParameters(
-                        temp: -15, tint: 25, saturation: 20,
-                        exposure: 5, contrast: 28, highlight: -10, shadow: -10,
-                        white: 15, black: -15, brilliance: 25
-                    ),
-                    hsl: hsl
-                )
-            }()
-        ),
-        AdjustmentPreset(
-            id: "vivid",
-            name: "Rực rỡ",
-            description: "Màu sắc sống động, độ tươi và tương phản cao",
-            config: {
-                var hsl = HSLAdjustments()
-                hsl.red = HSLChannel(hue: 0, saturation: 25, luminance: 5)
-                hsl.green = HSLChannel(hue: 0, saturation: 25, luminance: 5)
-                hsl.blue = HSLChannel(hue: 0, saturation: 25, luminance: 5)
-                return AdjustmentConfiguration(
-                    basic: BasicGradingParameters(
-                        temp: 5, tint: 0, saturation: 22,
-                        exposure: 6, contrast: 15, highlight: -10, shadow: 10,
-                        white: 8, black: -5, brilliance: 28
-                    ),
-                    hsl: hsl
-                )
-            }()
-        ),
-        AdjustmentPreset(
-            id: "monochrome",
-            name: "Đen trắng",
-            description: "Monochrome nghệ thuật tương phản ấn tượng",
-            config: AdjustmentConfiguration(
-                basic: BasicGradingParameters(
-                    temp: 0, tint: 0, saturation: -100,
-                    exposure: 5, contrast: 25, highlight: -20, shadow: 15,
-                    white: 12, black: -10, brilliance: 0
-                )
-            )
-        )
-    ]
+    /// Danh sách mẫu chỉnh màu được nạp động từ các file JSON Script và bộ nhớ đệm Supabase
+    public static var templates: [AdjustmentPreset] {
+        AdjustmentTemplateLoader.shared.loadAllTemplates()
+    }
 }

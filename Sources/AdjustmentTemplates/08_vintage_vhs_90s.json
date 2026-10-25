@@ -1,0 +1,60 @@
+{
+  "id": "vhs_retro_90s",
+  "schemaVersion": 1,
+  "name": "Băng Từ Thập Niên 90",
+  "description": "Chất băng từ VHS 1990s lệch đường cong Red/Blue và hạt nhiễu lớn",
+  "category": "Phim & Cổ điển",
+  "tags": ["vhs", "90s", "camcorder", "tape", "grain"],
+  "previewBadge": "1990s",
+  "previewColorsHex": ["#6D28D9", "#F472B6"],
+  "config": {
+    "isEnabled": true,
+    "basic": {
+      "temp": 10.0,
+      "tint": 16.0,
+      "saturation": -10.0,
+      "exposure": 4.0,
+      "contrast": -10.0,
+      "highlight": -15.0,
+      "shadow": 30.0,
+      "white": -12.0,
+      "black": 20.0,
+      "brilliance": -4.0
+    },
+    "hsl": {
+      "red": { "hue": -10.0, "saturation": 15.0, "luminance": 5.0 },
+      "magenta": { "hue": 8.0, "saturation": 22.0, "luminance": 6.0 },
+      "blue": { "hue": 12.0, "saturation": 18.0, "luminance": 8.0 }
+    },
+    "wheels": {
+      "lift": { "x": 0.08, "y": -0.14, "luma": 10.0 },
+      "gamma": { "x": 0.04, "y": -0.06, "luma": 2.0 },
+      "gain": { "x": 0.10, "y": 0.08, "luma": -5.0 }
+    },
+    "curves": {
+      "master": [
+        { "x": 0.0, "y": 0.11 },
+        { "x": 0.5, "y": 0.52 },
+        { "x": 1.0, "y": 0.90 }
+      ],
+      "red": [
+        { "x": 0.0, "y": 0.08 },
+        { "x": 0.5, "y": 0.54 },
+        { "x": 1.0, "y": 0.96 }
+      ],
+      "blue": [
+        { "x": 0.0, "y": 0.12 },
+        { "x": 0.5, "y": 0.48 },
+        { "x": 1.0, "y": 0.88 }
+      ]
+    },
+    "effects": {
+      "vignetteAmount": 38.0,
+      "vignetteMidpoint": 45.0,
+      "vignetteFeather": 55.0,
+      "grainAmount": 45.0,
+      "grainSize": 68.0,
+      "sharpenAmount": 0.0
+    }
+  }
+}

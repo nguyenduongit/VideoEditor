@@ -10,6 +10,7 @@ import Domain
 @MainActor
 public final class InspectorViewModel {
     public weak var timelineViewModel: TimelineViewModel?
+    public let aiChatViewModel: AIChatPanelViewModel
     public var liveProperties: [String: PropertyValue] = [:]
     public var selectedTab: String = "Video"
 
@@ -17,8 +18,12 @@ public final class InspectorViewModel {
     private var lastClipKind: ClipKind?
     private var dragInitialProperties: [String: PropertyValue]?
 
-    public init(timelineViewModel: TimelineViewModel? = nil) {
+    public init(timelineViewModel: TimelineViewModel? = nil, mediaLibraryViewModel: MediaLibraryViewModel? = nil) {
         self.timelineViewModel = timelineViewModel
+        self.aiChatViewModel = AIChatPanelViewModel(
+            timelineViewModel: timelineViewModel,
+            mediaLibraryViewModel: mediaLibraryViewModel
+        )
         syncWithSelection()
     }
 

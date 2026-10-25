@@ -57,20 +57,22 @@ struct TimelineCompositionBuilder {
         composition: AVMutableComposition,
         layerTrackIDs: [UUID: CMPersistentTrackID],
         aspectRatio: CanvasAspectRatio,
-        duration: CMTime
+        duration: CMTime,
+        renderSize: CGSize? = nil
     ) -> AVMutableVideoComposition? {
+        let canvasSize = renderSize ?? aspectRatio.renderSize
         if hasActiveMask(in: layers) {
             return buildMaskVideoComposition(
                 for: layers,
                 composition: composition,
                 layerTrackIDs: layerTrackIDs,
                 aspectRatio: aspectRatio,
-                duration: duration
+                duration: duration,
+                renderSize: canvasSize
             )
         }
 
         var instructions: [AVMutableVideoCompositionLayerInstruction] = []
-        let canvasSize = aspectRatio.renderSize
 
         for layer in layers where layer.kind == .video {
             guard let trackID = layerTrackIDs[layer.id],
@@ -210,9 +212,14 @@ struct TimelineCompositionBuilder {
         let userRotation = clip.properties["rotation"]?.asNumber ?? 0.0
         let userOpacity = clip.properties["opacity"]?.asNumber ?? 1.0
 
-        let effectivePosX = isAutoPanActive ? 0.0 : userPosX
+        let refSize = CanvasAspectRatio.closest(for: canvasSize).renderSize
+        let coordScaleX = refSize.width > 0 ? Double(canvasSize.width / refSize.width) : 1.0
+        let coordScaleY = refSize.height > 0 ? Double(canvasSize.height / refSize.height) : 1.0
+
+        let effectivePosX = isAutoPanActive ? 0.0 : (userPosX * coordScaleX)
+        let effectivePosY = userPosY * coordScaleY
         let dx = (canvasSize.width - srcW * finalScale) / 2.0 + effectivePosX
-        let dy = (canvasSize.height - srcH * finalScale) / 2.0 + userPosY
+        let dy = (canvasSize.height - srcH * finalScale) / 2.0 + effectivePosY
 
         var finalTransform = transform
             .concatenating(CGAffineTransform(scaleX: finalScale, y: finalScale))
@@ -221,7 +228,7 @@ struct TimelineCompositionBuilder {
         if userRotation != 0.0 {
             let radians = userRotation * .pi / 180.0
             let cx = canvasSize.width / 2.0 + effectivePosX
-            let cy = canvasSize.height / 2.0 + userPosY
+            let cy = canvasSize.height / 2.0 + effectivePosY
             let rot = CGAffineTransform(translationX: cx, y: cy)
                 .rotated(by: radians)
                 .translatedBy(x: -cx, y: -cy)

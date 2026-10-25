@@ -234,4 +234,51 @@ struct AudioAlignmentTests {
         let undoneAudio = vm.layers[1].clips[0]
         #expect(undoneAudio.timeRange.duration == CMTime(value: 15, timescale: 1))
     }
+
+    @Test("performAISyncAudio trims excess at both ends of Video and Audio and aligns both at zero")
+    func testPerformAISyncAudioTrimsBothEnds() async {
+        // Video is 20s [0..20], Audio is 12s [0..12] and starts +4s into the video (so Audio spans [4..16] of the video)
+        // Expected overlap: Video head trimmed by 4s (sourceStart = 4s), Video & Audio both start at 0s with duration 12s!
+        let clipVideo = TimelineClip(
+            name: "IMG_5671.MOV",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(value: 20, timescale: 1)),
+            mediaURL: URL(fileURLWithPath: "/tmp/IMG_5671.MOV")
+        )
+        let clipAudio = TimelineClip(
+            name: "Song.mp3",
+            kind: .audio,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(value: 12, timescale: 1)),
+            mediaURL: URL(fileURLWithPath: "/tmp/Song.mp3")
+        )
+
+        let layerVideo = TimelineLayer(name: "V1", kind: .video, clips: [clipVideo])
+        let layerAudio = TimelineLayer(name: "A1", kind: .audio, clips: [clipAudio])
+
+        let mockService = MockAudioAlignmentService(
+            resultToReturn: AudioAlignmentResult(
+                offsetSeconds: 4.0,
+                correlation: 0.90,
+                score: 9.0,
+                isMatch: true
+            )
+        )
+
+        let vm = TimelineViewModel(
+            audioAlignmentService: mockService,
+            initialLayers: [layerVideo, layerAudio]
+        )
+
+        let res = await vm.performAISyncAudio(availableAssets: [])
+        #expect(res.isSuccess == true)
+
+        let trimmedVideo = vm.layers[0].clips[0]
+        let trimmedAudio = vm.layers[1].clips[0]
+
+        #expect(trimmedVideo.timeRange.start == .zero)
+        #expect(trimmedAudio.timeRange.start == .zero)
+        #expect(abs(CMTimeGetSeconds(trimmedVideo.sourceStartTime) - 4.0) < 0.05)
+        #expect(abs(CMTimeGetSeconds(trimmedVideo.timeRange.duration) - 12.0) < 0.05)
+        #expect(abs(CMTimeGetSeconds(trimmedAudio.timeRange.duration) - 12.0) < 0.05)
+    }
 }

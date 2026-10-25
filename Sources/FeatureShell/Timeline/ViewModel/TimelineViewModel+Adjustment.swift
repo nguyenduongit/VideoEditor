@@ -8,16 +8,22 @@ extension TimelineViewModel {
     public func addAdjustmentClip(
         named name: String = "Adjustment Layer",
         config: AdjustmentConfiguration = AdjustmentConfiguration(),
+        durationSeconds: Double? = nil,
         at time: CMTime? = nil
     ) {
         let proposedStart = time ?? currentTime
         let targetStart = TimeRational.snapToFrame(time: proposedStart)
         var resolvedDuration = CMTime(value: 5 * Int64(TimeRational.defaultFPS), timescale: TimeRational.defaultFPS)
-        let mediaClips = layers.flatMap(\.clips).filter { $0.kind == .video || $0.kind == .image }
-        if let currentMediaClip = mediaClips.first(where: { $0.timeRange.containsTime(targetStart) }) {
-            let remaining = CMTimeSubtract(currentMediaClip.timeRange.end, targetStart)
-            if remaining > .zero {
-                resolvedDuration = remaining
+        if let durationSeconds, durationSeconds > 0 {
+            let frames = max(15, Int64(round(durationSeconds * Double(TimeRational.defaultFPS))))
+            resolvedDuration = CMTime(value: frames, timescale: TimeRational.defaultFPS)
+        } else {
+            let mediaClips = layers.flatMap(\.clips).filter { $0.kind == .video || $0.kind == .image }
+            if let currentMediaClip = mediaClips.first(where: { $0.timeRange.containsTime(targetStart) }) {
+                let remaining = CMTimeSubtract(currentMediaClip.timeRange.end, targetStart)
+                if remaining > .zero {
+                    resolvedDuration = remaining
+                }
             }
         }
         let timeRange = CMTimeRange(start: targetStart, duration: resolvedDuration)

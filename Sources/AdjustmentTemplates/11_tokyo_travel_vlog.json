@@ -1,0 +1,53 @@
+{
+  "id": "tokyo_travel_vlog",
+  "schemaVersion": 1,
+  "name": "Tokyo Vlog",
+  "description": "Màu trời xanh cyan trong vắt và tông da sáng mịn phong cách Nhật Bản",
+  "category": "Chân dung & Vlog",
+  "tags": ["tokyo", "japan", "vlog", "airy", "clean", "sky"],
+  "previewBadge": "VLOG",
+  "previewColorsHex": ["#0284C7", "#F472B6"],
+  "config": {
+    "isEnabled": true,
+    "basic": {
+      "temp": -6.0,
+      "tint": 4.0,
+      "saturation": 8.0,
+      "exposure": 6.0,
+      "contrast": 8.0,
+      "highlight": -16.0,
+      "shadow": 20.0,
+      "white": 10.0,
+      "black": 4.0,
+      "brilliance": 22.0
+    },
+    "hsl": {
+      "orange": { "hue": 3.0, "saturation": -5.0, "luminance": 14.0 },
+      "green": { "hue": 14.0, "saturation": -15.0, "luminance": 8.0 },
+      "cyan": { "hue": -8.0, "saturation": 24.0, "luminance": 6.0 },
+      "blue": { "hue": -10.0, "saturation": 18.0, "luminance": 4.0 },
+      "magenta": { "hue": 0.0, "saturation": 16.0, "luminance": 8.0 }
+    },
+    "wheels": {
+      "lift": { "x": -0.06, "y": -0.04, "luma": 3.0 },
+      "gamma": { "x": -0.04, "y": 0.02, "luma": 5.0 },
+      "gain": { "x": 0.08, "y": 0.04, "luma": 4.0 }
+    },
+    "curves": {
+      "master": [
+        { "x": 0.0, "y": 0.03 },
+        { "x": 0.25, "y": 0.27 },
+        { "x": 0.75, "y": 0.79 },
+        { "x": 1.0, "y": 0.99 }
+      ]
+    },
+    "effects": {
+      "vignetteAmount": 10.0,
+      "vignetteMidpoint": 60.0,
+      "vignetteFeather": 75.0,
+      "grainAmount": 5.0,
+      "grainSize": 25.0,
+      "sharpenAmount": 20.0
+    }
+  }
+}

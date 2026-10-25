@@ -1,8 +1,9 @@
 import SwiftUI
+import CoreMedia
 import Domain
 import DesignSystem
 
-/// Interactive on-screen overlay on the Preview canvas rendering grid lines and slice boundaries.
+/// Interactive on-screen overlay on the Preview canvas rendering the 3-zone leg stretch lines (Waist & Ankle).
 /// Complies with R3.1, R7.5, R8.1, and R8.5 of AGENTS.md.
 public struct GridOnScreenOverlayView: View {
     @Bindable var inspectorViewModel: InspectorViewModel
@@ -19,20 +20,53 @@ public struct GridOnScreenOverlayView: View {
         GeometryReader { geo in
             let viewSize = geo.size
             if inspectorViewModel.selectedClip != nil,
-               inspectorViewModel.effectiveTab == "Grid" {
-                let config = currentConfig
-                ZStack {
-                    selectionHighlight(config: config, viewSize: viewSize)
-                    horizontalDividers(config: config, viewSize: viewSize)
-                    verticalDividers(config: config, viewSize: viewSize)
+               (inspectorViewModel.effectiveTab == "AI" || inspectorViewModel.effectiveTab == "Grid") {
+                let config = effectiveDisplayConfig
+                if config.isEnabled {
+                    ZStack {
+                        selectionHighlight(config: config, viewSize: viewSize)
+                        horizontalDividers(config: config, viewSize: viewSize)
+                        verticalDividers(config: config, viewSize: viewSize)
+                    }
                 }
             }
         }
     }
 
     private var currentConfig: GridConfiguration {
-        let str = inspectorViewModel.liveProperties["gridConfig"]?.asString ?? ""
-        return GridConfiguration.decode(from: str) ?? GridConfiguration(rows: 3, columns: 1)
+        let str = inspectorViewModel.liveProperties["gridConfig"]?.asString
+            ?? inspectorViewModel.selectedClip?.properties["gridConfig"]?.asString
+            ?? ""
+        return GridConfiguration.decode(from: str)
+            ?? GridConfiguration(rows: 3, columns: 1, isEnabled: false, legStretchRatio: 1.0, isDynamicLines: true)
+    }
+
+    private var effectiveDisplayConfig: GridConfiguration {
+        let base = currentConfig
+        guard base.isEnabled, base.isDynamicLines,
+              let clip = inspectorViewModel.selectedClip,
+              let timelineVM = inspectorViewModel.timelineViewModel else {
+            return base
+        }
+        let autoPanStr = inspectorViewModel.liveProperties["autoPanConfig"]?.asString
+            ?? clip.properties["autoPanConfig"]?.asString
+            ?? ""
+        let keyframes = AutoPanConfiguration.decode(from: autoPanStr)?.keyframes ?? []
+        let userScale = inspectorViewModel.liveProperties["scale"]?.asNumber
+            ?? clip.properties["scale"]?.asNumber
+            ?? 1.0
+        let userPosY = inspectorViewModel.liveProperties["positionY"]?.asNumber
+            ?? clip.properties["positionY"]?.asNumber
+            ?? 0.0
+        let normalizedOffsetY = userPosY / max(1.0, Double(canvasSize.height))
+        let localTime = max(0.0, CMTimeSubtract(timelineVM.currentTime, clip.timeRange.start).seconds)
+        return GridSliceEngine.resolvedConfig(
+            from: base,
+            at: localTime,
+            keyframes: keyframes,
+            scaleY: userScale,
+            normalizedOffsetY: normalizedOffsetY
+        )
     }
 
     @ViewBuilder
@@ -44,7 +78,7 @@ public struct GridOnScreenOverlayView: View {
                     let y = CGFloat(config.rowOffsets[r]) * viewSize.height
                     let h = CGFloat(config.rowHeights[r]) * viewSize.height
                     Rectangle()
-                        .fill(DSColors.toggleCyan.opacity(0.12))
+                        .fill(DSColors.toggleCyan.opacity(0.10))
                         .overlay(
                             Rectangle()
                                 .stroke(DSColors.toggleCyan, lineWidth: 1.5)
@@ -58,7 +92,7 @@ public struct GridOnScreenOverlayView: View {
                     let x = CGFloat(config.colOffsets[c]) * viewSize.width
                     let w = CGFloat(config.colWidths[c]) * viewSize.width
                     Rectangle()
-                        .fill(DSColors.toggleCyan.opacity(0.12))
+                        .fill(DSColors.toggleCyan.opacity(0.10))
                         .overlay(
                             Rectangle()
                                 .stroke(DSColors.toggleCyan, lineWidth: 1.5)
@@ -78,12 +112,21 @@ public struct GridOnScreenOverlayView: View {
                 if i < config.rowDividers.count {
                     let normY = config.rowDividers[i]
                     let y = CGFloat(normY) * viewSize.height
+                    let lineTitle = (i == 0) ? "Thắt lưng" : (i == 1 ? "Mắt cá" : "Line \(i + 1)")
 
-                    ZStack {
+                    ZStack(alignment: .leading) {
                         Rectangle()
                             .fill(Color.white.opacity(0.85))
                             .frame(width: viewSize.width, height: 1.5)
                             .shadow(color: Color.black.opacity(0.6), radius: 1)
+
+                        Text(lineTitle)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.black.opacity(0.65)))
+                            .padding(.leading, 8)
                     }
                     .frame(width: viewSize.width, height: 24)
                     .contentShape(Rectangle())
@@ -125,7 +168,8 @@ public struct GridOnScreenOverlayView: View {
                     isDragging = true
                     inspectorViewModel.onSliderEditingChanged(key: "gridConfig", isEditing: true)
                 }
-                var config = currentConfig
+                var config = effectiveDisplayConfig
+                config.isDynamicLines = false
                 let targetY = Double(g.location.y / viewSize.height)
                 GridSliceEngine.moveHorizontalDivider(
                     config: &config,

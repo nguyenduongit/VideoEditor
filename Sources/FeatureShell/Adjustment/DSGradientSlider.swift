@@ -37,8 +37,15 @@ public struct DSGradientSlider: View {
 
             HStack(spacing: DSSpacing.sm) {
                 sliderBar
-                stepperInputBox
-                    .frame(width: 58)
+                DSNumberInput(
+                    value: $value,
+                    step: 1.0,
+                    min: range.lowerBound,
+                    max: range.upperBound,
+                    fractionDigits: 0,
+                    customWidth: 64,
+                    onEditingChanged: onEditingChanged
+                )
             }
         }
     }
@@ -108,53 +115,5 @@ public struct DSGradientSlider: View {
             )
         }
         .frame(height: 20)
-    }
-
-    private var stepperInputBox: some View {
-        HStack(spacing: 2) {
-            Text("\(Int(value))")
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundStyle(DSColors.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.leading, 4)
-
-            VStack(spacing: 0) {
-                Button(action: {
-                    if value < range.upperBound {
-                        onEditingChanged?(true)
-                        value = min(range.upperBound, value + 1)
-                        onEditingChanged?(false)
-                    }
-                }) {
-                    Image(systemName: "chevron.up")
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundStyle(DSColors.textSecondary)
-                        .frame(width: 14, height: 9)
-                }
-                .buttonStyle(.plain)
-
-                Button(action: {
-                    if value > range.lowerBound {
-                        onEditingChanged?(true)
-                        value = max(range.lowerBound, value - 1)
-                        onEditingChanged?(false)
-                    }
-                }) {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundStyle(DSColors.textSecondary)
-                        .frame(width: 14, height: 9)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.trailing, 2)
-        }
-        .frame(height: 22)
-        .background(DSColors.windowBackground)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
-        .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.small)
-                .stroke(DSColors.blockBorder, lineWidth: 1)
-        )
     }
 }

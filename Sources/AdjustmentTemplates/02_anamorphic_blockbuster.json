@@ -1,0 +1,52 @@
+{
+  "id": "anamorphic_blockbuster",
+  "schemaVersion": 1,
+  "name": "Bom Tấn IMAX",
+  "description": "Độ sâu trường màu IMAX sắc nét, vùng tối xanh thép và vùng sáng vàng kim",
+  "category": "Điện ảnh",
+  "tags": ["imax", "blockbuster", "anamorphic", "action", "hdr"],
+  "previewBadge": "IMAX",
+  "previewColorsHex": ["#1E3A8A", "#F59E0B"],
+  "config": {
+    "isEnabled": true,
+    "basic": {
+      "temp": -6.0,
+      "tint": 2.0,
+      "saturation": 10.0,
+      "exposure": 4.0,
+      "contrast": 26.0,
+      "highlight": -25.0,
+      "shadow": 18.0,
+      "white": 12.0,
+      "black": -12.0,
+      "brilliance": 18.0
+    },
+    "hsl": {
+      "red": { "hue": 5.0, "saturation": 18.0, "luminance": 4.0 },
+      "orange": { "hue": -8.0, "saturation": 22.0, "luminance": 8.0 },
+      "cyan": { "hue": -12.0, "saturation": 30.0, "luminance": -8.0 },
+      "blue": { "hue": -6.0, "saturation": 28.0, "luminance": -12.0 }
+    },
+    "wheels": {
+      "lift": { "x": -0.22, "y": -0.12, "luma": -8.0 },
+      "gamma": { "x": 0.02, "y": 0.05, "luma": 4.0 },
+      "gain": { "x": 0.18, "y": 0.14, "luma": 10.0 }
+    },
+    "curves": {
+      "master": [
+        { "x": 0.0, "y": 0.0 },
+        { "x": 0.22, "y": 0.17 },
+        { "x": 0.78, "y": 0.84 },
+        { "x": 1.0, "y": 1.0 }
+      ]
+    },
+    "effects": {
+      "vignetteAmount": 35.0,
+      "vignetteMidpoint": 45.0,
+      "vignetteFeather": 60.0,
+      "grainAmount": 8.0,
+      "grainSize": 30.0,
+      "sharpenAmount": 32.0
+    }
+  }
+}

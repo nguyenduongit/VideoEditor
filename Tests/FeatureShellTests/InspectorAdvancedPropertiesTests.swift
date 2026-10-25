@@ -7,11 +7,11 @@ import CoreMedia
 @Suite("InspectorAdvancedPropertiesTests")
 @MainActor
 struct InspectorAdvancedPropertiesTests {
-    @Test("Video clip provides tabs: Video, Grid, Mask, AI")
+    @Test("Video clip provides tabs: Video, Mask, Adjustment, AI")
     func testVideoClipTabs() {
         let registry = ClipPropertyRegistry.shared
         let tabs = registry.tabs(for: .video)
-        #expect(tabs == ["Video", "Grid", "Mask", "AI"])
+        #expect(tabs == ["Video", "Mask", "Adjustment", "AI"])
 
         let videoTabDesc = registry.descriptors(for: .video, tab: "Video")
         #expect(videoTabDesc.contains { $0.id == "scale" })
@@ -47,7 +47,7 @@ struct InspectorAdvancedPropertiesTests {
         let inspectorVM = InspectorViewModel(timelineViewModel: vm)
         inspectorVM.syncWithSelection()
 
-        #expect(inspectorVM.availableTabs == ["Video", "Grid", "Mask", "AI"])
+        #expect(inspectorVM.availableTabs == ["Video", "Mask", "Adjustment", "AI"])
 
         // Default tab is Video (contains Transform, Speed, and Audio groups)
         inspectorVM.selectedTab = "Video"
@@ -67,10 +67,11 @@ struct InspectorAdvancedPropertiesTests {
         let audioDesc = videoGroups.first(where: { $0.group == "Audio" })?.descriptors.map(\.id) ?? []
         #expect(audioDesc.contains("volume"))
 
-        // Switch to Grid tab
-        inspectorVM.selectedTab = "Grid"
-        let gridGroups = inspectorVM.groupedDescriptors
-        #expect(gridGroups.isEmpty)
+        // Switch to AI tab
+        inspectorVM.selectedTab = "AI"
+        let aiGroups = inspectorVM.groupedDescriptors
+        #expect(aiGroups.count == 1)
+        #expect(aiGroups.first?.group == "Auto Pan")
 
         // Switch to Mask tab
         inspectorVM.selectedTab = "Mask"

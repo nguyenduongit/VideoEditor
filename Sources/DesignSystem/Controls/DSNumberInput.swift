@@ -12,6 +12,7 @@ public struct DSNumberInput: View {
     private let prefix: String?
     private let fractionDigits: Int
     private let displayMultiplier: Double
+    private let customWidth: CGFloat?
     private let onEditingChanged: ((Bool) -> Void)?
 
     @State private var isEditingText = false
@@ -34,6 +35,7 @@ public struct DSNumberInput: View {
         prefix: String? = nil,
         fractionDigits: Int? = nil,
         displayMultiplier: Double? = nil,
+        customWidth: CGFloat? = nil,
         onEditingChanged: ((Bool) -> Void)? = nil
     ) {
         self._value = value
@@ -42,6 +44,7 @@ public struct DSNumberInput: View {
         self.max = max
         self.unit = unit
         self.prefix = prefix
+        self.customWidth = customWidth
         self.displayMultiplier = displayMultiplier ?? (unit == "%" ? 100.0 : 1.0)
         if let fractionDigits {
             self.fractionDigits = fractionDigits
@@ -77,7 +80,7 @@ public struct DSNumberInput: View {
             stepperButton
                 .padding(.trailing, 2)
         }
-        .frame(width: DSSize.inspectorColumnWidth, height: 26)
+        .frame(width: customWidth ?? DSSize.inspectorColumnWidth, height: 26)
         .background(DSColors.inputBackground)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
         .overlay(

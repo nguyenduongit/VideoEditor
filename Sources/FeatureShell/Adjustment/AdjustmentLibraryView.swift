@@ -3,13 +3,13 @@ import Domain
 import DesignSystem
 
 /// View thư viện Adjustment Layer bên sidebar trái.
-/// Gồm 2 tab: "Mặc định" (1 item trung tính) và "Templates" (nhiều preset có sẵn).
+/// Gồm 2 tab: "Mặc định" (1 item trung tính) và "Templates" (hệ thống JSON script đa danh mục).
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
 public struct AdjustmentLibraryView: View {
     @Bindable private var viewModel: AdjustmentLibraryViewModel
 
     private let columns = [
-        GridItem(.adaptive(minimum: 90, maximum: 120), spacing: DSSpacing.md)
+        GridItem(.adaptive(minimum: 95, maximum: 125), spacing: DSSpacing.md)
     ]
 
     public init(viewModel: AdjustmentLibraryViewModel) {
@@ -21,6 +21,11 @@ public struct AdjustmentLibraryView: View {
             subTabBar
                 .padding(.horizontal, DSSpacing.md)
                 .padding(.vertical, DSSpacing.sm)
+            if viewModel.selectedSubTab == .templates {
+                categoryFilterBar
+                    .padding(.horizontal, DSSpacing.md)
+                    .padding(.bottom, DSSpacing.sm)
+            }
             Divider()
                 .background(DSColors.blockBorder)
             contentScrollView
@@ -48,6 +53,37 @@ public struct AdjustmentLibraryView: View {
                 .buttonStyle(.plain)
             }
             Spacer()
+            if viewModel.selectedSubTab == .templates {
+                Button(action: { viewModel.reloadTemplates() }) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(DSColors.textSecondary)
+                }
+                .buttonStyle(.plain)
+                .help("Tải lại JSON Adjustment Templates")
+            }
+        }
+    }
+
+    private var categoryFilterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(AdjustmentTemplateCategory.allCases, id: \.self) { category in
+                    let isSelected = viewModel.selectedCategory == category
+                    Button(action: {
+                        viewModel.selectedCategory = category
+                    }) {
+                        Text(category.rawValue)
+                            .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
+                            .foregroundStyle(isSelected ? Color.white : DSColors.textSecondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(isSelected ? DSColors.accent : DSColors.windowBackground)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
     }
 
@@ -59,7 +95,7 @@ public struct AdjustmentLibraryView: View {
                         viewModel.addPresetToTimeline(viewModel.defaultPreset)
                     }
                 } else {
-                    ForEach(viewModel.templatePresets) { preset in
+                    ForEach(viewModel.filteredTemplatePresets) { preset in
                         AdjustmentCardItemView(preset: preset) {
                             viewModel.addPresetToTimeline(preset)
                         }

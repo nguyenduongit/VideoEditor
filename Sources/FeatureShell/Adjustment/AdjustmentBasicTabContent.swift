@@ -6,18 +6,51 @@ import DesignSystem
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
 public struct AdjustmentBasicTabContent: View {
     @Bindable private var viewModel: InspectorViewModel
+    @State private var selectedSubTab: SubTab = .basic
+
+    private enum SubTab: String, CaseIterable {
+        case basic = "Cơ bản"
+        case hsl = "HSL"
+    }
 
     public init(viewModel: InspectorViewModel) {
         self.viewModel = viewModel
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.lg) {
-            intensitySection
-            whiteBalanceSection
-            toneSection
+        VStack(alignment: .leading, spacing: DSSpacing.md) {
+            subTabBar
+
+            if selectedSubTab == .basic {
+                autoBalanceButton
+                intensitySection
+                whiteBalanceSection
+                toneSection
+            } else {
+                AdjustmentHSLTabContent(viewModel: viewModel)
+            }
         }
         .padding(.vertical, DSSpacing.sm)
+    }
+
+    private var subTabBar: some View {
+        HStack(spacing: 2) {
+            ForEach(SubTab.allCases, id: \.self) { tab in
+                Button(action: { selectedSubTab = tab }) {
+                    Text(tab.rawValue)
+                        .font(.system(size: 11, weight: selectedSubTab == tab ? .semibold : .regular))
+                        .foregroundStyle(selectedSubTab == tab ? DSColors.textPrimary : DSColors.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                        .background(selectedSubTab == tab ? DSColors.windowBackground : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(2)
+        .background(DSColors.inputBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
     private var intensitySection: some View {
@@ -144,6 +177,45 @@ public struct AdjustmentBasicTabContent: View {
         cfg.basic.white = 0
         cfg.basic.black = 0
         cfg.basic.brilliance = 0
+        if let json = cfg.encodeToJSON() {
+            viewModel.commitTextProperty(key: "adjustmentConfig", text: json)
+        }
+    }
+
+    private var autoBalanceButton: some View {
+        Button(action: applyAutoBalance) {
+            HStack(spacing: 6) {
+                Image(systemName: "wand.and.stars")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color(red: 0.35, green: 0.85, blue: 1.0))
+                Text("Cân chỉnh tự động (Auto Balance)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(DSColors.textPrimary)
+                Spacer()
+                Image(systemName: "sparkles")
+                    .font(.system(size: 10))
+                    .foregroundStyle(DSColors.textSecondary)
+            }
+            .padding(.horizontal, DSSpacing.sm)
+            .padding(.vertical, 7)
+            .background(Color.white.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func applyAutoBalance() {
+        var cfg = currentConfig
+        cfg.basic.contrast = 15
+        cfg.basic.brilliance = 10
+        cfg.basic.highlight = -8
+        cfg.basic.shadow = 12
+        cfg.basic.white = 5
+        cfg.basic.black = -5
         if let json = cfg.encodeToJSON() {
             viewModel.commitTextProperty(key: "adjustmentConfig", text: json)
         }

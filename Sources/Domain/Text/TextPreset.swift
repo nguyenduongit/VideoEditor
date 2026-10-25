@@ -1,22 +1,128 @@
 import Foundation
 
-/// Mẫu kiểu chữ có sẵn (Preset) để người dùng chọn và thêm nhanh vào timeline
-public struct TextPreset: Identifiable, Sendable, Equatable {
+/// Danh mục phân loại mẫu chữ (Text Template Category) đồng bộ với Supabase
+public enum TextTemplateCategory: String, Codable, Sendable, CaseIterable, Identifiable {
+    case all = "Tất cả"
+    case karaoke = "Karaoke & Phụ đề"
+    case trending = "Trending"
+    case cyber = "Neon & Cyber"
+    case cinema = "3D & Điện ảnh"
+    case vlog = "Vlog & Tin tức"
+
+    public var id: String { rawValue }
+
+    /// Các danh mục thực tế gán cho từng file JSON (không tính tab lọc "Tất cả")
+    public static var assignableCases: [TextTemplateCategory] {
+        [.karaoke, .trending, .cyber, .cinema, .vlog]
+    }
+}
+
+/// Lớp phụ (Sub-Layer) dùng cho các mẫu chữ phức hợp đa lớp (Compound Multi-Layer Template)
+public struct TextTemplateSubLayer: Codable, Sendable, Equatable {
+    public var name: String
+    public var startOffsetSeconds: Double
+    public var durationRatio: Double
+    public var config: TextConfiguration
+
+    public init(
+        name: String,
+        startOffsetSeconds: Double = 0.0,
+        durationRatio: Double = 1.0,
+        config: TextConfiguration
+    ) {
+        self.name = name
+        self.startOffsetSeconds = max(0.0, startOffsetSeconds)
+        self.durationRatio = max(0.1, min(1.0, durationRatio))
+        self.config = config
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Sub Layer"
+        self.startOffsetSeconds = (try? c.decodeIfPresent(Double.self, forKey: .startOffsetSeconds)) ?? 0.0
+        self.durationRatio = (try? c.decodeIfPresent(Double.self, forKey: .durationRatio)) ?? 1.0
+        self.config = (try? c.decodeIfPresent(TextConfiguration.self, forKey: .config)) ?? TextConfiguration()
+    }
+}
+
+/// Mẫu kiểu chữ thiết kế sẵn (Text Template Script) tuần tự hóa JSON độc lập và tương thích Supabase `jsonb`.
+/// Tuân thủ AGENTS.md R2.3 (thuần Domain), R5.5 (Serialization) và R5.6 (Forward Compatibility).
+public struct TextPreset: Identifiable, Codable, Sendable, Equatable {
     public let id: String
-    public let name: String
-    public let description: String
-    public let config: TextConfiguration
+    public var schemaVersion: Int
+    public var name: String
+    public var description: String
+    public var category: TextTemplateCategory
+    public var tags: [String]
+    public var defaultDuration: Double
+    public var previewBadge: String?
+    public var previewBackgroundHex: String
+    public var fallbackFontName: String?
+    public var remoteFontURL: String?
+    public var config: TextConfiguration
+    public var subLayers: [TextTemplateSubLayer]
 
     public init(
         id: String,
+        schemaVersion: Int = 1,
         name: String,
         description: String,
-        config: TextConfiguration
+        category: TextTemplateCategory = .trending,
+        tags: [String] = [],
+        defaultDuration: Double = 4.0,
+        previewBadge: String? = nil,
+        previewBackgroundHex: String = "#18181B",
+        fallbackFontName: String? = nil,
+        remoteFontURL: String? = nil,
+        config: TextConfiguration,
+        subLayers: [TextTemplateSubLayer] = []
     ) {
         self.id = id
+        self.schemaVersion = schemaVersion
         self.name = name
         self.description = description
+        self.category = category
+        self.tags = tags
+        self.defaultDuration = max(0.5, min(30.0, defaultDuration))
+        self.previewBadge = previewBadge
+        self.previewBackgroundHex = previewBackgroundHex
+        self.fallbackFontName = fallbackFontName
+        self.remoteFontURL = remoteFontURL
         self.config = config
+        self.subLayers = subLayers
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        self.schemaVersion = (try? c.decodeIfPresent(Int.self, forKey: .schemaVersion)) ?? 1
+        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Mẫu chữ"
+        self.description = (try? c.decodeIfPresent(String.self, forKey: .description)) ?? ""
+        self.category = (try? c.decodeIfPresent(TextTemplateCategory.self, forKey: .category)) ?? .trending
+        self.tags = (try? c.decodeIfPresent([String].self, forKey: .tags)) ?? []
+        self.defaultDuration = (try? c.decodeIfPresent(Double.self, forKey: .defaultDuration)) ?? 4.0
+        self.previewBadge = try? c.decodeIfPresent(String.self, forKey: .previewBadge)
+        self.previewBackgroundHex = (try? c.decodeIfPresent(String.self, forKey: .previewBackgroundHex)) ?? "#18181B"
+        self.fallbackFontName = try? c.decodeIfPresent(String.self, forKey: .fallbackFontName)
+        self.remoteFontURL = try? c.decodeIfPresent(String.self, forKey: .remoteFontURL)
+        self.config = (try? c.decodeIfPresent(TextConfiguration.self, forKey: .config)) ?? TextConfiguration()
+        self.subLayers = (try? c.decodeIfPresent([TextTemplateSubLayer].self, forKey: .subLayers)) ?? []
+    }
+
+    public func encodeToJSON(prettyPrinted: Bool = true) -> String? {
+        let encoder = JSONEncoder()
+        if prettyPrinted {
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        }
+        // Giải thích try?: Trả về nil nếu dữ liệu float không hợp lệ (NaN/Infinite)
+        guard let data = try? encoder.encode(self) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    public static func decode(from jsonString: String) -> TextPreset? {
+        guard let data = jsonString.data(using: .utf8) else { return nil }
+        // Giải thích try?: Bỏ qua an toàn nếu JSON từ server bị lỗi cú pháp (R5.6)
+        return try? JSONDecoder().decode(TextPreset.self, from: data)
     }
 
     /// Mẫu văn bản chuẩn mặc định
@@ -24,6 +130,7 @@ public struct TextPreset: Identifiable, Sendable, Equatable {
         id: "default",
         name: "Văn bản mặc định",
         description: "Kiểu chữ tiêu chuẩn cơ bản",
+        category: .vlog,
         config: TextConfiguration(
             content: "Văn bản",
             fontName: "Helvetica",
@@ -33,131 +140,8 @@ public struct TextPreset: Identifiable, Sendable, Equatable {
         )
     )
 
-    /// Danh sách mẫu chữ thiết kế sẵn phong phú
-    public static let templates: [TextPreset] = [
-        TextPreset(
-            id: "headline_bold",
-            name: "Tiêu đề lớn",
-            description: "Chữ in hoa nổi bật kèm đổ bóng",
-            config: TextConfiguration(
-                content: "TIÊU ĐỀ",
-                fontName: "Impact",
-                fontSize: 64.0,
-                textColorHex: "#FFFFFF",
-                isBold: true,
-                hasShadow: true,
-                shadowColorHex: "#000000",
-                shadowRadius: 8.0,
-                shadowOffsetX: 3.0,
-                shadowOffsetY: 3.0
-            )
-        ),
-        TextPreset(
-            id: "subtitle_box",
-            name: "Phụ đề hộp",
-            description: "Chữ trắng nền mờ bo góc cho phụ đề",
-            config: TextConfiguration(
-                content: "Nội dung phụ đề tại đây",
-                fontName: "Helvetica",
-                fontSize: 32.0,
-                textColorHex: "#FFFFFF",
-                hasBackground: true,
-                backgroundColorHex: "#000000A6",
-                backgroundCornerRadius: 6.0,
-                backgroundPadding: 10.0,
-                positionY: -350.0
-            )
-        ),
-        TextPreset(
-            id: "neon_yellow",
-            name: "Neon Vàng",
-            description: "Hiệu ứng chữ phát sáng màu vàng cam",
-            config: TextConfiguration(
-                content: "GLOW NEON",
-                fontName: "Helvetica",
-                fontSize: 52.0,
-                textColorHex: "#FFF566",
-                isBold: true,
-                hasShadow: true,
-                shadowColorHex: "#FF7A45",
-                shadowRadius: 16.0,
-                shadowOffsetX: 0.0,
-                shadowOffsetY: 0.0
-            )
-        ),
-        TextPreset(
-            id: "cyber_cyan",
-            name: "Cyber Cyan",
-            description: "Phong cách công nghệ xanh ngọc rực rỡ",
-            config: TextConfiguration(
-                content: "CYBER TECH",
-                fontName: "Helvetica",
-                fontSize: 50.0,
-                textColorHex: "#36CFC9",
-                isBold: true,
-                hasShadow: true,
-                shadowColorHex: "#08979C",
-                shadowRadius: 14.0,
-                shadowOffsetX: 0.0,
-                shadowOffsetY: 0.0
-            )
-        ),
-        TextPreset(
-            id: "cinematic_outline",
-            name: "Viền điện ảnh",
-            description: "Chữ trắng viền đen dày nổi bật trên nền video",
-            config: TextConfiguration(
-                content: "CINEMA",
-                fontName: "Helvetica",
-                fontSize: 56.0,
-                textColorHex: "#FFFFFF",
-                isBold: true,
-                hasStroke: true,
-                strokeColorHex: "#000000",
-                strokeWidth: 4.0
-            )
-        ),
-        TextPreset(
-            id: "news_badge",
-            name: "Hộp tin tức",
-            description: "Hộp đỏ bắt mắt kiểu tin nóng Breaking News",
-            config: TextConfiguration(
-                content: "BREAKING NEWS",
-                fontName: "Impact",
-                fontSize: 42.0,
-                textColorHex: "#FFFFFF",
-                isBold: true,
-                hasBackground: true,
-                backgroundColorHex: "#CF1322",
-                backgroundCornerRadius: 4.0,
-                backgroundPadding: 14.0
-            )
-        ),
-        TextPreset(
-            id: "retro_serif",
-            name: "Cổ điển Serif",
-            description: "Chữ nghiêng màu kem phong cách hoài cổ",
-            config: TextConfiguration(
-                content: "Vintage Story",
-                fontName: "Georgia",
-                fontSize: 46.0,
-                textColorHex: "#FFF1B8",
-                isBold: false,
-                isItalic: true
-            )
-        ),
-        TextPreset(
-            id: "typewriter",
-            name: "Máy đánh chữ",
-            description: "Phông Monospace kiểu kịch bản",
-            config: TextConfiguration(
-                content: "Scene 1: Introduction...",
-                fontName: "Courier",
-                fontSize: 34.0,
-                textColorHex: "#E6F7FF",
-                isBold: false,
-                alignment: .left
-            )
-        )
-    ]
+    /// Danh sách mẫu chữ được nạp động từ các file JSON Script và bộ nhớ đệm Supabase
+    public static var templates: [TextPreset] {
+        TextTemplateLoader.shared.loadAllTemplates()
+    }
 }

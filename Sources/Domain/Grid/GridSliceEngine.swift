@@ -4,6 +4,8 @@ import Foundation
 /// Complies with R2.3, R3.1, and R7.5 of AGENTS.md.
 public enum GridSliceEngine {
     public static let minDimension: Double = 0.05
+    public static let minLegStretchRatio: Double = 0.9
+    public static let maxLegStretchRatio: Double = 1.3
 
     public static func makeDefault(rows: Int, columns: Int) -> GridConfiguration {
         GridConfiguration(rows: rows, columns: columns)
@@ -99,6 +101,65 @@ public enum GridSliceEngine {
 
         config.rowHeights[rowBelow] = boundsBelow.bottom - boundsBelow.top
         config.rowOffsets[rowBelow] = boundsBelow.top
+
+        if config.rows == 3 && abs(config.legStretchRatio - 1.0) > 0.0001 {
+            applyLegStretch(config: &config, ratio: config.legStretchRatio)
+        }
+    }
+
+    public static func applyLegStretch(
+        config: inout GridConfiguration,
+        ratio: Double
+    ) {
+        if config.rows != 3 || config.columns != 1 {
+            updateGridDimensions(config: &config, rows: 3, columns: 1)
+        }
+        let clampedRatio = max(minLegStretchRatio, min(maxLegStretchRatio, ratio))
+        config.legStretchRatio = clampedRatio
+        config.selectedTarget = .row(1)
+
+        // Reset unscaled partition bounds first
+        for r in 0..<3 {
+            let bounds = config.rowBounds(for: r)
+            config.rowHeights[r] = bounds.bottom - bounds.top
+            config.rowOffsets[r] = bounds.top
+        }
+
+        let baseMidH = config.rowHeights[1]
+        scaleRow(config: &config, index: 1, newHeight: baseMidH * clampedRatio)
+    }
+
+    public static func setBodyLines(
+        config: inout GridConfiguration,
+        waistY: Double,
+        ankleY: Double
+    ) {
+        if config.rows != 3 || config.columns != 1 {
+            updateGridDimensions(config: &config, rows: 3, columns: 1)
+        }
+        let safeW = max(minDimension, min(0.85, waistY))
+        let safeA = max(safeW + minDimension, min(1.0 - minDimension, ankleY))
+        config.rowDividers = [safeW, safeA]
+        applyLegStretch(config: &config, ratio: config.legStretchRatio)
+    }
+
+    public static func resolvedConfig(
+        from config: GridConfiguration,
+        at timeSeconds: Double,
+        keyframes: [AutoPanKeyframe],
+        scaleY: Double = 1.0,
+        normalizedOffsetY: Double = 0.0
+    ) -> GridConfiguration {
+        guard config.isEnabled else { return config }
+        guard config.isDynamicLines,
+              let lines = AutoPanEngine.interpolatedBodyLines(at: timeSeconds, keyframes: keyframes) else {
+            return config
+        }
+        let mappedWaistY = 0.5 + (lines.waistY - 0.5) * scaleY + normalizedOffsetY
+        let mappedAnkleY = 0.5 + (lines.ankleY - 0.5) * scaleY + normalizedOffsetY
+        var dynamicConfig = config
+        setBodyLines(config: &dynamicConfig, waistY: mappedWaistY, ankleY: mappedAnkleY)
+        return dynamicConfig
     }
 
     public static func moveVerticalDivider(

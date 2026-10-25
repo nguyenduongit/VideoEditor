@@ -13,6 +13,7 @@ public final class ShellViewModel {
     public let mediaLibraryViewModel: MediaLibraryViewModel?
     public let playheadState: TimelinePlayheadState
     public let playbackEngine = TimelinePlaybackEngine()
+    public let exportViewModel = ExportViewModel()
 
     public var selectedTabID: TabID
     public var isPlaying: Bool = false
@@ -34,7 +35,10 @@ public final class ShellViewModel {
     ) {
         self.registry = registry
         self.timelineViewModel = timelineViewModel
-        self.inspectorViewModel = InspectorViewModel(timelineViewModel: timelineViewModel)
+        self.inspectorViewModel = InspectorViewModel(
+            timelineViewModel: timelineViewModel,
+            mediaLibraryViewModel: mediaLibraryViewModel
+        )
         self.mediaLibraryViewModel = mediaLibraryViewModel
         let resolvedPlayhead = playheadState ?? TimelinePlayheadState(
             initialTime: timelineViewModel.currentTime,

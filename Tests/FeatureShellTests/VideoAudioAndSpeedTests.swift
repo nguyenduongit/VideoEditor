@@ -12,7 +12,7 @@ struct VideoAudioAndSpeedTests {
     func testClipPropertyRegistryAudioAndSpeedDescriptors() {
         let tabs = ClipPropertyRegistry.shared.tabs(for: .video)
         #expect(tabs.contains("Video"))
-        #expect(tabs.contains("Grid"))
+        #expect(tabs.contains("AI"))
         #expect(tabs.contains("Mask"))
 
         let audioDesc = ClipPropertyRegistry.shared.descriptors(for: .video, tab: "Video").filter { $0.group == "Audio" }

@@ -121,13 +121,22 @@ public final class ColorGradingEngine: @unchecked Sendable {
         let basic = config.basic
         let k = max(0.0, min(1.0, intensity))
 
+        result = applyLUT(to: result, lut: config.lut, intensity: k)
+        result = applyColorCurves(to: result, curves: config.curves, intensity: k)
+        result = applyColorWheels(to: result, wheels: config.wheels, intensity: k)
         result = applyWhiteBalance(to: result, temp: basic.temp * k, tint: basic.tint * k)
-        result = applyHighlightShadow(to: result, shadow: basic.shadow * k, highlight: basic.highlight * k)
-        result = applyToneCurve(to: result, white: basic.white * k, black: basic.black * k)
+        result = applyToneCurve(
+            to: result,
+            shadow: basic.shadow * k,
+            highlight: basic.highlight * k,
+            white: basic.white * k,
+            black: basic.black * k
+        )
         result = applyExposure(to: result, exposure: basic.exposure * k)
         result = applyColorControls(to: result, saturation: basic.saturation * k, contrast: basic.contrast * k)
         result = applyVibrance(to: result, brilliance: basic.brilliance * k)
         result = applyHSLSelective(to: result, hsl: config.hsl, intensity: k)
+        result = applyEffects(to: result, effects: config.effects, intensity: k)
 
         return result
     }
@@ -146,27 +155,25 @@ public final class ColorGradingEngine: @unchecked Sendable {
         return wbFilter.outputImage ?? image
     }
 
-    private func applyHighlightShadow(to image: CIImage, shadow: Float, highlight: Float) -> CIImage {
-        guard shadow != 0.0 || highlight != 0.0 else { return image }
-        guard let filter = CIFilter(name: "CIHighlightShadowAdjust") else { return image }
-        filter.setValue(image, forKey: kCIInputImageKey)
-        let shadowAmount = max(0.0, shadow / 100.0)
-        let highlightAmount = min(1.0, max(0.0, 1.0 + (highlight / 100.0)))
-        filter.setValue(shadowAmount, forKey: "inputShadowAmount")
-        filter.setValue(highlightAmount, forKey: "inputHighlightAmount")
-        return filter.outputImage ?? image
-    }
-
-    private func applyToneCurve(to image: CIImage, white: Float, black: Float) -> CIImage {
-        guard white != 0.0 || black != 0.0 else { return image }
+    private func applyToneCurve(
+        to image: CIImage,
+        shadow: Float,
+        highlight: Float,
+        white: Float,
+        black: Float
+    ) -> CIImage {
+        guard shadow != 0.0 || highlight != 0.0 || white != 0.0 || black != 0.0 else { return image }
         guard let filter = CIFilter(name: "CIToneCurve") else { return image }
         filter.setValue(image, forKey: kCIInputImageKey)
         let blackY = max(0.0, min(0.25, CGFloat(black / 100.0) * 0.15))
+        let shadowY = max(0.05, min(0.46, 0.25 + CGFloat(shadow / 100.0) * 0.16))
+        let midY = max(0.35, min(0.65, 0.50 + CGFloat((shadow + highlight) / 100.0) * 0.04))
+        let highlightY = max(0.54, min(0.95, 0.75 + CGFloat(highlight / 100.0) * 0.16))
         let whiteY = max(0.75, min(1.0, 1.0 + CGFloat(white / 100.0) * 0.15))
         filter.setValue(CIVector(x: 0.0, y: blackY), forKey: "inputPoint0")
-        filter.setValue(CIVector(x: 0.25, y: 0.25), forKey: "inputPoint1")
-        filter.setValue(CIVector(x: 0.5, y: 0.5), forKey: "inputPoint2")
-        filter.setValue(CIVector(x: 0.75, y: 0.75), forKey: "inputPoint3")
+        filter.setValue(CIVector(x: 0.25, y: shadowY), forKey: "inputPoint1")
+        filter.setValue(CIVector(x: 0.5, y: midY), forKey: "inputPoint2")
+        filter.setValue(CIVector(x: 0.75, y: highlightY), forKey: "inputPoint3")
         filter.setValue(CIVector(x: 1.0, y: whiteY), forKey: "inputPoint4")
         return filter.outputImage ?? image
     }

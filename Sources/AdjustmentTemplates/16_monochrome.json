@@ -1,0 +1,52 @@
+{
+  "id": "monochrome",
+  "schemaVersion": 1,
+  "name": "Đen trắng",
+  "description": "Đen trắng nghệ thuật tương phản cao kèm hạt phim Silver Halide",
+  "category": "Moody & B&W",
+  "tags": ["monochrome", "bw", "noir", "black and white", "silver", "contrast"],
+  "previewBadge": "NOIR",
+  "previewColorsHex": ["#262626", "#BFBFBF"],
+  "config": {
+    "isEnabled": true,
+    "basic": {
+      "temp": 0.0,
+      "tint": 0.0,
+      "saturation": -100.0,
+      "exposure": -2.0,
+      "contrast": 34.0,
+      "highlight": 10.0,
+      "shadow": -18.0,
+      "white": 16.0,
+      "black": -20.0,
+      "brilliance": 0.0
+    },
+    "hsl": {
+      "red": { "hue": 0.0, "saturation": 0.0, "luminance": -10.0 },
+      "orange": { "hue": 0.0, "saturation": 0.0, "luminance": 14.0 },
+      "yellow": { "hue": 0.0, "saturation": 0.0, "luminance": 12.0 },
+      "blue": { "hue": 0.0, "saturation": 0.0, "luminance": -24.0 }
+    },
+    "wheels": {
+      "lift": { "x": 0.0, "y": 0.0, "luma": -8.0 },
+      "gamma": { "x": 0.0, "y": 0.0, "luma": -2.0 },
+      "gain": { "x": 0.0, "y": 0.0, "luma": 8.0 }
+    },
+    "curves": {
+      "master": [
+        { "x": 0.0, "y": 0.02 },
+        { "x": 0.22, "y": 0.14 },
+        { "x": 0.78, "y": 0.86 },
+        { "x": 1.0, "y": 0.99 }
+      ]
+    },
+    "effects": {
+      "vignetteAmount": 38.0,
+      "vignetteMidpoint": 48.0,
+      "vignetteFeather": 65.0,
+      "grainAmount": 28.0,
+      "grainSize": 44.0,
+      "sharpenAmount": 24.0
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "id": "moody_dark_forest",
+  "schemaVersion": 1,
+  "name": "Moody Forest",
+  "description": "Tông xanh rêu trầm mặc, hạ bão hòa lá cây và tạo chiều sâu sương mù",
+  "category": "Moody & B&W",
+  "tags": ["moody", "forest", "dark", "foliage", "desaturated", "nature"],
+  "previewBadge": "MOODY",
+  "previewColorsHex": ["#142E24", "#6B8E78"],
+  "config": {
+    "isEnabled": true,
+    "basic": {
+      "temp": -8.0,
+      "tint": -4.0,
+      "saturation": -26.0,
+      "exposure": -8.0,
+      "contrast": 22.0,
+      "highlight": -28.0,
+      "shadow": -12.0,
+      "white": -10.0,
+      "black": -6.0,
+      "brilliance": 8.0
+    },
+    "hsl": {
+      "orange": { "hue": -4.0, "saturation": 10.0, "luminance": 6.0 },
+      "yellow": { "hue": -25.0, "saturation": -55.0, "luminance": -18.0 },
+      "green": { "hue": 24.0, "saturation": -48.0, "luminance": -26.0 },
+      "cyan": { "hue": -12.0, "saturation": -30.0, "luminance": -15.0 },
+      "blue": { "hue": -10.0, "saturation": -40.0, "luminance": -20.0 }
+    },
+    "wheels": {
+      "lift": { "x": -0.14, "y": 0.06, "luma": 2.0 },
+      "gamma": { "x": -0.10, "y": 0.08, "luma": -6.0 },
+      "gain": { "x": 0.06, "y": 0.05, "luma": -4.0 }
+    },
+    "curves": {
+      "master": [
+        { "x": 0.0, "y": 0.05 },
+        { "x": 0.22, "y": 0.17 },
+        { "x": 0.75, "y": 0.72 },
+        { "x": 1.0, "y": 0.90 }
+      ]
+    },
+    "effects": {
+      "vignetteAmount": 42.0,
+      "vignetteMidpoint": 45.0,
+      "vignetteFeather": 72.0,
+      "grainAmount": 20.0,
+      "grainSize": 38.0,
+      "sharpenAmount": 18.0
+    }
+  }
+}

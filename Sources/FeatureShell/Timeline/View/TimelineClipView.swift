@@ -146,8 +146,8 @@ public struct TimelineClipView: View {
     private func centerBody(width: CGFloat) -> some View {
         let activeDurSec = max(1.0 / Double(TimeRational.defaultFPS), Double(width / pixelsPerSecond))
         let activeDur = CMTime(seconds: activeDurSec, preferredTimescale: 600)
-        if clip.kind == .adjustment {
-            adjustmentClipBody(width: width, duration: activeDur)
+        if clip.kind.isAuxiliary {
+            auxiliaryClipBody(width: width, duration: activeDur)
         } else {
             VStack(spacing: 0) {
                 ClipHeaderBarView(
@@ -162,9 +162,9 @@ public struct TimelineClipView: View {
         }
     }
 
-    private func adjustmentClipBody(width: CGFloat, duration: CMTime) -> some View {
+    private func auxiliaryClipBody(width: CGFloat, duration: CMTime) -> some View {
         HStack(spacing: DSSpacing.xs) {
-            Image(systemName: "slider.horizontal.3")
+            Image(systemName: clip.kind.iconName)
                 .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(Color.white)
 
@@ -187,7 +187,7 @@ public struct TimelineClipView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             LinearGradient(
-                colors: [DSColors.clipAdjustment, DSColors.clipAdjustment.opacity(0.85)],
+                colors: [clipColor, clipColor.opacity(0.85)],
                 startPoint: .top,
                 endPoint: .bottom
             )

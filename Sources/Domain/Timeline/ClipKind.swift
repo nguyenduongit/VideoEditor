@@ -67,4 +67,28 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
             return 4
         }
     }
+
+    public var isAuxiliary: Bool {
+        switch self {
+        case .video, .audio:
+            return false
+        case .image, .text, .adjustment:
+            return true
+        }
+    }
+
+    public var iconName: String {
+        switch self {
+        case .video:
+            return "video.fill"
+        case .audio:
+            return "waveform"
+        case .image:
+            return "photo"
+        case .text:
+            return "textformat"
+        case .adjustment:
+            return "slider.horizontal.3"
+        }
+    }
 }

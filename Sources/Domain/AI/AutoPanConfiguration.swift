@@ -1,15 +1,25 @@
 import Foundation
 
-/// Represents a single tracked subject position at a specific timestamp.
+/// Represents a single tracked subject position and vertical body landmarks at a specific timestamp.
 public struct AutoPanKeyframe: Codable, Sendable, Equatable {
     public var timeSeconds: Double
     public var normalizedX: Double // 0.0 (left) to 1.0 (right)
     public var confidence: Float
+    public var waistY: Double? // 0.0 (top) to 1.0 (bottom)
+    public var ankleY: Double? // 0.0 (top) to 1.0 (bottom)
 
-    public init(timeSeconds: Double, normalizedX: Double, confidence: Float = 1.0) {
+    public init(
+        timeSeconds: Double,
+        normalizedX: Double,
+        confidence: Float = 1.0,
+        waistY: Double? = nil,
+        ankleY: Double? = nil
+    ) {
         self.timeSeconds = timeSeconds
         self.normalizedX = max(0.0, min(1.0, normalizedX))
         self.confidence = confidence
+        self.waistY = waistY.map { max(0.05, min(0.90, $0)) }
+        self.ankleY = ankleY.map { max(0.10, min(0.98, $0)) }
     }
 }
 

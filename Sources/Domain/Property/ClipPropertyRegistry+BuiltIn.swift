@@ -2,17 +2,18 @@ import Foundation
 
 extension ClipPropertyRegistry {
     func registerBuiltInDescriptors() {
-        register(descriptors: videoDescriptors, for: .video, tabs: ["Video", "Grid", "Mask", "AI"])
+        register(descriptors: videoDescriptors, for: .video, tabs: ["Video", "Mask", "Adjustment", "AI"])
         register(descriptors: imageDescriptors, for: .image)
         register(descriptors: audioDescriptors, for: .audio)
-        register(descriptors: textDescriptors, for: .text, tabs: ["Văn bản", "Hiệu ứng"])
-        register(descriptors: adjustmentDescriptors, for: .adjustment, tabs: ["Basic", "HSL"])
+        register(descriptors: textDescriptors, for: .text, tabs: ["Text", "Style", "Animation"])
+        register(descriptors: adjustmentDescriptors, for: .adjustment, tabs: ["Basic", "HSL", "Wheels", "Curves", "Effects"])
     }
 
     var videoDescriptors: [PropertyDescriptor] {
         transformDescriptors(tab: "Video", includeUniform: true)
             + speedGroupDescriptors(tab: "Video")
             + audioGroupDescriptors(tab: "Video")
+            + adjustmentDescriptors(tab: "Adjustment")
             + maskGroupDescriptors(tab: "Mask")
             + autoPanGroupDescriptors(tab: "AI")
     }
@@ -48,28 +49,28 @@ extension ClipPropertyRegistry {
             PropertyDescriptor(
                 id: "textConfig",
                 title: "Configuration",
-                tab: "Văn bản",
-                group: "Văn bản",
+                tab: "Text",
+                group: "Text",
                 control: .textField,
                 defaultValue: .string(TextConfiguration().encodeToJSON() ?? "")
             ),
             PropertyDescriptor(
                 id: "textContent",
                 title: "Text",
-                tab: "Văn bản",
-                group: "Văn bản",
+                tab: "Text",
+                group: "Text",
                 control: .textField,
                 defaultValue: .string("Văn bản")
             ),
             PropertyDescriptor(
                 id: "fontSize",
                 title: "Font Size",
-                tab: "Văn bản",
-                group: "Văn bản",
+                tab: "Text",
+                group: "Text",
                 control: .slider(min: 12.0, max: 160.0, step: 1.0, unit: "pt"),
                 defaultValue: .number(48.0)
             )
-        ] + transformDescriptors(tab: "Hiệu ứng", includeUniform: false)
+        ] + transformDescriptors(tab: "Style", includeUniform: false)
     }
 
     private func audioGroupDescriptors(tab: String = "Audio") -> [PropertyDescriptor] {

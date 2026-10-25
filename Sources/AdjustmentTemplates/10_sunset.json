@@ -1,0 +1,62 @@
+{
+  "id": "sunset",
+  "schemaVersion": 1,
+  "name": "Hoàng hôn",
+  "description": "Sắc cam vàng ấm áp rực rỡ của nắng chiều Golden Hour",
+  "category": "Chân dung & Vlog",
+  "tags": ["sunset", "golden hour", "warm", "sunlight", "travel"],
+  "previewBadge": "GOLDEN",
+  "previewColorsHex": ["#E64D33", "#F2B333"],
+  "config": {
+    "isEnabled": true,
+    "basic": {
+      "temp": 35.0,
+      "tint": 12.0,
+      "saturation": 18.0,
+      "exposure": 4.0,
+      "contrast": 10.0,
+      "highlight": -10.0,
+      "shadow": 12.0,
+      "white": 8.0,
+      "black": -4.0,
+      "brilliance": 20.0
+    },
+    "hsl": {
+      "red": { "hue": 5.0, "saturation": 15.0, "luminance": 5.0 },
+      "orange": { "hue": -6.0, "saturation": 25.0, "luminance": 8.0 },
+      "yellow": { "hue": -12.0, "saturation": 20.0, "luminance": 10.0 },
+      "purple": { "hue": 10.0, "saturation": 15.0, "luminance": -5.0 }
+    },
+    "wheels": {
+      "lift": { "x": 0.08, "y": -0.06, "luma": -2.0 },
+      "gamma": { "x": 0.16, "y": 0.08, "luma": 4.0 },
+      "gain": { "x": 0.22, "y": 0.14, "luma": 6.0 }
+    },
+    "curves": {
+      "master": [
+        { "x": 0.0, "y": 0.02 },
+        { "x": 0.25, "y": 0.23 },
+        { "x": 0.75, "y": 0.80 },
+        { "x": 1.0, "y": 1.0 }
+      ],
+      "red": [
+        { "x": 0.0, "y": 0.0 },
+        { "x": 0.5, "y": 0.55 },
+        { "x": 1.0, "y": 1.0 }
+      ],
+      "blue": [
+        { "x": 0.0, "y": 0.03 },
+        { "x": 0.5, "y": 0.45 },
+        { "x": 1.0, "y": 0.90 }
+      ]
+    },
+    "effects": {
+      "vignetteAmount": 20.0,
+      "vignetteMidpoint": 55.0,
+      "vignetteFeather": 70.0,
+      "grainAmount": 8.0,
+      "grainSize": 30.0,
+      "sharpenAmount": 14.0
+    }
+  }
+}

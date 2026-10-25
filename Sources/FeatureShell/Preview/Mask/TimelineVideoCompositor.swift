@@ -10,17 +10,33 @@ import os
 public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unchecked Sendable {
     private static let logger = Logger(subsystem: "com.videoeditor", category: "TimelineVideoCompositor")
     private let ciContext: CIContext
+    private let frameCacheLock = NSLock()
+    private var lastFrameByTrackID: [CMPersistentTrackID: CIImage] = [:]
 
     public var sourcePixelBufferAttributes: [String: any Sendable]? {
-        [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+        [
+            kCVPixelBufferPixelFormatTypeKey as String: [
+                kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+                kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+                kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+                kCVPixelFormatType_32BGRA
+            ],
+            kCVPixelBufferMetalCompatibilityKey as String: true
+        ]
     }
 
     public var requiredPixelBufferAttributesForRenderContext: [String: any Sendable] {
-        [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+        [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferMetalCompatibilityKey as String: true
+        ]
     }
 
     public override init() {
-        self.ciContext = CIContext(options: [.useSoftwareRenderer: false])
+        self.ciContext = CIContext(options: [
+            .useSoftwareRenderer: false,
+            .cacheIntermediates: false
+        ])
         super.init()
     }
 
@@ -43,74 +59,152 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
         }
 
         let canvasSize = instruction.canvasSize
-        Self.logger.notice("startRequest: canvas=\(canvasSize.width)x\(canvasSize.height), layers=\(instruction.layerInfos.count)")
-        var canvas = CIImage(color: CIColor.black).cropped(to: CGRect(origin: .zero, size: canvasSize))
+        let canvasRect = CGRect(origin: .zero, size: canvasSize)
+        var canvas = CIImage(color: CIColor.black).cropped(to: canvasRect)
 
         for info in instruction.layerInfos.reversed() {
             if info.isAdjustment {
                 if let config = info.adjustmentConfig, !config.isNeutral {
                     canvas = ColorGradingEngine.shared.applyGrading(to: canvas, config: config, intensity: info.opacity)
+                        .cropped(to: canvasRect)
                 }
                 continue
             }
 
             if info.isText {
                 if let config = info.textConfig {
-                    if let textImage = TextRendererEngine.shared.renderImage(for: config, canvasSize: canvasSize) {
+                    let compTime = asyncVideoCompositionRequest.compositionTime
+                    let clipStart = info.clipTimeRange?.start ?? .zero
+                    let clipDuration = info.clipTimeRange?.duration.seconds ?? 5.0
+                    let localTime = max(0.0, CMTimeSubtract(compTime, clipStart).seconds)
+                    if let textImage = TextRendererEngine.shared.renderAnimatedImage(
+                        for: config,
+                        localTime: localTime,
+                        duration: clipDuration,
+                        canvasSize: canvasSize
+                    ) {
                         canvas = textImage.composited(over: canvas)
                     }
                 }
                 continue
             }
 
-            guard let srcBuffer = asyncVideoCompositionRequest.sourceFrame(byTrackID: info.trackID) else {
-                Self.logger.error("startRequest: failed to get sourceFrame for trackID=\(info.trackID)")
-                continue
+            if let renderedLayer = renderVideoLayer(
+                info: info,
+                request: asyncVideoCompositionRequest,
+                canvasSize: canvasSize,
+                canvasRect: canvasRect
+            ) {
+                canvas = renderedLayer.composited(over: canvas)
             }
-            let srcHeight = CGFloat(CVPixelBufferGetHeight(srcBuffer))
-            let fSrc = CGAffineTransform(a: 1.0, b: 0.0, c: 0.0, d: -1.0, tx: 0.0, ty: srcHeight)
-            let fDst = CGAffineTransform(a: 1.0, b: 0.0, c: 0.0, d: -1.0, tx: 0.0, ty: canvasSize.height)
-            let ciTransform = fSrc.concatenating(info.transform).concatenating(fDst)
+        }
 
-            var frameImage = CIImage(cvPixelBuffer: srcBuffer)
-            frameImage = frameImage.transformed(by: ciTransform)
-
-            if let autoPan = info.autoPanConfig, autoPan.isEnabled, !autoPan.keyframes.isEmpty,
-               let clipRange = info.clipTimeRange {
-                let compTime = asyncVideoCompositionRequest.compositionTime
-                let localTime = CMTimeSubtract(compTime, clipRange.start).seconds
-                let panOffset = AutoPanEngine.panOffset(
-                    at: localTime,
-                    config: autoPan,
-                    videoWidth: Double(info.naturalSize.width),
-                    scale: info.finalScale,
-                    canvasWidth: Double(canvasSize.width)
-                )
-                if abs(panOffset) > 0.001 {
-                    frameImage = frameImage.transformed(by: CGAffineTransform(translationX: CGFloat(panOffset), y: 0.0))
-                }
-            }
-
-            if info.opacity < 1.0 {
-                let alphaVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(max(0.0, info.opacity)))
-                if let matrix = CIFilter(name: "CIColorMatrix", parameters: ["inputAVector": alphaVector, kCIInputImageKey: frameImage]) {
-                    frameImage = matrix.outputImage ?? frameImage
-                }
-            }
-
-            if let gridConfig = info.gridConfig, !gridConfig.isDefault {
-                frameImage = GridSliceCompositor.applyGrid(to: frameImage, config: gridConfig, canvasSize: canvasSize)
-            }
-
-            if let maskParams = info.maskParameters, maskParams.isMaskActive {
-                frameImage = TimelineMaskGenerator.applyMask(to: frameImage, params: maskParams, canvasSize: canvasSize)
-            }
-
-            canvas = frameImage.composited(over: canvas)
+        let renderSize = asyncVideoCompositionRequest.renderContext.size
+        if renderSize.width > 0 && renderSize.height > 0 && (renderSize.width != canvasSize.width || renderSize.height != canvasSize.height) {
+            let sx = renderSize.width / canvasSize.width
+            let sy = renderSize.height / canvasSize.height
+            canvas = canvas.transformed(by: CGAffineTransform(scaleX: sx, y: sy))
         }
 
         ciContext.render(canvas, to: dstPixelBuffer)
         asyncVideoCompositionRequest.finish(withComposedVideoFrame: dstPixelBuffer)
+    }
+
+    private func renderVideoLayer(
+        info: TimelineCustomVideoCompositionInstruction.LayerRenderInfo,
+        request: AVAsynchronousVideoCompositionRequest,
+        canvasSize: CGSize,
+        canvasRect: CGRect
+    ) -> CIImage? {
+        guard var frameImage = resolveBaseVideoFrame(info: info, request: request, canvasSize: canvasSize) else {
+            return nil
+        }
+
+        if let autoPan = info.autoPanConfig, autoPan.isEnabled, !autoPan.keyframes.isEmpty,
+           let clipRange = info.clipTimeRange {
+            let localTime = CMTimeSubtract(request.compositionTime, clipRange.start).seconds
+            let panOffset = AutoPanEngine.panOffset(
+                at: localTime,
+                config: autoPan,
+                videoWidth: Double(info.naturalSize.width),
+                scale: info.finalScale,
+                canvasWidth: Double(canvasSize.width)
+            )
+            if abs(panOffset) > 0.001 {
+                frameImage = frameImage.transformed(by: CGAffineTransform(translationX: CGFloat(panOffset), y: 0.0))
+            }
+        }
+
+        frameImage = frameImage.cropped(to: canvasRect)
+
+        // Apply Grid/Leg Stretch BEFORE Color Grading so Color Grading runs once instead of 3x per slice
+        if let gridConfig = info.gridConfig, !gridConfig.isDefault {
+            let localTime = info.clipTimeRange.map { CMTimeSubtract(request.compositionTime, $0.start).seconds } ?? 0.0
+            let effectiveGrid = GridSliceEngine.resolvedConfig(
+                from: gridConfig,
+                at: localTime,
+                keyframes: info.autoPanConfig?.keyframes ?? [],
+                scaleY: info.userScaleY,
+                normalizedOffsetY: info.normalizedOffsetY
+            )
+            frameImage = GridSliceCompositor.applyGrid(to: frameImage, config: effectiveGrid, canvasSize: canvasSize)
+        }
+
+        if let config = info.adjustmentConfig, !config.isNeutral {
+            frameImage = ColorGradingEngine.shared.applyGrading(to: frameImage, config: config, intensity: 1.0)
+                .cropped(to: canvasRect)
+        }
+
+        if info.opacity < 1.0 {
+            let alphaVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(max(0.0, info.opacity)))
+            if let matrix = CIFilter(name: "CIColorMatrix", parameters: ["inputAVector": alphaVector, kCIInputImageKey: frameImage]) {
+                frameImage = matrix.outputImage ?? frameImage
+            }
+        }
+
+        if let maskParams = info.maskParameters, maskParams.isMaskActive {
+            frameImage = TimelineMaskGenerator.applyMask(to: frameImage, params: maskParams, canvasSize: canvasSize)
+        }
+        return frameImage
+    }
+
+    private func resolveBaseVideoFrame(
+        info: TimelineCustomVideoCompositionInstruction.LayerRenderInfo,
+        request: AVAsynchronousVideoCompositionRequest,
+        canvasSize: CGSize
+    ) -> CIImage? {
+        if let srcBuffer = request.sourceFrame(byTrackID: info.trackID) {
+            let bufW = CGFloat(CVPixelBufferGetWidth(srcBuffer))
+            let bufH = CGFloat(CVPixelBufferGetHeight(srcBuffer))
+            let rawW = info.rawNaturalSize.width > 0 ? info.rawNaturalSize.width : bufW
+            let rawH = info.rawNaturalSize.height > 0 ? info.rawNaturalSize.height : bufH
+
+            var rawImage = CIImage(cvPixelBuffer: srcBuffer)
+            if abs(bufW - rawW) > 0.5 || abs(bufH - rawH) > 0.5 {
+                rawImage = rawImage.transformed(
+                    by: CGAffineTransform(scaleX: rawW / max(1.0, bufW), y: rawH / max(1.0, bufH))
+                )
+            }
+            let fSrc = CGAffineTransform(a: 1.0, b: 0.0, c: 0.0, d: -1.0, tx: 0.0, ty: rawH)
+            let fDst = CGAffineTransform(a: 1.0, b: 0.0, c: 0.0, d: -1.0, tx: 0.0, ty: canvasSize.height)
+            let ciTransform = fSrc.concatenating(info.transform).concatenating(fDst)
+            let transformed = rawImage.transformed(by: ciTransform)
+            storeCachedFrame(transformed, for: info.trackID)
+            return transformed
+        }
+        return loadCachedFrame(for: info.trackID)
+    }
+
+    private func storeCachedFrame(_ image: CIImage, for trackID: CMPersistentTrackID) {
+        frameCacheLock.lock()
+        lastFrameByTrackID[trackID] = image
+        frameCacheLock.unlock()
+    }
+
+    private func loadCachedFrame(for trackID: CMPersistentTrackID) -> CIImage? {
+        frameCacheLock.lock()
+        defer { frameCacheLock.unlock() }
+        return lastFrameByTrackID[trackID]
     }
 
     public func cancelAllPendingVideoCompositionRequests() {}

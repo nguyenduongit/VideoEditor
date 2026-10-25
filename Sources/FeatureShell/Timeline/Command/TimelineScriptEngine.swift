@@ -19,6 +19,7 @@ public struct ScriptExecutionResult: Codable, Sendable, Equatable {
 @MainActor
 public final class TimelineScriptEngine {
     private let viewModel: TimelineViewModel
+    public var currentViewModel: TimelineViewModel { viewModel }
     public let commandExecutor: TimelineCommandExecutor
 
     public init(

@@ -17,7 +17,10 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
         public let autoPanConfig: AutoPanConfiguration?
         public let clipTimeRange: CMTimeRange?
         public let naturalSize: CGSize
+        public let rawNaturalSize: CGSize
         public let finalScale: Double
+        public let userScaleY: Double
+        public let normalizedOffsetY: Double
         public let isAdjustment: Bool
         public let adjustmentConfig: AdjustmentConfiguration?
         public let isText: Bool
@@ -32,7 +35,10 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
             autoPanConfig: AutoPanConfiguration? = nil,
             clipTimeRange: CMTimeRange? = nil,
             naturalSize: CGSize = .zero,
+            rawNaturalSize: CGSize = .zero,
             finalScale: Double = 1.0,
+            userScaleY: Double = 1.0,
+            normalizedOffsetY: Double = 0.0,
             isAdjustment: Bool = false,
             adjustmentConfig: AdjustmentConfiguration? = nil,
             isText: Bool = false,
@@ -46,7 +52,10 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
             self.autoPanConfig = autoPanConfig
             self.clipTimeRange = clipTimeRange
             self.naturalSize = naturalSize
+            self.rawNaturalSize = rawNaturalSize
             self.finalScale = finalScale
+            self.userScaleY = userScaleY
+            self.normalizedOffsetY = normalizedOffsetY
             self.isAdjustment = isAdjustment
             self.adjustmentConfig = adjustmentConfig
             self.isText = isText

@@ -2,8 +2,9 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Card hình vuông hiển thị mẫu Adjustment Layer, đồng bộ phong cách với MediaAssetItemView.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
+/// Card hình vuông hiển thị mẫu Adjustment Layer, dựng trực tiếp ảnh mẫu đã qua `ColorGradingEngine`
+/// từ cấu hình JSON của từng preset, hoàn toàn sạch sẽ không có các badge rườm rà.
+/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) và R5.1 của AGENTS.md.
 public struct AdjustmentCardItemView: View {
     private let preset: AdjustmentPreset
     private let onAdd: () -> Void
@@ -20,6 +21,7 @@ public struct AdjustmentCardItemView: View {
             nameLabel
         }
         .contentShape(Rectangle())
+        .help(preset.description.isEmpty ? preset.name : preset.description)
         .onTapGesture {
             onAdd()
         }
@@ -27,8 +29,7 @@ public struct AdjustmentCardItemView: View {
 
     private var squareThumbnailBox: some View {
         ZStack {
-            presetBackground
-            centerIconOrBadge
+            thumbnailSurface
         }
         .aspectRatio(1.0, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
@@ -46,11 +47,35 @@ public struct AdjustmentCardItemView: View {
         .onHover { isHovered = $0 }
     }
 
+    @ViewBuilder
+    private var thumbnailSurface: some View {
+        if preset.id == "default" {
+            ZStack {
+                DSColors.windowBackground
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 26, weight: .medium))
+                    .foregroundStyle(DSColors.textSecondary)
+            }
+        } else if let nsImage = AdjustmentThumbnailRenderer.shared.thumbnail(for: preset) {
+            Image(nsImage: nsImage)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFill()
+        } else {
+            LinearGradient(
+                colors: preset.previewColorsHex.map { Color(hex: $0) },
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+
     private var nameLabel: some View {
         Text(preset.name)
             .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(DSColors.textPrimary)
+            .foregroundStyle(isHovered ? DSColors.textPrimary : DSColors.textSecondary)
             .lineLimit(1)
+            .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .center)
     }
 
@@ -58,7 +83,7 @@ public struct AdjustmentCardItemView: View {
         Button(action: onAdd) {
             ZStack {
                 Circle()
-                    .fill(Color(red: 0.16, green: 0.79, blue: 0.38))
+                    .fill(DSColors.trafficZoom)
                 Circle()
                     .stroke(Color.white.opacity(0.25), lineWidth: 1)
                 Image(systemName: "plus")
@@ -72,60 +97,5 @@ public struct AdjustmentCardItemView: View {
         .buttonStyle(.plain)
         .padding(DSSpacing.xs)
         .help("Thêm vào Timeline")
-    }
-
-    @ViewBuilder
-    private var centerIconOrBadge: some View {
-        if preset.id == "default" {
-            Image(systemName: "slider.horizontal.3")
-                .font(.system(size: 26, weight: .medium))
-                .foregroundStyle(DSColors.textSecondary)
-        } else {
-            VStack {
-                Spacer()
-                HStack {
-                    Text(preset.description)
-                        .font(.system(size: 9))
-                        .foregroundStyle(Color.white.opacity(0.85))
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    Spacer()
-                }
-                .padding(DSSpacing.xs)
-                .background(Color.black.opacity(0.45))
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var presetBackground: some View {
-        switch preset.id {
-        case "cinematic":
-            LinearGradient(colors: [Color(red: 0.1, green: 0.5, blue: 0.6), Color(red: 0.85, green: 0.45, blue: 0.15)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        case "sunset":
-            LinearGradient(colors: [Color(red: 0.9, green: 0.3, blue: 0.2), Color(red: 0.95, green: 0.7, blue: 0.2)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        case "cold_blue":
-            LinearGradient(colors: [Color(red: 0.2, green: 0.3, blue: 0.6), Color(red: 0.4, green: 0.75, blue: 0.9)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        case "korean_glow":
-            LinearGradient(colors: [Color(red: 0.95, green: 0.65, blue: 0.75), Color(red: 0.98, green: 0.88, blue: 0.85)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        case "vintage":
-            LinearGradient(colors: [Color(red: 0.45, green: 0.38, blue: 0.28), Color(red: 0.72, green: 0.62, blue: 0.45)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        case "cyberpunk":
-            LinearGradient(colors: [Color(red: 0.75, green: 0.1, blue: 0.8), Color(red: 0.0, green: 0.85, blue: 0.95)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        case "vivid":
-            LinearGradient(colors: [Color(red: 0.95, green: 0.2, blue: 0.3), Color(red: 0.2, green: 0.8, blue: 0.4), Color(red: 0.1, green: 0.5, blue: 0.95)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        case "monochrome":
-            LinearGradient(colors: [Color(white: 0.15), Color(white: 0.75)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        default:
-            DSColors.windowBackground
-        }
     }
 }

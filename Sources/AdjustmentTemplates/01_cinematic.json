@@ -1,0 +1,61 @@
+{
+  "id": "cinematic",
+  "schemaVersion": 1,
+  "name": "Điện ảnh",
+  "description": "Tông Teal & Orange tương phản chuẩn Hollywood kèm S-Curve & Vignette",
+  "category": "Điện ảnh",
+  "tags": ["cinematic", "hollywood", "teal", "orange", "film"],
+  "previewBadge": "HOLLYWOOD",
+  "previewColorsHex": ["#0F4C5C", "#E36414"],
+  "config": {
+    "isEnabled": true,
+    "basic": {
+      "temp": 15.0,
+      "tint": 5.0,
+      "saturation": 5.0,
+      "exposure": 2.0,
+      "contrast": 18.0,
+      "highlight": -20.0,
+      "shadow": 15.0,
+      "white": 5.0,
+      "black": -5.0,
+      "brilliance": 12.0
+    },
+    "hsl": {
+      "orange": { "hue": -15.0, "saturation": 20.0, "luminance": 10.0 },
+      "blue": { "hue": -10.0, "saturation": 35.0, "luminance": -10.0 },
+      "cyan": { "hue": 5.0, "saturation": 25.0, "luminance": -5.0 }
+    },
+    "wheels": {
+      "lift": { "x": -0.18, "y": -0.08, "luma": -4.0 },
+      "gamma": { "x": 0.04, "y": 0.02, "luma": 2.0 },
+      "gain": { "x": 0.16, "y": 0.10, "luma": 6.0 }
+    },
+    "curves": {
+      "master": [
+        { "x": 0.0, "y": 0.03 },
+        { "x": 0.25, "y": 0.21 },
+        { "x": 0.75, "y": 0.79 },
+        { "x": 1.0, "y": 0.98 }
+      ],
+      "red": [
+        { "x": 0.0, "y": 0.0 },
+        { "x": 0.5, "y": 0.52 },
+        { "x": 1.0, "y": 1.0 }
+      ],
+      "blue": [
+        { "x": 0.0, "y": 0.04 },
+        { "x": 0.5, "y": 0.48 },
+        { "x": 1.0, "y": 0.96 }
+      ]
+    },
+    "effects": {
+      "vignetteAmount": 28.0,
+      "vignetteMidpoint": 48.0,
+      "vignetteFeather": 65.0,
+      "grainAmount": 12.0,
+      "grainSize": 35.0,
+      "sharpenAmount": 18.0
+    }
+  }
+}

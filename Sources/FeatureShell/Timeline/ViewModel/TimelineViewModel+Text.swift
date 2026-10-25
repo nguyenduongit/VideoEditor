@@ -8,11 +8,70 @@ extension TimelineViewModel {
     public func addTextClip(
         named name: String = "Văn bản",
         config: TextConfiguration = TextConfiguration(),
+        durationSeconds: Double = 5.0,
         at time: CMTime? = nil
     ) {
         let proposedStart = time ?? currentTime
         let targetStart = TimeRational.snapToFrame(time: proposedStart)
-        var resolvedDuration = CMTime(value: 5 * Int64(TimeRational.defaultFPS), timescale: TimeRational.defaultFPS)
+        let resolvedDuration = resolveTextClipDuration(preferredSeconds: durationSeconds, at: targetStart)
+        let clip = makeTextTimelineClip(
+            named: name,
+            config: config,
+            timeRange: CMTimeRange(start: targetStart, duration: resolvedDuration)
+        )
+
+        var simulatedLayers = layers
+        let layerID = allocateLayerID(for: clip, in: &simulatedLayers)
+        applyAddedClips([(clip, layerID)])
+        selectedClipIDs = [clip.id]
+    }
+
+    /// Thêm một mẫu `TextPreset` (hỗ trợ cả mẫu đơn lớp và mẫu đa lớp `subLayers`) vào timeline trong 1 transaction duy nhất.
+    public func addTextPreset(_ preset: TextPreset, at time: CMTime? = nil) {
+        if preset.id == "default" {
+            addTextClip(named: preset.name, config: preset.config, at: time)
+            return
+        }
+        let proposedStart = time ?? currentTime
+        let baseStart = TimeRational.snapToFrame(time: proposedStart)
+        let baseDuration = resolveTextClipDuration(preferredSeconds: preset.defaultDuration, at: baseStart)
+
+        var simulatedLayers = layers
+        var placements: [(TimelineClip, UUID)] = []
+
+        let mainClip = makeTextTimelineClip(
+            named: preset.name,
+            config: preset.config,
+            timeRange: CMTimeRange(start: baseStart, duration: baseDuration)
+        )
+        let mainLayerID = allocateLayerID(for: mainClip, in: &simulatedLayers)
+        placements.append((mainClip, mainLayerID))
+
+        for sub in preset.subLayers {
+            let offsetFrames = Int64(round(sub.startOffsetSeconds * Double(TimeRational.defaultFPS)))
+            let offsetTime = CMTime(value: max(0, offsetFrames), timescale: TimeRational.defaultFPS)
+            let subStart = CMTimeAdd(baseStart, offsetTime)
+            let remaining = CMTimeSubtract(CMTimeAdd(baseStart, baseDuration), subStart)
+            guard remaining > .zero else { continue }
+            let scaledSeconds = max(0.5, CMTimeGetSeconds(remaining) * sub.durationRatio)
+            let subFrames = max(1, Int64(round(scaledSeconds * Double(TimeRational.defaultFPS))))
+            let subDuration = min(remaining, CMTime(value: subFrames, timescale: TimeRational.defaultFPS))
+            let subClip = makeTextTimelineClip(
+                named: sub.name,
+                config: sub.config,
+                timeRange: CMTimeRange(start: subStart, duration: subDuration)
+            )
+            let subLayerID = allocateLayerID(for: subClip, in: &simulatedLayers)
+            placements.append((subClip, subLayerID))
+        }
+
+        applyAddedClips(placements)
+        selectedClipIDs = Set(placements.map { $0.0.id })
+    }
+
+    private func resolveTextClipDuration(preferredSeconds: Double, at targetStart: CMTime) -> CMTime {
+        let frames = max(15, Int64(round(max(0.5, preferredSeconds) * Double(TimeRational.defaultFPS))))
+        var resolvedDuration = CMTime(value: frames, timescale: TimeRational.defaultFPS)
         let mediaClips = layers.flatMap(\.clips).filter { $0.kind == .video || $0.kind == .image }
         if let currentMediaClip = mediaClips.first(where: { $0.timeRange.containsTime(targetStart) }) {
             let remaining = CMTimeSubtract(currentMediaClip.timeRange.end, targetStart)
@@ -20,8 +79,14 @@ extension TimelineViewModel {
                 resolvedDuration = min(resolvedDuration, remaining)
             }
         }
-        let timeRange = CMTimeRange(start: targetStart, duration: resolvedDuration)
+        return resolvedDuration
+    }
 
+    private func makeTextTimelineClip(
+        named name: String,
+        config: TextConfiguration,
+        timeRange: CMTimeRange
+    ) -> TimelineClip {
         var properties = ClipPropertyRegistry.shared.defaultProperties(for: .text)
         if let json = config.encodeToJSON() {
             properties["textConfig"] = .string(json)
@@ -34,17 +99,12 @@ extension TimelineViewModel {
         properties["rotation"] = .number(config.rotation)
         properties["opacity"] = .number(config.opacity)
 
-        let clip = TimelineClip(
+        return TimelineClip(
             assetID: nil,
             name: config.content.isEmpty ? name : config.content,
             kind: .text,
             timeRange: timeRange,
             properties: properties
         )
-
-        var simulatedLayers = layers
-        let layerID = allocateLayerID(for: clip, in: &simulatedLayers)
-        applyAddedClips([(clip, layerID)])
-        selectedClipIDs = [clip.id]
     }
 }

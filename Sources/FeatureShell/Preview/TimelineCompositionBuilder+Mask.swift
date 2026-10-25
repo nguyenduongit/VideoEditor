@@ -17,8 +17,17 @@ extension TimelineCompositionBuilder {
                 TimelineMaskParameters.extract(from: clip.properties).isMaskActive
                     || hasActiveGrid(in: clip)
                     || hasActiveAutoPan(in: clip)
+                    || hasActiveAdjustment(in: clip)
             }
         }
+    }
+
+    private static func hasActiveAdjustment(in clip: TimelineClip) -> Bool {
+        guard let configStr = clip.properties["adjustmentConfig"]?.asString,
+              let config = AdjustmentConfiguration.decode(from: configStr) else {
+            return false
+        }
+        return config.hasGradingChanges
     }
 
     private static func hasActiveAutoPan(in clip: TimelineClip) -> Bool {
@@ -31,10 +40,10 @@ extension TimelineCompositionBuilder {
 
     private static func hasActiveGrid(in clip: TimelineClip) -> Bool {
         guard let configStr = clip.properties["gridConfig"]?.asString,
-              let config = GridConfiguration.decode(from: configStr) else {
+              let _ = GridConfiguration.decode(from: configStr) else {
             return false
         }
-        return !config.isDefault
+        return true
     }
 
     static func buildMaskVideoComposition(
@@ -42,9 +51,11 @@ extension TimelineCompositionBuilder {
         composition: AVMutableComposition,
         layerTrackIDs: [UUID: CMPersistentTrackID],
         aspectRatio: CanvasAspectRatio,
-        duration: CMTime
+        duration: CMTime,
+        renderSize: CGSize? = nil
     ) -> AVMutableVideoComposition? {
-        let canvasSize = aspectRatio.renderSize
+        let logicalCanvasSize = aspectRatio.renderSize
+        let outputRenderSize = renderSize ?? logicalCanvasSize
         let safeDuration = CMTimeMaximum(duration, CMTime(value: 1, timescale: 30))
         let timeRanges = computeInstructionTimeRanges(layers: layers, duration: safeDuration)
         let activeLayers = layers.filter { !$0.isHidden && ($0.kind == .video || $0.kind == .adjustment || $0.kind == .text) }
@@ -54,12 +65,12 @@ extension TimelineCompositionBuilder {
             layers: activeLayers,
             composition: composition,
             layerTrackIDs: layerTrackIDs,
-            canvasSize: canvasSize
+            canvasSize: logicalCanvasSize
         )
         guard !customInstructions.isEmpty else { return nil }
 
         let videoComposition = AVMutableVideoComposition()
-        let size = (canvasSize.width > 0 && canvasSize.height > 0) ? canvasSize : CGSize(width: 1920, height: 1080)
+        let size = (outputRenderSize.width > 0 && outputRenderSize.height > 0) ? outputRenderSize : CGSize(width: 1920, height: 1080)
         videoComposition.renderSize = size
         videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
         videoComposition.customVideoCompositorClass = TimelineVideoCompositor.self
@@ -174,6 +185,9 @@ extension TimelineCompositionBuilder {
         guard let clip = layer.clips.first(where: {
             $0.timeRange.containsTime(midTime) || ($0.timeRange.start <= range.start && $0.timeRange.end >= range.end)
         }) else { return nil }
+        if let url = clip.mediaURL, VideoMetadataCache.shared.metadata(for: url) == nil {
+            _ = TimelineMediaDimensionResolver.resolveDimension(for: url, type: .video)
+        }
         let meta = (clip.mediaURL.flatMap { VideoMetadataCache.shared.metadata(for: $0) })
             ?? VideoTrackMetadata(transform: .identity, naturalSize: CGSize(width: 1920, height: 1080))
 
@@ -190,9 +204,16 @@ extension TimelineCompositionBuilder {
         let autoPanConfig = clip.properties["autoPanConfig"]?.asString.flatMap {
             AutoPanConfiguration.decode(from: $0)
         }
+        let adjConfig = clip.properties["adjustmentConfig"]?.asString.flatMap {
+            AdjustmentConfiguration.decode(from: $0)
+        }
         let oriented = meta.naturalSize.applying(meta.transform)
         let srcW = max(1.0, abs(oriented.width))
         let srcH = max(1.0, abs(oriented.height))
+        let safeCanvasH = max(1.0, Double(canvasSize.height))
+        let effectiveScaleY = (Double(srcH) * Double(computed.finalScale)) / safeCanvasH
+        let userPosY = clip.properties["positionY"]?.asNumber ?? 0.0
+        let normalizedOffsetY = userPosY / safeCanvasH
 
         return TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
             trackID: trackID,
@@ -203,7 +224,11 @@ extension TimelineCompositionBuilder {
             autoPanConfig: autoPanConfig,
             clipTimeRange: clip.timeRange,
             naturalSize: CGSize(width: srcW, height: srcH),
-            finalScale: computed.finalScale
+            rawNaturalSize: meta.naturalSize,
+            finalScale: computed.finalScale,
+            userScaleY: effectiveScaleY,
+            normalizedOffsetY: normalizedOffsetY,
+            adjustmentConfig: (adjConfig?.isNeutral == false) ? adjConfig : nil
         )
     }
 

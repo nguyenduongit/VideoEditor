@@ -15,6 +15,16 @@ public struct HSLChannel: Codable, Equatable, Sendable {
     public var isNeutral: Bool {
         abs(hue) < 0.001 && abs(saturation) < 0.001 && abs(luminance) < 0.001
     }
+    enum CodingKeys: String, CodingKey {
+        case hue, saturation, luminance
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.hue = (try? container.decodeIfPresent(Float.self, forKey: .hue)) ?? 0.0
+        self.saturation = (try? container.decodeIfPresent(Float.self, forKey: .saturation)) ?? 0.0
+        self.luminance = (try? container.decodeIfPresent(Float.self, forKey: .luminance)) ?? 0.0
+    }
 }
 
 /// 8 kênh màu HSL độc lập
@@ -34,6 +44,22 @@ public struct HSLAdjustments: Codable, Equatable, Sendable {
         red.isNeutral && orange.isNeutral && yellow.isNeutral &&
         green.isNeutral && cyan.isNeutral && blue.isNeutral &&
         purple.isNeutral && magenta.isNeutral
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case red, orange, yellow, green, cyan, blue, purple, magenta
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.red = (try? container.decodeIfPresent(HSLChannel.self, forKey: .red)) ?? HSLChannel()
+        self.orange = (try? container.decodeIfPresent(HSLChannel.self, forKey: .orange)) ?? HSLChannel()
+        self.yellow = (try? container.decodeIfPresent(HSLChannel.self, forKey: .yellow)) ?? HSLChannel()
+        self.green = (try? container.decodeIfPresent(HSLChannel.self, forKey: .green)) ?? HSLChannel()
+        self.cyan = (try? container.decodeIfPresent(HSLChannel.self, forKey: .cyan)) ?? HSLChannel()
+        self.blue = (try? container.decodeIfPresent(HSLChannel.self, forKey: .blue)) ?? HSLChannel()
+        self.purple = (try? container.decodeIfPresent(HSLChannel.self, forKey: .purple)) ?? HSLChannel()
+        self.magenta = (try? container.decodeIfPresent(HSLChannel.self, forKey: .magenta)) ?? HSLChannel()
     }
 
     public subscript(index: Int) -> HSLChannel {
@@ -104,6 +130,24 @@ public struct BasicGradingParameters: Codable, Equatable, Sendable {
         self.brilliance = brilliance
     }
 
+    enum CodingKeys: String, CodingKey {
+        case temp, tint, saturation, exposure, contrast, highlight, shadow, white, black, brilliance
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.temp = (try? container.decodeIfPresent(Float.self, forKey: .temp)) ?? 0.0
+        self.tint = (try? container.decodeIfPresent(Float.self, forKey: .tint)) ?? 0.0
+        self.saturation = (try? container.decodeIfPresent(Float.self, forKey: .saturation)) ?? 0.0
+        self.exposure = (try? container.decodeIfPresent(Float.self, forKey: .exposure)) ?? 0.0
+        self.contrast = (try? container.decodeIfPresent(Float.self, forKey: .contrast)) ?? 0.0
+        self.highlight = (try? container.decodeIfPresent(Float.self, forKey: .highlight)) ?? 0.0
+        self.shadow = (try? container.decodeIfPresent(Float.self, forKey: .shadow)) ?? 0.0
+        self.white = (try? container.decodeIfPresent(Float.self, forKey: .white)) ?? 0.0
+        self.black = (try? container.decodeIfPresent(Float.self, forKey: .black)) ?? 0.0
+        self.brilliance = (try? container.decodeIfPresent(Float.self, forKey: .brilliance)) ?? 0.0
+    }
+
     public var isNeutral: Bool {
         abs(temp) < 0.001 && abs(tint) < 0.001 && abs(saturation) < 0.001 &&
         abs(exposure) < 0.001 && abs(contrast) < 0.001 && abs(highlight) < 0.001 &&
@@ -114,19 +158,55 @@ public struct BasicGradingParameters: Codable, Equatable, Sendable {
 
 /// Toàn bộ cấu hình chỉnh màu cho đối tượng Adjustment Layer
 public struct AdjustmentConfiguration: Codable, Equatable, Sendable {
+    public var isEnabled: Bool = true
     public var basic: BasicGradingParameters
     public var hsl: HSLAdjustments
+    public var wheels: ColorWheelsAdjustments
+    public var curves: ColorCurvesAdjustments
+    public var effects: EffectsGradingParameters
+    public var lut: LUTConfiguration
 
     public init(
+        isEnabled: Bool = true,
         basic: BasicGradingParameters = BasicGradingParameters(),
-        hsl: HSLAdjustments = HSLAdjustments()
+        hsl: HSLAdjustments = HSLAdjustments(),
+        wheels: ColorWheelsAdjustments = ColorWheelsAdjustments(),
+        curves: ColorCurvesAdjustments = ColorCurvesAdjustments(),
+        effects: EffectsGradingParameters = EffectsGradingParameters(),
+        lut: LUTConfiguration = LUTConfiguration()
     ) {
+        self.isEnabled = isEnabled
         self.basic = basic
         self.hsl = hsl
+        self.wheels = wheels
+        self.curves = curves
+        self.effects = effects
+        self.lut = lut
+    }
+
+    public var hasGradingChanges: Bool {
+        !basic.isNeutral || !hsl.isNeutral || !wheels.isNeutral ||
+        !curves.isNeutral || !effects.isNeutral || !lut.isNeutral
     }
 
     public var isNeutral: Bool {
-        basic.isNeutral && hsl.isNeutral
+        guard isEnabled else { return true }
+        return !hasGradingChanges
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case isEnabled, basic, hsl, wheels, curves, effects, lut
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.isEnabled = (try? container.decodeIfPresent(Bool.self, forKey: .isEnabled)) ?? true
+        self.basic = (try? container.decodeIfPresent(BasicGradingParameters.self, forKey: .basic)) ?? BasicGradingParameters()
+        self.hsl = (try? container.decodeIfPresent(HSLAdjustments.self, forKey: .hsl)) ?? HSLAdjustments()
+        self.wheels = (try? container.decodeIfPresent(ColorWheelsAdjustments.self, forKey: .wheels)) ?? ColorWheelsAdjustments()
+        self.curves = (try? container.decodeIfPresent(ColorCurvesAdjustments.self, forKey: .curves)) ?? ColorCurvesAdjustments()
+        self.effects = (try? container.decodeIfPresent(EffectsGradingParameters.self, forKey: .effects)) ?? EffectsGradingParameters()
+        self.lut = (try? container.decodeIfPresent(LUTConfiguration.self, forKey: .lut)) ?? LUTConfiguration()
     }
 
     public func encodeToJSON() -> String? {
