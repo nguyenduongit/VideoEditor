@@ -11,14 +11,16 @@ public struct FontPickerPopoverView: View {
 
     @State private var searchText: String = ""
     @State private var selectedCategory: FontCategory = .all
-    private var fontManager: CustomFontManager { CustomFontManager.shared }
+    public let fontManager: CustomFontManager
 
     public init(
         selectedFont: String,
+        fontManager: CustomFontManager = CustomFontManager(),
         onSelect: @escaping (String) -> Void,
         onDismiss: @escaping () -> Void
     ) {
         self.selectedFont = selectedFont
+        self.fontManager = fontManager
         self.onSelect = onSelect
         self.onDismiss = onDismiss
     }

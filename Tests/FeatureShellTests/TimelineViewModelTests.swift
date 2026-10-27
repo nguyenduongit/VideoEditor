@@ -244,4 +244,38 @@ struct TimelineViewModelTests {
         vm.removeClips(forAssetIDs: [], urls: [url2])
         #expect(vm.layers.isEmpty)
     }
+
+    @Test @MainActor func testTrimClipAfterUnsortedInsertionDoesNotBlock() {
+        let vm = TimelineViewModel()
+        let clip10s = TimelineClip(
+            name: "Clip10",
+            kind: .video,
+            timeRange: CMTimeRange(start: CMTime(seconds: 10.0, preferredTimescale: 600), duration: CMTime(seconds: 5.0, preferredTimescale: 600))
+        )
+        let clip2s = TimelineClip(
+            name: "Clip2",
+            kind: .video,
+            timeRange: CMTimeRange(start: CMTime(seconds: 2.0, preferredTimescale: 600), duration: CMTime(seconds: 4.0, preferredTimescale: 600))
+        )
+
+        let layer = TimelineLayer(kind: .video, clips: [clip10s, clip2s])
+        vm.layers = [layer]
+
+        let newStart = CMTime(seconds: 1.0, preferredTimescale: 600)
+        let newDuration = CMTime(seconds: 5.0, preferredTimescale: 600)
+
+        vm.trimClip(
+            clipID: clip2s.id,
+            in: layer.id,
+            newStart: newStart,
+            newDuration: newDuration
+        )
+
+        let updatedClips = vm.layers[0].clips
+        #expect(updatedClips.count == 2)
+        #expect(updatedClips[0].id == clip2s.id)
+        #expect(updatedClips[0].timeRange.start == newStart)
+        #expect(updatedClips[1].id == clip10s.id)
+    }
 }
+

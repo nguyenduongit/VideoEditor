@@ -141,7 +141,7 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
         if let mediaURL = clip.mediaURL {
             let sampleTime = CMTimeAdd(clip.sourceStartTime, CMTimeMultiplyByFloat64(clip.timeRange.duration, multiplier: 0.5))
             if let image = extractImageSynchronously(from: mediaURL, at: sampleTime) {
-                telemetry = HistogramEngine.shared.analyzeTelemetry(from: image)
+                telemetry = HistogramEngine().analyzeTelemetry(from: image)
             } else {
                 telemetry = ColorTelemetryProfile()
             }
@@ -268,11 +268,7 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
     }
 
     private func formatResultResponse(id: Any?, result: [String: Any]) -> String {
-        let payload: [String: Any] = [
-            "jsonrpc": "2.0",
-            "id": id ?? NSNull(),
-            "result": result
-        ]
+        let payload: [String: Any] = ["jsonrpc": "2.0", "id": id ?? NSNull(), "result": result]
         guard let data = try? JSONSerialization.data(withJSONObject: payload),
               let str = String(data: data, encoding: .utf8) else {
             return "{\"jsonrpc\":\"2.0\",\"id\":null,\"result\":{}}"
@@ -281,14 +277,10 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
     }
 
     private func formatJSONRPCError(id: Any?, error: MCPErrorResponse) -> String {
-        let errorObj: [String: Any] = [
-            "code": error.code,
-            "message": error.message
-        ]
         let payload: [String: Any] = [
             "jsonrpc": "2.0",
             "id": id ?? NSNull(),
-            "error": errorObj
+            "error": ["code": error.code, "message": error.message]
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: payload),
               let str = String(data: data, encoding: .utf8) else {

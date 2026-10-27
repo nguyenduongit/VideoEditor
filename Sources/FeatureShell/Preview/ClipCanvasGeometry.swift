@@ -6,6 +6,8 @@ import Domain
 /// Represents the geometric footprint and orientation of a visual clip in canvas coordinates.
 /// Complies with R3.1, R4.3, and R7.5 of AGENTS.md.
 public struct ClipCanvasGeometry: Sendable {
+    private static let metadataCache = TimelineCompositionBuilder.metadataCache
+    private static let textRenderer = TextRendererEngine()
     public let center: CGPoint
     public let size: CGSize
     public let rotationDegrees: Double
@@ -39,7 +41,7 @@ public struct ClipCanvasGeometry: Sendable {
             if let font = clip.properties["fontName"]?.asString { config.fontName = font }
             if let content = clip.properties["textContent"]?.asString { config.content = content }
             if let size = clip.properties["fontSize"]?.asNumber { config.fontSize = size }
-            let rawSize = TextRendererEngine.shared.measureSize(for: config, canvasSize: canvasSize)
+            let rawSize = textRenderer.measureSize(for: config, canvasSize: canvasSize)
             let userScale = clip.properties["scale"]?.asNumber ?? config.scale
             let userPosX = clip.properties["positionX"]?.asNumber ?? config.positionX
             let userPosY = clip.properties["positionY"]?.asNumber ?? config.positionY
@@ -56,7 +58,7 @@ public struct ClipCanvasGeometry: Sendable {
         }
 
         let meta: VideoTrackMetadata
-        if let url = clip.mediaURL, let cached = VideoMetadataCache.shared.metadata(for: url) {
+        if let url = clip.mediaURL, let cached = metadataCache.metadata(for: url) {
             meta = cached
         } else {
             meta = VideoTrackMetadata(transform: .identity, naturalSize: canvasSize)

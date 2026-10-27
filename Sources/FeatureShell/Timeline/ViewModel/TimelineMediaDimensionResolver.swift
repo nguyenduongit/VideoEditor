@@ -7,6 +7,7 @@ import Domain
 /// Resolves pixel dimensions of video and image assets for auto aspect ratio matching.
 public enum TimelineMediaDimensionResolver: Sendable {
     private static let dimensionCache = LRUCache<URL, CGSize>(capacity: 256)
+    private static let videoMetadataCache = VideoMetadataCache()
 
     public static func cachedDimension(for url: URL) -> CGSize? {
         dimensionCache.get(url)
@@ -31,7 +32,7 @@ public enum TimelineMediaDimensionResolver: Sendable {
                 return size
             }
         case .video:
-            if let meta = VideoMetadataCache.shared.metadata(for: url) {
+            if let meta = videoMetadataCache.metadata(for: url) {
                 let oriented = meta.naturalSize.applying(meta.transform)
                 let size = CGSize(width: abs(oriented.width), height: abs(oriented.height))
                 if size.width > 0, size.height > 0 {
@@ -57,7 +58,7 @@ public enum TimelineMediaDimensionResolver: Sendable {
         case .image:
             return resolveDimension(for: url, type: type)
         case .video:
-            if let meta = VideoMetadataCache.shared.metadata(for: url) {
+            if let meta = videoMetadataCache.metadata(for: url) {
                 let oriented = meta.naturalSize.applying(meta.transform)
                 let size = CGSize(width: abs(oriented.width), height: abs(oriented.height))
                 if size.width > 0, size.height > 0 {
@@ -74,7 +75,7 @@ public enum TimelineMediaDimensionResolver: Sendable {
                 if size.width > 0, size.height > 0 {
                     cacheDimension(size, for: url)
                     let meta = VideoTrackMetadata(transform: transform, naturalSize: naturalSize)
-                    VideoMetadataCache.shared.store(meta, for: url)
+                    videoMetadataCache.store(meta, for: url)
                     return size
                 }
             }
@@ -106,7 +107,7 @@ public enum TimelineMediaDimensionResolver: Sendable {
         let size = CGSize(width: abs(oriented.width), height: abs(oriented.height))
         if size.width > 0, size.height > 0 {
             let meta = VideoTrackMetadata(transform: track.preferredTransform, naturalSize: track.naturalSize)
-            VideoMetadataCache.shared.store(meta, for: url)
+            videoMetadataCache.store(meta, for: url)
             return size
         }
         return nil

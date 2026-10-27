@@ -118,11 +118,11 @@ struct TextIntegrationTests {
         config.hasShadow = true
         config.hasBackground = true
 
-        let size = TextRendererEngine.shared.measureSize(for: config, canvasSize: canvasSize)
+        let size = TextRendererEngine().measureSize(for: config, canvasSize: canvasSize)
         #expect(size.width > 50.0)
         #expect(size.height > 20.0)
 
-        let ciImage = TextRendererEngine.shared.renderImage(for: config, canvasSize: canvasSize)
+        let ciImage = TextRendererEngine().renderImage(for: config, canvasSize: canvasSize)
         #expect(ciImage != nil)
         #expect(ciImage?.extent.size == canvasSize)
     }
@@ -165,8 +165,8 @@ struct TextIntegrationTests {
         subtitle.hasBackground = true
         subtitle.positionY = 160
 
-        guard let img1 = TextRendererEngine.shared.renderImage(for: headline, canvasSize: canvasSize),
-              let img2 = TextRendererEngine.shared.renderImage(for: subtitle, canvasSize: canvasSize) else {
+        guard let img1 = TextRendererEngine().renderImage(for: headline, canvasSize: canvasSize),
+              let img2 = TextRendererEngine().renderImage(for: subtitle, canvasSize: canvasSize) else {
             Issue.record("Failed to render preview images")
             return
         }

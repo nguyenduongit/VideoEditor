@@ -209,7 +209,7 @@ public enum TextSegmentRenderer: Sendable {
         let corner = max(6.0, CGFloat(baseConfig.backgroundCornerRadius))
         context.saveGState()
         let path = NSBezierPath(roundedRect: rect, xRadius: corner, yRadius: corner)
-        TextRendererEngine.shared.parseHexColor(baseConfig.animation.highlightColorHex).setFill()
+        TextRendererEngine.parseHexColor(baseConfig.animation.highlightColorHex).setFill()
         path.fill()
         context.restoreGState()
     }

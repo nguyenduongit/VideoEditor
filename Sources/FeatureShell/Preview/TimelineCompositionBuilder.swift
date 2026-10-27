@@ -7,6 +7,7 @@ import os
 
 struct TimelineCompositionBuilder {
     static let logger = Logger(subsystem: "com.videoeditor", category: "TimelineCompositionBuilder")
+    static let metadataCache = VideoMetadataCache()
 
     static func buildTracks(
         for composition: AVMutableComposition,
@@ -86,7 +87,7 @@ struct TimelineCompositionBuilder {
                 let sortedClips = layer.clips.sorted { $0.timeRange.start < $1.timeRange.start }
                 for clip in sortedClips {
                     guard let url = clip.mediaURL,
-                          let meta = VideoMetadataCache.shared.metadata(for: url) else { continue }
+                          let meta = metadataCache.metadata(for: url) else { continue }
                     let targetStart = clip.timeRange.start
                     let insertAt = CMTimeMaximum(targetStart, currentVideoTime)
                     currentVideoTime = insertAt + clip.timeRange.duration

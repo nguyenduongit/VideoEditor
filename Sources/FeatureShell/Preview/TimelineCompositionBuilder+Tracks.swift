@@ -38,13 +38,13 @@ extension TimelineCompositionBuilder {
             currentVideoTime = insertAt + clip.timeRange.duration
 
             let meta: VideoTrackMetadata
-            if let cached = VideoMetadataCache.shared.metadata(for: asset.url) {
+            if let cached = metadataCache.metadata(for: asset.url) {
                 meta = cached
             } else {
                 let transform = (try? await assetVideo.load(.preferredTransform)) ?? .identity
                 let naturalSize = (try? await assetVideo.load(.naturalSize)) ?? CGSize(width: 1920, height: 1080)
                 meta = VideoTrackMetadata(transform: transform, naturalSize: naturalSize)
-                VideoMetadataCache.shared.store(meta, for: asset.url)
+                metadataCache.store(meta, for: asset.url)
             }
             applyVideoTransform(
                 transform: meta.transform,

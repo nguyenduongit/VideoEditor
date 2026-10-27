@@ -20,13 +20,11 @@ public struct MaskShaderUniforms {
 /// GPU Metal compute pipeline for high-performance mask synthesis.
 /// Eliminates CPU NSBitmapImageRep allocations and executes in VRAM (< 0.1ms/frame).
 public final class TimelineMaskMetalPipeline: @unchecked Sendable {
-    public static let shared = TimelineMaskMetalPipeline()
-
     private let device: MTLDevice?
     private let commandQueue: MTLCommandQueue?
     private let pipelineState: MTLComputePipelineState?
 
-    private init() {
+    public init() {
         guard let device = MTLCreateSystemDefaultDevice(),
               let commandQueue = device.makeCommandQueue() else {
             self.device = nil

@@ -6,10 +6,9 @@ import os
 /// Engine áp dụng hiệu ứng chỉnh màu GPU thông qua Core Image & CIColorKernel.
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng) và R9.4 của AGENTS.md.
 public final class ColorGradingEngine: @unchecked Sendable {
-    public static let shared = ColorGradingEngine()
     private static let logger = Logger(subsystem: "com.videoeditor", category: "ColorGradingEngine")
 
-    private init() {}
+    public init() {}
 
     // MARK: - CIColorKernel HSL 8 dải màu
 

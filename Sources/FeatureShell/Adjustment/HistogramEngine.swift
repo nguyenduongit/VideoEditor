@@ -27,11 +27,10 @@ public struct HistogramData: Sendable, Equatable {
 /// Engine tính toán biểu đồ Histogram thời gian thực từ khung hình video
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng) của AGENTS.md.
 public final class HistogramEngine: @unchecked Sendable {
-    public static let shared = HistogramEngine()
     private static let logger = Logger(subsystem: "com.videoeditor", category: "HistogramEngine")
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
 
-    private init() {}
+    public init() {}
 
     /// Tính toán Histogram 256 bins từ CIImage hiện tại.
     public func calculateHistogram(from image: CIImage) -> HistogramData {

@@ -56,6 +56,7 @@ public final class TimelineViewModel {
     public let audioAlignmentService: (any AudioAlignmentServiceProtocol)?
     public let subjectTrackingService: (any SubjectTrackingServiceProtocol)?
     public let dependencies: EditorDependencies
+    public let fontManager: CustomFontManager
     public var analyzingClipIDs: Set<UUID> = []
     public var clipAnalysisProgress: [UUID: Double] = [:]
     var trackingTasks: [UUID: Task<Void, Never>] = [:]
@@ -98,6 +99,7 @@ public final class TimelineViewModel {
         waveformService: (any AudioWaveformServiceProtocol)? = nil,
         audioAlignmentService: (any AudioAlignmentServiceProtocol)? = nil,
         dependencies: EditorDependencies = EditorDependencies(),
+        fontManager: CustomFontManager = CustomFontManager(),
         initialLayers: [TimelineLayer]? = nil
     ) {
         self.thumbnailService = thumbnailService
@@ -105,6 +107,7 @@ public final class TimelineViewModel {
         self.audioAlignmentService = audioAlignmentService
         self.subjectTrackingService = nil
         self.dependencies = dependencies
+        self.fontManager = fontManager
         self.layers = initialLayers ?? []
         self.commandExecutor = TimelineCommandExecutor(viewModel: self)
         updateUndoRedoState()
@@ -116,6 +119,7 @@ public final class TimelineViewModel {
         audioAlignmentService: (any AudioAlignmentServiceProtocol)? = nil,
         subjectTrackingService: (any SubjectTrackingServiceProtocol)? = nil,
         dependencies: EditorDependencies = EditorDependencies(),
+        fontManager: CustomFontManager = CustomFontManager(),
         initialLayers: [TimelineLayer]? = nil
     ) {
         self.thumbnailService = thumbnailService
@@ -123,6 +127,7 @@ public final class TimelineViewModel {
         self.audioAlignmentService = audioAlignmentService
         self.subjectTrackingService = subjectTrackingService
         self.dependencies = dependencies
+        self.fontManager = fontManager
         self.layers = initialLayers ?? []
         self.commandExecutor = TimelineCommandExecutor(viewModel: self)
         updateUndoRedoState()

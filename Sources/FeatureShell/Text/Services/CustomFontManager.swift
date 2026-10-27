@@ -36,8 +36,6 @@ public struct CustomFontItem: Identifiable, Equatable, Hashable, Sendable {
 @MainActor
 @Observable
 public final class CustomFontManager {
-    public static let shared = CustomFontManager()
-
     public private(set) var fonts: [CustomFontItem] = []
     public private(set) var favoriteFontIDs: Set<String> = []
     public private(set) var isLoaded: Bool = false

@@ -225,7 +225,7 @@ struct PreviewObjectManipulatorTests {
         )
         let url = URL(fileURLWithPath: "/tmp/sample16x9_\(UUID().uuidString).mp4")
         clip.mediaURL = url
-        VideoMetadataCache.shared.store(
+        TimelineCompositionBuilder.metadataCache.store(
             VideoTrackMetadata(transform: .identity, naturalSize: CGSize(width: 1920, height: 1080)),
             for: url
         )

@@ -186,10 +186,10 @@ extension TimelineCompositionBuilder {
         guard let clip = layer.clips.first(where: {
             $0.timeRange.containsTime(midTime) || ($0.timeRange.start <= range.start && $0.timeRange.end >= range.end)
         }) else { return nil }
-        if let url = clip.mediaURL, VideoMetadataCache.shared.metadata(for: url) == nil {
+        if let url = clip.mediaURL, metadataCache.metadata(for: url) == nil {
             _ = TimelineMediaDimensionResolver.resolveDimension(for: url, type: .video)
         }
-        let meta = (clip.mediaURL.flatMap { VideoMetadataCache.shared.metadata(for: $0) })
+        let meta = (clip.mediaURL.flatMap { metadataCache.metadata(for: $0) })
             ?? VideoTrackMetadata(transform: .identity, naturalSize: CGSize(width: 1920, height: 1080))
 
         let computed = computeTransform(

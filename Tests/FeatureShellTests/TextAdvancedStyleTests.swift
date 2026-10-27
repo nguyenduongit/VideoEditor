@@ -51,7 +51,7 @@ struct TextAdvancedStyleTests {
         config.extrusionColorHex = "#3B1E04"
 
         let canvasSize = CGSize(width: 1920, height: 1080)
-        let image = TextRendererEngine.shared.renderImage(for: config, canvasSize: canvasSize)
+        let image = TextRendererEngine().renderImage(for: config, canvasSize: canvasSize)
         #expect(image != nil)
         #expect((image?.extent.width ?? 0) > 0)
         #expect((image?.extent.height ?? 0) > 0)
@@ -67,11 +67,11 @@ struct TextAdvancedStyleTests {
         config.outerStrokeWidth = 6.0
 
         let canvasSize = CGSize(width: 1920, height: 1080)
-        let measured = TextRendererEngine.shared.measureSize(for: config, canvasSize: canvasSize)
+        let measured = TextRendererEngine().measureSize(for: config, canvasSize: canvasSize)
         #expect(measured.width > 100.0)
         #expect(measured.height > 40.0)
 
-        let image = TextRendererEngine.shared.renderImage(for: config, canvasSize: canvasSize)
+        let image = TextRendererEngine().renderImage(for: config, canvasSize: canvasSize)
         #expect(image != nil)
     }
 
@@ -86,7 +86,7 @@ struct TextAdvancedStyleTests {
         config.glowRadius = 14.0
 
         let canvasSize = CGSize(width: 1920, height: 1080)
-        let image = TextRendererEngine.shared.renderImage(for: config, canvasSize: canvasSize)
+        let image = TextRendererEngine().renderImage(for: config, canvasSize: canvasSize)
         #expect(image != nil)
     }
 
@@ -123,7 +123,7 @@ struct TextAdvancedStyleTests {
 
         let canvasSize = CGSize(width: 1920, height: 1080)
         if let config = found?.config {
-            let rendered = TextRendererEngine.shared.renderImage(for: config, canvasSize: canvasSize)
+            let rendered = TextRendererEngine().renderImage(for: config, canvasSize: canvasSize)
             #expect(rendered != nil)
         }
     }

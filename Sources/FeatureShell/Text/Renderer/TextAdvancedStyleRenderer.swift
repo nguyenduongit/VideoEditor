@@ -100,7 +100,7 @@ public enum TextAdvancedStyleRenderer: Sendable {
         let stepCount = max(2, min(40, Int(ceil(config.extrusionDepth * 1.5))))
         let stepDx = cos(rad) * (config.extrusionDepth / Double(stepCount))
         let stepDy = sin(rad) * (config.extrusionDepth / Double(stepCount))
-        let extColor = TextRendererEngine.shared.parseHexColor(config.extrusionColorHex)
+        let extColor = parseHexColor(config.extrusionColorHex)
 
         let totalStroke: Double
         if config.hasOuterStroke && config.outerStrokeWidth > 0 {
@@ -141,7 +141,7 @@ public enum TextAdvancedStyleRenderer: Sendable {
         in context: CGContext
     ) {
         guard config.hasOuterStroke && config.outerStrokeWidth > 0.5 else { return }
-        let outerColor = TextRendererEngine.shared.parseHexColor(config.outerStrokeColorHex)
+        let outerColor = parseHexColor(config.outerStrokeColorHex)
         let totalStroke = abs(config.strokeWidth) + abs(config.outerStrokeWidth) * 2.0
 
         let attrs: [NSAttributedString.Key: Any] = [
@@ -167,7 +167,7 @@ public enum TextAdvancedStyleRenderer: Sendable {
     ) {
         guard config.isGradient && config.gradientColors.count >= 2 else { return }
         let cgColors = config.gradientColors.map {
-            TextRendererEngine.shared.parseHexColor($0).cgColor
+            parseHexColor($0).cgColor
         } as CFArray
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         guard let gradient = CGGradient(colorsSpace: colorSpace, colors: cgColors, locations: nil) else { return }

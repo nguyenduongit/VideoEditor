@@ -115,14 +115,14 @@ public struct TextBasicTabContent: View {
         HStack(spacing: 2) {
             Button(action: { isFontPickerPresented.toggle() }) {
                 HStack(spacing: 5) {
-                    let isFav = CustomFontManager.shared.isFavorite(fontID: currentConfig.fontName)
+                    let isFav = viewModel.fontManager.isFavorite(fontID: currentConfig.fontName)
                     if isFav {
                         Image(systemName: "star.fill")
                             .font(.system(size: 10))
                             .foregroundStyle(Color.yellow)
                     }
 
-                    Text(CustomFontManager.shared.displayName(for: currentConfig.fontName))
+                    Text(viewModel.fontManager.displayName(for: currentConfig.fontName))
                         .font(.system(size: 12))
                         .foregroundStyle(DSColors.textPrimary)
                         .lineLimit(1)
@@ -153,6 +153,7 @@ public struct TextBasicTabContent: View {
         .popover(isPresented: $isFontPickerPresented, arrowEdge: .bottom) {
             FontPickerPopoverView(
                 selectedFont: currentConfig.fontName,
+                fontManager: viewModel.fontManager,
                 onSelect: { chosenFont in
                     var cfg = currentConfig
                     cfg.fontName = chosenFont
@@ -164,7 +165,7 @@ public struct TextBasicTabContent: View {
     }
 
     private func cycleFont(forward: Bool) {
-        let allFonts = CustomFontManager.shared.fonts
+        let allFonts = viewModel.fontManager.fonts
         guard !allFonts.isEmpty else { return }
 
         let currentName = currentConfig.fontName

@@ -29,10 +29,14 @@ public extension Color {
 /// Bộ điều phối mở NSColorPanel trên macOS để chọn màu chi tiết và hỗ trợ eyedropper.
 @MainActor
 public final class DSColorPickerPresenter: NSObject {
-    public static let shared = DSColorPickerPresenter()
+    private static let presenter = DSColorPickerPresenter()
     private var onSelect: ((String) -> Void)?
 
-    public func show(currentHex: String, onSelect: @escaping (String) -> Void) {
+    public static func show(currentHex: String, onSelect: @escaping (String) -> Void) {
+        presenter.present(currentHex: currentHex, onSelect: onSelect)
+    }
+
+    public func present(currentHex: String, onSelect: @escaping (String) -> Void) {
         self.onSelect = onSelect
         let panel = NSColorPanel.shared
         panel.color = NSColor(Color(hex: currentHex))
@@ -206,7 +210,7 @@ public struct TextColorSwatchesRow: View {
     private var customColorButton: some View {
         Button(action: {
             let initialHex = isNoneSelected ? "#FFFFFF" : selectedHex
-            DSColorPickerPresenter.shared.show(currentHex: initialHex, onSelect: onSelect)
+            DSColorPickerPresenter.show(currentHex: initialHex, onSelect: onSelect)
         }) {
             ZStack {
                 if isCustomSelected {

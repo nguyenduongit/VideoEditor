@@ -98,7 +98,8 @@ struct AdjustmentIntegrationTests {
             hsl: hsl
         )
 
-        let output = ColorGradingEngine.shared.applyGrading(to: baseImage, config: config, intensity: 1.0)
+        let engine = ColorGradingEngine()
+        let output = engine.applyGrading(to: baseImage, config: config, intensity: 1.0)
         #expect(output.extent == extent)
     }
 
@@ -202,7 +203,8 @@ struct AdjustmentIntegrationTests {
     func testHistogramEngine() {
         let extent = CGRect(x: 0, y: 0, width: 64, height: 64)
         let redImage = CIImage(color: CIColor.red).cropped(to: extent)
-        let data = HistogramEngine.shared.calculateHistogram(from: redImage)
+        let engine = HistogramEngine()
+        let data = engine.calculateHistogram(from: redImage)
 
         #expect(data.redBins.count == 256)
         #expect(data.greenBins.count == 256)
@@ -210,7 +212,7 @@ struct AdjustmentIntegrationTests {
         #expect(data.lumaBins.count == 256)
         #expect(data.redBins[255] > 0.5) // Red channel has peak at 255
 
-        let telemetry = HistogramEngine.shared.analyzeTelemetry(from: redImage)
+        let telemetry = engine.analyzeTelemetry(from: redImage)
         #expect(telemetry.meanRed > 0.8)
         #expect(telemetry.meanBlue < 0.2)
         #expect(telemetry.dominantCast == "warm")
@@ -229,7 +231,8 @@ struct AdjustmentIntegrationTests {
         config.effects.vignetteAmount = 40
         config.effects.sharpenAmount = 30
 
-        let output = ColorGradingEngine.shared.applyGrading(to: baseImage, config: config, intensity: 1.0)
+        let engine = ColorGradingEngine()
+        let output = engine.applyGrading(to: baseImage, config: config, intensity: 1.0)
         #expect(output.extent == extent)
     }
 
@@ -280,7 +283,8 @@ struct AdjustmentIntegrationTests {
         #expect(synced?.config.effects.vignetteAmount == 30.0)
 
         if let synced {
-            let thumb = AdjustmentThumbnailRenderer.shared.thumbnail(for: synced)
+            let renderer = AdjustmentThumbnailRenderer()
+            let thumb = renderer.thumbnail(for: synced)
             #expect(thumb != nil)
             #expect(thumb?.size.width == 180)
         }

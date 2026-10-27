@@ -8,20 +8,21 @@ import Domain
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, Hàm <= 50 dòng).
 @MainActor
 public final class AdjustmentThumbnailRenderer {
-    public static let shared = AdjustmentThumbnailRenderer()
-
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+    private let colorGradingEngine: ColorGradingEngine
     private var cache: [String: NSImage] = [:]
     private var baseSceneImage: CIImage?
 
-    private init() {}
+    public init(colorGradingEngine: ColorGradingEngine = ColorGradingEngine()) {
+        self.colorGradingEngine = colorGradingEngine
+    }
 
     public func thumbnail(for preset: AdjustmentPreset) -> NSImage? {
         if let cached = cache[preset.id] {
             return cached
         }
         let base = getOrCreateBaseScene()
-        let graded = ColorGradingEngine.shared.applyGrading(
+        let graded = colorGradingEngine.applyGrading(
             to: base,
             config: preset.config,
             intensity: 1.0

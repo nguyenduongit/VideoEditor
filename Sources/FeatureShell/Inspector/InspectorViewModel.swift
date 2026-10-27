@@ -22,6 +22,9 @@ public final class InspectorViewModel {
     public var dependencies: EditorDependencies {
         timelineViewModel?.dependencies ?? EditorDependencies(propertyRegistry: propertyRegistry)
     }
+    public var fontManager: CustomFontManager {
+        timelineViewModel?.fontManager ?? CustomFontManager()
+    }
 
     public init(
         timelineViewModel: TimelineViewModel? = nil,
@@ -256,43 +259,5 @@ public final class InspectorViewModel {
         let cmd = TimelineCommand.updateClipProperties(clipID: clip.id, properties: liveProperties)
         timelineViewModel.commandExecutor?.execute(cmd)
         syncWithSelection()
-    }
-
-    public func liveNumber(for key: String, default defaultValue: Double) -> Double {
-        if key == "duration" {
-            if let live = liveProperties["duration"]?.asNumber, live > 0 {
-                return live
-            }
-            if let clip = selectedClip {
-                return CMTimeGetSeconds(clip.timeRange.duration)
-            }
-        }
-        if let live = liveProperties[key]?.asNumber {
-            return live
-        }
-        if let clip = selectedClip, let prop = clip.properties[key]?.asNumber {
-            return prop
-        }
-        return defaultValue
-    }
-
-    public func liveString(for key: String, default defaultValue: String) -> String {
-        if let live = liveProperties[key]?.asString {
-            return live
-        }
-        if let clip = selectedClip, let prop = clip.properties[key]?.asString {
-            return prop
-        }
-        return defaultValue
-    }
-
-    public func liveBool(for key: String, default defaultValue: Bool) -> Bool {
-        if let live = liveProperties[key]?.asBool {
-            return live
-        }
-        if let clip = selectedClip, let prop = clip.properties[key]?.asBool {
-            return prop
-        }
-        return defaultValue
     }
 }

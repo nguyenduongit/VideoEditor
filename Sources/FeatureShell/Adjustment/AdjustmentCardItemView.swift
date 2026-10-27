@@ -7,12 +7,19 @@ import DesignSystem
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) và R5.1 của AGENTS.md.
 public struct AdjustmentCardItemView: View {
     private let preset: AdjustmentPreset
+    private let thumbnailRenderer: AdjustmentThumbnailRenderer
     private let onAdd: () -> Void
     private let onDelete: (() -> Void)?
     @State private var isHovered = false
 
-    public init(preset: AdjustmentPreset, onAdd: @escaping () -> Void, onDelete: (() -> Void)? = nil) {
+    public init(
+        preset: AdjustmentPreset,
+        thumbnailRenderer: AdjustmentThumbnailRenderer = AdjustmentThumbnailRenderer(),
+        onAdd: @escaping () -> Void,
+        onDelete: (() -> Void)? = nil
+    ) {
         self.preset = preset
+        self.thumbnailRenderer = thumbnailRenderer
         self.onAdd = onAdd
         self.onDelete = onDelete
     }
@@ -73,7 +80,7 @@ public struct AdjustmentCardItemView: View {
                     .font(.system(size: 26, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
             }
-        } else if let nsImage = AdjustmentThumbnailRenderer.shared.thumbnail(for: preset) {
+        } else if let nsImage = thumbnailRenderer.thumbnail(for: preset) {
             Image(nsImage: nsImage)
                 .resizable()
                 .interpolation(.high)

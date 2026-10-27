@@ -91,7 +91,7 @@ public struct AdjustmentLibraryView: View {
         DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
             if viewModel.selectedSubTab == .default {
                 LazyVGrid(columns: columns, spacing: DSSpacing.md) {
-                    AdjustmentCardItemView(preset: viewModel.defaultPreset) {
+                    AdjustmentCardItemView(preset: viewModel.defaultPreset, thumbnailRenderer: viewModel.thumbnailRenderer) {
                         viewModel.addPresetToTimeline(viewModel.defaultPreset)
                     }
                 }
@@ -103,6 +103,7 @@ public struct AdjustmentLibraryView: View {
                     ForEach(viewModel.filteredTemplatePresets) { preset in
                         AdjustmentCardItemView(
                             preset: preset,
+                            thumbnailRenderer: viewModel.thumbnailRenderer,
                             onAdd: { viewModel.addPresetToTimeline(preset) },
                             onDelete: { viewModel.deletePreset(preset) }
                         )

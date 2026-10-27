@@ -10,6 +10,8 @@ import os
 public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unchecked Sendable {
     private static let logger = Logger(subsystem: "com.videoeditor", category: "TimelineVideoCompositor")
     private let ciContext: CIContext
+    private let colorGradingEngine = ColorGradingEngine()
+    private let textRenderer = TextRendererEngine()
     private let frameCacheLock = NSLock()
     private var lastFrameByTrackID: [CMPersistentTrackID: CIImage] = [:]
 
@@ -65,7 +67,7 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
         for info in instruction.layerInfos.reversed() {
             if info.isAdjustment {
                 if let config = info.adjustmentConfig, !config.isNeutral {
-                    canvas = ColorGradingEngine.shared.applyGrading(to: canvas, config: config, intensity: info.opacity)
+                    canvas = colorGradingEngine.applyGrading(to: canvas, config: config, intensity: info.opacity)
                         .cropped(to: canvasRect)
                 }
                 continue
@@ -77,7 +79,7 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
                     let clipStart = info.clipTimeRange?.start ?? .zero
                     let clipDuration = info.clipTimeRange?.duration.seconds ?? 5.0
                     let localTime = max(0.0, CMTimeSubtract(compTime, clipStart).seconds)
-                    if let textImage = TextRendererEngine.shared.renderAnimatedImage(
+                    if let textImage = textRenderer.renderAnimatedImage(
                         for: config,
                         localTime: localTime,
                         duration: clipDuration,
@@ -151,7 +153,7 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
         }
 
         if let config = info.adjustmentConfig, !config.isNeutral {
-            frameImage = ColorGradingEngine.shared.applyGrading(to: frameImage, config: config, intensity: 1.0)
+            frameImage = colorGradingEngine.applyGrading(to: frameImage, config: config, intensity: 1.0)
                 .cropped(to: canvasRect)
         }
 

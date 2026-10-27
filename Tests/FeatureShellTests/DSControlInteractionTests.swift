@@ -185,7 +185,7 @@ struct DSControlInteractionTests {
         let layerID = UUID()
         let clipID = UUID()
         let dummyURL = URL(fileURLWithPath: "/tmp/dummy_fast_path.mp4")
-        VideoMetadataCache.shared.store(
+        TimelineCompositionBuilder.metadataCache.store(
             VideoTrackMetadata(transform: .identity, naturalSize: CGSize(width: 1920, height: 1080)),
             for: dummyURL
         )

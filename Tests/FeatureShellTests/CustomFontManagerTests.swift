@@ -8,7 +8,7 @@ import Domain
 @MainActor
 struct CustomFontManagerTests {
     @Test func testCustomFontManagerLoadsCustomFontsFromFolder() {
-        let manager = CustomFontManager.shared
+        let manager = CustomFontManager()
         #expect(manager.isLoaded == true)
         #expect(manager.fonts.count >= 16)
 
@@ -21,7 +21,7 @@ struct CustomFontManagerTests {
     }
 
     @Test func testToggleFavoritesAndSorting() {
-        let manager = CustomFontManager.shared
+        let manager = CustomFontManager()
         guard let testFontID = manager.fonts.first?.id else { return }
 
         // Đảm bảo trạng thái ban đầu
@@ -48,7 +48,7 @@ struct CustomFontManagerTests {
     }
 
     @Test func testFontSearchFiltering() {
-        let manager = CustomFontManager.shared
+        let manager = CustomFontManager()
         let (favs, others) = manager.sortedFonts(matching: "UVN")
         let total = favs.count + others.count
         #expect(total >= 1)
@@ -67,13 +67,13 @@ struct CustomFontManagerTests {
         config.fontName = "UVNBachDang"
         config.fontSize = 32.0
 
-        let image = TextRendererEngine.shared.renderImage(for: config, canvasSize: canvasSize)
+        let image = TextRendererEngine().renderImage(for: config, canvasSize: canvasSize)
         #expect(image != nil)
         #expect(image?.extent.size == canvasSize)
     }
 
     @Test func testFontCyclingLogic() {
-        let manager = CustomFontManager.shared
+        let manager = CustomFontManager()
         let allFonts = manager.fonts
         #expect(allFonts.count >= 16)
 
@@ -85,7 +85,7 @@ struct CustomFontManagerTests {
     }
 
     @Test func testFontCategoryClassification() {
-        let manager = CustomFontManager.shared
+        let manager = CustomFontManager()
         #expect(CustomFontManager.resolveCategory(for: "HY-ThuPhap1", displayName: "HY-Thu Phap 1") == .calligraphy)
         #expect(CustomFontManager.resolveCategory(for: "iCielGotham-Ultra", displayName: "iCiel Gotham Ultra") == .headline)
         #expect(CustomFontManager.resolveCategory(for: "iCielBalihoScript", displayName: "iCiel Baliho Script") == .handwriting)

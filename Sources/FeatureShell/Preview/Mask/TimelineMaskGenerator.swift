@@ -5,7 +5,6 @@ import AppKit
 
 /// Thread-safe in-memory cache for rendered mask CIImages.
 final class MaskImageCache: @unchecked Sendable {
-    static let shared = MaskImageCache()
     private let lock = NSLock()
     private var cache: [String: CIImage] = [:]
     private let maxEntries = 24
@@ -29,6 +28,8 @@ final class MaskImageCache: @unchecked Sendable {
 /// Generates high-performance CoreImage masks and applies them to video frames.
 /// Complies with R3.1 and R9.4 of AGENTS.md.
 public final class TimelineMaskGenerator: Sendable {
+    private static let maskCache = MaskImageCache()
+    private static let metalPipeline = TimelineMaskMetalPipeline()
     /// Applies mask parameters to the given source video image.
     public static func applyMask(
         to sourceImage: CIImage,
@@ -56,7 +57,7 @@ public final class TimelineMaskGenerator: Sendable {
         guard params.isMaskActive else { return nil }
         let key = cacheKey(params: params, size: canvasSize)
 
-        if let cached = MaskImageCache.shared.image(for: key) {
+        if let cached = maskCache.image(for: key) {
             return cached
         }
 
@@ -64,13 +65,13 @@ public final class TimelineMaskGenerator: Sendable {
             return nil
         }
 
-        MaskImageCache.shared.store(generated, for: key)
+        maskCache.store(generated, for: key)
         return generated
     }
 
     private static func buildMaskCIImage(params: TimelineMaskParameters, canvasSize: CGSize) -> CIImage? {
-        if TimelineMaskMetalPipeline.shared.isAvailable,
-           let gpuMask = TimelineMaskMetalPipeline.shared.generateMask(params: params, canvasSize: canvasSize) {
+        if metalPipeline.isAvailable,
+           let gpuMask = metalPipeline.generateMask(params: params, canvasSize: canvasSize) {
             return gpuMask
         }
         return buildMaskCIImageCPUFallback(params: params, canvasSize: canvasSize)

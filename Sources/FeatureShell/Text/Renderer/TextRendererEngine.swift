@@ -9,9 +9,7 @@ import Domain
 /// Engine kết xuất văn bản (Typography) với định dạng font chữ, viền, bóng, nền và transform vật lý Pro.
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng) của AGENTS.md.
 public final class TextRendererEngine: @unchecked Sendable {
-    public static let shared = TextRendererEngine()
-
-    private init() {}
+    public init() {}
 
     /// Đo kích thước bounding box của văn bản dựa trên cấu hình và kích thước canvas.
     public func measureSize(for config: TextConfiguration, canvasSize: CGSize) -> CGSize {
@@ -289,8 +287,12 @@ public final class TextRendererEngine: @unchecked Sendable {
         return font
     }
 
-    public func parseHexColor(_ hex: String) -> NSColor {
+    public static func parseHexColor(_ hex: String) -> NSColor {
         TextAdvancedStyleRenderer.parseHexColor(hex)
+    }
+
+    public func parseHexColor(_ hex: String) -> NSColor {
+        Self.parseHexColor(hex)
     }
     #endif
 }

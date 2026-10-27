@@ -2,7 +2,6 @@ import Testing
 import CoreMedia
 import Foundation
 @testable import Domain
-@testable import FeatureShell
 
 @Suite("TimelineLayerSortedClipsTests")
 @MainActor
@@ -77,31 +76,5 @@ struct TimelineLayerSortedClipsTests {
         #expect(nonePrev == nil)
         #expect(noneNext == nil)
     }
-
-    @Test func testTrimClipAfterUnsortedInsertionDoesNotBlock() {
-        let vm = TimelineViewModel()
-        let clip10s = makeClip(startSeconds: 10.0, durationSeconds: 5.0, name: "Clip10")
-        let clip2s = makeClip(startSeconds: 2.0, durationSeconds: 4.0, name: "Clip2")
-
-        let layer = TimelineLayer(kind: .video, clips: [clip10s, clip2s])
-        vm.layers = [layer]
-
-        // Clip2 (start 2s, duration 4s -> ends at 6s) should be able to trim left to 1s
-        // without being blocked by Clip10 (which starts at 10s).
-        let newStart = CMTime(seconds: 1.0, preferredTimescale: 600)
-        let newDuration = CMTime(seconds: 5.0, preferredTimescale: 600) // 1s..6s
-
-        vm.trimClip(
-            clipID: clip2s.id,
-            in: layer.id,
-            newStart: newStart,
-            newDuration: newDuration
-        )
-
-        let updatedClips = vm.layers[0].clips
-        #expect(updatedClips.count == 2)
-        #expect(updatedClips[0].id == clip2s.id)
-        #expect(updatedClips[0].timeRange.start == newStart)
-        #expect(updatedClips[1].id == clip10s.id)
-    }
 }
+

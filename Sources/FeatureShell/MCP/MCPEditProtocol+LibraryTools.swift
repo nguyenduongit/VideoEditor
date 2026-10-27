@@ -13,9 +13,10 @@ extension MCPTimelineToolDispatcher {
         let adjustmentPresets: [[String: String]] = dependencies.adjustmentTemplates.loadAllTemplates().map {
             ["id": $0.id, "name": $0.name, "category": $0.category.rawValue, "description": $0.description]
         }
-        let fontItems = CustomFontManager.shared.fonts
+        let vm = scriptEngine.currentViewModel
+        let fontItems = vm.fontManager.fonts
         let popularFonts = fontItems.prefix(40).map { ["id": $0.id, "displayName": $0.displayName] }
-        let favoriteFonts = fontItems.filter { CustomFontManager.shared.isFavorite(fontID: $0.id) }.map { ["id": $0.id, "displayName": $0.displayName] }
+        let favoriteFonts = fontItems.filter { vm.fontManager.isFavorite(fontID: $0.id) }.map { ["id": $0.id, "displayName": $0.displayName] }
         let payload: [String: Any] = [
             "mediaAssets": assetsList,
             "textTemplates": textPresets,
@@ -87,7 +88,7 @@ extension MCPTimelineToolDispatcher {
         let updateExisting = (dict["updateExisting"] as? Bool) ?? false
 
         var defaultFont = "UVN Ke Chuyen"
-        if let fav = CustomFontManager.shared.favoriteFontIDs.first {
+        if let fav = vm.fontManager.favoriteFontIDs.first {
             defaultFont = fav
         }
 

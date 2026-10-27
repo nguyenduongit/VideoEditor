@@ -6,11 +6,11 @@ import Domain
 @MainActor
 public enum MCPTextPropertyResolver {
     /// Phân giải tên font từ câu lệnh của người dùng hoặc AI sang PostScript font ID thực tế.
-    public static func resolveFontName(_ raw: String) -> String {
+    public static func resolveFontName(_ raw: String, fontManager: CustomFontManager = CustomFontManager()) -> String {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "UVN Ke Chuyen" }
 
-        let allFonts = CustomFontManager.shared.fonts
+        let allFonts = fontManager.fonts
 
         // 1. Khớp chính xác ID hoặc Display Name (không phân biệt hoa thường)
         if let exact = allFonts.first(where: {

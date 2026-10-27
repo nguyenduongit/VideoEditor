@@ -7,9 +7,10 @@ struct VideoTrackMetadata: Sendable {
 }
 
 final class VideoMetadataCache: @unchecked Sendable {
-    static let shared = VideoMetadataCache()
     private let lock = NSLock()
     private var cache: [URL: VideoTrackMetadata] = [:]
+
+    public init() {}
 
     func metadata(for url: URL) -> VideoTrackMetadata? {
         lock.lock()

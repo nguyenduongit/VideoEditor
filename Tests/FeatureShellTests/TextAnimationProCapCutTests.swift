@@ -146,7 +146,7 @@ struct TextAnimationProCapCutTests {
         config.animation.lightSweepIntensity = 0.6
 
         let canvasSize = CGSize(width: 800, height: 500)
-        let image = TextRendererEngine.shared.renderAnimatedImage(
+        let image = TextRendererEngine().renderAnimatedImage(
             for: config,
             localTime: 0.3,
             duration: 3.0,

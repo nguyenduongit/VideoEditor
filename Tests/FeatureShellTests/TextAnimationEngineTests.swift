@@ -173,7 +173,7 @@ struct TextAnimationEngineTests {
         config.animation.outDuration = 1.0
 
         let canvasSize = CGSize(width: 600, height: 400)
-        let image = TextRendererEngine.shared.renderAnimatedImage(
+        let image = TextRendererEngine().renderAnimatedImage(
             for: config,
             localTime: 2.8,
             duration: 3.0,

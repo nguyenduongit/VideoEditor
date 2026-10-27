@@ -18,11 +18,17 @@ public final class AdjustmentLibraryViewModel {
     public var searchQuery: String = ""
     public private(set) var templatePresets: [AdjustmentPreset] = []
     public let dependencies: EditorDependencies
+    public let thumbnailRenderer: AdjustmentThumbnailRenderer
     public weak var timelineViewModel: TimelineViewModel?
     @ObservationIgnored nonisolated(unsafe) private var notificationObserver: (any NSObjectProtocol)?
 
-    public init(timelineViewModel: TimelineViewModel? = nil, dependencies: EditorDependencies? = nil) {
+    public init(
+        timelineViewModel: TimelineViewModel? = nil,
+        dependencies: EditorDependencies? = nil,
+        thumbnailRenderer: AdjustmentThumbnailRenderer = AdjustmentThumbnailRenderer()
+    ) {
         self.timelineViewModel = timelineViewModel
+        self.thumbnailRenderer = thumbnailRenderer
         let deps = dependencies ?? timelineViewModel?.dependencies ?? EditorDependencies()
         self.dependencies = deps
         if deps.presetRepositories.adjustmentRepository == nil {
@@ -65,7 +71,7 @@ public final class AdjustmentLibraryViewModel {
             if let fresh = try? await repo.fetchPresets() {
                 await MainActor.run {
                     self.templatePresets = fresh
-                    AdjustmentThumbnailRenderer.shared.invalidateCache()
+                    self.thumbnailRenderer.invalidateCache()
                 }
             }
         }
@@ -87,7 +93,7 @@ public final class AdjustmentLibraryViewModel {
 
     /// Tải lại toàn bộ JSON script từ bộ nhớ cục bộ và cache Supabase.
     public func reloadTemplates() {
-        AdjustmentThumbnailRenderer.shared.invalidateCache()
+        thumbnailRenderer.invalidateCache()
         templatePresets = dependencies.adjustmentTemplates.reload()
         syncPresetsFromSupabase()
     }
@@ -96,7 +102,7 @@ public final class AdjustmentLibraryViewModel {
     public func deletePreset(_ preset: AdjustmentPreset) {
         guard !preset.isSystem else { return }
         templatePresets.removeAll { $0.id == preset.id }
-        AdjustmentThumbnailRenderer.shared.invalidateCache()
+        thumbnailRenderer.invalidateCache()
         Task {
             try? await dependencies.presetRepositories.adjustmentRepository?.deletePreset(id: preset.id)
         }
@@ -104,7 +110,7 @@ public final class AdjustmentLibraryViewModel {
 
     /// Nhập thêm mảng JSON script tải về từ Supabase DB (`adjustment_presets`).
     public func importSupabaseTemplates(jsonPayloads: [String]) {
-        AdjustmentThumbnailRenderer.shared.invalidateCache()
+        thumbnailRenderer.invalidateCache()
         templatePresets = dependencies.adjustmentTemplates.mergeSupabaseTemplateScripts(
             jsonPayloads,
             persistToCache: true
