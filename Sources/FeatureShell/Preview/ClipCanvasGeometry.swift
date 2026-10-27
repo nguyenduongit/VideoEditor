@@ -94,7 +94,7 @@ public struct ClipCanvasGeometry: Sendable {
 
         var panOffset: Double = 0.0
         if isAutoPanActive, let autoPan, let currentTime {
-            let localTime = CMTimeSubtract(currentTime, clip.timeRange.start).seconds
+            let localTime = CMTimeSubtract(currentTime, clip.timeRange.start)
             panOffset = AutoPanEngine.panOffset(
                 at: localTime,
                 config: autoPan,

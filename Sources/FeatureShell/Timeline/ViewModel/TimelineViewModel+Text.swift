@@ -50,8 +50,7 @@ extension TimelineViewModel {
         placements.append((mainClip, mainLayerID))
 
         for sub in preset.subLayers {
-            let offsetFrames = Int64(round(sub.startOffsetSeconds * Double(TimeRational.defaultFPS)))
-            let offsetTime = CMTime(value: max(0, offsetFrames), timescale: TimeRational.defaultFPS)
+            let offsetTime = sub.startOffset.cmTime
             let subStart = CMTimeAdd(baseStart, offsetTime)
             let remaining = CMTimeSubtract(CMTimeAdd(baseStart, baseDuration), subStart)
             guard remaining > .zero else { continue }

@@ -122,7 +122,7 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
 
         if let autoPan = info.autoPanConfig, autoPan.isEnabled, !autoPan.keyframes.isEmpty,
            let clipRange = info.clipTimeRange {
-            let localTime = CMTimeSubtract(request.compositionTime, clipRange.start).seconds
+            let localTime = CMTimeSubtract(request.compositionTime, clipRange.start)
             let panOffset = AutoPanEngine.panOffset(
                 at: localTime,
                 config: autoPan,

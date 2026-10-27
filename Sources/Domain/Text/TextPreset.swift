@@ -17,12 +17,31 @@ public enum TextTemplateCategory: String, Codable, Sendable, CaseIterable, Ident
     }
 }
 
+import CoreMedia
+
 /// Lớp phụ (Sub-Layer) dùng cho các mẫu chữ phức hợp đa lớp (Compound Multi-Layer Template)
+/// Tuân thủ AGENTS.md R2.3 (sử dụng thời gian hữu tỉ RationalTime thay cho Double seconds đơn thuần).
 public struct TextTemplateSubLayer: Codable, Sendable, Equatable {
     public var name: String
-    public var startOffsetSeconds: Double
+    public var startOffset: RationalTime
+    public var startOffsetSeconds: Double {
+        get { startOffset.seconds }
+        set { startOffset = RationalTime(cmTime: CMTime(seconds: max(0.0, newValue), preferredTimescale: 600)) }
+    }
     public var durationRatio: Double
     public var config: TextConfiguration
+
+    public init(
+        name: String,
+        startOffset: RationalTime,
+        durationRatio: Double = 1.0,
+        config: TextConfiguration
+    ) {
+        self.name = name
+        self.startOffset = startOffset
+        self.durationRatio = max(0.1, min(1.0, durationRatio))
+        self.config = config
+    }
 
     public init(
         name: String,
@@ -30,18 +49,38 @@ public struct TextTemplateSubLayer: Codable, Sendable, Equatable {
         durationRatio: Double = 1.0,
         config: TextConfiguration
     ) {
-        self.name = name
-        self.startOffsetSeconds = max(0.0, startOffsetSeconds)
-        self.durationRatio = max(0.1, min(1.0, durationRatio))
-        self.config = config
+        let cm = CMTime(seconds: max(0.0, startOffsetSeconds), preferredTimescale: 600)
+        self.init(name: name, startOffset: RationalTime(cmTime: cm), durationRatio: durationRatio, config: config)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case startOffset
+        case startOffsetSeconds
+        case durationRatio
+        case config
     }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Sub Layer"
-        self.startOffsetSeconds = (try? c.decodeIfPresent(Double.self, forKey: .startOffsetSeconds)) ?? 0.0
+        if let rational = try? c.decodeIfPresent(RationalTime.self, forKey: .startOffset) {
+            self.startOffset = rational
+        } else {
+            let sec = (try? c.decodeIfPresent(Double.self, forKey: .startOffsetSeconds)) ?? 0.0
+            self.startOffset = RationalTime(cmTime: CMTime(seconds: max(0.0, sec), preferredTimescale: 600))
+        }
         self.durationRatio = (try? c.decodeIfPresent(Double.self, forKey: .durationRatio)) ?? 1.0
         self.config = (try? c.decodeIfPresent(TextConfiguration.self, forKey: .config)) ?? TextConfiguration()
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(name, forKey: .name)
+        try c.encode(startOffset, forKey: .startOffset)
+        try c.encode(startOffsetSeconds, forKey: .startOffsetSeconds)
+        try c.encode(durationRatio, forKey: .durationRatio)
+        try c.encode(config, forKey: .config)
     }
 }
 
