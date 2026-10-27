@@ -54,7 +54,11 @@ public struct PreviewObjectManipulatorView: View {
     }
 
     private func selectionOutline(for clip: TimelineClip, viewSize: CGSize) -> some View {
-        let geom = ClipCanvasGeometry.compute(for: clip, canvasSize: canvasSize)
+        let geom = ClipCanvasGeometry.compute(
+            for: clip,
+            canvasSize: canvasSize,
+            currentTime: timelineViewModel.currentTime
+        )
         let scale = MaskOnScreenMath.scale(canvasSize: canvasSize, viewSize: viewSize)
         let center = ClipCanvasGeometry.screenCenter(
             positionX: geom.positionX,

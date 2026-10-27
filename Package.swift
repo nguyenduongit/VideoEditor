@@ -30,7 +30,8 @@ let package = Package(
         .target(
             name: "Infrastructure",
             dependencies: [
-                "Domain"
+                "Domain",
+                .product(name: "Supabase", package: "supabase-swift")
             ],
             path: "Sources/Infrastructure"
         ),

@@ -110,7 +110,7 @@ public enum TextComboAnimationEvaluator: Sendable {
         let wave = sin(t * 7.5) * 0.22
         overlay.scaleX *= (1.0 + wave)
         overlay.scaleY *= (1.0 - wave * 0.85)
-        config.positionY += abs(cos(t * 7.5)) * 10.0
+        config.positionY -= abs(cos(t * 7.5)) * 10.0
     }
 
     private static func applyFlip3DSwing(config: inout TextConfiguration, overlay: inout TextTransformOverlay, t: Double) {
@@ -141,7 +141,7 @@ public enum TextComboAnimationEvaluator: Sendable {
         let phase = t * 5.0
         let bounce = abs(sin(phase))
         config.scale *= (0.92 + bounce * 0.2)
-        config.positionY += bounce * 16.0
+        config.positionY -= bounce * 16.0
         // Squash khi chạm đáy (bounce gần 0), Stretch khi nảy lên đỉnh
         let squash = cos(phase * 2.0) * 0.12
         overlay.scaleX *= (1.0 + squash)

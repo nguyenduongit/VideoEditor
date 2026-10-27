@@ -98,20 +98,45 @@ public struct TextLibraryView: View {
 
     private var contentScrollView: some View {
         DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-            LazyVGrid(columns: columns, spacing: DSSpacing.md) {
-                if viewModel.selectedSubTab == .default {
+            if viewModel.selectedSubTab == .default {
+                LazyVGrid(columns: columns, spacing: DSSpacing.md) {
                     TextCardItemView(preset: viewModel.defaultPreset) {
                         viewModel.addPresetToTimeline(viewModel.defaultPreset)
                     }
-                } else {
+                }
+                .padding(DSSpacing.md)
+            } else if viewModel.filteredTemplatePresets.isEmpty {
+                emptyTemplatesView
+            } else {
+                LazyVGrid(columns: columns, spacing: DSSpacing.md) {
                     ForEach(viewModel.filteredTemplatePresets) { preset in
-                        TextCardItemView(preset: preset) {
-                            viewModel.addPresetToTimeline(preset)
-                        }
+                        TextCardItemView(
+                            preset: preset,
+                            onAdd: { viewModel.addPresetToTimeline(preset) },
+                            onDelete: { viewModel.deletePreset(preset) }
+                        )
                     }
                 }
+                .padding(DSSpacing.md)
             }
-            .padding(DSSpacing.md)
         }
+    }
+
+    private var emptyTemplatesView: some View {
+        VStack(spacing: DSSpacing.sm) {
+            Image(systemName: "icloud.slash")
+                .font(.system(size: 26))
+                .foregroundStyle(DSColors.textSecondary.opacity(0.6))
+            Text("Chưa có Preset nào")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(DSColors.textSecondary)
+            Text("Tùy chỉnh kiểu chữ trong Inspector và bấm\n\"Lưu thành Preset\" để lưu lên Supabase.")
+                .font(.system(size: 10))
+                .foregroundStyle(DSColors.textSecondary.opacity(0.7))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 40)
+        .padding(.horizontal, DSSpacing.md)
     }
 }

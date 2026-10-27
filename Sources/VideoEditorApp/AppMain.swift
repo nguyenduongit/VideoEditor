@@ -18,6 +18,15 @@ struct VideoEditorApp: App {
     private let mcpTransport: (any MCPServerTransport)?
 
     init() {
+        PresetRepositoryProvider.shared.adjustmentRepository = SupabaseAdjustmentPresetRepository()
+        PresetRepositoryProvider.shared.textRepository = SupabaseTextPresetRepository()
+        ActionRepositoryProvider.shared.actionRepository = SupabaseActionRepository()
+
+        Task {
+            _ = try? await PresetRepositoryProvider.shared.textRepository?.fetchPresets()
+            _ = try? await ActionRepositoryProvider.shared.actionRepository?.fetchActions()
+        }
+
         let registry = TabRegistry()
         let thumbnailService = MediaThumbnailService()
         let timelineThumbnailService = TimelineThumbnailService()

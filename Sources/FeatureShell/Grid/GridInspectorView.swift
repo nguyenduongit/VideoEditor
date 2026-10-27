@@ -4,6 +4,8 @@ import DesignSystem
 
 /// Dedicated 3-Zone Body Proportion / Leg Stretch controls embedded inside the AI tab accordion.
 /// Complies with R3.1, R8.1, and R8.2 of AGENTS.md.
+public typealias LegStretchInspectorView = GridInspectorView
+
 public struct GridInspectorView: View {
     @Bindable var viewModel: InspectorViewModel
 

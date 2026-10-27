@@ -17,7 +17,7 @@ public final class VisionSubjectTrackingService: SubjectTrackingServiceProtocol,
     public func trackSubject(
         in mediaURL: URL,
         timeRange: CMTimeRange,
-        samplesPerSecond: Double = 1.5,
+        samplesPerSecond: Double = 1.0,
         smoothness: Double = 0.5,
         onProgress: (@Sendable (Double) -> Void)? = nil
     ) async throws -> [AutoPanKeyframe] {
@@ -37,8 +37,8 @@ public final class VisionSubjectTrackingService: SubjectTrackingServiceProtocol,
 
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
-        // High performance 512px hardware thumbnail decoding (cuts decode time by 75%)
-        generator.maximumSize = CGSize(width: 512, height: 512)
+        // High performance 320px hardware thumbnail decoding for fast Apple Neural Engine pose detection
+        generator.maximumSize = CGSize(width: 320, height: 320)
         generator.requestedTimeToleranceBefore = CMTime(seconds: 0.1, preferredTimescale: 600)
         generator.requestedTimeToleranceAfter = CMTime(seconds: 0.1, preferredTimescale: 600)
 

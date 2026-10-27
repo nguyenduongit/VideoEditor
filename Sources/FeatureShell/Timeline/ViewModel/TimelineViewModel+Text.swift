@@ -42,7 +42,9 @@ extension TimelineViewModel {
         let mainClip = makeTextTimelineClip(
             named: preset.name,
             config: preset.config,
-            timeRange: CMTimeRange(start: baseStart, duration: baseDuration)
+            timeRange: CMTimeRange(start: baseStart, duration: baseDuration),
+            originPresetID: preset.id,
+            originPresetName: preset.name
         )
         let mainLayerID = allocateLayerID(for: mainClip, in: &simulatedLayers)
         placements.append((mainClip, mainLayerID))
@@ -59,7 +61,9 @@ extension TimelineViewModel {
             let subClip = makeTextTimelineClip(
                 named: sub.name,
                 config: sub.config,
-                timeRange: CMTimeRange(start: subStart, duration: subDuration)
+                timeRange: CMTimeRange(start: subStart, duration: subDuration),
+                originPresetID: preset.id,
+                originPresetName: preset.name
             )
             let subLayerID = allocateLayerID(for: subClip, in: &simulatedLayers)
             placements.append((subClip, subLayerID))
@@ -85,7 +89,9 @@ extension TimelineViewModel {
     private func makeTextTimelineClip(
         named name: String,
         config: TextConfiguration,
-        timeRange: CMTimeRange
+        timeRange: CMTimeRange,
+        originPresetID: String? = nil,
+        originPresetName: String? = nil
     ) -> TimelineClip {
         var properties = ClipPropertyRegistry.shared.defaultProperties(for: .text)
         if let json = config.encodeToJSON() {
@@ -98,6 +104,10 @@ extension TimelineViewModel {
         properties["scale"] = .number(config.scale)
         properties["rotation"] = .number(config.rotation)
         properties["opacity"] = .number(config.opacity)
+        if let originPresetID {
+            properties["originPresetId"] = .string(originPresetID)
+            properties["originPresetName"] = .string(originPresetName ?? name)
+        }
 
         return TimelineClip(
             assetID: nil,

@@ -3,6 +3,13 @@ import CoreMedia
 
 public enum TimeRational {
     public static let defaultFPS: Int32 = 30
+}
+
+/// Tiện ích định dạng Timecode và căn chỉnh khung hình theo FPS.
+public typealias TimecodeUtils = TimeRational
+public typealias FrameTimeHelper = TimeRational
+
+extension TimeRational {
 
     public static func snapToFrame(time: CMTime, fps: Int32 = defaultFPS) -> CMTime {
         let seconds = CMTimeGetSeconds(time)

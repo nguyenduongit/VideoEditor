@@ -49,7 +49,7 @@ struct TextAnimationEngineTests {
     @Test("Typewriter animation generates substring progression with optional cursor")
     func testTypewriterAnimationProgression() {
         var config = TextConfiguration(content: "Hello World")
-        config.animation.inType = .typewriter
+        config.animation.inType = .typewriter1
         config.animation.inDuration = 1.0
         config.animation.isTypewriterCursorVisible = true
 
@@ -84,69 +84,69 @@ struct TextAnimationEngineTests {
         configSlide.animation.inDuration = 1.0
 
         let evalSlide0 = TextAnimationEvaluator.evaluate(config: configSlide, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalSlide0.config.positionY < 0.0)
+        #expect(evalSlide0.config.positionY > 0.0)
 
         let evalSlideDone = TextAnimationEvaluator.evaluate(config: configSlide, localTime: 1.0, duration: 4.0, canvasSize: canvasSize)
         #expect(abs(evalSlideDone.config.positionY - 0.0) < 0.001)
     }
 
-    @Test("Pro In Animations evaluate transforms: FlyIn, Vortex, Shockwave, Crash")
+    @Test("Pro In Animations evaluate transforms: SlideDown, SpinIn, LightStreak")
     func testProInAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
         var cfgFly = TextConfiguration(content: "Fly In")
-        cfgFly.animation.inType = .flyInTop
+        cfgFly.animation.inType = .slideDown
         cfgFly.animation.inDuration = 1.0
         let evalFly0 = TextAnimationEvaluator.evaluate(config: cfgFly, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalFly0.config.positionY > 500.0)
+        #expect(evalFly0.config.positionY < -100.0)
 
         var cfgVortex = TextConfiguration(content: "Vortex")
-        cfgVortex.animation.inType = .vortexSpin
+        cfgVortex.animation.inType = .spinIn
         cfgVortex.animation.inDuration = 1.0
         let evalVortex0 = TextAnimationEvaluator.evaluate(config: cfgVortex, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalVortex0.config.rotation >= 700.0)
+        #expect(evalVortex0.config.rotation >= 350.0)
         #expect(evalVortex0.config.scale <= 0.05)
 
-        var cfgShock = TextConfiguration(content: "Shockwave")
-        cfgShock.animation.inType = .shockwaveBlast
-        cfgShock.animation.inDuration = 1.0
-        let evalShock0 = TextAnimationEvaluator.evaluate(config: cfgShock, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalShock0.config.scale >= 3.0)
-        #expect(evalShock0.blurRadius >= 20.0)
+        var cfgGlitch = TextConfiguration(content: "Glitch")
+        cfgGlitch.animation.inType = .glitch
+        cfgGlitch.animation.inDuration = 1.0
+        let evalGlitch0 = TextAnimationEvaluator.evaluate(config: cfgGlitch, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalGlitch0.rgbSplitIntensity > 0.0)
+        #expect(evalGlitch0.overlay.glitchSliceIntensity > 0.0)
     }
 
-    @Test("Pro Out Animations evaluate exit transitions: Spiral, Shockwave, Pixelate")
+    @Test("Pro Out Animations evaluate exit transitions: SpinOut, Dissolve")
     func testProOutAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
         let dur = 4.0
 
         var cfgPixel = TextConfiguration(content: "Pixel")
-        cfgPixel.animation.outType = .pixelateDissolve
+        cfgPixel.animation.outType = .dissolve
         cfgPixel.animation.outDuration = 1.0
         let evalPixelEnd = TextAnimationEvaluator.evaluate(config: cfgPixel, localTime: 4.0, duration: dur, canvasSize: canvasSize)
-        #expect(evalPixelEnd.pixelateScale >= 30.0)
+        #expect(evalPixelEnd.pixelateScale >= 25.0)
         #expect(evalPixelEnd.config.opacity == 0.0)
 
         var cfgSpiral = TextConfiguration(content: "Spiral")
-        cfgSpiral.animation.outType = .spiralFlyAway
+        cfgSpiral.animation.outType = .spinOut
         cfgSpiral.animation.outDuration = 1.0
         let evalSpiralEnd = TextAnimationEvaluator.evaluate(config: cfgSpiral, localTime: 4.0, duration: dur, canvasSize: canvasSize)
-        #expect(evalSpiralEnd.config.rotation >= 700.0)
+        #expect(evalSpiralEnd.config.rotation >= 350.0)
         #expect(evalSpiralEnd.config.scale <= 0.05)
     }
 
-    @Test("Pro Loop Animations evaluate heart, neon and earthquake effects")
+    @Test("Pro Loop Animations evaluate heart and wobble effects")
     func testProLoopAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
         var cfgQuake = TextConfiguration(content: "Quake")
-        cfgQuake.animation.loopType = .earthquake
+        cfgQuake.animation.loopType = .wobble
         cfgQuake.animation.loopSpeed = 1.0
         let evalQuake = TextAnimationEvaluator.evaluate(config: cfgQuake, localTime: 0.35, duration: 5.0, canvasSize: canvasSize)
-        #expect(abs(evalQuake.config.positionX) > 0.001 || abs(evalQuake.config.positionY) > 0.001)
+        #expect(abs(evalQuake.config.rotation) > 0.001 || abs(evalQuake.config.positionX) > 0.001)
 
         var cfgHeart = TextConfiguration(content: "Heart")
-        cfgHeart.animation.loopType = .heartbeat
+        cfgHeart.animation.loopType = .pulse
         let evalHeart = TextAnimationEvaluator.evaluate(config: cfgHeart, localTime: 0.25, duration: 5.0, canvasSize: canvasSize)
         #expect(evalHeart.config.scale > 1.0)
     }
@@ -169,7 +169,7 @@ struct TextAnimationEngineTests {
         config.hasGlow = true
         config.glowColorHex = "#00FFFF"
         config.glowRadius = 12.0
-        config.animation.outType = .pixelateDissolve
+        config.animation.outType = .dissolve
         config.animation.outDuration = 1.0
 
         let canvasSize = CGSize(width: 600, height: 400)

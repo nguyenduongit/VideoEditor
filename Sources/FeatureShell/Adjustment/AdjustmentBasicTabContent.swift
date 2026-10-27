@@ -26,6 +26,7 @@ public struct AdjustmentBasicTabContent: View {
                 intensitySection
                 whiteBalanceSection
                 toneSection
+                AdjustmentPresetActionSectionView(viewModel: viewModel, currentConfig: currentConfig)
             } else {
                 AdjustmentHSLTabContent(viewModel: viewModel)
             }

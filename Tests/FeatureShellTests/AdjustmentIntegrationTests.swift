@@ -12,12 +12,19 @@ struct AdjustmentIntegrationTests {
     @Test("Adding adjustment clip creates layer and persists adjustmentConfig")
     func testAddAdjustmentClip() {
         let vm = TimelineViewModel(initialLayers: [])
-        let preset = AdjustmentPreset.templates.first { $0.id == "cinematic" }
-        #expect(preset != nil)
+        var config = AdjustmentConfiguration()
+        config.basic.contrast = 18.0
+        config.hsl.orange.saturation = 20.0
+        let preset = AdjustmentPreset(
+            id: "cinematic",
+            name: "Điện ảnh",
+            description: "Test preset",
+            config: config
+        )
 
         vm.addAdjustmentClip(
-            named: preset?.name ?? "Cinematic",
-            config: preset?.config ?? AdjustmentConfiguration()
+            named: preset.name,
+            config: preset.config
         )
 
         #expect(vm.layers.count == 1)
@@ -181,18 +188,7 @@ struct AdjustmentIntegrationTests {
 
     @Test("LUTParser parses valid .cube files and rejects invalid content")
     func testLUTParser() {
-        let validCube = """
-        TITLE "Test 2x2x2"
-        LUT_3D_SIZE 2
-        0.0 0.0 0.0
-        1.0 0.0 0.0
-        0.0 1.0 0.0
-        1.0 1.0 0.0
-        0.0 0.0 1.0
-        1.0 0.0 1.0
-        0.0 1.0 1.0
-        1.0 1.0 1.0
-        """
+        let validCube = "TITLE \"Test 2x2x2\"\nLUT_3D_SIZE 2\n0.0 0.0 0.0\n1.0 0.0 0.0\n0.0 1.0 0.0\n1.0 1.0 0.0\n0.0 0.0 1.0\n1.0 0.0 1.0\n0.0 1.0 1.0\n1.0 1.0 1.0"
         let parsed = LUTParser.parse(cubeString: validCube)
         #expect(parsed != nil)
         #expect(parsed?.dimension == 2)
@@ -239,12 +235,7 @@ struct AdjustmentIntegrationTests {
 
     @Test("AdjustmentConfiguration decodes legacy JSON cleanly")
     func testLegacyJSONCompatibility() {
-        let legacyJSON = """
-        {
-            "basic": { "temp": 10, "contrast": 20 },
-            "hsl": { "red": { "hue": 5, "saturation": 15, "luminance": -5 } }
-        }
-        """
+        let legacyJSON = "{\"basic\": {\"temp\": 10, \"contrast\": 20}, \"hsl\": {\"red\": {\"hue\": 5, \"saturation\": 15, \"luminance\": -5}}}"
         let decoded = AdjustmentConfiguration.decode(from: legacyJSON)
         #expect(decoded != nil)
         #expect(decoded?.basic.temp == 10)
@@ -256,21 +247,8 @@ struct AdjustmentIntegrationTests {
         #expect(decoded?.lut.isNeutral == true)
     }
 
-    @Test("AdjustmentTemplateLoader loads all 16 JSON template scripts with full grading modules")
+    @Test("AdjustmentTemplateLoader loads online presets and supports Supabase forward-compatible payloads")
     func testAdjustmentTemplateLoaderAndSupabaseSync() {
-        let templates = AdjustmentTemplateLoader.shared.reload()
-        #expect(templates.count >= 16)
-
-        let cinematic = templates.first { $0.id == "cinematic" }
-        #expect(cinematic != nil)
-        #expect(cinematic?.category == .cinematic)
-        #expect(cinematic?.activeModuleBadges == ["Basic", "HSL", "Wheels", "Curves", "FX"])
-        if let cinematic {
-            let thumb = AdjustmentThumbnailRenderer.shared.thumbnail(for: cinematic)
-            #expect(thumb != nil)
-            #expect(thumb?.size.width == 180)
-        }
-
         let supabaseJSON = """
         {
           "id": "supabase_neon_tokyo",
@@ -300,9 +278,19 @@ struct AdjustmentIntegrationTests {
         #expect(synced?.config.wheels.lift.x == -0.12)
         #expect(synced?.config.effects.vignetteAmount == 30.0)
 
+        if let synced {
+            let thumb = AdjustmentThumbnailRenderer.shared.thumbnail(for: synced)
+            #expect(thumb != nil)
+            #expect(thumb?.size.width == 180)
+        }
+
         let libraryVM = AdjustmentLibraryViewModel()
+        #expect(libraryVM.defaultPreset.id == "default")
         libraryVM.selectedCategory = .cyberNeon
         #expect(!libraryVM.filteredTemplatePresets.isEmpty)
         #expect(libraryVM.filteredTemplatePresets.allSatisfy { $0.category == .cyberNeon })
+
+        // Dọn dẹp
+        AdjustmentTemplateLoader.shared.removeInMemoryPreset(id: "supabase_neon_tokyo")
     }
 }

@@ -87,9 +87,9 @@ public final class ExportViewModel {
         guard totalMegaBytes > 0 else { return "0 MB" }
 
         if totalMegaBytes >= 1024.0 {
-            return String(format: "~ %.2f GB", totalMegaBytes / 1024.0)
+            return String(format: "%.2f GB", totalMegaBytes / 1024.0)
         } else {
-            return String(format: "~ %.1f MB", totalMegaBytes)
+            return String(format: "%.1f MB", totalMegaBytes)
         }
     }
 

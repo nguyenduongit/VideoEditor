@@ -54,6 +54,7 @@ public final class ShellViewModel {
         setupPlayheadCallbacks()
         setupPlaybackEngineCallbacks()
         setupTimelineCallbacks()
+        setupSeekCallbacks()
         updateTimelinePreview()
     }
 

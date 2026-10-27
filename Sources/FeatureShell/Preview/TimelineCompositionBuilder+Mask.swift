@@ -162,6 +162,7 @@ extension TimelineCompositionBuilder {
         if let op = clip.properties["opacity"]?.asNumber { config.opacity = op }
         if let content = clip.properties["textContent"]?.asString { config.content = content }
         if let size = clip.properties["fontSize"]?.asNumber { config.fontSize = size }
+        if let font = clip.properties["fontName"]?.asString { config.fontName = font }
 
         let opacity = Float(clip.properties["opacity"]?.asNumber ?? config.opacity)
         return TimelineCustomVideoCompositionInstruction.LayerRenderInfo(

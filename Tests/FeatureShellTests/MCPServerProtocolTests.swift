@@ -96,6 +96,10 @@ struct MCPServerProtocolTests {
     }
 
     @Test func testMCPLibraryCatalogAndApplyTemplateToolsKeepSelectionEmpty() throws {
+        let samplePreset = AdjustmentPreset(id: "cinematic", name: "Cinematic", description: "Test Preset", config: AdjustmentConfiguration())
+        AdjustmentTemplateLoader.shared.updateInMemoryPreset(samplePreset)
+        defer { AdjustmentTemplateLoader.shared.removeInMemoryPreset(id: "cinematic") }
+
         let vm = TimelineViewModel(initialLayers: [])
         let engine = TimelineScriptEngine(viewModel: vm)
         let dispatcher = MCPTimelineToolDispatcher(scriptEngine: engine)
@@ -120,23 +124,16 @@ struct MCPServerProtocolTests {
         #expect(vm.selectedClipIDs.isEmpty)
         #expect(vm.layers.contains(where: { $0.kind == .adjustment }))
 
-        let agentService = GeminiEditAgentService(dispatcher: dispatcher)
-        let declarations = agentService.buildFunctionDeclarations()
-        #expect(declarations.count == MCPToolSchemas.toolList.count)
-        for decl in declarations {
-            let params = decl["parameters"] as? [String: Any]
-            let props = params?["properties"] as? [String: Any]
-            #expect(props != nil && !(props?.isEmpty ?? true))
-            if let commandsProp = props?["commands"] as? [String: Any] {
-                #expect(commandsProp["items"] != nil)
-            }
+        #expect(!MCPToolSchemas.toolList.isEmpty)
+        for tool in MCPToolSchemas.toolList {
+            #expect(!tool.name.isEmpty)
+            #expect(!tool.description.isEmpty)
+            #expect(!tool.inputSchema.isEmpty)
         }
 
         let inspectorVM = InspectorViewModel(timelineViewModel: vm)
         #expect(inspectorVM.selectedClip == nil)
-        #expect(!inspectorVM.aiChatViewModel.messages.isEmpty)
-        inspectorVM.aiChatViewModel.undoLastChange()
-        #expect(inspectorVM.aiChatViewModel.messages.last?.toolBadges == ["Undo"])
+        #expect(inspectorVM.actionsPanelViewModel.tasks.count == 5)
     }
 
     @Test func testMCPAIVisionFramingToolConfiguresAutoPanScaleAndLegStretch() async throws {
@@ -164,5 +161,62 @@ struct MCPServerProtocolTests {
         let autoPanStr = clip?.properties["autoPanConfig"]?.asString ?? ""
         let autoPanCfg = AutoPanConfiguration.decode(from: autoPanStr)
         #expect(autoPanCfg?.isEnabled == true)
+    }
+
+    @Test func testMCPTextPropertyResolverFontAndAnimationMatching() async {
+        let font1 = MCPTextPropertyResolver.resolveFontName("UVN Bay Buom")
+        #expect(font1.contains("Bay") || font1 == "UVNBayBuom")
+
+        let font2 = MCPTextPropertyResolver.resolveFontName("da lat")
+        #expect(font2.localizedCaseInsensitiveContains("da") || font2 == "UVNDaLat")
+
+        let inAnim = MCPTextPropertyResolver.resolveInAnimation("vortex spin")
+        #expect(inAnim == .spinIn)
+
+        let outAnim = MCPTextPropertyResolver.resolveOutAnimation("pixelate")
+        #expect(outAnim == .dissolve)
+
+        let loopAnim = MCPTextPropertyResolver.resolveLoopAnimation("neon pulse")
+        #expect(loopAnim == .neonGlow)
+    }
+
+    @Test func testMCPApplyTemplateAppliesCustomFontAndBackground() async throws {
+        let vm = TimelineViewModel(initialLayers: [])
+        let engine = TimelineScriptEngine(viewModel: vm)
+        let dispatcher = MCPTimelineToolDispatcher(scriptEngine: engine)
+
+        // 1. Check catalog returns availableFonts
+        let catalog = try await dispatcher.handleToolCallAsync(toolName: "library_get_catalog", argumentsJSON: "{}")
+        #expect(catalog.contains("availableFonts"))
+
+        // 2. Apply template with artistic font and background
+        let args = """
+        {
+          "kind": "text",
+          "customText": "Lời Tự Tình Mùa Thu",
+          "fontName": "UVN Bay Buom",
+          "fontSize": 58,
+          "hasBackground": true,
+          "backgroundColorHex": "#000000",
+          "backgroundOpacity": 0.75,
+          "inAnimation": "slideUp",
+          "outAnimation": "slideDown",
+          "motionEasing": "Bounce"
+        }
+        """
+        let res = try await dispatcher.handleToolCallAsync(toolName: "timeline_apply_template", argumentsJSON: args)
+        #expect(res.contains("\"status\":\"success\""))
+
+        let textClip = vm.layers.flatMap(\.clips).first(where: { $0.kind == .text })
+        #expect(textClip != nil)
+        let json = textClip?.properties["textConfig"]?.asString ?? ""
+        let cfg = TextConfiguration.decode(from: json)
+        #expect(cfg != nil)
+        #expect(cfg?.content == "Lời Tự Tình Mùa Thu")
+        #expect(cfg?.fontName.contains("Bay") == true)
+        #expect(cfg?.hasBackground == true)
+        #expect(cfg?.animation.inType == .slideUp)
+        #expect(cfg?.animation.outType == .slideDown)
+        #expect(cfg?.animation.motionEasing == .bounce)
     }
 }

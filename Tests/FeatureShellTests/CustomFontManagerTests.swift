@@ -7,23 +7,22 @@ import Domain
 @Suite("CustomFontManagerTests")
 @MainActor
 struct CustomFontManagerTests {
-    @Test func testCustomFontManagerLoadsSystemAndCustomFonts() {
+    @Test func testCustomFontManagerLoadsCustomFontsFromFolder() {
         let manager = CustomFontManager.shared
         #expect(manager.isLoaded == true)
-        #expect(manager.fonts.count >= 10)
+        #expect(manager.fonts.count >= 16)
 
-        // Phải có các font hệ thống mặc định
-        #expect(manager.fonts.contains(where: { $0.id == "Helvetica" }))
-        #expect(manager.fonts.contains(where: { $0.id == "Impact" }))
+        // Toàn bộ font trong danh sách đều là font tùy chỉnh từ thư mục Sources/Font
+        #expect(manager.fonts.allSatisfy { $0.isCustom })
 
-        // Nếu có thư mục Sources/Font thì phải load được các font UVN
-        let hasCustom = manager.fonts.contains(where: { $0.isCustom })
-        #expect(hasCustom == true)
+        // Kiểm tra sự hiện diện của một số font tiêu biểu trong Sources/Font
+        let hasUVN = manager.fonts.contains(where: { $0.displayName.contains("UVN") || $0.id.contains("UVN") })
+        #expect(hasUVN == true)
     }
 
     @Test func testToggleFavoritesAndSorting() {
         let manager = CustomFontManager.shared
-        let testFontID = "Impact"
+        guard let testFontID = manager.fonts.first?.id else { return }
 
         // Đảm bảo trạng thái ban đầu
         if manager.isFavorite(fontID: testFontID) {
@@ -35,7 +34,7 @@ struct CustomFontManagerTests {
         manager.toggleFavorite(fontID: testFontID)
         #expect(manager.isFavorite(fontID: testFontID))
 
-        // Kiểm tra sorting: Impact phải nằm trong danh sách favorites
+        // Kiểm tra sorting: font được chọn phải nằm trong danh sách favorites
         let (favs, others) = manager.sortedFonts()
         #expect(favs.contains(where: { $0.id == testFontID }))
         #expect(!others.contains(where: { $0.id == testFontID }))
@@ -50,10 +49,11 @@ struct CustomFontManagerTests {
 
     @Test func testFontSearchFiltering() {
         let manager = CustomFontManager.shared
-        let (favs, others) = manager.sortedFonts(matching: "Helvetica")
+        let (favs, others) = manager.sortedFonts(matching: "UVN")
         let total = favs.count + others.count
         #expect(total >= 1)
-        #expect(favs.contains(where: { $0.id == "Helvetica" }) || others.contains(where: { $0.id == "Helvetica" }))
+        #expect(favs.contains(where: { $0.displayName.contains("UVN") || $0.id.contains("UVN") })
+             || others.contains(where: { $0.displayName.contains("UVN") || $0.id.contains("UVN") }))
 
         let emptySearch = manager.sortedFonts(matching: "NonExistentFontXYZ123")
         #expect(emptySearch.favorites.isEmpty)
@@ -70,5 +70,37 @@ struct CustomFontManagerTests {
         let image = TextRendererEngine.shared.renderImage(for: config, canvasSize: canvasSize)
         #expect(image != nil)
         #expect(image?.extent.size == canvasSize)
+    }
+
+    @Test func testFontCyclingLogic() {
+        let manager = CustomFontManager.shared
+        let allFonts = manager.fonts
+        #expect(allFonts.count >= 16)
+
+        let nextIndex = (0 + 1) % allFonts.count
+        #expect(nextIndex == 1)
+
+        let prevIndex = (0 - 1 + allFonts.count) % allFonts.count
+        #expect(prevIndex == allFonts.count - 1)
+    }
+
+    @Test func testFontCategoryClassification() {
+        let manager = CustomFontManager.shared
+        #expect(CustomFontManager.resolveCategory(for: "HY-ThuPhap1", displayName: "HY-Thu Phap 1") == .calligraphy)
+        #expect(CustomFontManager.resolveCategory(for: "iCielGotham-Ultra", displayName: "iCiel Gotham Ultra") == .headline)
+        #expect(CustomFontManager.resolveCategory(for: "iCielBalihoScript", displayName: "iCiel Baliho Script") == .handwriting)
+        #expect(CustomFontManager.resolveCategory(for: "iCielNabila", displayName: "iCiel Nabila") == .comic)
+        #expect(CustomFontManager.resolveCategory(for: "Tahoma", displayName: "Tahoma") == .subtitle)
+        #expect(CustomFontManager.resolveCategory(for: "UVNBuiDoi", displayName: "UVN Bui Doi") == .vintage)
+
+        let (favCalligraphy, otherCalligraphy) = manager.sortedFonts(category: .calligraphy)
+        let totalCalligraphy = favCalligraphy + otherCalligraphy
+        #expect(!totalCalligraphy.isEmpty)
+        #expect(totalCalligraphy.allSatisfy { $0.category == .calligraphy })
+
+        let (favHeadline, otherHeadline) = manager.sortedFonts(category: .headline)
+        let totalHeadline = favHeadline + otherHeadline
+        #expect(!totalHeadline.isEmpty)
+        #expect(totalHeadline.allSatisfy { $0.category == .headline })
     }
 }

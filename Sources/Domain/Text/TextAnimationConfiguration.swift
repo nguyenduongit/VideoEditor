@@ -10,170 +10,7 @@ public enum TextMotionEasing: String, Codable, Sendable, CaseIterable, Identifia
     public var id: String { rawValue }
 }
 
-/// Danh mục hiệu ứng xuất hiện (In Animation) cho Text Clip
-public enum TextInAnimationType: String, Codable, Sendable, CaseIterable, Identifiable {
-    case none = "None"
-    case typewriter = "Typewriter"
-    case fadeIn = "Fade In"
-    case zoomIn = "Zoom In"
-    case blurIn = "Blur In"
-    case popBounce = "Pop Bounce"
-    case elasticJellyIn = "Jelly Pop"
-    case whipPanLeft = "Whip Pan"
-    case glitchSliceIn = "Glitch Slice"
-    case origamiUnfold = "3D Unfold"
-    case swooshDrop = "Swoosh Drop"
-    case waveBounce = "Wave Bounce"
-    case springDrop = "Spring Drop"
-    case maskReveal = "Mask Reveal"
-    case trackingExpand = "Cinema Expand"
-    case slideUp = "Slide Up"
-    case slideDown = "Slide Down"
-    case slideLeft = "Slide Left"
-    case slideRight = "Slide Right"
-    case flyInTop = "Fly In Top"
-    case flyInBottom = "Fly In Bottom"
-    case flyInLeft = "Fly In Left"
-    case flyInRight = "Fly In Right"
-    case vortexSpin = "Vortex Spin"
-    case shockwaveBlast = "Shockwave"
-    case crashBounce = "Crash Fall"
-    case neonFlicker = "Neon Flicker"
-    case flip3D = "3D Flip"
-    case flipX3D = "3D Flip X"
-
-    public var id: String { rawValue }
-
-    public var iconName: String {
-        switch self {
-        case .none: return "slash.circle"
-        case .typewriter: return "keyboard"
-        case .fadeIn: return "sun.max"
-        case .zoomIn: return "plus.magnifyingglass"
-        case .blurIn: return "aqi.medium"
-        case .popBounce: return "sparkles"
-        case .elasticJellyIn: return "circle.dotted.and.circle"
-        case .whipPanLeft: return "wind"
-        case .glitchSliceIn: return "scissors.badge.ellipsis"
-        case .origamiUnfold: return "book.pages"
-        case .swooshDrop: return "arrow.down.right.circle.fill"
-        case .waveBounce: return "water.waves"
-        case .springDrop: return "arrow.down.bounce"
-        case .maskReveal: return "rectangle.and.hand.point.up.left"
-        case .trackingExpand: return "arrow.left.and.right"
-        case .slideUp: return "arrow.up"
-        case .slideDown: return "arrow.down"
-        case .slideLeft: return "arrow.left"
-        case .slideRight: return "arrow.right"
-        case .flyInTop: return "airplane.arrival"
-        case .flyInBottom: return "arrow.up.to.line"
-        case .flyInLeft: return "arrow.right.to.line"
-        case .flyInRight: return "arrow.left.to.line"
-        case .vortexSpin: return "tropicalstorm"
-        case .shockwaveBlast: return "bolt.shield.fill"
-        case .crashBounce: return "hammer"
-        case .neonFlicker: return "lightbulb.slash"
-        case .flip3D: return "rotate.3d"
-        case .flipX3D: return "arrow.triangle.2.circlepath.doc.on.clipboard"
-        }
-    }
-}
-
-/// Danh mục hiệu ứng biến mất (Out Animation) cho Text Clip
-public enum TextOutAnimationType: String, Codable, Sendable, CaseIterable, Identifiable {
-    case none = "None"
-    case fadeOut = "Fade Out"
-    case zoomOut = "Zoom Out"
-    case blurOut = "Blur Out"
-    case whipPanRight = "Whip Out"
-    case elasticSnapOut = "Jelly Snap"
-    case shatterGlitch = "Shatter Glitch"
-    case foldDown3D = "3D Fold"
-    case fallDown = "Fall Down"
-    case maskSink = "Mask Sink"
-    case trackingCollapse = "Cinema Squeeze"
-    case glitchDissolve = "Glitch Dissolve"
-    case slideUp = "Slide Up"
-    case slideDown = "Slide Down"
-    case slideLeft = "Slide Left"
-    case slideRight = "Slide Right"
-    case flyOutTop = "Fly Out Top"
-    case flyOutBottom = "Fly Out Bottom"
-    case flyOutLeft = "Fly Out Left"
-    case flyOutRight = "Fly Out Right"
-    case spiralFlyAway = "Spiral Fly"
-    case shockwaveBlast = "Shockwave"
-    case pixelateDissolve = "Pixel Dissolve"
-
-    public var id: String { rawValue }
-
-    public var iconName: String {
-        switch self {
-        case .none: return "slash.circle"
-        case .fadeOut: return "sun.min"
-        case .zoomOut: return "minus.magnifyingglass"
-        case .blurOut: return "aqi.low"
-        case .whipPanRight: return "wind.snow"
-        case .elasticSnapOut: return "arrow.up.and.down.circle"
-        case .shatterGlitch: return "bolt.trianglebadge.exclamationmark"
-        case .foldDown3D: return "rectangle.compress.vertical"
-        case .fallDown: return "arrow.down.to.line"
-        case .maskSink: return "rectangle.bottomhalf.filled"
-        case .trackingCollapse: return "arrow.right.and.left"
-        case .glitchDissolve: return "tornado"
-        case .slideUp: return "arrow.up"
-        case .slideDown: return "arrow.down"
-        case .slideLeft: return "arrow.left"
-        case .slideRight: return "arrow.right"
-        case .flyOutTop: return "airplane.departure"
-        case .flyOutBottom: return "arrow.down.to.line"
-        case .flyOutLeft: return "arrow.left.to.line"
-        case .flyOutRight: return "arrow.right.to.line"
-        case .spiralFlyAway: return "hurricane"
-        case .shockwaveBlast: return "flame"
-        case .pixelateDissolve: return "bubbles.and.sparkles"
-        }
-    }
-}
-
-/// Danh mục hiệu ứng lặp liên tục (Loop Animation) cho Text Clip
-public enum TextLoopAnimationType: String, Codable, Sendable, CaseIterable, Identifiable {
-    case none = "None"
-    case lightSweep = "Light Sweep"
-    case jellyWave = "Jelly Wave"
-    case swing3D = "3D Pendulum"
-    case liquidWave = "Liquid Wave"
-    case pulse = "Pulse"
-    case floating = "Floating"
-    case wiggle = "Wiggle"
-    case rainbow = "Rainbow"
-    case glitch = "Glitch"
-    case heartbeat = "Heartbeat"
-    case neonPulse = "Neon Pulse"
-    case earthquake = "Earthquake"
-
-    public var id: String { rawValue }
-
-    public var iconName: String {
-        switch self {
-        case .none: return "slash.circle"
-        case .lightSweep: return "wand.and.rays"
-        case .jellyWave: return "waveform.circle.fill"
-        case .swing3D: return "gyroscope"
-        case .liquidWave: return "drop.degreesign.fill"
-        case .pulse: return "waveform.path.ecg"
-        case .floating: return "water.waves"
-        case .wiggle: return "skew"
-        case .rainbow: return "paintpalette"
-        case .glitch: return "bolt.horizontal"
-        case .heartbeat: return "heart.fill"
-        case .neonPulse: return "lightbulb.fill"
-        case .earthquake: return "waveform"
-        }
-    }
-}
-
-/// Cấu hình hoạt ảnh chuyển động toàn diện cho Text Clip
+/// Cấu hình hoạt ảnh chuyển động toàn diện cho Text Clip (In, Out, Loop)
 /// Tuân thủ AGENTS.md R2.3 (thuần Domain, không UI) và R4.3 (đơn nhiệm).
 public struct TextAnimationConfiguration: Codable, Sendable, Equatable {
     public var inType: TextInAnimationType
@@ -182,6 +19,7 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable {
     public var outDuration: Double
     public var loopType: TextLoopAnimationType
     public var loopSpeed: Double
+    /// Backward-compatibility: comboType is retained for legacy project data compatibility
     public var comboType: TextComboAnimationType
     public var scope: TextAnimationScope
     public var staggerDirection: TextStaggerDirection
@@ -258,7 +96,7 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable {
     }
 
     public var isDefault: Bool {
-        inType == .none && outType == .none && loopType == .none && comboType == .none
+        inType == .none && outType == .none && loopType == .none
             && rgbSplitIntensity == 0.0 && lightSweepIntensity == 0.0 && !isMaskEnabled
     }
 }

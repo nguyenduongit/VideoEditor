@@ -3,19 +3,22 @@ import SwiftUI
 /// Topbar tab bar for switching functional tabs in the Inspector (e.g. Video, Audio, Speed).
 /// Acts as the header bar for the Inspector sidebar to maximize vertical screen space.
 /// Complies with R8.1 and R8.2 of AGENTS.md.
-public struct DSInspectorTabBar: View {
+public struct DSInspectorTabBar<Trailing: View>: View {
     private let tabs: [String]
     @Binding private var selectedTab: String
     private let fallbackTitle: String
+    private let trailing: Trailing
 
     public init(
         tabs: [String],
         selectedTab: Binding<String>,
-        fallbackTitle: String = "Thuộc tính"
+        fallbackTitle: String = "Thuộc tính",
+        @ViewBuilder trailing: () -> Trailing
     ) {
         self.tabs = tabs
         self._selectedTab = selectedTab
         self.fallbackTitle = fallbackTitle
+        self.trailing = trailing()
     }
 
     public var body: some View {
@@ -30,6 +33,7 @@ public struct DSInspectorTabBar: View {
                 }
             }
             Spacer()
+            trailing
         }
         .padding(.horizontal, DSSpacing.lg)
         .frame(height: DSSize.sidebarHeaderHeight)
@@ -64,5 +68,17 @@ public struct DSInspectorTabBar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+extension DSInspectorTabBar where Trailing == EmptyView {
+    public init(
+        tabs: [String],
+        selectedTab: Binding<String>,
+        fallbackTitle: String = "Thuộc tính"
+    ) {
+        self.init(tabs: tabs, selectedTab: selectedTab, fallbackTitle: fallbackTitle) {
+            EmptyView()
+        }
     }
 }

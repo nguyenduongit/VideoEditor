@@ -7,11 +7,13 @@ import DesignSystem
 public struct TextCardItemView: View {
     private let preset: TextPreset
     private let onAdd: () -> Void
+    private let onDelete: (() -> Void)?
     @State private var isHovered = false
 
-    public init(preset: TextPreset, onAdd: @escaping () -> Void) {
+    public init(preset: TextPreset, onAdd: @escaping () -> Void, onDelete: (() -> Void)? = nil) {
         self.preset = preset
         self.onAdd = onAdd
+        self.onDelete = onDelete
     }
 
     public var body: some View {
@@ -41,6 +43,21 @@ public struct TextCardItemView: View {
             if isHovered {
                 plusButton
                     .transition(.opacity.combined(with: .scale(scale: 0.85)))
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if isHovered && !preset.isSystem, let onDelete {
+                Button(action: onDelete) {
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(Color.white)
+                        .padding(4)
+                        .background(Color.black.opacity(0.65))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(DSSpacing.xs)
+                .help("Xóa preset này khỏi thư viện và Supabase")
             }
         }
         .animation(.easeInOut(duration: 0.15), value: isHovered)
@@ -133,7 +150,6 @@ public struct TextCardItemView: View {
         )
         let cfg = eval.config
         let ov = eval.overlay
-        let isKaraoke = cfg.animation.comboType == .karaokeBox || cfg.animation.comboType == .karaokeGlow
         let sx = CGFloat(max(0.2, min(1.8, cfg.scale * ov.scaleX)))
         let sy = CGFloat(max(0.2, min(1.8, cfg.scale * ov.scaleY)))
         let dx = CGFloat(max(-28.0, min(28.0, cfg.positionX * 0.25)))
@@ -141,12 +157,6 @@ public struct TextCardItemView: View {
 
         return VStack(spacing: 4) {
             ZStack {
-                if isKaraoke {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(hex: cfg.animation.highlightColorHex).opacity(0.85))
-                        .frame(width: 42, height: 20)
-                        .offset(x: sin(localTime * 4.0) * 18.0)
-                }
                 styledSampleText(cfg.content)
                     .scaleEffect(x: sx, y: sy)
                     .rotationEffect(.degrees(cfg.rotation * 0.35))

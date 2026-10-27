@@ -9,6 +9,7 @@ extension TimelineViewModel {
         named name: String = "Adjustment Layer",
         config: AdjustmentConfiguration = AdjustmentConfiguration(),
         durationSeconds: Double? = nil,
+        originPresetID: String? = nil,
         at time: CMTime? = nil
     ) {
         let proposedStart = time ?? currentTime
@@ -31,6 +32,10 @@ extension TimelineViewModel {
         var properties = ClipPropertyRegistry.shared.defaultProperties(for: .adjustment)
         if let json = config.encodeToJSON() {
             properties["adjustmentConfig"] = .string(json)
+        }
+        if let originPresetID {
+            properties["originPresetId"] = .string(originPresetID)
+            properties["originPresetName"] = .string(name)
         }
 
         let clip = TimelineClip(

@@ -18,7 +18,10 @@ public struct InspectorView: View {
                 DSInspectorTabBar(
                     tabs: viewModel.availableTabs,
                     selectedTab: $viewModel.selectedTab,
-                    fallbackTitle: "AI Trợ lý"
+                    fallbackTitle: "Tác vụ",
+                    trailing: {
+                        InspectorTopbarToastView(viewModel: viewModel.actionsPanelViewModel)
+                    }
                 )
                 contentArea
             }
@@ -37,36 +40,40 @@ public struct InspectorView: View {
     @ViewBuilder
     private var contentArea: some View {
         if viewModel.selectedClip != nil {
-            DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-                if viewModel.selectedClip?.kind == .adjustment {
-                    AdjustmentInspectorView(viewModel: viewModel)
-                        .padding(.leading, DSSize.inspectorContentPadding)
-                        .padding(.trailing, DSSpacing.md)
-                        .padding(.vertical, DSSpacing.md)
-                } else if viewModel.effectiveTab == "Adjustment" {
-                    UnifiedColorInspectorView(viewModel: viewModel)
-                        .padding(.leading, DSSize.inspectorContentPadding)
-                        .padding(.trailing, DSSpacing.md)
-                        .padding(.vertical, DSSpacing.md)
-                } else if viewModel.selectedClip?.kind == .text || viewModel.effectiveTab == "Văn bản" || viewModel.effectiveTab == "Hiệu ứng" {
-                    TextInspectorView(viewModel: viewModel)
-                        .padding(.leading, DSSize.inspectorContentPadding)
-                        .padding(.trailing, DSSpacing.md)
-                        .padding(.vertical, DSSpacing.md)
-                } else if viewModel.effectiveTab == "AI" || viewModel.effectiveTab == "Grid" {
-                    AIInspectorView(viewModel: viewModel)
-                        .padding(.leading, DSSize.inspectorContentPadding)
-                        .padding(.trailing, DSSpacing.md)
-                        .padding(.vertical, DSSpacing.md)
-                } else {
-                    propertyGroupsList
-                        .padding(.leading, DSSize.inspectorContentPadding)
-                        .padding(.trailing, DSSpacing.md)
-                        .padding(.vertical, DSSpacing.md)
+            if viewModel.effectiveTab == "Animation" {
+                TextAnimationTabContent(viewModel: viewModel)
+            } else {
+                DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
+                    if viewModel.selectedClip?.kind == .adjustment {
+                        AdjustmentInspectorView(viewModel: viewModel)
+                            .padding(.leading, DSSize.inspectorContentPadding)
+                            .padding(.trailing, DSSpacing.md)
+                            .padding(.vertical, DSSpacing.md)
+                    } else if viewModel.effectiveTab == "Adjustment" {
+                        UnifiedColorInspectorView(viewModel: viewModel)
+                            .padding(.leading, DSSize.inspectorContentPadding)
+                            .padding(.trailing, DSSpacing.md)
+                            .padding(.vertical, DSSpacing.md)
+                    } else if viewModel.selectedClip?.kind == .text || viewModel.effectiveTab == "Văn bản" || viewModel.effectiveTab == "Hiệu ứng" {
+                        TextInspectorView(viewModel: viewModel)
+                            .padding(.leading, DSSize.inspectorContentPadding)
+                            .padding(.trailing, DSSpacing.md)
+                            .padding(.vertical, DSSpacing.md)
+                    } else if viewModel.effectiveTab == "AI" || viewModel.effectiveTab == "Grid" {
+                        AIInspectorView(viewModel: viewModel)
+                            .padding(.leading, DSSize.inspectorContentPadding)
+                            .padding(.trailing, DSSpacing.md)
+                            .padding(.vertical, DSSpacing.md)
+                    } else {
+                        propertyGroupsList
+                            .padding(.leading, DSSize.inspectorContentPadding)
+                            .padding(.trailing, DSSpacing.md)
+                            .padding(.vertical, DSSpacing.md)
+                    }
                 }
             }
         } else {
-            AIChatPanelView(viewModel: viewModel.aiChatViewModel)
+            ActionsPanelView(viewModel: viewModel.actionsPanelViewModel)
         }
     }
 

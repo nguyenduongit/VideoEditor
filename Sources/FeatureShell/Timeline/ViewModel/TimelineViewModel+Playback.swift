@@ -49,4 +49,11 @@ extension TimelineViewModel {
         }
         return nil
     }
+
+    /// Điều hướng con trỏ phát (Playhead) đến mốc thời gian chỉ định
+    public func seek(to time: CMTime) {
+        let snapped = TimeRational.snapToFrame(time: time)
+        currentTime = snapped
+        onSeekRequested?(snapped)
+    }
 }

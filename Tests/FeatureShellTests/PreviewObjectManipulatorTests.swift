@@ -215,4 +215,41 @@ struct PreviewObjectManipulatorTests {
         )
         #expect(downPt.y > centerPt.y) // Screen Y is larger (lower down on screen)
     }
+
+    @Test func testGeometry16x9VideoIn9x16CanvasWithAutoPanFillsHeightAndPreservesOverflow() {
+        let canvasSize = CGSize(width: 1080, height: 1920) // 9:16
+        var clip = TimelineClip(
+            name: "Video 16:9",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600))
+        )
+        let url = URL(fileURLWithPath: "/tmp/sample16x9_\(UUID().uuidString).mp4")
+        clip.mediaURL = url
+        VideoMetadataCache.shared.store(
+            VideoTrackMetadata(transform: .identity, naturalSize: CGSize(width: 1920, height: 1080)),
+            for: url
+        )
+
+        let autoPan = AutoPanConfiguration(
+            isEnabled: true,
+            zoom: 1.0,
+            smoothness: 0.5,
+            keyframes: [
+                AutoPanKeyframe(timeSeconds: 0, normalizedX: 0.5, confidence: 1.0, waistY: 0.5, ankleY: 0.8)
+            ]
+        )
+        clip.properties["autoPanConfig"] = .string(autoPan.encodeToString()!)
+
+        let geom = ClipCanvasGeometry.compute(
+            for: clip,
+            canvasSize: canvasSize,
+            currentTime: CMTime(seconds: 1, preferredTimescale: 600)
+        )
+
+        // Height must match the 9:16 canvas height (1920)
+        #expect(abs(geom.size.height - 1920.0) < 0.1)
+        // Width must overflow the 9:16 canvas (3413.33)
+        #expect(geom.size.width > 1080.0)
+        #expect(abs(geom.size.width - 3413.33) < 1.0)
+    }
 }

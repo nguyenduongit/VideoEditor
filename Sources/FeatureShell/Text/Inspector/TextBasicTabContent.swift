@@ -19,6 +19,7 @@ public struct TextBasicTabContent: View {
             contentSection
             typographySection
             TextColorStyleSubtabsView(viewModel: viewModel)
+            TextPresetActionSectionView(viewModel: viewModel, currentConfig: currentConfig)
         }
         .padding(.vertical, DSSpacing.sm)
     }
@@ -111,37 +112,44 @@ public struct TextBasicTabContent: View {
     }
 
     private var fontPickerButton: some View {
-        Button(action: { isFontPickerPresented.toggle() }) {
-            HStack(spacing: 5) {
-                let isFav = CustomFontManager.shared.isFavorite(fontID: currentConfig.fontName)
-                if isFav {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color.yellow)
+        HStack(spacing: 2) {
+            Button(action: { isFontPickerPresented.toggle() }) {
+                HStack(spacing: 5) {
+                    let isFav = CustomFontManager.shared.isFavorite(fontID: currentConfig.fontName)
+                    if isFav {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color.yellow)
+                    }
+
+                    Text(CustomFontManager.shared.displayName(for: currentConfig.fontName))
+                        .font(.system(size: 12))
+                        .foregroundStyle(DSColors.textPrimary)
+                        .lineLimit(1)
+
+                    Spacer(minLength: 2)
                 }
-
-                Text(CustomFontManager.shared.displayName(for: currentConfig.fontName))
-                    .font(.system(size: 12))
-                    .foregroundStyle(DSColors.textPrimary)
-                    .lineLimit(1)
-
-                Spacer(minLength: 2)
-
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 9))
-                    .foregroundStyle(DSColors.textSecondary)
+                .padding(.leading, 8)
+                .padding(.trailing, 2)
+                .frame(height: 24)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 8)
-            .frame(height: 24)
-            .frame(maxWidth: 175)
-            .background(DSColors.windowBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(DSColors.blockBorder, lineWidth: 1)
+            .buttonStyle(.plain)
+
+            DSStepperButton(
+                onIncrement: { cycleFont(forward: false) },
+                onDecrement: { cycleFont(forward: true) }
             )
+            .padding(.trailing, 2)
         }
-        .buttonStyle(.plain)
+        .frame(height: 24)
+        .frame(maxWidth: 185)
+        .background(DSColors.windowBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(DSColors.blockBorder, lineWidth: 1)
+        )
         .popover(isPresented: $isFontPickerPresented, arrowEdge: .bottom) {
             FontPickerPopoverView(
                 selectedFont: currentConfig.fontName,
@@ -153,6 +161,25 @@ public struct TextBasicTabContent: View {
                 onDismiss: { isFontPickerPresented = false }
             )
         }
+    }
+
+    private func cycleFont(forward: Bool) {
+        let allFonts = CustomFontManager.shared.fonts
+        guard !allFonts.isEmpty else { return }
+
+        let currentName = currentConfig.fontName
+        let currentIndex = allFonts.firstIndex(where: {
+            $0.id.caseInsensitiveCompare(currentName) == .orderedSame ||
+            $0.displayName.caseInsensitiveCompare(currentName) == .orderedSame
+        }) ?? 0
+
+        let delta = forward ? 1 : -1
+        let newIndex = (currentIndex + delta + allFonts.count) % allFonts.count
+        let nextFont = allFonts[newIndex]
+
+        var cfg = currentConfig
+        cfg.fontName = nextFont.id
+        commitConfig(cfg)
     }
 
     private var boldButton: some View {

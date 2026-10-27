@@ -8,11 +8,13 @@ import DesignSystem
 public struct AdjustmentCardItemView: View {
     private let preset: AdjustmentPreset
     private let onAdd: () -> Void
+    private let onDelete: (() -> Void)?
     @State private var isHovered = false
 
-    public init(preset: AdjustmentPreset, onAdd: @escaping () -> Void) {
+    public init(preset: AdjustmentPreset, onAdd: @escaping () -> Void, onDelete: (() -> Void)? = nil) {
         self.preset = preset
         self.onAdd = onAdd
+        self.onDelete = onDelete
     }
 
     public var body: some View {
@@ -41,6 +43,21 @@ public struct AdjustmentCardItemView: View {
             if isHovered {
                 plusButton
                     .transition(.opacity.combined(with: .scale(scale: 0.85)))
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if isHovered && !preset.isSystem, let onDelete {
+                Button(action: onDelete) {
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(Color.white)
+                        .padding(4)
+                        .background(Color.black.opacity(0.65))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(DSSpacing.xs)
+                .help("Xóa preset này khỏi thư viện và Supabase")
             }
         }
         .animation(.easeInOut(duration: 0.15), value: isHovered)

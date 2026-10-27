@@ -22,10 +22,14 @@ public final class TextRendererEngine: @unchecked Sendable {
         let bounds = attributed.boundingRect(with: maxTextSize, options: [.usesLineFragmentOrigin, .usesFontLeading])
         var w = ceil(bounds.width)
         var h = ceil(bounds.height)
+        if config.hasOuterStroke && config.outerStrokeWidth > 0 {
+            let ow = CGFloat(config.outerStrokeWidth * 2.0); w += ow; h += ow
+        }
+        if config.hasExtrusion && config.extrusionDepth > 0 {
+            let ed = CGFloat(config.extrusionDepth); w += ed; h += ed
+        }
         if config.hasBackground {
-            let pad = CGFloat(config.backgroundPadding)
-            w += pad * 2.0
-            h += pad * 2.0
+            let pad = CGFloat(config.backgroundPadding * 2.0); w += pad; h += pad
         }
         return CGSize(width: max(20.0, w), height: max(20.0, h))
         #else
@@ -41,8 +45,7 @@ public final class TextRendererEngine: @unchecked Sendable {
         canvasSize: CGSize
     ) -> CIImage? {
         #if os(macOS)
-        let isKaraoke = config.animation.comboType == .karaokeBox || config.animation.comboType == .karaokeGlow
-        if (config.animation.scope != .wholeBlock || isKaraoke) && !config.animation.isDefault {
+        if config.animation.scope != .wholeBlock && !config.animation.isDefault {
             return renderSegmentedAnimatedImage(
                 for: config, localTime: localTime,
                 duration: duration, canvasSize: canvasSize
@@ -144,23 +147,21 @@ public final class TextRendererEngine: @unchecked Sendable {
 
         guard let cgImage = context.makeImage() else { return nil }
         var ciImage = CIImage(cgImage: cgImage)
-
         if config.opacity < 1.0 {
-            let alphaVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(max(0.0, config.opacity)))
-            if let matrix = CIFilter(name: "CIColorMatrix", parameters: ["inputAVector": alphaVector, kCIInputImageKey: ciImage]) {
-                ciImage = matrix.outputImage ?? ciImage
+            let vec = CIVector(x: 0, y: 0, z: 0, w: CGFloat(max(0.0, config.opacity)))
+            if let f = CIFilter(name: "CIColorMatrix", parameters: ["inputAVector": vec, kCIInputImageKey: ciImage]) {
+                ciImage = f.outputImage ?? ciImage
             }
         }
         return ciImage
     }
 
     private func createBitmapContext(width: Int, height: Int) -> CGContext? {
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
-        return CGContext(
+        CGContext(
             data: nil, width: width, height: height,
             bitsPerComponent: 8, bytesPerRow: width * 4,
-            space: colorSpace, bitmapInfo: bitmapInfo
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         )
     }
 
@@ -189,29 +190,24 @@ public final class TextRendererEngine: @unchecked Sendable {
         context.saveGState()
         context.translateBy(x: cx, y: cy + pivotY)
 
-        if abs(config.rotation) > 0.001 {
-            context.rotate(by: CGFloat(-config.rotation * .pi / 180.0))
-        }
-        if abs(overlay.skewX) > 0.001 {
-            context.concatenate(CGAffineTransform(a: 1, b: 0, c: CGFloat(overlay.skewX), d: 1, tx: 0, ty: 0))
-        }
+        if abs(config.rotation) > 0.001 { context.rotate(by: CGFloat(-config.rotation * .pi / 180.0)) }
+        if abs(overlay.skewX) > 0.001 { context.concatenate(CGAffineTransform(a: 1, b: 0, c: CGFloat(overlay.skewX), d: 1, tx: 0, ty: 0)) }
         let sx = CGFloat(max(0.01, config.scale * overlay.scaleX))
         let sy = CGFloat(max(0.01, config.scale * overlay.scaleY))
-        if abs(sx - 1.0) > 0.001 || abs(sy - 1.0) > 0.001 {
-            context.scaleBy(x: sx, y: sy)
-        }
+        if abs(sx - 1.0) > 0.001 || abs(sy - 1.0) > 0.001 { context.scaleBy(x: sx, y: sy) }
         context.translateBy(x: 0, y: -pivotY)
 
         if config.hasBackground {
-            let pad = CGFloat(config.backgroundPadding)
-            let bgRect = CGRect(x: -textWidth / 2.0 - pad, y: -textHeight / 2.0 - pad, width: textWidth + pad * 2.0, height: textHeight + pad * 2.0)
+            let padY = CGFloat(config.backgroundPadding)
+            let extraPadX = max(10.0, ceil(CGFloat(config.fontSize) * 0.22))
+            let padX = padY + extraPadX
+            let bgRect = CGRect(x: -textWidth / 2.0 - padX, y: -textHeight / 2.0 - padY, width: textWidth + padX * 2.0, height: textHeight + padY * 2.0)
             let corner = CGFloat(config.backgroundCornerRadius)
-            let path = NSBezierPath(roundedRect: bgRect, xRadius: corner, yRadius: corner)
             parseHexColor(config.backgroundColorHex).setFill()
-            path.fill()
+            NSBezierPath(roundedRect: bgRect, xRadius: corner, yRadius: corner).fill()
         }
 
-        if config.animation.isMaskEnabled || config.animation.inType == .maskReveal {
+        if config.animation.isMaskEnabled || config.animation.inType == .wipe {
             let maskRect = CGRect(x: -textWidth / 2.0 - 10, y: -textHeight / 2.0 - 4, width: textWidth + 20, height: textHeight + 8)
             context.clip(to: maskRect)
         }
@@ -219,6 +215,33 @@ public final class TextRendererEngine: @unchecked Sendable {
         let drawW = textWidth + 12.0
         let drawH = textHeight + 8.0
         let textRect = CGRect(x: -drawW / 2.0, y: -drawH / 2.0, width: drawW, height: drawH)
+
+        let safeContent = config.content.precomposedStringWithCanonicalMapping
+        let textString = config.isAllCaps ? safeContent.uppercased() : safeContent
+        let font = resolveFont(name: config.fontName, size: CGFloat(config.fontSize), isBold: config.isBold, isItalic: config.isItalic)
+        let paragraph = TextAdvancedStyleRenderer.makeParagraphStyle(for: config)
+
+        // 1. Tỏa Outer Glow và Drop Shadow ở lớp đáy (không bao giờ đè hay ám màu lên ruột chữ)
+        TextAdvancedStyleRenderer.drawGlowAndShadow(
+            config: config, font: font, textString: textString,
+            paragraph: paragraph, textRect: textRect, in: context
+        )
+        // 2. Khối 3D Extrusion
+        TextAdvancedStyleRenderer.drawExtrusion(
+            config: config, font: font, textString: textString,
+            paragraph: paragraph, textRect: textRect, in: context
+        )
+        // 3. Viền kép ngoài (Sticker)
+        TextAdvancedStyleRenderer.drawOuterStroke(
+            config: config, font: font, textString: textString,
+            paragraph: paragraph, textRect: textRect, in: context
+        )
+        // 4. Gradient Fill (nếu có)
+        TextAdvancedStyleRenderer.drawGradientFill(
+            config: config, font: font, textString: textString,
+            paragraph: paragraph, textRect: textRect, in: context
+        )
+        // 5. Chữ sắc nét trên cùng (ruột chữ & viền trong sạch hoàn toàn)
         attributed.draw(in: textRect)
 
         context.restoreGState()
@@ -226,17 +249,14 @@ public final class TextRendererEngine: @unchecked Sendable {
 
     public func makeAttributedString(for config: TextConfiguration) -> NSAttributedString {
         let font = resolveFont(name: config.fontName, size: CGFloat(config.fontSize), isBold: config.isBold, isItalic: config.isItalic)
-        let paragraph = NSMutableParagraphStyle()
-        switch config.alignment {
-        case .left: paragraph.alignment = .left
-        case .center: paragraph.alignment = .center
-        case .right: paragraph.alignment = .right
-        }
-        paragraph.lineSpacing = CGFloat(config.lineSpacing)
+        let paragraph = TextAdvancedStyleRenderer.makeParagraphStyle(for: config)
+
+        let isHollowOrGradient = config.isHollow || config.textColorHex.uppercased() == "NONE" || (config.isGradient && config.gradientColors.count >= 2)
+        let fgColor = isHollowOrGradient ? NSColor.clear : parseHexColor(config.textColorHex)
 
         var attrs: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: parseHexColor(config.textColorHex),
+            .foregroundColor: fgColor,
             .paragraphStyle: paragraph,
             .kern: CGFloat(config.characterSpacing)
         ]
@@ -246,20 +266,7 @@ public final class TextRendererEngine: @unchecked Sendable {
 
         if config.hasStroke && config.strokeWidth > 0 {
             attrs[.strokeColor] = parseHexColor(config.strokeColorHex)
-            attrs[.strokeWidth] = -abs(config.strokeWidth)
-        }
-
-        if config.hasGlow && config.glowRadius > 0 {
-            let glow = NSShadow()
-            glow.shadowColor = parseHexColor(config.glowColorHex)
-            glow.shadowBlurRadius = CGFloat(config.glowRadius)
-            attrs[.shadow] = glow
-        } else if config.hasShadow && (config.shadowRadius > 0 || config.shadowOffsetX != 0 || config.shadowOffsetY != 0) {
-            let shadow = NSShadow()
-            shadow.shadowColor = parseHexColor(config.shadowColorHex)
-            shadow.shadowBlurRadius = CGFloat(config.shadowRadius)
-            shadow.shadowOffset = NSSize(width: config.shadowOffsetX, height: -config.shadowOffsetY)
-            attrs[.shadow] = shadow
+            attrs[.strokeWidth] = isHollowOrGradient ? abs(config.strokeWidth) : -abs(config.strokeWidth)
         }
 
         let safeContent = config.content.precomposedStringWithCanonicalMapping
@@ -283,15 +290,7 @@ public final class TextRendererEngine: @unchecked Sendable {
     }
 
     public func parseHexColor(_ hex: String) -> NSColor {
-        if hex.uppercased() == "NONE" { return .clear }
-        var clean = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
-        if clean.count == 6 { clean.append("FF") }
-        guard clean.count == 8, let num = UInt64(clean, radix: 16) else { return .white }
-        let r = CGFloat((num & 0xFF000000) >> 24) / 255.0
-        let g = CGFloat((num & 0x00FF0000) >> 16) / 255.0
-        let b = CGFloat((num & 0x0000FF00) >> 8) / 255.0
-        let a = CGFloat(num & 0x000000FF) / 255.0
-        return NSColor(srgbRed: r, green: g, blue: b, alpha: a)
+        TextAdvancedStyleRenderer.parseHexColor(hex)
     }
     #endif
 }

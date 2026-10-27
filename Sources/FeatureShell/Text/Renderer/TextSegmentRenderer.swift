@@ -88,7 +88,7 @@ public enum TextSegmentRenderer: Sendable {
         makeAttributedString: (TextConfiguration) -> NSAttributedString
     ) {
         let startX = -totalWidth / 2.0
-        if baseConfig.animation.isMaskEnabled || baseConfig.animation.inType == .maskReveal {
+        if baseConfig.animation.isMaskEnabled || baseConfig.animation.inType == .wipe {
             let clipRect = CGRect(x: -totalWidth / 2.0 - 24, y: -totalHeight / 2.0 - 8, width: totalWidth + 48, height: totalHeight + 16)
             context.clip(to: clipRect)
         }

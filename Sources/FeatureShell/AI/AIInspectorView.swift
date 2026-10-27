@@ -67,11 +67,51 @@ public struct AIInspectorView: View {
     }
 
     private var sharedVisionAnalysisCard: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            statusIndicator
-            actionButton
+        HStack(spacing: DSSpacing.sm) {
+            Button(action: { startAnalysis() }) {
+                HStack(spacing: 4) {
+                    if isAnalyzing {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("\(Int(analysisProgress * 100))%")
+                            .font(.system(size: 11, weight: .semibold))
+                    } else {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text("Analyze")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(Color.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(isAnalyzing ? DSColors.textSecondary.opacity(0.4) : DSColors.accent)
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+            }
+            .buttonStyle(.plain)
+            .disabled(isAnalyzing)
+
+            if !autoPanConfig.keyframes.isEmpty {
+                Text("\(autoPanConfig.keyframes.count) frame")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(DSColors.textSecondary)
+            } else if isAnalyzing {
+                Text("Đang quét...")
+                    .font(.system(size: 11))
+                    .foregroundStyle(DSColors.toggleCyan)
+            }
+
+            Spacer()
+
+            if !autoPanConfig.keyframes.isEmpty && !isAnalyzing {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color(red: 0.18, green: 0.8, blue: 0.35))
+                    .help("Đã phân tích hoàn tất")
+            }
         }
-        .padding(DSSpacing.sm)
+        .padding(.horizontal, DSSpacing.sm)
+        .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(DSColors.windowBackground.opacity(0.45))
@@ -80,54 +120,6 @@ public struct AIInspectorView: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(DSColors.blockBorder, lineWidth: 1)
         )
-    }
-
-    @ViewBuilder
-    private var statusIndicator: some View {
-        if isAnalyzing {
-            VStack(alignment: .leading, spacing: DSSpacing.xs) {
-                HStack(spacing: DSSpacing.sm) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Đang phân tích Vision... \(Int(analysisProgress * 100))%")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(DSColors.toggleCyan)
-                }
-                ProgressView(value: analysisProgress, total: 1.0)
-                    .tint(DSColors.toggleCyan)
-            }
-            .padding(.vertical, 2)
-        } else if autoPanConfig.keyframes.isEmpty {
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 11))
-                    .foregroundStyle(DSColors.toggleCyan)
-                Text("Phân tích 1 lần dùng chung cho Auto Pan & Kéo dài chân")
-                    .font(.system(size: 11))
-                    .foregroundStyle(DSColors.textSecondary)
-            }
-        } else {
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color.green.opacity(0.9))
-                Text("Đã phân tích (\(autoPanConfig.keyframes.count) mẫu khung xương & chuyển động)")
-                    .font(.system(size: 11))
-                    .foregroundStyle(DSColors.textPrimary)
-            }
-        }
-    }
-
-    private var actionButton: some View {
-        DSActionButton(
-            title: isAnalyzing
-                ? "Đang phân tích..."
-                : (autoPanConfig.keyframes.isEmpty ? "Phân tích nhân vật (AI Vision)" : "Phân tích lại")
-        ) {
-            startAnalysis()
-        }
-        .disabled(isAnalyzing)
-        .opacity(isAnalyzing ? 0.6 : 1.0)
     }
 
     private var autoPanToggleRow: some View {

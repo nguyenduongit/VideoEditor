@@ -15,8 +15,10 @@ public enum GridTarget: Codable, Sendable, Equatable, Hashable {
     }
 }
 
-/// Normalized configuration of a video grid slice layout.
+/// Normalized configuration of a video grid slice layout (used primarily for 3-zone Leg Stretch / Body Proportions).
 /// Complies with R2.3, R3.1, and R4.3 of AGENTS.md.
+public typealias LegStretchConfiguration = GridConfiguration
+
 public struct GridConfiguration: Codable, Sendable, Equatable {
     public var rows: Int
     public var columns: Int

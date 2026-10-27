@@ -23,10 +23,26 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
     public var characterSpacing: Double
     public var lineSpacing: Double
 
+    // MARK: - Màu chuyển sắc (Gradient Fill)
+    public var isGradient: Bool
+    public var gradientColors: [String]
+    public var gradientAngle: Double
+
     // MARK: - Hiệu ứng viền (Stroke / Outline)
     public var hasStroke: Bool
     public var strokeColorHex: String
     public var strokeWidth: Double
+
+    // MARK: - Viền ngoài / Nhãn dán (Outer Stroke / Sticker Effect)
+    public var hasOuterStroke: Bool
+    public var outerStrokeColorHex: String
+    public var outerStrokeWidth: Double
+
+    // MARK: - Khối đổ bóng 3D (3D Extrusion / Block Shadow)
+    public var hasExtrusion: Bool
+    public var extrusionDepth: Double
+    public var extrusionAngle: Double
+    public var extrusionColorHex: String
 
     // MARK: - Hiệu ứng đổ bóng (Shadow)
     public var hasShadow: Bool
@@ -39,6 +55,9 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
     public var hasGlow: Bool
     public var glowColorHex: String
     public var glowRadius: Double
+
+    // MARK: - Kiểu rỗng ruột (Hollow / Neon Tube)
+    public var isHollow: Bool
 
     // MARK: - Hộp nền (Background Box / Badge)
     public var hasBackground: Bool
@@ -69,9 +88,19 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
         alignment: TextAlignmentType = .center,
         characterSpacing: Double = 0.0,
         lineSpacing: Double = 4.0,
+        isGradient: Bool = false,
+        gradientColors: [String] = [],
+        gradientAngle: Double = 90.0,
         hasStroke: Bool = false,
         strokeColorHex: String = "#000000",
         strokeWidth: Double = 2.0,
+        hasOuterStroke: Bool = false,
+        outerStrokeColorHex: String = "#FFFFFF",
+        outerStrokeWidth: Double = 6.0,
+        hasExtrusion: Bool = false,
+        extrusionDepth: Double = 8.0,
+        extrusionAngle: Double = -45.0,
+        extrusionColorHex: String = "#000000",
         hasShadow: Bool = false,
         shadowColorHex: String = "#000000",
         shadowRadius: Double = 6.0,
@@ -80,6 +109,7 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
         hasGlow: Bool = false,
         glowColorHex: String = "#FFD700",
         glowRadius: Double = 8.0,
+        isHollow: Bool = false,
         hasBackground: Bool = false,
         backgroundColorHex: String = "#000000B2",
         backgroundCornerRadius: Double = 8.0,
@@ -103,9 +133,19 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
         self.alignment = alignment
         self.characterSpacing = characterSpacing
         self.lineSpacing = lineSpacing
+        self.isGradient = isGradient
+        self.gradientColors = gradientColors
+        self.gradientAngle = gradientAngle
         self.hasStroke = hasStroke
         self.strokeColorHex = strokeColorHex
         self.strokeWidth = strokeWidth
+        self.hasOuterStroke = hasOuterStroke
+        self.outerStrokeColorHex = outerStrokeColorHex
+        self.outerStrokeWidth = outerStrokeWidth
+        self.hasExtrusion = hasExtrusion
+        self.extrusionDepth = extrusionDepth
+        self.extrusionAngle = extrusionAngle
+        self.extrusionColorHex = extrusionColorHex
         self.hasShadow = hasShadow
         self.shadowColorHex = shadowColorHex
         self.shadowRadius = shadowRadius
@@ -114,6 +154,7 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
         self.hasGlow = hasGlow
         self.glowColorHex = glowColorHex
         self.glowRadius = glowRadius
+        self.isHollow = isHollow
         self.hasBackground = hasBackground
         self.backgroundColorHex = backgroundColorHex
         self.backgroundCornerRadius = backgroundCornerRadius
@@ -140,9 +181,19 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
         self.alignment = (try? container.decode(TextAlignmentType.self, forKey: .alignment)) ?? .center
         self.characterSpacing = (try? container.decode(Double.self, forKey: .characterSpacing)) ?? 0.0
         self.lineSpacing = (try? container.decode(Double.self, forKey: .lineSpacing)) ?? 4.0
+        self.isGradient = (try? container.decodeIfPresent(Bool.self, forKey: .isGradient)) ?? false
+        self.gradientColors = (try? container.decodeIfPresent([String].self, forKey: .gradientColors)) ?? []
+        self.gradientAngle = (try? container.decodeIfPresent(Double.self, forKey: .gradientAngle)) ?? 90.0
         self.hasStroke = (try? container.decode(Bool.self, forKey: .hasStroke)) ?? false
         self.strokeColorHex = (try? container.decode(String.self, forKey: .strokeColorHex)) ?? "#000000"
         self.strokeWidth = (try? container.decode(Double.self, forKey: .strokeWidth)) ?? 2.0
+        self.hasOuterStroke = (try? container.decodeIfPresent(Bool.self, forKey: .hasOuterStroke)) ?? false
+        self.outerStrokeColorHex = (try? container.decodeIfPresent(String.self, forKey: .outerStrokeColorHex)) ?? "#FFFFFF"
+        self.outerStrokeWidth = (try? container.decodeIfPresent(Double.self, forKey: .outerStrokeWidth)) ?? 6.0
+        self.hasExtrusion = (try? container.decodeIfPresent(Bool.self, forKey: .hasExtrusion)) ?? false
+        self.extrusionDepth = (try? container.decodeIfPresent(Double.self, forKey: .extrusionDepth)) ?? 8.0
+        self.extrusionAngle = (try? container.decodeIfPresent(Double.self, forKey: .extrusionAngle)) ?? -45.0
+        self.extrusionColorHex = (try? container.decodeIfPresent(String.self, forKey: .extrusionColorHex)) ?? "#000000"
         self.hasShadow = (try? container.decode(Bool.self, forKey: .hasShadow)) ?? false
         self.shadowColorHex = (try? container.decode(String.self, forKey: .shadowColorHex)) ?? "#000000"
         self.shadowRadius = (try? container.decode(Double.self, forKey: .shadowRadius)) ?? 6.0
@@ -151,6 +202,7 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
         self.hasGlow = (try? container.decode(Bool.self, forKey: .hasGlow)) ?? false
         self.glowColorHex = (try? container.decode(String.self, forKey: .glowColorHex)) ?? "#FFD700"
         self.glowRadius = (try? container.decode(Double.self, forKey: .glowRadius)) ?? 8.0
+        self.isHollow = (try? container.decodeIfPresent(Bool.self, forKey: .isHollow)) ?? false
         self.hasBackground = (try? container.decode(Bool.self, forKey: .hasBackground)) ?? false
         self.backgroundColorHex = (try? container.decode(String.self, forKey: .backgroundColorHex)) ?? "#000000B2"
         self.backgroundCornerRadius = (try? container.decode(Double.self, forKey: .backgroundCornerRadius)) ?? 8.0

@@ -80,17 +80,10 @@ struct AdjustmentConfigurationTests {
 
     @Test("AdjustmentPreset contains Default and built-in templates")
     func testPresetTemplates() {
+        AdjustmentTemplateLoader.shared.resetSyncState()
         #expect(AdjustmentPreset.default.config.isNeutral)
-        #expect(AdjustmentPreset.templates.count == 8)
-
-        let names = AdjustmentPreset.templates.map(\.name)
-        #expect(names.contains("Điện ảnh"))
-        #expect(names.contains("Hoàng hôn"))
-        #expect(names.contains("Băng giá"))
-        #expect(names.contains("Hàn Quốc"))
-        #expect(names.contains("Cổ điển"))
-        #expect(names.contains("Cyberpunk"))
-        #expect(names.contains("Rực rỡ"))
-        #expect(names.contains("Đen trắng"))
+        #expect(AdjustmentPreset.default.isSystem == true)
+        #expect(!AdjustmentPreset.templates.isEmpty)
+        #expect(AdjustmentPreset.templates.contains(where: { $0.id == "default" }))
     }
 }

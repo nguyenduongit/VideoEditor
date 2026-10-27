@@ -1,7 +1,9 @@
 import Foundation
 
-/// Mathematical calculation engine for video grid slicing, bilateral scaling, and line dragging.
+/// Mathematical calculation engine for video grid slicing, bilateral scaling, and 3-zone Leg Stretch.
 /// Complies with R2.3, R3.1, and R7.5 of AGENTS.md.
+public typealias LegStretchEngine = GridSliceEngine
+
 public enum GridSliceEngine {
     public static let minDimension: Double = 0.05
     public static let minLegStretchRatio: Double = 0.9

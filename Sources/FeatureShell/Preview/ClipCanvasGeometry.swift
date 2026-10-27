@@ -29,12 +29,16 @@ public struct ClipCanvasGeometry: Sendable {
     /// Computes the canvas geometry for a given timeline clip against a target canvas render size.
     public static func compute(
         for clip: TimelineClip,
-        canvasSize: CGSize
+        canvasSize: CGSize,
+        currentTime: CMTime? = nil
     ) -> ClipCanvasGeometry {
         if clip.kind == .text {
-            let config = clip.properties["textConfig"]?.asString.flatMap {
+            var config = clip.properties["textConfig"]?.asString.flatMap {
                 TextConfiguration.decode(from: $0)
             } ?? TextConfiguration(content: clip.properties["textContent"]?.asString ?? clip.name)
+            if let font = clip.properties["fontName"]?.asString { config.fontName = font }
+            if let content = clip.properties["textContent"]?.asString { config.content = content }
+            if let size = clip.properties["fontSize"]?.asNumber { config.fontSize = size }
             let rawSize = TextRendererEngine.shared.measureSize(for: config, canvasSize: canvasSize)
             let userScale = clip.properties["scale"]?.asNumber ?? config.scale
             let userPosX = clip.properties["positionX"]?.asNumber ?? config.positionX
@@ -62,28 +66,53 @@ public struct ClipCanvasGeometry: Sendable {
         let srcW = max(1.0, abs(oriented.width))
         let srcH = max(1.0, abs(oriented.height))
 
-        let baseScale = min(canvasSize.width / srcW, canvasSize.height / srcH)
-        let userScale = clip.properties["scale"]?.asNumber ?? 1.0
-        let userPosX = clip.properties["positionX"]?.asNumber ?? 0.0
-        let userPosY = clip.properties["positionY"]?.asNumber ?? 0.0
-        let userRotation = clip.properties["rotation"]?.asNumber ?? 0.0
-
-        let finalScale = max(0.01, baseScale * userScale)
-        let clipW = srcW * finalScale
-        let clipH = srcH * finalScale
-
         let autoPan = clip.properties["autoPanConfig"]?.asString.flatMap {
             AutoPanConfiguration.decode(from: $0)
         }
         let isAutoPanActive = autoPan?.isEnabled == true && autoPan?.keyframes.isEmpty == false
-        let effectivePosX = isAutoPanActive ? 0.0 : userPosX
+
+        let baseScale: CGFloat
+        if isAutoPanActive {
+            baseScale = max(canvasSize.width / srcW, canvasSize.height / srcH)
+        } else {
+            baseScale = min(canvasSize.width / srcW, canvasSize.height / srcH)
+        }
+
+        let userScale = clip.properties["scale"]?.asNumber ?? 1.0
+        let autoPanZoom = isAutoPanActive ? (autoPan?.zoom ?? 1.0) : 1.0
+        let finalScale = max(0.01, baseScale * userScale * autoPanZoom)
+        let clipW = srcW * finalScale
+        let clipH = srcH * finalScale
+
+        let userPosX = clip.properties["positionX"]?.asNumber ?? 0.0
+        let userPosY = clip.properties["positionY"]?.asNumber ?? 0.0
+        let userRotation = clip.properties["rotation"]?.asNumber ?? 0.0
+
+        let refSize = CanvasAspectRatio.closest(for: canvasSize).renderSize
+        let coordScaleX = refSize.width > 0 ? Double(canvasSize.width / refSize.width) : 1.0
+        let coordScaleY = refSize.height > 0 ? Double(canvasSize.height / refSize.height) : 1.0
+
+        var panOffset: Double = 0.0
+        if isAutoPanActive, let autoPan, let currentTime {
+            let localTime = CMTimeSubtract(currentTime, clip.timeRange.start).seconds
+            panOffset = AutoPanEngine.panOffset(
+                at: localTime,
+                config: autoPan,
+                videoWidth: Double(srcW),
+                scale: finalScale,
+                canvasWidth: Double(canvasSize.width)
+            )
+        }
+
+        let effectivePosX = isAutoPanActive ? panOffset : (userPosX * coordScaleX)
+        let effectivePosY = userPosY * coordScaleY
 
         return ClipCanvasGeometry(
-            center: CGPoint(x: effectivePosX, y: userPosY),
+            center: CGPoint(x: effectivePosX, y: effectivePosY),
             size: CGSize(width: clipW, height: clipH),
             rotationDegrees: userRotation,
             positionX: effectivePosX,
-            positionY: userPosY
+            positionY: effectivePosY
         )
     }
 
@@ -169,7 +198,11 @@ public struct PreviewHitTester: Sendable {
                 }
                 guard isActive else { continue }
 
-                let geom = ClipCanvasGeometry.compute(for: clip, canvasSize: canvasSize)
+                let geom = ClipCanvasGeometry.compute(
+                    for: clip,
+                    canvasSize: canvasSize,
+                    currentTime: currentTime
+                )
                 if geom.contains(canvasPoint: canvasPt) {
                     return clip
                 }

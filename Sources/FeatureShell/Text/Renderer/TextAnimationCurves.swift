@@ -19,6 +19,12 @@ public enum TextAnimationCurves: Sendable {
         }
     }
 
+    /// Đường cong làm mượt cơ bản (Cubic Ease-Out).
+    public static func smoothEase(_ p: Double) -> Double {
+        let clamped = min(1.0, max(0.0, p))
+        return 1.0 - pow(1.0 - clamped, 3.0)
+    }
+
     /// Đường cong nảy (Bounce Ease-Out).
     public static func bounceEaseOut(_ p: Double) -> Double {
         let n1 = 7.5625

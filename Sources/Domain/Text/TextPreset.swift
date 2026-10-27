@@ -61,6 +61,7 @@ public struct TextPreset: Identifiable, Codable, Sendable, Equatable {
     public var remoteFontURL: String?
     public var config: TextConfiguration
     public var subLayers: [TextTemplateSubLayer]
+    public var isSystem: Bool
 
     public init(
         id: String,
@@ -75,7 +76,8 @@ public struct TextPreset: Identifiable, Codable, Sendable, Equatable {
         fallbackFontName: String? = nil,
         remoteFontURL: String? = nil,
         config: TextConfiguration,
-        subLayers: [TextTemplateSubLayer] = []
+        subLayers: [TextTemplateSubLayer] = [],
+        isSystem: Bool = false
     ) {
         self.id = id
         self.schemaVersion = schemaVersion
@@ -90,6 +92,7 @@ public struct TextPreset: Identifiable, Codable, Sendable, Equatable {
         self.remoteFontURL = remoteFontURL
         self.config = config
         self.subLayers = subLayers
+        self.isSystem = isSystem
     }
 
     public init(from decoder: Decoder) throws {
@@ -107,6 +110,7 @@ public struct TextPreset: Identifiable, Codable, Sendable, Equatable {
         self.remoteFontURL = try? c.decodeIfPresent(String.self, forKey: .remoteFontURL)
         self.config = (try? c.decodeIfPresent(TextConfiguration.self, forKey: .config)) ?? TextConfiguration()
         self.subLayers = (try? c.decodeIfPresent([TextTemplateSubLayer].self, forKey: .subLayers)) ?? []
+        self.isSystem = (try? c.decodeIfPresent(Bool.self, forKey: .isSystem)) ?? false
     }
 
     public func encodeToJSON(prettyPrinted: Bool = true) -> String? {
@@ -137,7 +141,8 @@ public struct TextPreset: Identifiable, Codable, Sendable, Equatable {
             fontSize: 48.0,
             textColorHex: "#FFFFFF",
             isBold: true
-        )
+        ),
+        isSystem: true
     )
 
     /// Danh sách mẫu chữ được nạp động từ các file JSON Script và bộ nhớ đệm Supabase

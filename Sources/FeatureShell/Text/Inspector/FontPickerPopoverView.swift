@@ -10,6 +10,7 @@ public struct FontPickerPopoverView: View {
     public let onDismiss: () -> Void
 
     @State private var searchText: String = ""
+    @State private var selectedCategory: FontCategory = .all
     private var fontManager: CustomFontManager { CustomFontManager.shared }
 
     public init(
@@ -25,10 +26,11 @@ public struct FontPickerPopoverView: View {
     public var body: some View {
         VStack(spacing: 0) {
             searchHeader
+            categoryFilterBar
             Divider().opacity(0.15)
             fontList
         }
-        .frame(width: 270, height: 360)
+        .frame(width: 280, height: 380)
         .background(DSColors.blockBackground)
     }
 
@@ -58,8 +60,31 @@ public struct FontPickerPopoverView: View {
         .background(DSColors.windowBackground)
     }
 
+    private var categoryFilterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 5) {
+                ForEach(FontCategory.allCases) { category in
+                    let isSelected = selectedCategory == category
+                    Button(action: { selectedCategory = category }) {
+                        Text(category.rawValue)
+                            .font(.system(size: 10, weight: isSelected ? .semibold : .medium))
+                            .foregroundStyle(isSelected ? Color.white : DSColors.textSecondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3.5)
+                            .background(isSelected ? DSColors.accent : Color.white.opacity(0.06))
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+        }
+        .background(DSColors.blockBackground)
+    }
+
     private var fontList: some View {
-        let (favorites, others) = fontManager.sortedFonts(matching: searchText)
+        let (favorites, others) = fontManager.sortedFonts(matching: searchText, category: selectedCategory)
 
         return ScrollView {
             LazyVStack(alignment: .leading, spacing: 2) {
@@ -72,7 +97,8 @@ public struct FontPickerPopoverView: View {
                 }
 
                 if !others.isEmpty {
-                    sectionHeader(title: "Tất cả phông chữ", icon: "textformat", count: others.count, iconColor: DSColors.textSecondary)
+                    let sectionTitle = selectedCategory == .all ? "Tất cả phông chữ" : selectedCategory.rawValue
+                    sectionHeader(title: sectionTitle, icon: "textformat", count: others.count, iconColor: DSColors.textSecondary)
                     ForEach(others) { item in
                         fontRow(item: item, isFavorite: false)
                     }

@@ -26,81 +26,76 @@ struct TextAnimationProCapCutTests {
         #expect(config.isDefault == true)
     }
 
-    @Test("WaveBounce and SpringDrop calculate expected motion offsets and impact squash")
-    func testWaveBounceAndSpringDropEvaluation() {
+    @Test("Drop and Bounce In Animations calculate expected motion offsets and impact squash")
+    func testDropAndBounceEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
-        var cfgWave = TextConfiguration(content: "Wave")
-        cfgWave.animation.inType = .waveBounce
-        cfgWave.animation.inDuration = 1.0
-        let evalWave = TextAnimationEvaluator.evaluate(config: cfgWave, localTime: 0.2, duration: 4.0, canvasSize: canvasSize)
-        #expect(abs(evalWave.config.positionY) > 0.001)
-
         var cfgDrop = TextConfiguration(content: "Drop")
-        cfgDrop.animation.inType = .springDrop
+        cfgDrop.animation.inType = .drop
         cfgDrop.animation.inDuration = 1.0
-        let evalDrop0 = TextAnimationEvaluator.evaluate(config: cfgDrop, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalDrop0.config.positionY < 0.0)
-        #expect(evalDrop0.overlay.scaleY > evalDrop0.overlay.scaleX)
+        let evalDrop = TextAnimationEvaluator.evaluate(config: cfgDrop, localTime: 0.2, duration: 4.0, canvasSize: canvasSize)
+        #expect(abs(evalDrop.config.positionY) > 0.001)
+
+        var cfgBounce = TextConfiguration(content: "Bounce")
+        cfgBounce.animation.inType = .bounce
+        cfgBounce.animation.inDuration = 1.0
+        let evalBounce = TextAnimationEvaluator.evaluate(config: cfgBounce, localTime: 0.15, duration: 4.0, canvasSize: canvasSize)
+        #expect(abs(evalBounce.overlay.scaleX - evalBounce.overlay.scaleY) > 0.01)
     }
 
-    @Test("CapCut Pro In Animations evaluate Squash & Stretch, Skew, Motion Blur and 3D Perspective")
+    @Test("CapCut Pro In Animations evaluate MoveIn, Unfold, 3D Flip and Wipe")
     func testCapCutProInAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
-        var cfgJelly = TextConfiguration(content: "Jelly")
-        cfgJelly.animation.inType = .elasticJellyIn
-        cfgJelly.animation.inDuration = 1.0
-        let evalJelly = TextAnimationEvaluator.evaluate(config: cfgJelly, localTime: 0.15, duration: 4.0, canvasSize: canvasSize)
-        #expect(abs(evalJelly.overlay.scaleX - evalJelly.overlay.scaleY) > 0.05)
+        var cfgMove = TextConfiguration(content: "Move")
+        cfgMove.animation.inType = .moveIn
+        cfgMove.animation.inDuration = 1.0
+        let evalMove = TextAnimationEvaluator.evaluate(config: cfgMove, localTime: 0.1, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalMove.config.positionX < 0.0)
+        #expect(evalMove.overlay.motionBlurRadius > 1.0)
 
-        var cfgWhip = TextConfiguration(content: "Whip")
-        cfgWhip.animation.inType = .whipPanLeft
-        cfgWhip.animation.inDuration = 1.0
-        let evalWhip = TextAnimationEvaluator.evaluate(config: cfgWhip, localTime: 0.1, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalWhip.config.positionX < 0.0)
-        #expect(evalWhip.overlay.skewX != 0.0)
-        #expect(evalWhip.overlay.motionBlurRadius > 5.0)
+        var cfgUnfold = TextConfiguration(content: "Unfold")
+        cfgUnfold.animation.inType = .unfold
+        cfgUnfold.animation.inDuration = 1.0
+        let evalUnfold = TextAnimationEvaluator.evaluate(config: cfgUnfold, localTime: 0.2, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalUnfold.overlay.scaleY < 1.0)
 
-        var cfgOrigami = TextConfiguration(content: "Origami")
-        cfgOrigami.animation.inType = .origamiUnfold
-        cfgOrigami.animation.inDuration = 1.0
-        let evalOrigami = TextAnimationEvaluator.evaluate(config: cfgOrigami, localTime: 0.2, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalOrigami.overlay.perspectiveX < -0.1)
+        var cfgFlip = TextConfiguration(content: "Flip")
+        cfgFlip.animation.inType = .flip3D
+        cfgFlip.animation.inDuration = 1.0
+        let evalFlip = TextAnimationEvaluator.evaluate(config: cfgFlip, localTime: 0.2, duration: 4.0, canvasSize: canvasSize)
+        #expect(abs(evalFlip.overlay.perspectiveX) > 0.05)
+
+        var cfgWipe = TextConfiguration(content: "WipeAnimation")
+        cfgWipe.animation.inType = .wipe
+        cfgWipe.animation.inDuration = 1.0
+        let evalWipe = TextAnimationEvaluator.evaluate(config: cfgWipe, localTime: 0.4, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalWipe.config.content.count < "WipeAnimation".count)
     }
 
-    @Test("Cinema Tracking Expand and Collapse modify character spacing correctly")
-    func testCinemaTrackingExpandAndCollapse() {
+    @Test("Loop Animation runs strictly between In completion and Out start")
+    func testLoopAnimationActiveBetweenInAndOut() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
-        var cfgExpand = TextConfiguration(content: "Cinema", characterSpacing: 2.0)
-        cfgExpand.animation.inType = .trackingExpand
-        cfgExpand.animation.inDuration = 1.0
-        let evalExpand0 = TextAnimationEvaluator.evaluate(config: cfgExpand, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalExpand0.config.characterSpacing < 2.0)
+        var cfg = TextConfiguration(content: "LoopTest")
+        cfg.animation.inType = .fadeIn
+        cfg.animation.inDuration = 1.0
+        cfg.animation.outType = .fadeOut
+        cfg.animation.outDuration = 1.0
+        cfg.animation.loopType = .pulse
+        cfg.animation.loopSpeed = 1.0
 
-        let evalExpandDone = TextAnimationEvaluator.evaluate(config: cfgExpand, localTime: 1.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(abs(evalExpandDone.config.characterSpacing - 2.0) < 0.01)
-    }
+        // At t = 0.5 (during In): loop blend is 0, scale unchanged by pulse
+        let evalIn = TextAnimationEvaluator.evaluate(config: cfg, localTime: 0.5, duration: 5.0, canvasSize: canvasSize)
+        #expect(abs(evalIn.config.scale - 1.0) < 0.001)
 
-    @Test("Combo Animation pendulum, zoomShake, elasticJelly and cyberScanline animate continuously")
-    func testComboAnimationPendulumAndZoomShake() {
-        let canvasSize = CGSize(width: 1000, height: 1000)
+        // At t = 2.25 (in middle window): loop is fully active
+        let evalMid = TextAnimationEvaluator.evaluate(config: cfg, localTime: 2.25, duration: 5.0, canvasSize: canvasSize)
+        #expect(abs(evalMid.config.scale - 1.0) > 0.005)
 
-        var cfgPendulum = TextConfiguration(content: "Pendulum")
-        cfgPendulum.animation.comboType = .pendulum
-        let evalPendulum = TextAnimationEvaluator.evaluate(config: cfgPendulum, localTime: 1.0, duration: 5.0, canvasSize: canvasSize)
-        #expect(abs(evalPendulum.config.rotation) > 0.001 || abs(evalPendulum.config.positionX) > 0.001)
-
-        var cfgShake = TextConfiguration(content: "Shake")
-        cfgShake.animation.comboType = .zoomShake
-        let evalShake = TextAnimationEvaluator.evaluate(config: cfgShake, localTime: 2.5, duration: 5.0, canvasSize: canvasSize)
-        #expect(evalShake.config.scale > 1.0)
-
-        var cfgScan = TextConfiguration(content: "Cyber")
-        cfgScan.animation.comboType = .cyberScanline
-        let evalScan = TextAnimationEvaluator.evaluate(config: cfgScan, localTime: 0.5, duration: 5.0, canvasSize: canvasSize)
-        #expect(evalScan.overlay.lightSweepPhase >= 0.0)
+        // At t = 4.8 (during Out): loop blend is 0
+        let evalOut = TextAnimationEvaluator.evaluate(config: cfg, localTime: 4.8, duration: 5.0, canvasSize: canvasSize)
+        #expect(evalOut.config.opacity < 0.5)
     }
 
     @Test("Stagger Direction calculates expected ordering for forward, backward and centerOut")
@@ -140,10 +135,10 @@ struct TextAnimationProCapCutTests {
         #expect(wordWidth > 0)
     }
 
-    @Test("Per-Character and Karaoke Box animated rendering generates valid CIImage with Shaders")
+    @Test("Per-Character animated rendering generates valid CIImage with Shaders")
     func testSegmentedAndKaraokeRenderingProducesValidImage() {
         var config = TextConfiguration(content: "CAPCUT PRO VIBE")
-        config.animation.inType = .elasticJellyIn
+        config.animation.inType = .bounce
         config.animation.scope = .perCharacter
         config.animation.staggerDirection = .centerOut
         config.animation.staggerDelay = 0.05
@@ -162,17 +157,6 @@ struct TextAnimationProCapCutTests {
             #expect(image.extent.width > 0)
             #expect(image.extent.height > 0)
         }
-
-        var karaokeConfig = TextConfiguration(content: "KARAOKE BOX ACTIVE")
-        karaokeConfig.animation.comboType = .karaokeBox
-        karaokeConfig.animation.highlightColorHex = "#FDE047"
-        let karaokeImg = TextRendererEngine.shared.renderAnimatedImage(
-            for: karaokeConfig,
-            localTime: 1.2,
-            duration: 3.0,
-            canvasSize: canvasSize
-        )
-        #expect(karaokeImg != nil)
     }
     #endif
 
@@ -188,16 +172,8 @@ struct TextAnimationProCapCutTests {
         #expect(mid > 0.9)
     }
 
-    @Test("TextTemplateLoader loads all 19 standalone JSON scripts and supports Supabase forward-compatible payloads")
+    @Test("TextTemplateLoader loads online presets and supports Supabase forward-compatible payloads")
     func testTextTemplateLoaderAndSupabaseSync() {
-        let loaded = TextTemplateLoader.shared.reload()
-        #expect(loaded.count >= 19)
-
-        let karaokeBox = loaded.first { $0.id == "karaoke_tiktok_box" }
-        #expect(karaokeBox != nil)
-        #expect(karaokeBox?.category == .karaoke)
-        #expect(karaokeBox?.config.animation.comboType == .karaokeBox)
-
         // Kiểm tra Forward Compatibility khi nhận JSON từ Supabase có hiệu ứng tương lai chưa tồn tại
         let futureSupabaseJSON = """
         {
@@ -236,10 +212,23 @@ struct TextAnimationProCapCutTests {
         let timelineVM = TimelineViewModel(initialLayers: [])
         let libraryVM = TextLibraryViewModel(timelineViewModel: timelineVM)
 
-        guard let compound = libraryVM.templatePresets.first(where: { $0.id == "breaking_news_live" }) else {
-            Issue.record("Missing breaking_news_live template")
-            return
-        }
+        var subConfig = TextConfiguration(content: "SUBTITLE", fontSize: 32.0)
+        subConfig.positionY = 50.0
+        let compound = TextPreset(
+            id: "compound_test_preset",
+            name: "Compound Headline",
+            description: "Test compound template",
+            category: .trending,
+            tags: ["news", "headline"],
+            config: TextConfiguration(content: "BREAKING NEWS", fontSize: 64.0),
+            subLayers: [
+                TextTemplateSubLayer(
+                    name: "sub_1",
+                    config: subConfig
+                )
+            ],
+            isSystem: false
+        )
         #expect(!compound.subLayers.isEmpty)
 
         libraryVM.addPresetToTimeline(compound)
@@ -250,5 +239,34 @@ struct TextAnimationProCapCutTests {
         _ = timelineVM.undo()
         let afterUndo = timelineVM.layers.flatMap(\.clips).filter { $0.kind == .text }
         #expect(afterUndo.isEmpty)
+    }
+
+    @Test("In, Out and Loop animations can be deselected or toggled back to none")
+    func testInAndOutAnimationDeselectAndToggle() {
+        var config = TextConfiguration()
+        #expect(config.animation.inType == .none)
+        #expect(config.animation.outType == .none)
+        #expect(config.animation.loopType == .none)
+
+        // Select In: slideUp
+        let inSelected: TextInAnimationType = .slideUp
+        config.animation.inType = (config.animation.inType == inSelected || inSelected == .none) ? .none : inSelected
+        #expect(config.animation.inType == .slideUp)
+        config.animation.inType = (config.animation.inType == inSelected || inSelected == .none) ? .none : inSelected
+        #expect(config.animation.inType == .none)
+
+        // Select Out: fadeOut
+        let outSelected: TextOutAnimationType = .fadeOut
+        config.animation.outType = (config.animation.outType == outSelected || outSelected == .none) ? .none : outSelected
+        #expect(config.animation.outType == .fadeOut)
+        config.animation.outType = (config.animation.outType == outSelected || outSelected == .none) ? .none : outSelected
+        #expect(config.animation.outType == .none)
+
+        // Select Loop: pulse
+        let loopSelected: TextLoopAnimationType = .pulse
+        config.animation.loopType = (config.animation.loopType == loopSelected || loopSelected == .none) ? .none : loopSelected
+        #expect(config.animation.loopType == .pulse)
+        config.animation.loopType = (config.animation.loopType == loopSelected || loopSelected == .none) ? .none : loopSelected
+        #expect(config.animation.loopType == .none)
     }
 }

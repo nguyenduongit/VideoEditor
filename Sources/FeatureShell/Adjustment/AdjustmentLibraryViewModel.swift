@@ -10,7 +10,7 @@ import Domain
 public final class AdjustmentLibraryViewModel {
     public enum SubTab: String, CaseIterable, Sendable {
         case `default` = "Mặc định"
-        case templates = "Templates"
+        case templates = "Presets"
     }
 
     public var selectedSubTab: SubTab = .default
@@ -18,14 +18,54 @@ public final class AdjustmentLibraryViewModel {
     public var searchQuery: String = ""
     public private(set) var templatePresets: [AdjustmentPreset] = []
     public weak var timelineViewModel: TimelineViewModel?
+    @ObservationIgnored nonisolated(unsafe) private var notificationObserver: (any NSObjectProtocol)?
 
     public init(timelineViewModel: TimelineViewModel? = nil) {
         self.timelineViewModel = timelineViewModel
-        self.templatePresets = AdjustmentPreset.templates
+        if PresetRepositoryProvider.shared.adjustmentRepository == nil {
+            self.templatePresets = AdjustmentPreset.templates
+        } else if AdjustmentTemplateLoader.shared.hasSyncedFromRemote {
+            self.templatePresets = AdjustmentTemplateLoader.shared.loadAllTemplates()
+        } else {
+            self.templatePresets = []
+        }
+        setupNotificationObserver()
+        syncPresetsFromSupabase()
+    }
+
+    deinit {
+        if let notificationObserver {
+            NotificationCenter.default.removeObserver(notificationObserver)
+        }
+    }
+
+    private func setupNotificationObserver() {
+        notificationObserver = NotificationCenter.default.addObserver(
+            forName: .presetStoreDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.syncPresetsFromSupabase()
+            }
+        }
     }
 
     public var defaultPreset: AdjustmentPreset {
         .default
+    }
+
+    /// Đồng bộ SWR: Tải danh sách mới nhất từ Supabase ngầm trong nền
+    public func syncPresetsFromSupabase() {
+        Task { [weak self] in
+            guard let repo = PresetRepositoryProvider.shared.adjustmentRepository else { return }
+            if let fresh = try? await repo.fetchPresets() {
+                await MainActor.run {
+                    self?.templatePresets = fresh
+                    AdjustmentThumbnailRenderer.shared.invalidateCache()
+                }
+            }
+        }
     }
 
     /// Danh sách preset đã lọc theo category và từ khóa tìm kiếm.
@@ -46,9 +86,20 @@ public final class AdjustmentLibraryViewModel {
     public func reloadTemplates() {
         AdjustmentThumbnailRenderer.shared.invalidateCache()
         templatePresets = AdjustmentTemplateLoader.shared.reload()
+        syncPresetsFromSupabase()
     }
 
-    /// Nhập thêm mảng JSON script tải về từ Supabase DB (`adjustment_templates.script_json`).
+    /// Xóa 1 preset người dùng tạo khỏi Local Cache và Supabase
+    public func deletePreset(_ preset: AdjustmentPreset) {
+        guard !preset.isSystem else { return }
+        templatePresets.removeAll { $0.id == preset.id }
+        AdjustmentThumbnailRenderer.shared.invalidateCache()
+        Task {
+            try? await PresetRepositoryProvider.shared.adjustmentRepository?.deletePreset(id: preset.id)
+        }
+    }
+
+    /// Nhập thêm mảng JSON script tải về từ Supabase DB (`adjustment_presets`).
     public func importSupabaseTemplates(jsonPayloads: [String]) {
         AdjustmentThumbnailRenderer.shared.invalidateCache()
         templatePresets = AdjustmentTemplateLoader.shared.mergeSupabaseTemplateScripts(
@@ -61,7 +112,8 @@ public final class AdjustmentLibraryViewModel {
         guard let timelineViewModel else { return }
         timelineViewModel.addAdjustmentClip(
             named: preset.name,
-            config: preset.config
+            config: preset.config,
+            originPresetID: preset.id == "default" ? nil : preset.id
         )
     }
 }

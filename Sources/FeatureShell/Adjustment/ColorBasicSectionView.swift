@@ -20,6 +20,7 @@ public struct ColorBasicSectionView: View {
 
             whiteBalanceSection
             toneSection
+            AdjustmentPresetActionSectionView(viewModel: viewModel, currentConfig: currentConfig)
         }
     }
 

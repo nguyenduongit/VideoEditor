@@ -87,7 +87,7 @@ extension TimelineViewModel {
                 let raw = try await trackingService.trackSubject(
                     in: mediaURL,
                     timeRange: mediaRange,
-                    samplesPerSecond: 1.5,
+                    samplesPerSecond: 1.0,
                     smoothness: request.autoPanSmoothness,
                     onProgress: { [weak self] progress in
                         Task { @MainActor [weak self] in

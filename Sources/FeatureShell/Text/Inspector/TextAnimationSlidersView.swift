@@ -11,14 +11,6 @@ public struct TextAnimationSlidersView: View {
     public let onUpdateLive: (TextConfiguration) -> Void
     public let onEditingEnded: (Bool) -> Void
 
-    private static let karaokeColorPresets: [(name: String, hex: String, color: Color)] = [
-        ("Vàng", "#FDE047", DSColors.trafficMinimize),
-        ("Xanh", "#06B6D4", DSColors.toggleCyan),
-        ("Đỏ", "#EF4444", DSColors.trafficClose),
-        ("Tím", "#A855F7", DSColors.clipText),
-        ("Lục", "#22C55E", DSColors.trafficZoom)
-    ]
-
     public init(
         selectedSubTab: TextAnimationTabContent.AnimationSubTab,
         config: Binding<TextConfiguration>,
@@ -33,91 +25,79 @@ public struct TextAnimationSlidersView: View {
         self.onEditingEnded = onEditingEnded
     }
 
+    @State private var isAdvancedExpanded: Bool = false
+
     public var body: some View {
-        VStack(spacing: DSSpacing.sm) {
-            if !config.animation.isDefault {
-                TextAnimationTimelineBarView(config: config, onCommit: onCommit)
-            }
+        VStack(spacing: DSSpacing.xs) {
             tabSpecificSliders
-            scopeAndStaggerSection
-            vfxSlidersSection
+            advancedSection
         }
     }
 
     @ViewBuilder
     private var tabSpecificSliders: some View {
         switch selectedSubTab {
-        case .inAnimation where config.animation.inType != .none:
-            inAnimationControls
-        case .outAnimation where config.animation.outType != .none:
-            outAnimationControls
-        case .loopAnimation where config.animation.loopType != .none:
-            DSSliderWithInput(
-                title: "Loop Speed",
-                value: Binding(get: { config.animation.loopSpeed }, set: { val in mutate { $0.animation.loopSpeed = val } }),
-                range: 0.2...4.0, step: 0.1, defaultValue: 1.0, unit: "x",
-                onEditingChanged: onEditingEnded
-            )
-        case .comboAnimation where config.animation.comboType == .karaokeBox || config.animation.comboType == .karaokeGlow:
-            karaokeHighlightRow
-        default:
-            EmptyView()
-        }
-    }
-
-    private var inAnimationControls: some View {
-        VStack(spacing: DSSpacing.sm) {
+        case .inAnimation:
             DSSliderWithInput(
                 title: "In Duration",
                 value: Binding(get: { config.animation.inDuration }, set: { val in mutate { $0.animation.inDuration = val } }),
                 range: 0.1...3.0, step: 0.05, defaultValue: 0.5, unit: "s",
                 onEditingChanged: onEditingEnded
             )
-            easingSelectorRow
-            if config.animation.inType == .typewriter {
-                DSToggleRow(title: "Show Cursor (|)", isOn: Binding(
-                    get: { config.animation.isTypewriterCursorVisible },
-                    set: { val in var c = config; c.animation.isTypewriterCursorVisible = val; onCommit(c) }
-                ))
-            }
-        }
-    }
-
-    private var outAnimationControls: some View {
-        VStack(spacing: DSSpacing.sm) {
+        case .outAnimation:
             DSSliderWithInput(
                 title: "Out Duration",
                 value: Binding(get: { config.animation.outDuration }, set: { val in mutate { $0.animation.outDuration = val } }),
                 range: 0.1...3.0, step: 0.05, defaultValue: 0.5, unit: "s",
                 onEditingChanged: onEditingEnded
             )
-            easingSelectorRow
+        case .loopAnimation:
+            DSSliderWithInput(
+                title: "Loop Speed",
+                value: Binding(get: { config.animation.loopSpeed }, set: { val in mutate { $0.animation.loopSpeed = val } }),
+                range: 0.2...4.0, step: 0.1, defaultValue: 1.0, unit: "x",
+                onEditingChanged: onEditingEnded
+            )
         }
     }
 
-    private var karaokeHighlightRow: some View {
-        HStack(spacing: DSSpacing.xs) {
-            Text("Màu nhấn Karaoke")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(DSColors.textSecondary)
-            Spacer()
-            HStack(spacing: 6) {
-                ForEach(Self.karaokeColorPresets, id: \.hex) { item in
-                    let isSelected = config.animation.highlightColorHex.uppercased() == item.hex
-                    Button {
-                        var c = config
-                        c.animation.highlightColorHex = item.hex
-                        onCommit(c)
-                    } label: {
-                        Circle()
-                            .fill(item.color)
-                            .frame(width: 16, height: 16)
-                            .overlay(
-                                Circle()
-                                    .stroke(isSelected ? Color.white : Color.clear, lineWidth: 1.5)
-                            )
+    private var advancedSection: some View {
+        VStack(spacing: DSSpacing.xs) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isAdvancedExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text("Nâng cao")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(DSColors.textSecondary)
+                    Image(systemName: isAdvancedExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 8))
+                        .foregroundStyle(DSColors.textSecondary)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+                .padding(.vertical, 2)
+            }
+            .buttonStyle(.plain)
+
+            if isAdvancedExpanded {
+                VStack(spacing: DSSpacing.xs) {
+                    if selectedSubTab == .inAnimation && config.animation.inType == .typewriter1 {
+                        DSToggleRow(title: "Hiển thị con trỏ (|)", isOn: Binding(
+                            get: { config.animation.isTypewriterCursorVisible },
+                            set: { val in var c = config; c.animation.isTypewriterCursorVisible = val; onCommit(c) }
+                        ))
                     }
-                    .buttonStyle(.plain)
+                    if selectedSubTab != .loopAnimation {
+                        easingSelectorRow
+                    }
+                    if !config.animation.isDefault {
+                        TextAnimationTimelineBarView(config: config, onCommit: onCommit)
+                    }
+                    scopeAndStaggerSection
+                    vfxSlidersSection
                 }
             }
         }
@@ -125,7 +105,7 @@ public struct TextAnimationSlidersView: View {
 
     @ViewBuilder
     private var scopeAndStaggerSection: some View {
-        let hasActiveAnim = config.animation.inType != .none || config.animation.outType != .none || config.animation.comboType != .none
+        let hasActiveAnim = config.animation.inType != .none || config.animation.outType != .none
         if hasActiveAnim {
             VStack(spacing: DSSpacing.xs) {
                 scopeSelectorRow

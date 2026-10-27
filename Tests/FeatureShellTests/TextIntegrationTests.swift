@@ -19,15 +19,6 @@ struct TextIntegrationTests {
         #expect(vm.defaultPreset.id == "default")
         #expect(vm.defaultPreset.name == "Văn bản mặc định")
         #expect(vm.defaultPreset.config.content == "Văn bản")
-        #expect(vm.templatePresets.count >= 8)
-
-        let headline = vm.templatePresets.first { $0.id == "headline_bold" }
-        #expect(headline != nil)
-        #expect(headline?.config.isBold == true)
-
-        let subtitle = vm.templatePresets.first { $0.id == "subtitle_box" }
-        #expect(subtitle != nil)
-        #expect(subtitle?.config.hasBackground == true)
     }
 
     @Test func testTextConfigurationJSONSerialization() {
@@ -166,12 +157,11 @@ struct TextIntegrationTests {
 
     @Test func testGeneratePreviewFrameArtifact() {
         let canvasSize = CGSize(width: 1280, height: 720)
-        var headline = TextPreset.templates.first { $0.id == "headline_bold" }!.config
-        headline.content = "TIÊU ĐỀ VIDEO ĐẸP"
+        var headline = TextConfiguration(content: "TIÊU ĐỀ VIDEO ĐẸP", fontSize: 64.0, isBold: true)
         headline.positionY = -60
 
-        var subtitle = TextPreset.templates.first { $0.id == "subtitle_box" }!.config
-        subtitle.content = "Phụ đề mẫu chuẩn TikTok / YouTube"
+        var subtitle = TextConfiguration(content: "Phụ đề mẫu chuẩn TikTok / YouTube", fontSize: 32.0)
+        subtitle.hasBackground = true
         subtitle.positionY = 160
 
         guard let img1 = TextRendererEngine.shared.renderImage(for: headline, canvasSize: canvasSize),
@@ -250,6 +240,18 @@ struct TextIntegrationTests {
         #expect(swatches.contains("#F97316"))
         #expect(swatches.contains("#06B6D4"))
         #expect(swatches.contains("#EF4444"))
+
+        var neonConfig = TextConfiguration(content: "NEON", fontSize: 48)
+        neonConfig.textColorHex = "#FDE047"
+        neonConfig.shadowColorHex = "#F97316"
+        let sampleNeon = TextPreset(
+            id: "neon_yellow",
+            name: "Neon Vàng",
+            description: "Mẫu test neon",
+            config: neonConfig
+        )
+        TextTemplateLoader.shared.updateInMemoryPreset(sampleNeon)
+        defer { TextTemplateLoader.shared.removeInMemoryPreset(id: "neon_yellow") }
 
         let neon = TextPreset.templates.first { $0.id == "neon_yellow" }
         #expect(neon != nil)

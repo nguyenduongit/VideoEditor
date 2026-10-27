@@ -10,7 +10,7 @@ import Domain
 @MainActor
 public final class InspectorViewModel {
     public weak var timelineViewModel: TimelineViewModel?
-    public let aiChatViewModel: AIChatPanelViewModel
+    public let actionsPanelViewModel: ActionsPanelViewModel
     public var liveProperties: [String: PropertyValue] = [:]
     public var selectedTab: String = "Video"
 
@@ -20,10 +20,7 @@ public final class InspectorViewModel {
 
     public init(timelineViewModel: TimelineViewModel? = nil, mediaLibraryViewModel: MediaLibraryViewModel? = nil) {
         self.timelineViewModel = timelineViewModel
-        self.aiChatViewModel = AIChatPanelViewModel(
-            timelineViewModel: timelineViewModel,
-            mediaLibraryViewModel: mediaLibraryViewModel
-        )
+        self.actionsPanelViewModel = ActionsPanelViewModel(timelineViewModel: timelineViewModel, mediaLibraryViewModel: mediaLibraryViewModel)
         syncWithSelection()
     }
 
@@ -137,9 +134,11 @@ public final class InspectorViewModel {
             liveProperties["opacity"] = .number(cfg.opacity)
             liveProperties["fontSize"] = .number(cfg.fontSize)
             liveProperties["textContent"] = .string(cfg.content)
+            liveProperties["fontName"] = .string(cfg.fontName)
         }
         let cmd = TimelineCommand.updateClipProperties(clipID: clip.id, properties: liveProperties)
         timelineViewModel.commandExecutor?.execute(cmd)
+        ensurePlayheadWithinClip(clip: clip)
         syncWithSelection()
     }
 
@@ -192,9 +191,23 @@ public final class InspectorViewModel {
             liveProperties["opacity"] = .number(cfg.opacity)
             liveProperties["fontSize"] = .number(cfg.fontSize)
             liveProperties["textContent"] = .string(cfg.content)
+            liveProperties["fontName"] = .string(cfg.fontName)
         }
         guard let clip = selectedClip, let timelineViewModel else { return }
         timelineViewModel.updateClipLiveProperties(clipID: clip.id, properties: liveProperties)
+        ensurePlayheadWithinClip(clip: clip)
+    }
+
+    private func ensurePlayheadWithinClip(clip: TimelineClip) {
+        guard let timelineViewModel else { return }
+        let curTime = timelineViewModel.currentTime
+        let start = clip.timeRange.start
+        let end = CMTimeAdd(start, clip.timeRange.duration)
+        if curTime < start || curTime >= end {
+            let offsetSec = min(0.5, max(0.05, CMTimeGetSeconds(clip.timeRange.duration) / 2.0))
+            let targetTime = CMTimeAdd(start, CMTime(seconds: offsetSec, preferredTimescale: 600))
+            timelineViewModel.seek(to: targetTime)
+        }
     }
 
     public func updateLiveBool(key: String, value: Bool) {

@@ -10,7 +10,7 @@ import Domain
 public final class TextLibraryViewModel {
     public enum SubTab: String, CaseIterable, Sendable {
         case `default` = "Mặc định"
-        case templates = "Templates"
+        case templates = "Presets"
     }
 
     public var selectedSubTab: SubTab = .default
@@ -18,14 +18,53 @@ public final class TextLibraryViewModel {
     public var searchQuery: String = ""
     public private(set) var templatePresets: [TextPreset] = []
     public weak var timelineViewModel: TimelineViewModel?
+    @ObservationIgnored nonisolated(unsafe) private var notificationObserver: (any NSObjectProtocol)?
 
     public init(timelineViewModel: TimelineViewModel? = nil) {
         self.timelineViewModel = timelineViewModel
-        self.templatePresets = TextPreset.templates
+        if PresetRepositoryProvider.shared.textRepository == nil {
+            self.templatePresets = TextPreset.templates
+        } else if TextTemplateLoader.shared.hasSyncedFromRemote {
+            self.templatePresets = TextTemplateLoader.shared.loadAllTemplates()
+        } else {
+            self.templatePresets = []
+        }
+        setupNotificationObserver()
+        syncPresetsFromSupabase()
+    }
+
+    deinit {
+        if let notificationObserver {
+            NotificationCenter.default.removeObserver(notificationObserver)
+        }
+    }
+
+    private func setupNotificationObserver() {
+        notificationObserver = NotificationCenter.default.addObserver(
+            forName: .presetStoreDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.syncPresetsFromSupabase()
+            }
+        }
     }
 
     public var defaultPreset: TextPreset {
         .default
+    }
+
+    /// Đồng bộ SWR: Tải danh sách mới nhất từ Supabase ngầm trong nền
+    public func syncPresetsFromSupabase() {
+        Task { [weak self] in
+            guard let repo = PresetRepositoryProvider.shared.textRepository else { return }
+            if let fresh = try? await repo.fetchPresets() {
+                await MainActor.run {
+                    self?.templatePresets = fresh
+                }
+            }
+        }
     }
 
     /// Danh sách mẫu chữ sau khi lọc theo danh mục (`selectedCategory`) và từ khóa (`searchQuery`)
@@ -46,9 +85,19 @@ public final class TextLibraryViewModel {
     /// Nạp lại danh sách mẫu chữ từ các thư mục JSON trên đĩa
     public func reloadTemplates() {
         templatePresets = TextTemplateLoader.shared.reload()
+        syncPresetsFromSupabase()
     }
 
-    /// Nhập danh sách kịch bản JSON tải về từ bảng `text_templates` trên Supabase
+    /// Xóa 1 preset người dùng tạo khỏi Local Cache và Supabase
+    public func deletePreset(_ preset: TextPreset) {
+        guard !preset.isSystem else { return }
+        templatePresets.removeAll { $0.id == preset.id }
+        Task {
+            try? await PresetRepositoryProvider.shared.textRepository?.deletePreset(id: preset.id)
+        }
+    }
+
+    /// Nhập danh sách kịch bản JSON tải về từ bảng `text_presets` trên Supabase
     public func importSupabaseTemplates(jsonPayloads: [String]) {
         templatePresets = TextTemplateLoader.shared.mergeSupabaseTemplateScripts(jsonPayloads)
     }

@@ -25,6 +25,7 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
     public var previewBadge: String?
     public var previewColorsHex: [String]
     public var config: AdjustmentConfiguration
+    public var isSystem: Bool
 
     public init(
         id: String,
@@ -35,7 +36,8 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
         tags: [String] = [],
         previewBadge: String? = nil,
         previewColorsHex: [String] = ["#1A8099", "#D97326"],
-        config: AdjustmentConfiguration
+        config: AdjustmentConfiguration,
+        isSystem: Bool = false
     ) {
         self.id = id
         self.schemaVersion = schemaVersion
@@ -46,6 +48,7 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
         self.previewBadge = previewBadge
         self.previewColorsHex = previewColorsHex.isEmpty ? ["#27272A", "#52525B"] : previewColorsHex
         self.config = config
+        self.isSystem = isSystem
     }
 
     public init(from decoder: Decoder) throws {
@@ -60,6 +63,7 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
         let decodedColors = (try? c.decodeIfPresent([String].self, forKey: .previewColorsHex)) ?? []
         self.previewColorsHex = decodedColors.isEmpty ? ["#27272A", "#52525B"] : decodedColors
         self.config = (try? c.decodeIfPresent(AdjustmentConfiguration.self, forKey: .config)) ?? AdjustmentConfiguration()
+        self.isSystem = (try? c.decodeIfPresent(Bool.self, forKey: .isSystem)) ?? false
     }
 
     public func encodeToJSON(prettyPrinted: Bool = true) -> String? {
@@ -96,7 +100,8 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
         description: "Màu nguyên bản không chỉnh sửa",
         category: .cinematic,
         previewColorsHex: ["#27272A", "#18181B"],
-        config: AdjustmentConfiguration()
+        config: AdjustmentConfiguration(),
+        isSystem: true
     )
 
     /// Danh sách mẫu chỉnh màu được nạp động từ các file JSON Script và bộ nhớ đệm Supabase

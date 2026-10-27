@@ -42,7 +42,7 @@ public struct TextAnimationTimelineBarView: View {
         let midRatio = max(0.04, 1.0 - inRatio - outRatio)
 
         return VStack(alignment: .leading, spacing: 4) {
-            HStack {
+            HStack(spacing: 4) {
                 Text("Tiến trình hoạt ảnh")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
@@ -50,6 +50,17 @@ public struct TextAnimationTimelineBarView: View {
                 Text(summaryLabel)
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
                     .foregroundStyle(DSColors.toggleCyan)
+                if hasAnyActiveAnimation {
+                    Button {
+                        clearAllAnimations()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(DSColors.textSecondary.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Bỏ toàn bộ hoạt ảnh Text")
+                }
             }
 
             GeometryReader { geo in
@@ -61,7 +72,7 @@ public struct TextAnimationTimelineBarView: View {
                             .frame(width: totalW * CGFloat(inRatio))
                     }
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(hasLoopOrCombo ? DSColors.clipText.opacity(0.65) : DSColors.controlTrack)
+                        .fill(hasLoop ? DSColors.clipText.opacity(0.65) : DSColors.controlTrack)
                         .frame(width: max(8.0, totalW * CGFloat(midRatio)))
                     if outRatio > 0.01 {
                         RoundedRectangle(cornerRadius: 3)
@@ -74,8 +85,22 @@ public struct TextAnimationTimelineBarView: View {
         }
     }
 
-    private var hasLoopOrCombo: Bool {
-        config.animation.loopType != .none || config.animation.comboType != .none
+    private var hasLoop: Bool {
+        config.animation.loopType != .none
+    }
+
+    private var hasAnyActiveAnimation: Bool {
+        config.animation.inType != .none
+            || config.animation.outType != .none
+            || config.animation.loopType != .none
+    }
+
+    private func clearAllAnimations() {
+        var updated = config
+        updated.animation.inType = .none
+        updated.animation.outType = .none
+        updated.animation.loopType = .none
+        onCommit(updated)
     }
 
     private var summaryLabel: String {
@@ -85,9 +110,6 @@ public struct TextAnimationTimelineBarView: View {
         }
         if config.animation.loopType != .none {
             parts.append(String(format: "Loop %.1fx", config.animation.loopSpeed))
-        }
-        if config.animation.comboType != .none {
-            parts.append(config.animation.comboType.rawValue)
         }
         if config.animation.outType != .none {
             parts.append(String(format: "Out %.1fs", config.animation.outDuration))

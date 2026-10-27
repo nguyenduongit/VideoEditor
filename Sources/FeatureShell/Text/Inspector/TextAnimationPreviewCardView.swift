@@ -47,6 +47,7 @@ public struct TextAnimationPreviewCardView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 60)
             .background(cardBackground)
+            .contentShape(Rectangle())
             .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
             .overlay(
                 RoundedRectangle(cornerRadius: DSRadius.small)
@@ -54,6 +55,7 @@ public struct TextAnimationPreviewCardView: View {
             )
         }
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
         .onHover { hovering in
             isHovered = hovering
         }
@@ -98,19 +100,12 @@ public struct TextAnimationPreviewCardView: View {
         )
         let cfg = eval.config
         let ov = eval.overlay
-        let isKaraoke = cfg.animation.comboType == .karaokeBox || cfg.animation.comboType == .karaokeGlow
         let sx = CGFloat(max(0.15, min(2.2, cfg.scale * ov.scaleX)))
         let sy = CGFloat(max(0.15, min(2.2, cfg.scale * ov.scaleY)))
         let dx = CGFloat(max(-26.0, min(26.0, cfg.positionX * 0.45)))
         let dy = CGFloat(max(-16.0, min(16.0, -cfg.positionY * 0.45)))
 
         return ZStack {
-            if isKaraoke {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(DSColors.trafficMinimize.opacity(0.85))
-                    .frame(width: 26, height: 18)
-                    .offset(x: sin(localTime * 4.5) * 8.0)
-            }
             if eval.rgbSplitIntensity > 0.5 {
                 Text(cfg.content)
                     .font(.system(size: 14, weight: .heavy, design: .rounded))

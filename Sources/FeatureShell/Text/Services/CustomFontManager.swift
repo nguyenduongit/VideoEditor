@@ -2,16 +2,31 @@ import SwiftUI
 import CoreText
 import AppKit
 
+/// Phân loại danh mục phong cách phông chữ trong hệ thống biên tập video.
+public enum FontCategory: String, CaseIterable, Identifiable, Sendable {
+    case all = "Tất cả"
+    case calligraphy = "Thư pháp"
+    case handwriting = "Viết tay"
+    case headline = "Tiêu đề"
+    case comic = "Hoạt hình"
+    case vintage = "Cổ điển"
+    case subtitle = "Phụ đề"
+
+    public var id: String { rawValue }
+}
+
 /// Đại diện cho một phông chữ có thể chọn trong ứng dụng.
 public struct CustomFontItem: Identifiable, Equatable, Hashable, Sendable {
     public let id: String           // PostScript name (dùng để gán cho NSFont)
     public let displayName: String  // Tên hiển thị người dùng (vd: UVN Bạch Đằng)
     public let isCustom: Bool       // Font nạp ngoài hay font hệ thống
+    public let category: FontCategory // Phân loại danh mục font
 
-    public init(id: String, displayName: String, isCustom: Bool = false) {
+    public init(id: String, displayName: String, isCustom: Bool = false, category: FontCategory = .headline) {
         self.id = id
         self.displayName = displayName
         self.isCustom = isCustom
+        self.category = category
     }
 }
 
@@ -28,19 +43,6 @@ public final class CustomFontManager {
     public private(set) var isLoaded: Bool = false
 
     private let favoritesKey = "VideoEditor_FavoriteFonts"
-
-    private let defaultSystemFonts: [CustomFontItem] = [
-        CustomFontItem(id: "System", displayName: "System"),
-        CustomFontItem(id: "Helvetica", displayName: "Helvetica"),
-        CustomFontItem(id: "Arial", displayName: "Arial"),
-        CustomFontItem(id: "Impact", displayName: "Impact"),
-        CustomFontItem(id: "Times New Roman", displayName: "Times New Roman"),
-        CustomFontItem(id: "Courier New", displayName: "Courier New"),
-        CustomFontItem(id: "Georgia", displayName: "Georgia"),
-        CustomFontItem(id: "Trebuchet MS", displayName: "Trebuchet MS"),
-        CustomFontItem(id: "Avenir Next", displayName: "Avenir Next"),
-        CustomFontItem(id: "Futura", displayName: "Futura")
-    ]
 
     public init() {
         loadFavorites()
@@ -64,11 +66,18 @@ public final class CustomFontManager {
         fonts.first(where: { $0.id == fontID })?.displayName ?? fontID
     }
 
-    /// Trả về 2 danh sách: [Yêu thích] và [Các font còn lại], có hỗ trợ lọc theo từ khóa tìm kiếm.
-    public func sortedFonts(matching query: String = "") -> (favorites: [CustomFontItem], others: [CustomFontItem]) {
+    /// Trả về 2 danh sách: [Yêu thích] và [Các font còn lại], có hỗ trợ lọc theo từ khóa tìm kiếm và danh mục.
+    public func sortedFonts(
+        matching query: String = "",
+        category: FontCategory = .all
+    ) -> (favorites: [CustomFontItem], others: [CustomFontItem]) {
         let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let filtered = fonts.filter {
-            cleanQuery.isEmpty || $0.displayName.lowercased().contains(cleanQuery) || $0.id.lowercased().contains(cleanQuery)
+        let filtered = fonts.filter { item in
+            let matchesCategory = (category == .all) || (item.category == category)
+            guard matchesCategory else { return false }
+            return cleanQuery.isEmpty
+                || item.displayName.lowercased().contains(cleanQuery)
+                || item.id.lowercased().contains(cleanQuery)
         }
 
         var favs: [CustomFontItem] = []
@@ -97,7 +106,7 @@ public final class CustomFontManager {
     }
 
     public func loadFonts() {
-        var allItems = defaultSystemFonts
+        var allItems: [CustomFontItem] = []
         var registeredURLs: [URL] = []
 
         for dir in discoverFontDirectories() {
@@ -119,6 +128,7 @@ public final class CustomFontManager {
             }
         }
 
+        allItems.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
         self.fonts = allItems
         self.isLoaded = true
     }
@@ -154,6 +164,51 @@ public final class CustomFontManager {
         let font = CTFontCreateWithFontDescriptor(desc, 12.0, nil)
         let postScript = (CTFontCopyPostScriptName(font) as String)
         let display = (CTFontCopyDisplayName(font) as String)
-        return CustomFontItem(id: postScript, displayName: display, isCustom: true)
+        let category = Self.resolveCategory(for: postScript, displayName: display)
+        return CustomFontItem(id: postScript, displayName: display, isCustom: true, category: category)
+    }
+
+    /// Tự động phân loại danh mục nghệ thuật dựa trên tên PostScript và tên hiển thị của font.
+    public static func resolveCategory(for itemID: String, displayName: String) -> FontCategory {
+        let name = (itemID + " " + displayName).lowercased()
+
+        // 1. Thư pháp & Bút lông
+        if name.contains("thuphap") || name.contains("thu phap") || name.contains("ong do")
+            || name.contains("ong-do") || name.contains("shodo") || name.contains("brush") {
+            return .calligraphy
+        }
+
+        // 2. Viết tay & Uốn lượn (Script, Cursive)
+        if name.contains("script") || name.contains("cursive") || name.contains("smooch")
+            || name.contains("rukola") || name.contains("bucthu") || name.contains("buc thu")
+            || name.contains("benxuan") || name.contains("ben xuan") {
+            return .handwriting
+        }
+
+        // 3. Hoạt hình & Vui nhộn (Comic, Pop, Cute)
+        if name.contains("nabila") || name.contains("pony") || name.contains("koni")
+            || name.contains("soupofjustice") || name.contains("soup of justice")
+            || name.contains("banhmi") || name.contains("banh mi")
+            || name.contains("mangcau") || name.contains("mang cau") {
+            return .comic
+        }
+
+        // 4. Phụ đề & Tối giản (Subtitle, Monospace)
+        if name.contains("tahoma") || name.contains("courier") {
+            return .subtitle
+        }
+
+        // 5. Cổ điển & Điện ảnh (Vintage, Retro, Phim, Serif)
+        if name.contains("sacredbridge") || name.contains("sacred bridge") || name.contains("phuong khau")
+            || name.contains("hottroof") || name.contains("mijas") || name.contains("cadena")
+            || name.contains("arid") || name.contains("buidoi") || name.contains("bui doi")
+            || name.contains("phuongtay") || name.contains("phuong tay") || name.contains("thangvu")
+            || name.contains("thang vu") || name.contains("kechuyen") || name.contains("ke chuyen")
+            || name.contains("uvnvan") || (name.contains("van") && !name.contains("baisau")) {
+            return .vintage
+        }
+
+        // 6. Tiêu đề Đậm & Hiện đại
+        return .headline
     }
 }

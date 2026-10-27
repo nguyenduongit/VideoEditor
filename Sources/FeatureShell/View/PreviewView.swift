@@ -32,6 +32,7 @@ public struct PreviewView: View {
         ZStack {
             Color.black
             previewContent
+                .clipped()
             if viewModel.activePreviewAsset == nil {
                 PreviewObjectManipulatorView(
                     timelineViewModel: viewModel.timelineViewModel,
@@ -53,7 +54,6 @@ public struct PreviewView: View {
             Rectangle()
                 .stroke(DSColors.blockBorder, lineWidth: 1)
         )
-        .clipped()
     }
 
     @ViewBuilder

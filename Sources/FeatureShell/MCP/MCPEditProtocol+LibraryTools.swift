@@ -13,10 +13,15 @@ extension MCPTimelineToolDispatcher {
         let adjustmentPresets: [[String: String]] = AdjustmentPreset.templates.map {
             ["id": $0.id, "name": $0.name, "category": $0.category.rawValue, "description": $0.description]
         }
+        let fontItems = CustomFontManager.shared.fonts
+        let popularFonts = fontItems.prefix(40).map { ["id": $0.id, "displayName": $0.displayName] }
+        let favoriteFonts = fontItems.filter { CustomFontManager.shared.isFavorite(fontID: $0.id) }.map { ["id": $0.id, "displayName": $0.displayName] }
         let payload: [String: Any] = [
             "mediaAssets": assetsList,
             "textTemplates": textPresets,
-            "adjustmentTemplates": adjustmentPresets
+            "adjustmentTemplates": adjustmentPresets,
+            "favoriteFonts": favoriteFonts,
+            "availableFonts": popularFonts
         ]
         let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
         return String(decoding: data, as: UTF8.self)
@@ -81,27 +86,35 @@ extension MCPTimelineToolDispatcher {
         let preservedSelection = vm.selectedClipIDs
         let updateExisting = (dict["updateExisting"] as? Bool) ?? false
 
+        var defaultFont = "UVN Ke Chuyen"
+        if let fav = CustomFontManager.shared.favoriteFontIDs.first {
+            defaultFont = fav
+        }
+
+        let canvasH = Double(vm.aspectRatio.renderSize.height)
+        let isVertical = vm.aspectRatio.renderSize.height > vm.aspectRatio.renderSize.width
+        let safeTopY = isVertical ? -(canvasH * 0.32).rounded() : -(canvasH * 0.35).rounded()
+        let safeBottomY = isVertical ? (canvasH * 0.32).rounded() : (canvasH * 0.32).rounded()
+
+        let isSubtitle = (dict["hasBackground"] as? Bool) == true ||
+            (dict["templateId"] as? String)?.lowercased().contains("subtitle") == true ||
+            (dict["templateId"] as? String)?.lowercased().contains("karaoke") == true
+        let defaultPosY = isSubtitle ? safeBottomY : safeTopY
+
         var cfg = TextConfiguration(
-            content: "TIÊU ĐỀ", fontName: "System", fontSize: 64.0, textColorHex: "#FFFFFF",
+            content: "TIÊU ĐỀ", fontName: defaultFont, fontSize: 64.0, textColorHex: "#FFFFFF",
             isBold: true, characterSpacing: 1.5, hasStroke: true, strokeColorHex: "#0F172A",
             strokeWidth: 4.0, hasShadow: true, shadowColorHex: "#000000B3", shadowRadius: 8.0,
-            shadowOffsetY: 3.0, hasGlow: true, glowColorHex: "#38BDF8", glowRadius: 16.0, positionY: -180.0
+            shadowOffsetY: 3.0, hasGlow: true, glowColorHex: "#38BDF8", glowRadius: 16.0, positionY: defaultPosY
         )
-        cfg.animation.inType = .springDrop
+        cfg.animation.inType = .slideDown
         cfg.animation.outType = .fadeOut
-        cfg.animation.loopType = .liquidWave
-        cfg.animation.comboType = .none
-        cfg.animation.scope = .perWord
+        cfg.animation.loopType = .none
 
         if let templateId = dict["templateId"] as? String, !templateId.isEmpty {
             let query = templateId.lowercased()
             if let matched = TextPreset.templates.first(where: { $0.id.lowercased() == query }) {
                 cfg = matched.config
-                // Luôn dùng font System hỗ trợ đầy đủ dấu Tiếng Việt nếu chữ có dấu
-                cfg.fontName = "System"
-                if cfg.animation.comboType == .karaokeBox {
-                    cfg.animation.comboType = .none
-                }
             }
         }
 
@@ -112,7 +125,13 @@ extension MCPTimelineToolDispatcher {
             cfg = decoded
         }
 
-        applyTextOverrides(from: dict, to: &cfg)
+        applyTextOverrides(from: dict, to: &cfg, safeTopY: safeTopY, safeBottomY: safeBottomY)
+
+        let allMediaClips = vm.layers.flatMap(\.clips).filter { $0.kind == .video || $0.kind == .image }
+        let defaultStartSec = allMediaClips.map { CMTimeGetSeconds($0.timeRange.start) }.min() ?? 0.0
+        let startSeconds = (dict["startTimeSeconds"] as? Double) ?? defaultStartSec
+        let durationSeconds = (dict["durationSeconds"] as? Double) ?? 5.0
+        let targetTime = CMTime(seconds: max(0, startSeconds), preferredTimescale: TimeRational.defaultFPS)
 
         if updateExisting, let existingClip = vm.layers.flatMap(\.clips).first(where: { $0.kind == .text }) {
             var newProps = existingClip.properties
@@ -121,21 +140,32 @@ extension MCPTimelineToolDispatcher {
             newProps["fontSize"] = .number(cfg.fontSize)
             newProps["positionX"] = .number(cfg.positionX)
             newProps["positionY"] = .number(cfg.positionY)
-            _ = scriptEngine.executeCommands([.updateClipProperties(clipID: existingClip.id, properties: newProps)])
+            var cmds: [TimelineCommand] = [.updateClipProperties(clipID: existingClip.id, properties: newProps)]
+            if dict["startTimeSeconds"] != nil || (existingClip.timeRange.start > targetTime && existingClip.timeRange.start == vm.currentTime) {
+                let rStart = RationalTime(cmTime: targetTime)
+                let rDur = RationalTime(cmTime: CMTime(seconds: max(1.0, durationSeconds), preferredTimescale: TimeRational.defaultFPS))
+                cmds.append(.trimClip(clipID: existingClip.id, newStart: rStart, newDuration: rDur, newSourceStart: nil))
+            }
+            _ = scriptEngine.executeCommands(cmds)
             vm.selectedClipIDs = preservedSelection
-            return "{\"status\":\"success\",\"updatedTextClip\":\"\(cfg.content)\"}"
+            return "{\"status\":\"success\",\"updatedTextClip\":\"\(cfg.content)\",\"fontName\":\"\(cfg.fontName)\"}"
         }
 
-        let durationSeconds = (dict["durationSeconds"] as? Double) ?? 5.0
-        let startSeconds = dict["startTimeSeconds"] as? Double
-        let targetTime = startSeconds.map { CMTime(seconds: max(0, $0), preferredTimescale: TimeRational.defaultFPS) }
         vm.addTextClip(named: cfg.content, config: cfg, durationSeconds: max(1.0, durationSeconds), at: targetTime)
         vm.selectedClipIDs = preservedSelection
-        return "{\"status\":\"success\",\"createdCustomText\":\"\(cfg.content)\"}"
+        return "{\"status\":\"success\",\"createdCustomText\":\"\(cfg.content)\",\"fontName\":\"\(cfg.fontName)\"}"
     }
 
-    private func applyTextOverrides(from dict: [String: Any], to cfg: inout TextConfiguration) {
+    private func applyTextOverrides(
+        from dict: [String: Any],
+        to cfg: inout TextConfiguration,
+        safeTopY: Double,
+        safeBottomY: Double
+    ) {
         if let customText = dict["customText"] as? String, !customText.isEmpty { cfg.content = customText }
+        if let fontName = dict["fontName"] as? String, !fontName.isEmpty {
+            cfg.fontName = MCPTextPropertyResolver.resolveFontName(fontName)
+        }
         if let fontSize = dict["fontSize"] as? Double, fontSize > 8 { cfg.fontSize = fontSize }
         if let textColor = dict["textColorHex"] as? String, !textColor.isEmpty { cfg.textColorHex = textColor }
         if let strokeColor = dict["strokeColorHex"] as? String, !strokeColor.isEmpty {
@@ -150,35 +180,41 @@ extension MCPTimelineToolDispatcher {
             if cfg.glowRadius <= 0 { cfg.glowRadius = 18.0 }
         }
         if let glowRadius = dict["glowRadius"] as? Double { cfg.glowRadius = glowRadius; cfg.hasGlow = glowRadius > 0 }
+        if let hasBg = dict["hasBackground"] as? Bool { cfg.hasBackground = hasBg }
+        if let bgHex = dict["backgroundColorHex"] as? String, !bgHex.isEmpty {
+            cfg.backgroundColorHex = bgHex
+            cfg.hasBackground = true
+        }
+        if let bgOpacity = dict["backgroundOpacity"] as? Double {
+            let clean = cfg.backgroundColorHex.replacingOccurrences(of: "#", with: "")
+            let rgb = clean.count >= 6 ? String(clean.prefix(6)) : "000000"
+            let alphaByte = Int(round(max(0.0, min(1.0, bgOpacity)) * 255.0))
+            cfg.backgroundColorHex = String(format: "#%@%02X", rgb.uppercased(), alphaByte)
+            cfg.hasBackground = true
+        }
+        if let bgPadding = dict["backgroundPadding"] as? Double { cfg.backgroundPadding = bgPadding }
+        if let bgRadius = dict["backgroundCornerRadius"] as? Double { cfg.backgroundCornerRadius = bgRadius }
         if let posX = dict["positionX"] as? Double { cfg.positionX = posX }
-        if let posY = dict["positionY"] as? Double { cfg.positionY = posY }
-        if let inAnim = dict["inAnimation"] as? String { cfg.animation.inType = resolveInAnimation(inAnim) }
-        if let loopAnim = dict["loopAnimation"] as? String { cfg.animation.loopType = resolveLoopAnimation(loopAnim) }
-    }
-
-    private func resolveInAnimation(_ raw: String) -> TextInAnimationType {
-        if let exact = TextInAnimationType(rawValue: raw) { return exact }
-        let lower = raw.lowercased()
-        if lower.contains("spring") || lower.contains("drop") { return .springDrop }
-        if lower.contains("wave") { return .waveBounce }
-        if lower.contains("jelly") || lower.contains("elastic") || lower.contains("pop") { return .elasticJellyIn }
-        if lower.contains("neon") || lower.contains("flicker") { return .neonFlicker }
-        if lower.contains("type") { return .typewriter }
-        if lower.contains("expand") || lower.contains("cinema") { return .trackingExpand }
-        if lower.contains("glitch") { return .glitchSliceIn }
-        if lower.contains("slide") { return .slideUp }
-        return .springDrop
-    }
-
-    private func resolveLoopAnimation(_ raw: String) -> TextLoopAnimationType {
-        if let exact = TextLoopAnimationType(rawValue: raw) { return exact }
-        let lower = raw.lowercased()
-        if lower.contains("wave") { return .liquidWave }
-        if lower.contains("float") { return .floating }
-        if lower.contains("heart") || lower.contains("pulse") { return .heartbeat }
-        if lower.contains("neon") || lower.contains("flicker") { return .neonPulse }
-        if lower.contains("none") { return .none }
-        return .liquidWave
+        if let posStr = (dict["position"] as? String)?.lowercased() {
+            switch posStr {
+            case "top", "header", "title", "tren", "trên":
+                cfg.positionY = safeTopY
+            case "bottom", "footer", "subtitle", "duoi", "dưới":
+                cfg.positionY = safeBottomY
+            case "center", "giua", "giữa":
+                cfg.positionY = 0.0
+            default:
+                break
+            }
+        } else if let posY = dict["positionY"] as? Double {
+            cfg.positionY = posY
+        }
+        if let inAnim = dict["inAnimation"] as? String { cfg.animation.inType = MCPTextPropertyResolver.resolveInAnimation(inAnim) }
+        if let outAnim = dict["outAnimation"] as? String { cfg.animation.outType = MCPTextPropertyResolver.resolveOutAnimation(outAnim) }
+        if let loopAnim = dict["loopAnimation"] as? String { cfg.animation.loopType = MCPTextPropertyResolver.resolveLoopAnimation(loopAnim) }
+        if let easingStr = dict["motionEasing"] as? String, let easing = TextMotionEasing(rawValue: easingStr) {
+            cfg.animation.motionEasing = easing
+        }
     }
 
     private func applyOrUpdateAdjustmentConfiguration(_ dict: [String: Any]) throws -> String {
@@ -196,6 +232,9 @@ extension MCPTimelineToolDispatcher {
                 clipTitle = matched.name
             }
         }
+        if let customName = dict["name"] as? String, !customName.isEmpty {
+            clipTitle = customName
+        }
 
         if let existingClip = vm.layers.flatMap(\.clips).first(where: { $0.kind == .adjustment }),
            let existingJSON = existingClip.properties["adjustmentConfig"]?.asString,
@@ -206,21 +245,31 @@ extension MCPTimelineToolDispatcher {
 
         applyAdjustmentOverrides(from: dict, to: &cfg)
 
+        let allMediaClips = vm.layers.flatMap(\.clips).filter { $0.kind == .video || $0.kind == .image }
+        let defaultStartSec = allMediaClips.map { CMTimeGetSeconds($0.timeRange.start) }.min() ?? 0.0
+        let defaultEndSec = allMediaClips.map { CMTimeGetSeconds($0.timeRange.end) }.max() ?? max(5.0, CMTimeGetSeconds(vm.totalDuration))
+        let resolvedStart = dict["startTimeSeconds"] as? Double ?? defaultStartSec
+        let resolvedDur = dict["durationSeconds"] as? Double ?? max(1.0, defaultEndSec - resolvedStart)
+        let targetTime = CMTime(seconds: max(0, resolvedStart), preferredTimescale: TimeRational.defaultFPS)
+
         if let existingClip = vm.layers.flatMap(\.clips).first(where: { $0.kind == .adjustment }) {
             var newProps = existingClip.properties
             if let encoded = cfg.encodeToJSON() { newProps["adjustmentConfig"] = .string(encoded) }
-            _ = scriptEngine.executeCommands([.updateClipProperties(clipID: existingClip.id, properties: newProps)])
+            var cmds: [TimelineCommand] = [.updateClipProperties(clipID: existingClip.id, properties: newProps)]
+            if existingClip.timeRange.start > targetTime || CMTimeGetSeconds(existingClip.timeRange.duration) < (resolvedDur - 0.2) {
+                let rStart = RationalTime(cmTime: targetTime)
+                let rDur = RationalTime(cmTime: CMTime(seconds: resolvedDur, preferredTimescale: TimeRational.defaultFPS))
+                cmds.append(.trimClip(clipID: existingClip.id, newStart: rStart, newDuration: rDur, newSourceStart: nil))
+            }
+            _ = scriptEngine.executeCommands(cmds)
             vm.selectedClipIDs = preservedSelection
             return "{\"status\":\"success\",\"updatedAdjustmentClip\":\"\(existingClip.name)\"}"
         }
 
-        let startSeconds = dict["startTimeSeconds"] as? Double
-        let durationSeconds = dict["durationSeconds"] as? Double
-        let targetTime = startSeconds.map { CMTime(seconds: max(0, $0), preferredTimescale: TimeRational.defaultFPS) }
         vm.addAdjustmentClip(
             named: clipTitle,
             config: cfg,
-            durationSeconds: durationSeconds,
+            durationSeconds: resolvedDur,
             at: targetTime
         )
         vm.selectedClipIDs = preservedSelection
@@ -241,57 +290,5 @@ extension MCPTimelineToolDispatcher {
         if let v = dict["vignetteAmount"] as? Double { cfg.effects.vignetteAmount = Float(v) }
         if let v = dict["grainAmount"] as? Double { cfg.effects.grainAmount = Float(v) }
         if let v = dict["sharpenAmount"] as? Double { cfg.effects.sharpenAmount = Float(v) }
-    }
-
-    func editClipArgument(_ argumentsJSON: String) throws -> String {
-        guard let data = argumentsJSON.data(using: .utf8),
-              let dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              let op = (dict["operation"] as? String)?.lowercased() else {
-            throw AppError.invalidParameter("Missing 'operation' in timeline_edit_clip")
-        }
-
-        let vm = scriptEngine.currentViewModel
-        let preservedSelection = vm.selectedClipIDs
-
-        if op == "setaspectratio" {
-            let ratioStr = (dict["aspectRatio"] as? String) ?? "16:9"
-            let ratio = CanvasAspectRatio(rawValue: ratioStr) ?? .ratio16x9
-            vm.setAspectRatio(ratio)
-            return "{\"status\":\"success\",\"aspectRatio\":\"\(ratio.rawValue)\"}"
-        }
-
-        let clipQuery = (dict["clipId"] as? String)?.lowercased() ?? "video"
-        let allClips = vm.layers.flatMap(\.clips)
-        let matchedClip = allClips.first(where: {
-            $0.id.uuidString.lowercased() == clipQuery ||
-            $0.name.lowercased().contains(clipQuery) ||
-            $0.kind.rawValue.lowercased() == clipQuery
-        }) ?? allClips.first
-
-        guard let clip = matchedClip else {
-            throw AppError.invalidParameter("No clip found matching '\(clipQuery)'")
-        }
-
-        let atSec = (dict["atTimeSeconds"] as? Double) ?? CMTimeGetSeconds(clip.timeRange.start)
-        let newDurSec = (dict["newDurationSeconds"] as? Double) ?? CMTimeGetSeconds(clip.timeRange.duration)
-        let rationalAt = RationalTime(cmTime: CMTime(seconds: max(0, atSec), preferredTimescale: TimeRational.defaultFPS))
-        let rationalDur = RationalTime(cmTime: CMTime(seconds: max(0.2, newDurSec), preferredTimescale: TimeRational.defaultFPS))
-
-        switch op {
-        case "split":
-            _ = scriptEngine.executeCommands([.splitClip(clipID: clip.id, atTime: rationalAt)])
-        case "trim":
-            _ = scriptEngine.executeCommands([.trimClip(clipID: clip.id, newStart: rationalAt, newDuration: rationalDur, newSourceStart: nil)])
-        case "remove", "delete":
-            _ = scriptEngine.executeCommands([.removeClip(clipID: clip.id)])
-        case "move":
-            if let layer = vm.layers.first(where: { $0.clips.contains(where: { $0.id == clip.id }) }) {
-                _ = scriptEngine.executeCommands([.moveClip(clipID: clip.id, targetLayerID: layer.id, newStartTime: rationalAt)])
-            }
-        default:
-            throw AppError.invalidParameter("Unknown edit operation: \(op)")
-        }
-        vm.selectedClipIDs = preservedSelection
-        return "{\"status\":\"success\",\"operation\":\"\(op)\",\"clipName\":\"\(clip.name)\"}"
     }
 }

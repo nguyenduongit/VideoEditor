@@ -98,4 +98,13 @@ extension ShellViewModel {
             self.updateTimelinePreview()
         }
     }
+
+    func setupSeekCallbacks() {
+        timelineViewModel.onSeekRequested = { [weak self] time in
+            guard let self else { return }
+            self.playheadState.seek(to: time)
+            self.playbackEngine.seek(to: time)
+            self.updateTimelinePreview()
+        }
+    }
 }
