@@ -146,13 +146,7 @@ public final class MediaAssetDragSourceNSView: NSView {
     }
 
     private func blockDimensions(kind: ClipKind, duration: CMTime) -> (CGFloat, CGFloat) {
-        let h: CGFloat = {
-            switch kind {
-            case .video:             return DSSize.videoLayerHeight - 6
-            case .audio, .image:     return DSSize.mediaLayerHeight - 6
-            case .text, .adjustment: return DSSize.compactLayerHeight - 6
-            }
-        }()
+        let h: CGFloat = kind.presentation.defaultLayerHeight - 6
         let rawW = CGFloat(CMTimeGetSeconds(duration)) * Self.previewPixelsPerSecond
         let w = max(Self.minBlockWidth, min(Self.maxBlockWidth, rawW))
         return (w, h)

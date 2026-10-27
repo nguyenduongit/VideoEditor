@@ -98,7 +98,7 @@ public struct TimelineClipView: View {
         ZStack(alignment: .leading) {
             centerBody(width: width)
 
-            if !isLocked && (clip.kind == .video || clip.kind == .audio) {
+            if !isLocked && clip.kind.presentation.hasAudioFadeHandles {
                 ClipFadeHandleOverlayView(
                     clip: clip,
                     width: width,
@@ -206,8 +206,7 @@ public struct TimelineClipView: View {
     private func clipMediaBody(width: CGFloat) -> some View {
         let bodyH = max(10, height - 22)
         let activeSrc = activeSourceStartTime
-        switch clip.kind {
-        case .video:
+        if clip.kind.presentation.hasFilmstrip {
             VideoThumbnailFilmstripView(
                 clip: clip,
                 activeSourceStartTime: activeSrc,
@@ -218,7 +217,7 @@ public struct TimelineClipView: View {
                 height: bodyH,
                 isMuted: isMuted
             )
-        case .audio:
+        } else if clip.kind.presentation.hasWaveform {
             let inSec = clip.properties["fadeIn"]?.asNumber ?? 0.0
             let outSec = clip.properties["fadeOut"]?.asNumber ?? 0.0
             let speed = clip.properties["speed"]?.asNumber ?? 1.0
@@ -237,7 +236,7 @@ public struct TimelineClipView: View {
             .animation(.easeInOut(duration: 0.2), value: isAudioMuted)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(DSColors.waveformAudioBackground)
-        case .image, .text, .adjustment:
+        } else {
             Spacer(minLength: 0)
         }
     }

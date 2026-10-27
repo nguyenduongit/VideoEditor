@@ -82,14 +82,7 @@ extension TimelineDropTargetNSView {
         for kind: ClipKind,
         duration: CMTime
     ) -> (width: CGFloat, height: CGFloat) {
-        let targetH: CGFloat = {
-            switch kind {
-            case .video: return DSSize.videoLayerHeight - 6
-            case .audio, .image: return DSSize.mediaLayerHeight - 6
-            case .text, .adjustment: return DSSize.compactLayerHeight - 6
-            }
-        }()
-
+        let targetH = kind.presentation.defaultLayerHeight - 6
         let rawW = CGFloat(CMTimeGetSeconds(duration)) * pixelsPerSecond
         let targetW = max(28.0, rawW)
         return (targetW, targetH)

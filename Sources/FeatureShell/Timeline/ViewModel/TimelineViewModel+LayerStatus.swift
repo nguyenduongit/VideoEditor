@@ -24,14 +24,7 @@ extension TimelineViewModel {
     }
 
     public func layerHeight(for kind: ClipKind) -> CGFloat {
-        switch kind {
-        case .video:
-            return DSSize.videoLayerHeight
-        case .audio, .image:
-            return DSSize.mediaLayerHeight
-        case .text, .adjustment:
-            return DSSize.compactLayerHeight
-        }
+        kind.presentation.defaultLayerHeight
     }
 
     public var contentWidth: CGFloat {

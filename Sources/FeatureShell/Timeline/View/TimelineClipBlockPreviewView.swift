@@ -86,19 +86,13 @@ public struct TimelineClipBlockPreviewView: View {
     }
 
     private var clipBackgroundColor: Color {
-        switch kind {
-        case .video: return DSColors.clipVideo.opacity(0.85)
-        case .audio: return DSColors.clipAudio.opacity(0.85)
-        case .image: return DSColors.clipImage.opacity(0.85)
-        case .text: return DSColors.clipText.opacity(0.85)
-        case .adjustment: return DSColors.clipAdjustment.opacity(0.85)
-        }
+        kind.backgroundColor
     }
 
     private var headerBar: some View {
         HStack(spacing: DSSpacing.xs) {
-            if kind == .adjustment {
-                Image(systemName: "slider.horizontal.3")
+            if kind.presentation.showsHeaderIcon {
+                Image(systemName: kind.presentation.iconName)
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(Color.white.opacity(0.9))
             }
@@ -126,25 +120,20 @@ public struct TimelineClipBlockPreviewView: View {
     }
 
     private var headerBackground: Color {
-        switch kind {
-        case .video: return DSColors.clipVideoHeader
-        case .audio: return DSColors.clipAudioHeader
-        case .adjustment: return DSColors.clipAdjustmentHeader
-        default: return DSColors.clipHeaderBackground
-        }
+        kind.headerBackgroundColor
     }
 
     @ViewBuilder
     private var bodyContent: some View {
         let bodyH = max(10, height - 16)
-        if kind == .video {
+        if kind.presentation.hasFilmstrip {
             let waveH: CGFloat = 30.0
             let filmH = max(10, bodyH - waveH)
             VStack(spacing: 0) {
                 filmstripView(height: filmH)
                 previewWaveform(height: waveH, background: DSColors.waveformVideoBackground)
             }
-        } else if kind == .audio {
+        } else if kind.presentation.hasWaveform {
             previewWaveform(height: bodyH, background: DSColors.waveformAudioBackground)
         } else {
             Spacer(minLength: 0)
@@ -211,13 +200,7 @@ public struct TimelineClipBlockPreviewView: View {
     }
 
     private var borderOverlay: some View {
-        let borderColor: Color = {
-            switch kind {
-            case .video: return Color(red: 0.15, green: 0.65, blue: 0.65)
-            case .audio: return Color(red: 0.20, green: 0.50, blue: 0.90)
-            default: return Color.white.opacity(0.4)
-            }
-        }()
+        let borderColor: Color = kind.presentation.borderColor
 
         return ZStack {
             RoundedRectangle(cornerRadius: DSRadius.small)

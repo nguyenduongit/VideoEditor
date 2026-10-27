@@ -16,12 +16,12 @@ public struct ClipHeaderBarView: View {
 
     public var body: some View {
         HStack(spacing: DSSpacing.xs) {
-            if kind == .audio {
+            if kind.presentation.hasAudioFadeHandles {
                 fadeHandle
             }
 
-            if kind == .adjustment {
-                Image(systemName: "slider.horizontal.3")
+            if kind.presentation.showsHeaderIcon {
+                Image(systemName: kind.presentation.iconName)
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(Color.white.opacity(0.9))
             }
@@ -32,7 +32,7 @@ public struct ClipHeaderBarView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
 
-            if kind == .video || kind == .adjustment {
+            if kind.presentation.showsHeaderDuration {
                 Text(TimeRational.formatTimecode(time: duration))
                     .font(.system(size: 8, weight: .regular, design: .monospaced))
                     .foregroundStyle(Color.white.opacity(0.7))
@@ -41,7 +41,7 @@ public struct ClipHeaderBarView: View {
 
             Spacer(minLength: 0)
 
-            if kind == .audio {
+            if kind.presentation.hasAudioFadeHandles {
                 fadeHandle
             }
         }
@@ -57,16 +57,7 @@ public struct ClipHeaderBarView: View {
     }
 
     private var headerBackground: Color {
-        switch kind {
-        case .video:
-            return DSColors.clipVideoHeader
-        case .audio:
-            return DSColors.clipAudioHeader
-        case .adjustment:
-            return DSColors.clipAdjustmentHeader
-        default:
-            return DSColors.clipHeaderBackground
-        }
+        kind.headerBackgroundColor
     }
 
     private var fadeHandle: some View {

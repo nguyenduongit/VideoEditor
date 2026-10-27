@@ -42,15 +42,3 @@ public struct ClipBorderOverlayView: View {
     }
 }
 
-public extension ClipKind {
-    var color: Color {
-        switch self {
-        case .video: return DSColors.clipVideo
-        case .audio: return DSColors.clipAudio
-        case .image: return DSColors.clipImage
-        case .text: return DSColors.clipText
-        case .adjustment: return DSColors.clipAdjustment
-        }
-    }
-}
-
