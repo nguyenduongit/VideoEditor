@@ -105,13 +105,13 @@ public struct DSDropdown: View {
             Menu {
                 ForEach(options) { opt in
                     Button(action: { onSelect(opt.id) }) {
-                        HStack {
+                        if opt.title == selectedTitle || opt.id == selectedTitle {
+                            Label(opt.title, systemImage: "checkmark")
+                        } else {
                             if let icon = opt.iconName {
-                                Image(systemName: icon)
-                            }
-                            Text(opt.title)
-                            if opt.title == selectedTitle || opt.id == selectedTitle {
-                                Image(systemName: "checkmark")
+                                Label(opt.title, systemImage: icon)
+                            } else {
+                                Text(opt.title)
                             }
                         }
                     }
@@ -124,17 +124,15 @@ public struct DSDropdown: View {
                     isHovered: isHovered
                 )
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
             .buttonStyle(.plain)
             .onHover { isHovered = $0 }
             .frame(width: width)
-            .fixedSize(horizontal: width != nil, vertical: true)
+            .frame(maxWidth: width == nil ? .infinity : nil)
         }
     }
 }
 
-/// Nhãn hiển thị của Dropdown Box với phong cách thị giác thống nhất theo thiết kế editor.
+/// Nhãn hiển thị của Dropdown Box với phong cách thị giác thống nhất theo thiết kế editor (Image 2 style).
 public struct DSDropdownBoxLabel: View {
     private let title: String
     private let leadingIcon: String?
@@ -154,50 +152,44 @@ public struct DSDropdownBoxLabel: View {
     }
 
     public var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 7) {
             if let leadingIcon {
                 Image(systemName: leadingIcon)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(leadingIconColor ?? DSColors.textSecondary)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(leadingIconColor ?? DSColors.accent)
             }
 
             Text(title)
-                .font(.system(size: 12, weight: .regular))
+                .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(DSColors.textPrimary)
                 .lineLimit(1)
                 .truncationMode(.middle)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: 6)
 
-            dropdownIndicator
+            // Khối badge màu xanh bo góc với chevron.down trắng chuẩn theo ảnh mẫu
+            ZStack {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(DSColors.accent)
+                    .frame(width: 18, height: 18)
+
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundStyle(Color.white)
+            }
         }
-        .padding(.leading, 8)
-        .padding(.trailing, 2)
-        .frame(height: 24)
-        .background(DSColors.windowBackground)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+        .padding(.leading, 10)
+        .padding(.trailing, 4)
+        .frame(height: 26)
+        .frame(maxWidth: .infinity)
+        .background(DSColors.inputBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.small)
-                .stroke(isHovered ? DSColors.textSecondary.opacity(0.6) : DSColors.blockBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(isHovered ? DSColors.accent.opacity(0.8) : DSColors.inputBorder, lineWidth: 1)
         )
         .contentShape(Rectangle())
     }
-
-    private var dropdownIndicator: some View {
-        VStack(spacing: 1) {
-            Image(systemName: "chevron.up")
-                .font(.system(size: 7, weight: .bold))
-            Image(systemName: "chevron.down")
-                .font(.system(size: 7, weight: .bold))
-        }
-        .foregroundStyle(isHovered ? DSColors.textPrimary : DSColors.textSecondary)
-        .frame(width: 18, height: 20)
-        .background(isHovered ? Color.white.opacity(0.14) : Color.white.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 3.5))
-        .overlay(
-            RoundedRectangle(cornerRadius: 3.5)
-                .stroke(Color.white.opacity(0.06), lineWidth: 0.5)
-        )
-    }
 }
+
 

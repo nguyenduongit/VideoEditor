@@ -138,12 +138,12 @@ public struct TaskItemRowView: View {
                 TextField("Nhập tiêu đề video...", text: $viewModel.titleText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 11.5))
-                    .padding(.horizontal, 8)
-                    .frame(height: 24)
+                    .padding(.horizontal, 10)
+                    .frame(height: 26)
                     .background(DSColors.inputBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 4)
+                        RoundedRectangle(cornerRadius: 6)
                             .strokeBorder(DSColors.inputBorder, lineWidth: 1)
                     )
             }

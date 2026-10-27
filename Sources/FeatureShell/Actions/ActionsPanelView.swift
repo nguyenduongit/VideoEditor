@@ -6,7 +6,6 @@ import DesignSystem
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, View body <= 80 dòng) và R3.4 (tách Subview).
 public struct ActionsPanelView: View {
     @Bindable var viewModel: ActionsPanelViewModel
-    @State private var isActionPickerPresented: Bool = false
 
     public init(viewModel: ActionsPanelViewModel) {
         self.viewModel = viewModel
@@ -38,7 +37,17 @@ public struct ActionsPanelView: View {
 
     private var actionDropdownRow: some View {
         HStack(spacing: 8) {
-            actionPickerButton
+            DSDropdown(
+                selectedTitle: viewModel.currentAction?.name ?? "Chưa có Action (Bấm + để tạo)",
+                leadingIcon: viewModel.currentAction?.icon ?? "play.fill",
+                leadingIconColor: DSColors.accent,
+                options: viewModel.actions.map { DSDropdownOption(id: $0.id, title: $0.name, iconName: $0.icon) },
+                onSelect: { actionID in
+                    if let action = viewModel.actions.first(where: { $0.id == actionID }) {
+                        viewModel.selectAction(action)
+                    }
+                }
+            )
 
             Button(action: {
                 viewModel.isAddActionModalPresented = true
@@ -46,64 +55,15 @@ public struct ActionsPanelView: View {
                 Image(systemName: "plus")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(Color.white)
-                    .frame(width: 24, height: 24)
+                    .frame(width: 26, height: 26)
                     .background(DSColors.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
             .help("Tạo mới Action tùy chỉnh và lưu lên Supabase")
         }
         .padding(.horizontal, DSSpacing.md)
         .padding(.vertical, 4)
-    }
-
-    private var actionPickerButton: some View {
-        HStack(spacing: 2) {
-            Button(action: { isActionPickerPresented.toggle() }) {
-                HStack(spacing: 6) {
-                    Image(systemName: viewModel.currentAction?.icon ?? "play.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(DSColors.accent)
-
-                    Text(viewModel.currentAction?.name ?? "Chưa có Action (Bấm + để tạo)")
-                        .font(.system(size: 12))
-                        .foregroundStyle(viewModel.currentAction != nil ? DSColors.textPrimary : DSColors.textSecondary)
-                        .lineLimit(1)
-
-                    Spacer(minLength: 2)
-                }
-                .padding(.leading, 8)
-                .padding(.trailing, 2)
-                .frame(height: 24)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            DSStepperButton(
-                onIncrement: { viewModel.cycleAction(forward: false) },
-                onDecrement: { viewModel.cycleAction(forward: true) }
-            )
-            .padding(.trailing, 2)
-        }
-        .frame(height: 24)
-        .frame(maxWidth: .infinity)
-        .background(DSColors.windowBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(DSColors.blockBorder, lineWidth: 1)
-        )
-        .popover(isPresented: $isActionPickerPresented, arrowEdge: .bottom) {
-            ActionPickerPopoverView(
-                selectedActionID: viewModel.selectedActionID,
-                actions: viewModel.actions,
-                onSelect: { action in
-                    viewModel.selectAction(action)
-                    isActionPickerPresented = false
-                },
-                onDismiss: { isActionPickerPresented = false }
-            )
-        }
     }
 
     // MARK: - Task Cards List
