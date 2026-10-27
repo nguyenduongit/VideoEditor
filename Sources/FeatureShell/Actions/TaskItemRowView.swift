@@ -137,37 +137,13 @@ public struct TaskItemRowView: View {
                     .font(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
 
-                Menu {
-                    ForEach(viewModel.availableTextPresets, id: \.id) { preset in
-                        Button(action: { viewModel.titlePresetID = preset.id }) {
-                            HStack {
-                                Text(preset.name)
-                                if viewModel.titlePresetID == preset.id {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
+                DSDropdown(
+                    selectedTitle: viewModel.selectedPresetName,
+                    options: viewModel.availableTextPresets.map { DSDropdownOption(id: $0.id, title: $0.name) },
+                    onSelect: { presetID in
+                        viewModel.titlePresetID = presetID
                     }
-                } label: {
-                    HStack {
-                        Text(viewModel.selectedPresetName)
-                            .font(.system(size: 11))
-                            .foregroundStyle(DSColors.textPrimary)
-                        Spacer()
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 9))
-                            .foregroundStyle(DSColors.textSecondary)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(DSColors.inputBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .strokeBorder(DSColors.inputBorder, lineWidth: 1)
-                    )
-                }
-                .menuStyle(.borderlessButton)
+                )
             }
         }
         .padding(.horizontal, DSSpacing.md)

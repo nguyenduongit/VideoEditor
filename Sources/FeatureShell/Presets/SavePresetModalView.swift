@@ -113,19 +113,29 @@ public struct SavePresetModalView: View {
     private var categoryPicker: some View {
         switch kind {
         case .adjustment:
-            Picker("", selection: $selectedAdjustmentCategory) {
-                ForEach(AdjustmentTemplateCategory.allCases.filter { $0 != .all }, id: \.self) { cat in
-                    Text(cat.rawValue).tag(cat)
+            DSDropdown(
+                selectedTitle: selectedAdjustmentCategory.rawValue,
+                options: AdjustmentTemplateCategory.allCases.filter { $0 != .all }.map {
+                    DSDropdownOption(id: $0.rawValue, title: $0.rawValue)
+                },
+                onSelect: { val in
+                    if let cat = AdjustmentTemplateCategory(rawValue: val) {
+                        selectedAdjustmentCategory = cat
+                    }
                 }
-            }
-            .labelsHidden()
+            )
         case .text:
-            Picker("", selection: $selectedTextCategory) {
-                ForEach(TextTemplateCategory.assignableCases, id: \.self) { cat in
-                    Text(cat.rawValue).tag(cat)
+            DSDropdown(
+                selectedTitle: selectedTextCategory.rawValue,
+                options: TextTemplateCategory.assignableCases.map {
+                    DSDropdownOption(id: $0.rawValue, title: $0.rawValue)
+                },
+                onSelect: { val in
+                    if let cat = TextTemplateCategory(rawValue: val) {
+                        selectedTextCategory = cat
+                    }
                 }
-            }
-            .labelsHidden()
+            )
         }
     }
 

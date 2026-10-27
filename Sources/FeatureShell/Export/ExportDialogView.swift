@@ -113,33 +113,27 @@ public struct ExportDialogView: View {
                 .foregroundStyle(DSColors.textSecondary)
 
             settingRow(title: "Độ phân giải") {
-                Picker("", selection: $viewModel.resolution) {
-                    ForEach(ExportResolution.allCases, id: \.self) { res in
-                        Text(res.title).tag(res)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 170)
+                DSDropdown(
+                    selection: $viewModel.resolution,
+                    titleKeyPath: \.title,
+                    width: 170
+                )
             }
 
             settingRow(title: "Tốc độ khung hình") {
-                Picker("", selection: $viewModel.frameRate) {
-                    ForEach(ExportFrameRate.allCases, id: \.self) { fps in
-                        Text(fps.title).tag(fps)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 170)
+                DSDropdown(
+                    selection: $viewModel.frameRate,
+                    titleKeyPath: \.title,
+                    width: 170
+                )
             }
 
             settingRow(title: "Chuẩn mã hóa") {
-                Picker("", selection: $viewModel.codec) {
-                    ForEach(ExportCodec.allCases, id: \.self) { codec in
-                        Text(codec.rawValue).tag(codec)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 170)
+                DSDropdown(
+                    selection: $viewModel.codec,
+                    titleKeyPath: \.rawValue,
+                    width: 170
+                )
             }
         }
         .padding(DSSpacing.sm)

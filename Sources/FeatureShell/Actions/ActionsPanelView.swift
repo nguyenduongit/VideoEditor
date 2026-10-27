@@ -37,47 +37,17 @@ public struct ActionsPanelView: View {
 
     private var actionDropdownRow: some View {
         HStack(spacing: 8) {
-            Menu {
-                ForEach(viewModel.actions) { action in
-                    Button(action: {
+            DSDropdown(
+                selectedTitle: viewModel.currentAction?.name ?? "Chưa có Action (Bấm + để tạo)",
+                leadingIcon: viewModel.currentAction?.icon ?? "play.fill",
+                leadingIconColor: DSColors.accent,
+                options: viewModel.actions.map { DSDropdownOption(id: $0.id, title: $0.name, iconName: $0.icon) },
+                onSelect: { actionID in
+                    if let action = viewModel.actions.first(where: { $0.id == actionID }) {
                         viewModel.selectAction(action)
-                    }) {
-                        HStack {
-                            Image(systemName: action.icon)
-                            Text(action.name)
-                            if viewModel.selectedActionID == action.id {
-                                Image(systemName: "checkmark")
-                            }
-                        }
                     }
                 }
-            } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: viewModel.currentAction?.icon ?? "play.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(DSColors.accent)
-
-                    Text(viewModel.currentAction?.name ?? "Chưa có Action (Bấm + để tạo)")
-                        .font(.system(size: 11.5, weight: .semibold))
-                        .foregroundStyle(viewModel.currentAction != nil ? DSColors.textPrimary : DSColors.textSecondary)
-                        .lineLimit(1)
-
-                    Spacer()
-
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 9.5))
-                        .foregroundStyle(DSColors.textSecondary)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(DSColors.inputBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
-                )
-            }
-            .menuStyle(.borderlessButton)
+            )
 
             Button(action: {
                 viewModel.isAddActionModalPresented = true
