@@ -31,19 +31,19 @@
 *(Nguồn cấu hình duy nhất — điền vào đầu mỗi dự án; Agent bắt buộc đọc khối này ở đầu phiên và hỏi người dùng nếu chưa được điền đầy đủ)*
 
 ```yaml
-Dự án: [Tên dự án]
-Cấp độ dự án: [S | L] (Xem Mục 1; S: app nhỏ/vừa, 1 target; L: app lớn/đa hình/undo-redo, Swift Package cục bộ)
-Nền tảng & Deployment Target tối thiểu: [vd: macOS 14.0+, iOS 17.0+]
-Mô hình trạng thái (State): [@Observable | ObservableObject] (Chọn 1 và dùng nhất quán toàn dự án)
-Strict Concurrency (Swift 6): [Bật (Complete) | Tắt (Minimal/Targeted)]
-Localization: [Đã thiết lập (String Catalog / String(localized:)) | Chưa]
-Hệ thống Undo/Redo: [Command tự xây | NSUndoManager] (Chọn 1; cấm chạy song song 2 hệ thống)
-Kiểu biểu diễn thời gian trong Domain: [CMTime | RationalTime tự định nghĩa] (Xem R2.3)
-Cơ chế thực thi Command/Event: [AsyncStream | Combine PassthroughSubject | Protocol Delegate]
-Hỗ trợ Dynamic Type (nếu macOS): [Hỗ trợ | Không áp dụng] (iOS bắt buộc hỗ trợ)
-Thư viện bên thứ ba được phép: [Liệt kê SPM packages đã duyệt, kèm lý do; mặc định: KHÔNG CÓ]
-Framework ngoại lệ trong Domain: [Xem Config/domain-allowed-imports.txt — mỗi framework phải có ADR tương ứng]
-Danh sách ADR ngoại lệ (docs/adr/): [Liệt kê các số hiệu ADR đã được duyệt]
+Dự án: VideoEditor
+Cấp độ dự án: L (Swift Package cục bộ: Domain / DesignSystem / Infrastructure / FeatureShell / VideoEditorApp)
+Nền tảng & Deployment Target tối thiểu: macOS 14.0+
+Mô hình trạng thái (State): @Observable
+Strict Concurrency (Swift 6): Bật (swift-tools-version 6.0, Swift 6 language mode)
+Localization: Chưa (xem ADR-003, chờ duyệt)
+Hệ thống Undo/Redo: [CẦN XÁC NHẬN — chưa xác định từ codebase]
+Kiểu biểu diễn thời gian trong Domain: CMTime + TimeRational (Sources/Domain/Time)
+Cơ chế thực thi Command/Event: [CẦN XÁC NHẬN]
+Hỗ trợ Dynamic Type (nếu macOS): Không áp dụng
+Thư viện bên thứ ba được phép: supabase-swift (lưu trữ & đồng bộ preset/action online)
+Framework ngoại lệ trong Domain: Xem Config/domain-allowed-imports.txt (CoreGraphics — ADR-001, chờ duyệt)
+Danh sách ADR ngoại lệ (docs/adr/): Chưa có ADR được duyệt (001, 002, 003 đang chờ duyệt)
 ```
 
 ---

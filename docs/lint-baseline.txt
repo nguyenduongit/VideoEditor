@@ -1,0 +1,117 @@
+# Lint baseline — 2026-10-27 — commit 3f78e67
+# SwiftLint chưa cài; baseline tạm bằng grep. Chạy lại bằng swiftlint khi có.
+
+## static shared
+Sources/FeatureShell/Adjustment/HistogramEngine.swift:30:    public static let shared = HistogramEngine()
+Sources/FeatureShell/Adjustment/AdjustmentThumbnailRenderer.swift:11:    public static let shared = AdjustmentThumbnailRenderer()
+Sources/FeatureShell/Preview/VideoMetadataCache.swift:10:    static let shared = VideoMetadataCache()
+Sources/FeatureShell/Preview/Mask/TimelineMaskMetalPipeline.swift:23:    public static let shared = TimelineMaskMetalPipeline()
+Sources/FeatureShell/Preview/Mask/TimelineMaskGenerator.swift:8:    static let shared = MaskImageCache()
+Sources/FeatureShell/Preview/ColorGrading/ColorGradingEngine.swift:9:    public static let shared = ColorGradingEngine()
+Sources/FeatureShell/Text/Renderer/TextRendererEngine.swift:12:    public static let shared = TextRendererEngine()
+Sources/FeatureShell/Text/Inspector/TextInspectorControls.swift:32:    public static let shared = DSColorPickerPresenter()
+Sources/FeatureShell/Text/Services/CustomFontManager.swift:39:    public static let shared = CustomFontManager()
+Sources/Infrastructure/Services/Audio/AudioAlignmentService.swift:8:    public static let shared = AudioAlignmentService()
+Sources/Infrastructure/Services/Audio/AudioDecoderService.swift:8:    public static let shared = AudioDecoderService()
+Sources/Infrastructure/Services/Audio/MelSpectrogramService.swift:6:    public static let shared = MelSpectrogramService()
+Sources/Infrastructure/Services/SystemMemoryPressureMonitor.swift:7:    public static let shared = SystemMemoryPressureMonitor()
+Sources/Domain/Preset/PresetRepositoryProtocols.swift:22:    public static let shared = PresetRepositoryProvider()
+Sources/Domain/Property/ClipPropertyRegistry.swift:6:    public static let shared = ClipPropertyRegistry()
+Sources/Domain/Action/ActionRepositoryProtocol.swift:14:    public static let shared = ActionRepositoryProvider()
+Sources/Domain/ColorGrading/AdjustmentTemplateLoader.swift:7:    public static let shared = AdjustmentTemplateLoader()
+Sources/Domain/Text/TextTemplateLoader.swift:7:    public static let shared = TextTemplateLoader()
+
+## @unchecked Sendable / nonisolated(unsafe)
+Sources/FeatureShell/Adjustment/HistogramEngine.swift:29:public final class HistogramEngine: @unchecked Sendable {
+Sources/FeatureShell/Adjustment/AdjustmentLibraryViewModel.swift:21:    @ObservationIgnored nonisolated(unsafe) private var notificationObserver: (any NSObjectProtocol)?
+Sources/FeatureShell/Preview/VideoMetadataCache.swift:9:final class VideoMetadataCache: @unchecked Sendable {
+Sources/FeatureShell/Preview/Mask/TimelineMaskMetalPipeline.swift:22:public final class TimelineMaskMetalPipeline: @unchecked Sendable {
+Sources/FeatureShell/Preview/Mask/TimelineCustomVideoCompositionInstruction.swift:10:public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoCompositionInstructionProtocol, @unchecked Sendable {
+Sources/FeatureShell/Preview/Mask/TimelineMaskGenerator.swift:7:final class MaskImageCache: @unchecked Sendable {
+Sources/FeatureShell/Preview/Mask/TimelineVideoCompositor.swift:10:public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unchecked Sendable {
+Sources/FeatureShell/Preview/ColorGrading/ColorGradingEngine.swift:8:public final class ColorGradingEngine: @unchecked Sendable {
+Sources/FeatureShell/Preview/ColorGrading/ColorGradingEngine.swift:16:    nonisolated(unsafe) private static let hslSelectiveKernel: CIColorKernel? = {
+Sources/FeatureShell/Preview/ColorGrading/ColorGradingEngine+Advanced.swift:12:    nonisolated(unsafe) private static let colorWheelsKernel: CIColorKernel? = {
+Sources/FeatureShell/Text/Renderer/TextRendererEngine.swift:11:public final class TextRendererEngine: @unchecked Sendable {
+Sources/FeatureShell/Text/TextLibraryViewModel.swift:21:    @ObservationIgnored nonisolated(unsafe) private var notificationObserver: (any NSObjectProtocol)?
+Sources/Infrastructure/MCP/LocalNWServerTransport.swift:6:public final class LocalNWServerTransport: @unchecked Sendable, MCPServerTransport {
+Sources/Infrastructure/Services/Supabase/SupabaseActionRepository.swift:8:public final class SupabaseActionRepository: ActionRepositoryProtocol, @unchecked Sendable {
+Sources/Infrastructure/Services/Supabase/SupabaseAdjustmentPresetRepository.swift:8:public final class SupabaseAdjustmentPresetRepository: AdjustmentPresetRepositoryProtocol, @unchecked Sendable {
+Sources/Infrastructure/Services/Supabase/SupabaseTextPresetRepository.swift:8:public final class SupabaseTextPresetRepository: TextPresetRepositoryProtocol, @unchecked Sendable {
+Sources/Infrastructure/Services/Audio/AudioAlignmentService.swift:7:public final class AudioAlignmentService: AudioAlignmentServiceProtocol, @unchecked Sendable {
+Sources/Infrastructure/Services/Audio/AudioDecoderService.swift:7:public final class AudioDecoderService: @unchecked Sendable {
+Sources/Infrastructure/Services/Audio/MelSpectrogramService.swift:5:public final class MelSpectrogramService: @unchecked Sendable {
+Sources/Infrastructure/Services/VisionSubjectTrackingService.swift:12:public final class VisionSubjectTrackingService: SubjectTrackingServiceProtocol, @unchecked Sendable {
+Sources/Infrastructure/Services/SystemMemoryPressureMonitor.swift:6:public final class SystemMemoryPressureMonitor: @unchecked Sendable {
+Sources/Domain/Preset/PresetRepositoryProtocols.swift:21:public final class PresetRepositoryProvider: @unchecked Sendable {
+Sources/Domain/Property/ClipPropertyRegistry.swift:5:public final class ClipPropertyRegistry: @unchecked Sendable {
+Sources/Domain/Utils/LRUCache.swift:6:public final class LRUCache<Key: Hashable, Value>: @unchecked Sendable {
+Sources/Domain/Action/ActionRepositoryProtocol.swift:13:public final class ActionRepositoryProvider: @unchecked Sendable {
+Sources/Domain/ColorGrading/AdjustmentTemplateLoader.swift:6:public final class AdjustmentTemplateLoader: @unchecked Sendable {
+Sources/Domain/Text/TextTemplateLoader.swift:6:public final class TextTemplateLoader: @unchecked Sendable {
+
+## DispatchQueue
+Sources/FeatureShell/Bridge/WindowAccessor.swift:9:        DispatchQueue.main.async {
+Sources/FeatureShell/Controls/DSVerticalScrollView.swift:173:        DispatchQueue.main.async { [weak self] in
+Sources/Infrastructure/MCP/LocalNWServerTransport.swift:9:    private let queue = DispatchQueue(label: "com.videoeditor.mcp.queue", qos: .userInitiated)
+Sources/Infrastructure/Services/SystemMemoryPressureMonitor.swift:10:    private let queue = DispatchQueue(label: "com.videoeditor.memorypressure", qos: .utility)
+
+## try? count: 230
+## Text("literal") count: 58
+
+## ClipKind switch cases (FeatureShell)
+Sources/FeatureShell/ViewModel/ShellViewModel.swift:106:        case .video, .audio:
+Sources/FeatureShell/ViewModel/ShellViewModel.swift:109:        case .image:
+Sources/FeatureShell/Bridge/TimelineDropTargetBridge+DraggingItem.swift:87:            case .video: return DSSize.videoLayerHeight - 6
+Sources/FeatureShell/Bridge/TimelineDropTargetBridge+DraggingItem.swift:88:            case .audio, .image: return DSSize.mediaLayerHeight - 6
+Sources/FeatureShell/Bridge/TimelineDropTargetBridge+DraggingItem.swift:89:            case .text, .adjustment: return DSSize.compactLayerHeight - 6
+Sources/FeatureShell/View/PreviewView.swift:71:        case .video:
+Sources/FeatureShell/View/PreviewView.swift:75:        case .audio:
+Sources/FeatureShell/View/PreviewView.swift:77:        case .image:
+Sources/FeatureShell/Text/Inspector/TextColorEffectSliders.swift:25:        case .text:
+Sources/FeatureShell/Text/Inspector/TextColorStyleSubtabsView.swift:124:        case .text:
+Sources/FeatureShell/Text/Inspector/TextColorStyleSubtabsView.swift:139:        case .text:
+Sources/FeatureShell/Text/Inspector/TextColorStyleSubtabsView.swift:156:        case .text:
+Sources/FeatureShell/Presets/SavePresetModalView.swift:111:        case .adjustment:
+Sources/FeatureShell/Presets/SavePresetModalView.swift:118:        case .text:
+Sources/FeatureShell/Presets/SavePresetModalView.swift:172:                case .adjustment(let config):
+Sources/FeatureShell/Presets/SavePresetModalView.swift:185:                case .text(let config):
+Sources/FeatureShell/Timeline/ViewModel/TimelineMediaDimensionResolver.swift:28:        case .image:
+Sources/FeatureShell/Timeline/ViewModel/TimelineMediaDimensionResolver.swift:33:        case .video:
+Sources/FeatureShell/Timeline/ViewModel/TimelineMediaDimensionResolver.swift:46:        case .audio:
+Sources/FeatureShell/Timeline/ViewModel/TimelineMediaDimensionResolver.swift:57:        case .image:
+Sources/FeatureShell/Timeline/ViewModel/TimelineMediaDimensionResolver.swift:59:        case .video:
+Sources/FeatureShell/Timeline/ViewModel/TimelineMediaDimensionResolver.swift:81:        case .audio:
+Sources/FeatureShell/Timeline/ViewModel/TimelineViewModel+LayerStatus.swift:28:        case .video:
+Sources/FeatureShell/Timeline/ViewModel/TimelineViewModel+LayerStatus.swift:30:        case .audio, .image:
+Sources/FeatureShell/Timeline/ViewModel/TimelineViewModel+LayerStatus.swift:32:        case .text, .adjustment:
+Sources/FeatureShell/Timeline/View/ClipHeaderBarView.swift:61:        case .video:
+Sources/FeatureShell/Timeline/View/ClipHeaderBarView.swift:63:        case .audio:
+Sources/FeatureShell/Timeline/View/ClipHeaderBarView.swift:65:        case .adjustment:
+Sources/FeatureShell/Timeline/View/TimelineClipView.swift:210:        case .video:
+Sources/FeatureShell/Timeline/View/TimelineClipView.swift:221:        case .audio:
+Sources/FeatureShell/Timeline/View/TimelineClipView.swift:240:        case .image, .text, .adjustment:
+Sources/FeatureShell/Timeline/View/TimelineClipBlockRenderer.swift:88:            case .video:
+Sources/FeatureShell/Timeline/View/TimelineClipBlockRenderer.swift:90:            case .image:
+Sources/FeatureShell/Timeline/View/TimelineClipBlockRenderer.swift:99:            case .audio:
+Sources/FeatureShell/Timeline/View/ClipBorderOverlayView.swift:48:        case .video: return DSColors.clipVideo
+Sources/FeatureShell/Timeline/View/ClipBorderOverlayView.swift:49:        case .audio: return DSColors.clipAudio
+Sources/FeatureShell/Timeline/View/ClipBorderOverlayView.swift:50:        case .image: return DSColors.clipImage
+Sources/FeatureShell/Timeline/View/ClipBorderOverlayView.swift:51:        case .text: return DSColors.clipText
+Sources/FeatureShell/Timeline/View/ClipBorderOverlayView.swift:52:        case .adjustment: return DSColors.clipAdjustment
+Sources/FeatureShell/Timeline/View/TimelineClipBlockPreviewView.swift:90:        case .video: return DSColors.clipVideo.opacity(0.85)
+Sources/FeatureShell/Timeline/View/TimelineClipBlockPreviewView.swift:91:        case .audio: return DSColors.clipAudio.opacity(0.85)
+Sources/FeatureShell/Timeline/View/TimelineClipBlockPreviewView.swift:92:        case .image: return DSColors.clipImage.opacity(0.85)
+Sources/FeatureShell/Timeline/View/TimelineClipBlockPreviewView.swift:93:        case .text: return DSColors.clipText.opacity(0.85)
+Sources/FeatureShell/Timeline/View/TimelineClipBlockPreviewView.swift:94:        case .adjustment: return DSColors.clipAdjustment.opacity(0.85)
+Sources/FeatureShell/Timeline/View/TimelineClipBlockPreviewView.swift:130:        case .video: return DSColors.clipVideoHeader
+Sources/FeatureShell/Timeline/View/TimelineClipBlockPreviewView.swift:131:        case .audio: return DSColors.clipAudioHeader
+Sources/FeatureShell/Timeline/View/TimelineClipBlockPreviewView.swift:132:        case .adjustment: return DSColors.clipAdjustmentHeader
+Sources/FeatureShell/Timeline/View/TimelineClipBlockPreviewView.swift:216:            case .video: return Color(red: 0.15, green: 0.65, blue: 0.65)
+Sources/FeatureShell/Timeline/View/TimelineClipBlockPreviewView.swift:217:            case .audio: return Color(red: 0.20, green: 0.50, blue: 0.90)
+Sources/FeatureShell/Media/ViewModel/MediaLibraryViewModel.swift:26:        case .video:
+Sources/FeatureShell/Media/ViewModel/MediaLibraryViewModel.swift:28:        case .audio:
+Sources/FeatureShell/Media/ViewModel/MediaLibraryViewModel.swift:30:        case .image:
+Sources/FeatureShell/Media/Bridge/MediaAssetDragSourceNSView.swift:151:            case .video:             return DSSize.videoLayerHeight - 6
+Sources/FeatureShell/Media/Bridge/MediaAssetDragSourceNSView.swift:152:            case .audio, .image:     return DSSize.mediaLayerHeight - 6
+Sources/FeatureShell/Media/Bridge/MediaAssetDragSourceNSView.swift:153:            case .text, .adjustment: return DSSize.compactLayerHeight - 6

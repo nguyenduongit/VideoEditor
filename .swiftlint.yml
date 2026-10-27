@@ -1,0 +1,40 @@
+included:
+  - Sources
+  - Tests
+excluded:
+  - .build
+  - node_modules
+
+opt_in_rules:
+  - force_unwrapping
+
+file_length:
+  warning: 300
+  error: 300
+  ignore_comment_only_lines: false
+
+function_body_length:
+  warning: 50
+  error: 50
+
+force_try: error
+force_cast: error
+force_unwrapping: error
+
+custom_rules:
+  no_print:
+    name: "No print() (R12.2)"
+    regex: '(^|[^\w.])print\('
+    message: "Dùng os.Logger thay cho print() — AGENTS.md R12.2"
+    severity: error
+  domain_no_ui_import:
+    name: "Domain không import UI (R2.3)"
+    included: "Sources/Domain/.*\\.swift"
+    regex: '^import (SwiftUI|AppKit|UIKit)'
+    message: "Domain cấm import SwiftUI/AppKit/UIKit — AGENTS.md R2.3"
+    severity: error
+  no_mutable_singleton:
+    name: "Không dùng singleton .shared (R3.3)"
+    regex: 'static (let|var) shared\b'
+    message: "Inject qua Composition Root thay cho .shared — AGENTS.md R3.3"
+    severity: warning
