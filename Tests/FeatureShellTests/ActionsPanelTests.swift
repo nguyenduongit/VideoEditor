@@ -151,4 +151,27 @@ struct ActionsPanelTests {
         #expect(json.contains("exposure"))
         #expect(json.contains("shadow"))
     }
+
+    @Test("cycleAction steps forward and backward with wrapping")
+    func testCycleAction() {
+        let viewModel = ActionsPanelViewModel()
+        let a1 = CustomAction(id: "a1", name: "Action 1", taskIDs: [])
+        let a2 = CustomAction(id: "a2", name: "Action 2", taskIDs: [])
+        let a3 = CustomAction(id: "a3", name: "Action 3", taskIDs: [])
+        viewModel.actions = [a1, a2, a3]
+        viewModel.selectAction(a1)
+
+        viewModel.cycleAction(forward: true)
+        #expect(viewModel.selectedActionID == "a2")
+
+        viewModel.cycleAction(forward: true)
+        #expect(viewModel.selectedActionID == "a3")
+
+        viewModel.cycleAction(forward: true)
+        #expect(viewModel.selectedActionID == "a1")
+
+        viewModel.cycleAction(forward: false)
+        #expect(viewModel.selectedActionID == "a3")
+    }
 }
+

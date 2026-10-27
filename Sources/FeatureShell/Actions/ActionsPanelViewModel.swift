@@ -108,6 +108,22 @@ public final class ActionsPanelViewModel {
         statusMessage = nil
     }
 
+    public func cycleAction(forward: Bool) {
+        guard !actions.isEmpty else { return }
+        guard let currentID = selectedActionID,
+              let currentIndex = actions.firstIndex(where: { $0.id == currentID }) else {
+            if let first = actions.first { selectAction(first) }
+            return
+        }
+        let nextIndex: Int
+        if forward {
+            nextIndex = (currentIndex + 1) % actions.count
+        } else {
+            nextIndex = (currentIndex - 1 + actions.count) % actions.count
+        }
+        selectAction(actions[nextIndex])
+    }
+
     public func toggleTaskSelection(id: String) {
         if selectedTaskIDs.contains(id) { selectedTaskIDs.remove(id) } else { selectedTaskIDs.insert(id) }
         taskStates[id] = .idle

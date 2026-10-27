@@ -110,32 +110,15 @@ public struct TaskItemRowView: View {
     }
 
     private var titleConfigurationPad: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Divider()
                 .background(DSColors.blockBorder)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Nội dung tiêu đề:")
-                    .font(.system(size: 10.5, weight: .medium))
+            HStack(spacing: 8) {
+                Text("Preset")
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
-
-                TextField("Nhập tiêu đề video...", text: $viewModel.titleText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 11.5))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(DSColors.inputBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .strokeBorder(DSColors.inputBorder, lineWidth: 1)
-                    )
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Mẫu chữ nghệ thuật (Preset):")
-                    .font(.system(size: 10.5, weight: .medium))
-                    .foregroundStyle(DSColors.textSecondary)
+                    .frame(width: 52, alignment: .leading)
 
                 DSDropdown(
                     selectedTitle: viewModel.selectedPresetName,
@@ -144,6 +127,25 @@ public struct TaskItemRowView: View {
                         viewModel.titlePresetID = presetID
                     }
                 )
+            }
+
+            HStack(spacing: 8) {
+                Text("Tiêu đề")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(DSColors.textSecondary)
+                    .frame(width: 52, alignment: .leading)
+
+                TextField("Nhập tiêu đề video...", text: $viewModel.titleText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 11.5))
+                    .padding(.horizontal, 8)
+                    .frame(height: 24)
+                    .background(DSColors.inputBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .strokeBorder(DSColors.inputBorder, lineWidth: 1)
+                    )
             }
         }
         .padding(.horizontal, DSSpacing.md)
