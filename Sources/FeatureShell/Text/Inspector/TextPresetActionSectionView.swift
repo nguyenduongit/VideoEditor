@@ -143,10 +143,17 @@ public struct TextPresetActionSectionView: View {
         )
         Task {
             _ = viewModel.dependencies.textTemplates.saveTemplateToUserCache(updatedPreset)
-            try? await viewModel.dependencies.presetRepositories.textRepository?.savePreset(updatedPreset)
-            await MainActor.run {
-                isOverwriting = false
-                saveSuccessMessage = "Đã ghi đè \"\(originName)\" thành công!"
+            do {
+                try await viewModel.dependencies.presetRepositories.textRepository?.savePreset(updatedPreset)
+                await MainActor.run {
+                    isOverwriting = false
+                    saveSuccessMessage = "Đã ghi đè \"\(originName)\" thành công!"
+                }
+            } catch {
+                await MainActor.run {
+                    isOverwriting = false
+                    saveSuccessMessage = "Lỗi khi lưu mẫu: \(error.localizedDescription)"
+                }
             }
         }
     }

@@ -251,46 +251,6 @@ public final class ActionsPanelViewModel {
         return action.taskIDs.compactMap { WorkflowTaskItem.find(by: $0) }
     }
 
-    // MARK: - Action CRUD
-
-    public func createNewAction(name: String, icon: String, taskIDs: [String]) {
-        let newAction = CustomAction(
-            id: UUID().uuidString,
-            name: name,
-            icon: icon,
-            taskIDs: taskIDs,
-            titleText: titleText,
-            titlePresetID: titlePresetID,
-            createdAt: Date(),
-            isSystem: false
-        )
-        actions.append(newAction)
-        selectedActionID = newAction.id
-        selectedTaskIDs = Set(taskIDs)
-        Task {
-            try? await dependencies.actionRepositories.actionRepository?.saveAction(newAction)
-        }
-        statusMessage = "Đã lưu Action mới: \(name)"
-    }
-
-    public func saveCurrentAsNewAction(name: String) {
-        let orderedIDs = tasks.filter { selectedTaskIDs.contains($0.id) }.map(\.id)
-        createNewAction(name: name, icon: "play.fill", taskIDs: orderedIDs.isEmpty ? (currentAction?.taskIDs ?? []) : orderedIDs)
-    }
-
-    public func deleteAction(id: String) {
-        actions.removeAll { $0.id == id }
-        if selectedActionID == id {
-            selectedActionID = actions.first?.id
-            if let first = actions.first {
-                selectedTaskIDs = Set(first.taskIDs)
-            }
-        }
-        Task {
-            try? await dependencies.actionRepositories.actionRepository?.deleteAction(id: id)
-        }
-    }
-
     private func prepareDispatcher() {
         if dispatcher == nil, let timelineViewModel {
             configure(timelineViewModel: timelineViewModel, mediaLibraryViewModel: mediaLibraryViewModel)

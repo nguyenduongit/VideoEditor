@@ -1,11 +1,13 @@
 import Foundation
 import Domain
 import Supabase
+import os
 
 /// Hiện thực kho lưu trữ Custom Actions thuần Online qua Supabase Database và RAM cache.
 /// Tuyệt đối không ghi file đĩa cục bộ theo yêu cầu hệ thống chỉ lưu trữ Online.
 /// Tuân thủ AGENTS.md R2.1 (Infrastructure hiện thực hóa Domain Protocol) và R3.1 (File <= 300 dòng).
 public final class SupabaseActionRepository: ActionRepositoryProtocol, @unchecked Sendable {
+    private static let logger = Logger(subsystem: "com.videoeditor", category: "SupabaseActionRepository")
     private let client: SupabaseClient?
     private let tableName = "custom_actions"
 
@@ -77,10 +79,18 @@ public final class SupabaseActionRepository: ActionRepositoryProtocol, @unchecke
             let ns = error as NSError
             if ns.domain == NSURLErrorDomain && (ns.code == NSURLErrorNetworkConnectionLost || ns.code == NSURLErrorTimedOut) {
                 try await Task.sleep(nanoseconds: 300_000_000)
-                _ = try? await client
-                    .from(tableName)
-                    .upsert(row)
-                    .execute()
+                do {
+                    try await client
+                        .from(tableName)
+                        .upsert(row)
+                        .execute()
+                } catch {
+                    Self.logger.error("Failed to retry saving action to Supabase: \(error.localizedDescription)")
+                    throw error
+                }
+            } else {
+                Self.logger.error("Failed to save action to Supabase: \(error.localizedDescription)")
+                throw error
             }
         }
 
