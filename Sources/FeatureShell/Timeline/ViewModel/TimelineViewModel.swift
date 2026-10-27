@@ -55,6 +55,7 @@ public final class TimelineViewModel {
     public let waveformService: (any AudioWaveformServiceProtocol)?
     public let audioAlignmentService: (any AudioAlignmentServiceProtocol)?
     public let subjectTrackingService: (any SubjectTrackingServiceProtocol)?
+    public let dependencies: EditorDependencies
     public var analyzingClipIDs: Set<UUID> = []
     public var clipAnalysisProgress: [UUID: Double] = [:]
     var trackingTasks: [UUID: Task<Void, Never>] = [:]
@@ -96,12 +97,14 @@ public final class TimelineViewModel {
         thumbnailService: (any TimelineThumbnailServiceProtocol)? = nil,
         waveformService: (any AudioWaveformServiceProtocol)? = nil,
         audioAlignmentService: (any AudioAlignmentServiceProtocol)? = nil,
+        dependencies: EditorDependencies = EditorDependencies(),
         initialLayers: [TimelineLayer]? = nil
     ) {
         self.thumbnailService = thumbnailService
         self.waveformService = waveformService
         self.audioAlignmentService = audioAlignmentService
         self.subjectTrackingService = nil
+        self.dependencies = dependencies
         self.layers = initialLayers ?? []
         self.commandExecutor = TimelineCommandExecutor(viewModel: self)
         updateUndoRedoState()
@@ -112,12 +115,14 @@ public final class TimelineViewModel {
         waveformService: (any AudioWaveformServiceProtocol)? = nil,
         audioAlignmentService: (any AudioAlignmentServiceProtocol)? = nil,
         subjectTrackingService: (any SubjectTrackingServiceProtocol)? = nil,
+        dependencies: EditorDependencies = EditorDependencies(),
         initialLayers: [TimelineLayer]? = nil
     ) {
         self.thumbnailService = thumbnailService
         self.waveformService = waveformService
         self.audioAlignmentService = audioAlignmentService
         self.subjectTrackingService = subjectTrackingService
+        self.dependencies = dependencies
         self.layers = initialLayers ?? []
         self.commandExecutor = TimelineCommandExecutor(viewModel: self)
         updateUndoRedoState()

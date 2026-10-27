@@ -145,8 +145,8 @@ public struct TextPreset: Identifiable, Codable, Sendable, Equatable {
         isSystem: true
     )
 
-    /// Danh sách mẫu chữ được nạp động từ các file JSON Script và bộ nhớ đệm Supabase
+    /// Danh sách mẫu chữ mặc định chuẩn (bất biến, không phụ thuộc singleton — R3.3)
     public static var templates: [TextPreset] {
-        TextTemplateLoader.shared.loadAllTemplates()
+        [Self.default]
     }
 }

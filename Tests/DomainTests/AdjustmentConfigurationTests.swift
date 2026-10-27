@@ -80,7 +80,6 @@ struct AdjustmentConfigurationTests {
 
     @Test("AdjustmentPreset contains Default and built-in templates")
     func testPresetTemplates() {
-        AdjustmentTemplateLoader.shared.resetSyncState()
         #expect(AdjustmentPreset.default.config.isNeutral)
         #expect(AdjustmentPreset.default.isSystem == true)
         #expect(!AdjustmentPreset.templates.isEmpty)

@@ -10,18 +10,19 @@ struct VideoAudioAndSpeedTests {
 
     @Test("ClipPropertyRegistry provides Audio and Speed descriptors for video clips")
     func testClipPropertyRegistryAudioAndSpeedDescriptors() {
-        let tabs = ClipPropertyRegistry.shared.tabs(for: .video)
+        let registry = ClipPropertyRegistry()
+        let tabs = registry.tabs(for: .video)
         #expect(tabs.contains("Video"))
         #expect(tabs.contains("AI"))
         #expect(tabs.contains("Mask"))
 
-        let audioDesc = ClipPropertyRegistry.shared.descriptors(for: .video, tab: "Video").filter { $0.group == "Audio" }
+        let audioDesc = registry.descriptors(for: .video, tab: "Video").filter { $0.group == "Audio" }
         let audioIDs = Set(audioDesc.map(\.id))
         #expect(audioIDs.contains("volume"))
         #expect(audioIDs.contains("fadeIn"))
         #expect(audioIDs.contains("fadeOut"))
 
-        let speedDesc = ClipPropertyRegistry.shared.descriptors(for: .video, tab: "Video").filter { $0.group == "Speed" }
+        let speedDesc = registry.descriptors(for: .video, tab: "Video").filter { $0.group == "Speed" }
         let speedIDs = Set(speedDesc.map(\.id))
         #expect(speedIDs.contains("speed"))
         #expect(speedIDs.contains("duration"))

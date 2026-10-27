@@ -8,14 +8,19 @@ import Supabase
 public final class SupabaseTextPresetRepository: TextPresetRepositoryProtocol, @unchecked Sendable {
     private let client: SupabaseClient?
     private let tableName = "text_presets"
+    private let templateLoader: TextTemplateLoader
 
-    public init(client: SupabaseClient? = SupabaseConfig.makeClient()) {
+    public init(
+        client: SupabaseClient? = SupabaseConfig.makeClient(),
+        templateLoader: TextTemplateLoader = TextTemplateLoader()
+    ) {
         self.client = client
+        self.templateLoader = templateLoader
     }
 
     public func fetchPresets() async throws -> [TextPreset] {
         guard let client else {
-            return TextPreset.templates
+            return templateLoader.loadAllTemplates()
         }
 
         do {
@@ -27,17 +32,17 @@ public final class SupabaseTextPresetRepository: TextPresetRepositoryProtocol, @
 
             let fetched = rows.map { $0.toPreset() }
             // Supabase là Nguồn Chân Lý Duy Nhất (Single Source of Truth)
-            TextTemplateLoader.shared.setInMemoryTemplates(fetched)
+            templateLoader.setInMemoryTemplates(fetched)
             return fetched
         } catch {
             // Mạng lỗi hoặc timeout: An toàn fallback về cache RAM hoặc mẫu mặc định
-            return TextPreset.templates
+            return templateLoader.loadAllTemplates()
         }
     }
 
     public func savePreset(_ preset: TextPreset) async throws {
         // 1. Lưu ngay vào RAM cache để giao diện phản hồi tức thì
-        TextTemplateLoader.shared.updateInMemoryPreset(preset)
+        templateLoader.updateInMemoryPreset(preset)
 
         // 2. Đồng bộ lên Supabase DB
         guard let client else { return }
@@ -65,7 +70,7 @@ public final class SupabaseTextPresetRepository: TextPresetRepositoryProtocol, @
 
     public func deletePreset(id: String) async throws {
         // 1. Xóa khỏi RAM cache
-        TextTemplateLoader.shared.removeInMemoryPreset(id: id)
+        templateLoader.removeInMemoryPreset(id: id)
 
         // 2. Xóa trên Supabase DB
         guard let client else { return }

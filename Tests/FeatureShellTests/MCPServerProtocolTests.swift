@@ -97,12 +97,10 @@ struct MCPServerProtocolTests {
 
     @Test func testMCPLibraryCatalogAndApplyTemplateToolsKeepSelectionEmpty() throws {
         let samplePreset = AdjustmentPreset(id: "cinematic", name: "Cinematic", description: "Test Preset", config: AdjustmentConfiguration())
-        AdjustmentTemplateLoader.shared.updateInMemoryPreset(samplePreset)
-        defer { AdjustmentTemplateLoader.shared.removeInMemoryPreset(id: "cinematic") }
-
         let vm = TimelineViewModel(initialLayers: [])
         let engine = TimelineScriptEngine(viewModel: vm)
-        let dispatcher = MCPTimelineToolDispatcher(scriptEngine: engine)
+        let dispatcher = MCPTimelineToolDispatcher(scriptEngine: engine, dependencies: vm.dependencies)
+        vm.dependencies.adjustmentTemplates.updateInMemoryPreset(samplePreset)
 
         let catalogJSON = try dispatcher.handleToolCall(toolName: "library_get_catalog")
         #expect(catalogJSON.contains("textTemplates"))

@@ -9,7 +9,7 @@ import CoreMedia
 struct InspectorAdvancedPropertiesTests {
     @Test("Video clip provides tabs: Video, Mask, Adjustment, AI")
     func testVideoClipTabs() {
-        let registry = ClipPropertyRegistry.shared
+        let registry = ClipPropertyRegistry()
         let tabs = registry.tabs(for: .video)
         #expect(tabs == ["Video", "Mask", "Adjustment", "AI"])
 

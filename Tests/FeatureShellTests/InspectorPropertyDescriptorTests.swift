@@ -9,7 +9,7 @@ import CoreMedia
 struct InspectorPropertyDescriptorTests {
     @Test("Registry provides distinct property sets for each clip kind")
     func testRegistryProvidesDistinctPropertySets() {
-        let registry = ClipPropertyRegistry.shared
+        let registry = ClipPropertyRegistry()
 
         let videoDescriptors = registry.descriptors(for: .video)
         let audioDescriptors = registry.descriptors(for: .audio)

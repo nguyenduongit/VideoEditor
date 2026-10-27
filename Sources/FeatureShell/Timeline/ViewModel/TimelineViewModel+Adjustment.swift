@@ -29,7 +29,7 @@ extension TimelineViewModel {
         }
         let timeRange = CMTimeRange(start: targetStart, duration: resolvedDuration)
 
-        var properties = ClipPropertyRegistry.shared.defaultProperties(for: .adjustment)
+        var properties = dependencies.propertyRegistry.defaultProperties(for: .adjustment)
         if let json = config.encodeToJSON() {
             properties["adjustmentConfig"] = .string(json)
         }

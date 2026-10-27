@@ -40,7 +40,7 @@ public struct ClipScript: Identifiable, Codable, Sendable, Hashable, Equatable {
         self.maxDuration = maxDuration
         self.opacity = opacity
         self.volume = volume
-        var resolvedProps = properties ?? ClipPropertyRegistry.shared.defaultProperties(for: kind)
+        var resolvedProps = properties ?? BuiltInClipPropertyDefaults.properties(for: kind)
         if resolvedProps["opacity"] == nil { resolvedProps["opacity"] = .number(opacity) }
         if resolvedProps["volume"] == nil { resolvedProps["volume"] = .number(volume) }
         self.properties = resolvedProps
@@ -61,7 +61,7 @@ public struct ClipScript: Identifiable, Codable, Sendable, Hashable, Equatable {
         if let decodedProps = try container.decodeIfPresent([String: PropertyValue].self, forKey: .properties) {
             self.properties = decodedProps
         } else {
-            var defaults = ClipPropertyRegistry.shared.defaultProperties(for: kind)
+            var defaults = BuiltInClipPropertyDefaults.properties(for: kind)
             defaults["opacity"] = .number(self.opacity)
             defaults["volume"] = .number(self.volume)
             self.properties = defaults

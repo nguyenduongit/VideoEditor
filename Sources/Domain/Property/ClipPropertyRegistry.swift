@@ -3,7 +3,6 @@ import Foundation
 /// Registry providing property descriptors for each clip kind.
 /// Complies with R5.1 & R6.1 of AGENTS.md: Inspector looks up descriptors through this registry.
 public final class ClipPropertyRegistry: @unchecked Sendable {
-    public static let shared = ClipPropertyRegistry()
 
     private var storage: [ClipKind: [PropertyDescriptor]] = [:]
     private var tabsStorage: [ClipKind: [String]] = [:]

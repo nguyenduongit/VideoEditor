@@ -7,10 +7,10 @@ extension MCPTimelineToolDispatcher {
         let assetsList: [[String: String]] = (mediaLibraryViewModel?.assets ?? []).map {
             ["id": $0.id.uuidString, "name": $0.name, "type": $0.type.rawValue, "url": $0.url.absoluteString]
         }
-        let textPresets: [[String: String]] = TextPreset.templates.map {
+        let textPresets: [[String: String]] = dependencies.textTemplates.loadAllTemplates().map {
             ["id": $0.id, "name": $0.name, "category": $0.category.rawValue, "description": $0.description]
         }
-        let adjustmentPresets: [[String: String]] = AdjustmentPreset.templates.map {
+        let adjustmentPresets: [[String: String]] = dependencies.adjustmentTemplates.loadAllTemplates().map {
             ["id": $0.id, "name": $0.name, "category": $0.category.rawValue, "description": $0.description]
         }
         let fontItems = CustomFontManager.shared.fonts
@@ -113,7 +113,7 @@ extension MCPTimelineToolDispatcher {
 
         if let templateId = dict["templateId"] as? String, !templateId.isEmpty {
             let query = templateId.lowercased()
-            if let matched = TextPreset.templates.first(where: { $0.id.lowercased() == query }) {
+            if let matched = dependencies.textTemplates.loadAllTemplates().first(where: { $0.id.lowercased() == query }) {
                 cfg = matched.config
             }
         }
@@ -227,7 +227,7 @@ extension MCPTimelineToolDispatcher {
 
         if let templateId = dict["templateId"] as? String, !templateId.isEmpty {
             let query = templateId.lowercased()
-            if let matched = AdjustmentPreset.templates.first(where: { $0.id.lowercased() == query }) {
+            if let matched = dependencies.adjustmentTemplates.loadAllTemplates().first(where: { $0.id.lowercased() == query }) {
                 cfg = matched.config
                 clipTitle = matched.name
             }

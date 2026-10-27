@@ -23,16 +23,20 @@ public struct SavePresetModalView: View {
     @State private var isSaving: Bool = false
     @State private var errorMessage: String?
 
+    private let dependencies: EditorDependencies
+
     public init(
         kind: PresetKind,
         originPresetID: String? = nil,
         originPresetName: String? = nil,
+        dependencies: EditorDependencies = EditorDependencies(),
         onSaveCompleted: @escaping (String, String) -> Void,
         onDismiss: @escaping () -> Void
     ) {
         self.kind = kind
         self.originPresetID = originPresetID
         self.originPresetName = originPresetName
+        self.dependencies = dependencies
         self.onSaveCompleted = onSaveCompleted
         self.onDismiss = onDismiss
         _name = State(initialValue: originPresetName ?? "Preset của tôi")
@@ -179,8 +183,8 @@ public struct SavePresetModalView: View {
                         config: config,
                         isSystem: false
                     )
-                    _ = AdjustmentTemplateLoader.shared.saveTemplateToUserCache(preset)
-                    try await PresetRepositoryProvider.shared.adjustmentRepository?.savePreset(preset)
+                    _ = dependencies.adjustmentTemplates.saveTemplateToUserCache(preset)
+                    try await dependencies.presetRepositories.adjustmentRepository?.savePreset(preset)
 
                 case .text(let config):
                     let preset = TextPreset(
@@ -192,8 +196,8 @@ public struct SavePresetModalView: View {
                         config: config,
                         isSystem: false
                     )
-                    _ = TextTemplateLoader.shared.saveTemplateToUserCache(preset)
-                    try await PresetRepositoryProvider.shared.textRepository?.savePreset(preset)
+                    _ = dependencies.textTemplates.saveTemplateToUserCache(preset)
+                    try await dependencies.presetRepositories.textRepository?.savePreset(preset)
                 }
 
                 await MainActor.run {

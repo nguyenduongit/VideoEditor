@@ -114,7 +114,8 @@ struct TextAdvancedStyleTests {
             return
         }
 
-        let presets = TextTemplateLoader.shared.mergeSupabaseTemplateScripts([jsonString])
+        let loader = TextTemplateLoader()
+        let presets = loader.mergeSupabaseTemplateScripts([jsonString])
         let found = presets.first { $0.id == "online_gold_master" }
         #expect(found != nil, "Preset loaded from Supabase online payload must be available in TextTemplateLoader")
         #expect(found?.name == "Gold Hoàng Gia Online")
@@ -125,8 +126,5 @@ struct TextAdvancedStyleTests {
             let rendered = TextRendererEngine.shared.renderImage(for: config, canvasSize: canvasSize)
             #expect(rendered != nil)
         }
-
-        // Dọn dẹp RAM sau khi test
-        TextTemplateLoader.shared.removeInMemoryPreset(id: "online_gold_master")
     }
 }

@@ -104,8 +104,8 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
         isSystem: true
     )
 
-    /// Danh sách mẫu chỉnh màu được nạp động từ các file JSON Script và bộ nhớ đệm Supabase
+    /// Danh sách mẫu chỉnh màu mặc định chuẩn (bất biến, không phụ thuộc singleton — R3.3)
     public static var templates: [AdjustmentPreset] {
-        AdjustmentTemplateLoader.shared.loadAllTemplates()
+        [Self.default]
     }
 }

@@ -47,6 +47,7 @@ public struct AdjustmentPresetActionSectionView: View {
                 kind: .adjustment(config: currentConfig),
                 originPresetID: originPresetID,
                 originPresetName: originPresetName,
+                dependencies: viewModel.dependencies,
                 onSaveCompleted: { newID, newName in
                     viewModel.commitTextProperty(key: "originPresetId", text: newID)
                     viewModel.commitTextProperty(key: "originPresetName", text: newName)
@@ -124,7 +125,7 @@ public struct AdjustmentPresetActionSectionView: View {
     private func overwriteCurrentPreset() {
         guard let originID = originPresetID, let originName = originPresetName else { return }
         isOverwriting = true
-        let existing = AdjustmentPreset.templates.first(where: { $0.id == originID })
+        let existing = viewModel.dependencies.adjustmentTemplates.loadAllTemplates().first(where: { $0.id == originID })
         let updatedPreset = AdjustmentPreset(
             id: originID,
             name: originName,
@@ -137,8 +138,8 @@ public struct AdjustmentPresetActionSectionView: View {
             isSystem: false
         )
         Task {
-            _ = AdjustmentTemplateLoader.shared.saveTemplateToUserCache(updatedPreset)
-            try? await PresetRepositoryProvider.shared.adjustmentRepository?.savePreset(updatedPreset)
+            _ = viewModel.dependencies.adjustmentTemplates.saveTemplateToUserCache(updatedPreset)
+            try? await viewModel.dependencies.presetRepositories.adjustmentRepository?.savePreset(updatedPreset)
             await MainActor.run {
                 isOverwriting = false
                 saveSuccessMessage = "Đã ghi đè \"\(originName)\" thành công!"

@@ -17,15 +17,18 @@ public final class TextLibraryViewModel {
     public var selectedCategory: TextTemplateCategory = .all
     public var searchQuery: String = ""
     public private(set) var templatePresets: [TextPreset] = []
+    public let dependencies: EditorDependencies
     public weak var timelineViewModel: TimelineViewModel?
     @ObservationIgnored nonisolated(unsafe) private var notificationObserver: (any NSObjectProtocol)?
 
-    public init(timelineViewModel: TimelineViewModel? = nil) {
+    public init(timelineViewModel: TimelineViewModel? = nil, dependencies: EditorDependencies? = nil) {
         self.timelineViewModel = timelineViewModel
-        if PresetRepositoryProvider.shared.textRepository == nil {
-            self.templatePresets = TextPreset.templates
-        } else if TextTemplateLoader.shared.hasSyncedFromRemote {
-            self.templatePresets = TextTemplateLoader.shared.loadAllTemplates()
+        let deps = dependencies ?? timelineViewModel?.dependencies ?? EditorDependencies()
+        self.dependencies = deps
+        if deps.presetRepositories.textRepository == nil {
+            self.templatePresets = deps.textTemplates.loadAllTemplates()
+        } else if deps.textTemplates.hasSyncedFromRemote {
+            self.templatePresets = deps.textTemplates.loadAllTemplates()
         } else {
             self.templatePresets = []
         }
@@ -58,10 +61,10 @@ public final class TextLibraryViewModel {
     /// Đồng bộ SWR: Tải danh sách mới nhất từ Supabase ngầm trong nền
     public func syncPresetsFromSupabase() {
         Task { [weak self] in
-            guard let repo = PresetRepositoryProvider.shared.textRepository else { return }
+            guard let self, let repo = self.dependencies.presetRepositories.textRepository else { return }
             if let fresh = try? await repo.fetchPresets() {
                 await MainActor.run {
-                    self?.templatePresets = fresh
+                    self.templatePresets = fresh
                 }
             }
         }
@@ -84,7 +87,7 @@ public final class TextLibraryViewModel {
 
     /// Nạp lại danh sách mẫu chữ từ các thư mục JSON trên đĩa
     public func reloadTemplates() {
-        templatePresets = TextTemplateLoader.shared.reload()
+        templatePresets = dependencies.textTemplates.reload()
         syncPresetsFromSupabase()
     }
 
@@ -93,13 +96,13 @@ public final class TextLibraryViewModel {
         guard !preset.isSystem else { return }
         templatePresets.removeAll { $0.id == preset.id }
         Task {
-            try? await PresetRepositoryProvider.shared.textRepository?.deletePreset(id: preset.id)
+            try? await dependencies.presetRepositories.textRepository?.deletePreset(id: preset.id)
         }
     }
 
     /// Nhập danh sách kịch bản JSON tải về từ bảng `text_presets` trên Supabase
     public func importSupabaseTemplates(jsonPayloads: [String]) {
-        templatePresets = TextTemplateLoader.shared.mergeSupabaseTemplateScripts(jsonPayloads)
+        templatePresets = dependencies.textTemplates.mergeSupabaseTemplateScripts(jsonPayloads)
     }
 
     public func addPresetToTimeline(_ preset: TextPreset) {

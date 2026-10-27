@@ -18,13 +18,18 @@ struct VideoEditorApp: App {
     private let mcpTransport: (any MCPServerTransport)?
 
     init() {
-        PresetRepositoryProvider.shared.adjustmentRepository = SupabaseAdjustmentPresetRepository()
-        PresetRepositoryProvider.shared.textRepository = SupabaseTextPresetRepository()
-        ActionRepositoryProvider.shared.actionRepository = SupabaseActionRepository()
+        let dependencies = EditorDependencies()
+        let adjustmentRepo = SupabaseAdjustmentPresetRepository(templateLoader: dependencies.adjustmentTemplates)
+        let textRepo = SupabaseTextPresetRepository(templateLoader: dependencies.textTemplates)
+        let actionRepo = SupabaseActionRepository()
+
+        dependencies.presetRepositories.adjustmentRepository = adjustmentRepo
+        dependencies.presetRepositories.textRepository = textRepo
+        dependencies.actionRepositories.actionRepository = actionRepo
 
         Task {
-            _ = try? await PresetRepositoryProvider.shared.textRepository?.fetchPresets()
-            _ = try? await ActionRepositoryProvider.shared.actionRepository?.fetchActions()
+            _ = try? await textRepo.fetchPresets()
+            _ = try? await actionRepo.fetchActions()
         }
 
         let registry = TabRegistry()
@@ -41,7 +46,8 @@ struct VideoEditorApp: App {
             thumbnailService: timelineThumbnailService,
             waveformService: audioWaveformService,
             audioAlignmentService: audioAlignmentService,
-            subjectTrackingService: subjectTrackingService
+            subjectTrackingService: subjectTrackingService,
+            dependencies: dependencies
         )
         let shellViewModel = ShellViewModel(
             registry: registry,

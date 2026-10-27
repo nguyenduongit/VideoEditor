@@ -47,15 +47,18 @@ public final class ActionsPanelViewModel {
     public var statusMessage: String?
     public var errorMessage: String?
 
+    public let dependencies: EditorDependencies
     private var dispatcher: MCPTimelineToolDispatcher?
     private var presetObserver: (any NSObjectProtocol)?
 
     public init(
         timelineViewModel: TimelineViewModel? = nil,
-        mediaLibraryViewModel: MediaLibraryViewModel? = nil
+        mediaLibraryViewModel: MediaLibraryViewModel? = nil,
+        dependencies: EditorDependencies? = nil
     ) {
         self.timelineViewModel = timelineViewModel
         self.mediaLibraryViewModel = mediaLibraryViewModel
+        self.dependencies = dependencies ?? timelineViewModel?.dependencies ?? EditorDependencies()
         self.actions = CustomAction.defaultActions
         if let timelineViewModel {
             configure(timelineViewModel: timelineViewModel, mediaLibraryViewModel: mediaLibraryViewModel)
@@ -76,13 +79,14 @@ public final class ActionsPanelViewModel {
         let scriptEngine = TimelineScriptEngine(viewModel: timelineViewModel)
         self.dispatcher = MCPTimelineToolDispatcher(
             scriptEngine: scriptEngine,
-            mediaLibraryViewModel: self.mediaLibraryViewModel
+            mediaLibraryViewModel: self.mediaLibraryViewModel,
+            dependencies: dependencies
         )
     }
 
     public func loadActions() {
         Task {
-            guard let repo = ActionRepositoryProvider.shared.actionRepository,
+            guard let repo = dependencies.actionRepositories.actionRepository,
                   let fetched = try? await repo.fetchActions() else { return }
             self.actions = fetched
             if let first = fetched.first, self.selectedActionID == nil || !fetched.contains(where: { $0.id == self.selectedActionID }) {
@@ -113,7 +117,7 @@ public final class ActionsPanelViewModel {
 
     public func loadOnlineTextPresets() {
         Task {
-            if let repo = PresetRepositoryProvider.shared.textRepository {
+            if let repo = dependencies.presetRepositories.textRepository {
                 if let fresh = try? await repo.fetchPresets(), !fresh.isEmpty {
                     self.availableTextPresets = fresh.map { TextPresetItemInfo(id: $0.id, name: $0.name) }
                     if !fresh.contains(where: { $0.id == self.titlePresetID }), let first = fresh.first {
@@ -122,7 +126,7 @@ public final class ActionsPanelViewModel {
                     return
                 }
             }
-            let inMemory = TextTemplateLoader.shared.loadAllTemplates()
+            let inMemory = dependencies.textTemplates.loadAllTemplates()
             if !inMemory.isEmpty {
                 self.availableTextPresets = inMemory.map { TextPresetItemInfo(id: $0.id, name: $0.name) }
                 if !inMemory.contains(where: { $0.id == self.titlePresetID }), let first = inMemory.first {
@@ -264,7 +268,7 @@ public final class ActionsPanelViewModel {
         selectedActionID = newAction.id
         selectedTaskIDs = Set(taskIDs)
         Task {
-            try? await ActionRepositoryProvider.shared.actionRepository?.saveAction(newAction)
+            try? await dependencies.actionRepositories.actionRepository?.saveAction(newAction)
         }
         statusMessage = "Đã lưu Action mới: \(name)"
     }
@@ -283,7 +287,7 @@ public final class ActionsPanelViewModel {
             }
         }
         Task {
-            try? await ActionRepositoryProvider.shared.actionRepository?.deleteAction(id: id)
+            try? await dependencies.actionRepositories.actionRepository?.deleteAction(id: id)
         }
     }
 

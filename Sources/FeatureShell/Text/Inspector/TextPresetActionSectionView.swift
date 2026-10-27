@@ -47,6 +47,7 @@ public struct TextPresetActionSectionView: View {
                 kind: .text(config: currentConfig),
                 originPresetID: originPresetID,
                 originPresetName: originPresetName,
+                dependencies: viewModel.dependencies,
                 onSaveCompleted: { newID, newName in
                     viewModel.commitTextProperty(key: "originPresetId", text: newID)
                     viewModel.commitTextProperty(key: "originPresetName", text: newName)
@@ -124,7 +125,7 @@ public struct TextPresetActionSectionView: View {
     private func overwriteCurrentPreset() {
         guard let originID = originPresetID, let originName = originPresetName else { return }
         isOverwriting = true
-        let existing = TextPreset.templates.first(where: { $0.id == originID })
+        let existing = viewModel.dependencies.textTemplates.loadAllTemplates().first(where: { $0.id == originID })
         let updatedPreset = TextPreset(
             id: originID,
             name: originName,
@@ -141,8 +142,8 @@ public struct TextPresetActionSectionView: View {
             isSystem: false
         )
         Task {
-            _ = TextTemplateLoader.shared.saveTemplateToUserCache(updatedPreset)
-            try? await PresetRepositoryProvider.shared.textRepository?.savePreset(updatedPreset)
+            _ = viewModel.dependencies.textTemplates.saveTemplateToUserCache(updatedPreset)
+            try? await viewModel.dependencies.presetRepositories.textRepository?.savePreset(updatedPreset)
             await MainActor.run {
                 isOverwriting = false
                 saveSuccessMessage = "Đã ghi đè \"\(originName)\" thành công!"

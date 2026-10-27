@@ -93,7 +93,7 @@ extension TimelineViewModel {
         originPresetID: String? = nil,
         originPresetName: String? = nil
     ) -> TimelineClip {
-        var properties = ClipPropertyRegistry.shared.defaultProperties(for: .text)
+        var properties = dependencies.propertyRegistry.defaultProperties(for: .text)
         if let json = config.encodeToJSON() {
             properties["textConfig"] = .string(json)
         }

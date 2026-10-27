@@ -9,10 +9,16 @@ import AVFoundation
 public final class MCPTimelineToolDispatcher: MCPServerDelegate {
     let scriptEngine: TimelineScriptEngine
     public weak var mediaLibraryViewModel: MediaLibraryViewModel?
+    public let dependencies: EditorDependencies
 
-    public init(scriptEngine: TimelineScriptEngine, mediaLibraryViewModel: MediaLibraryViewModel? = nil) {
+    public init(
+        scriptEngine: TimelineScriptEngine,
+        mediaLibraryViewModel: MediaLibraryViewModel? = nil,
+        dependencies: EditorDependencies = EditorDependencies()
+    ) {
         self.scriptEngine = scriptEngine
         self.mediaLibraryViewModel = mediaLibraryViewModel
+        self.dependencies = dependencies
     }
 
     public enum ToolName: String, CaseIterable {

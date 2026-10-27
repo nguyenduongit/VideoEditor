@@ -128,7 +128,8 @@ struct TextIntegrationTests {
     }
 
     @Test func testInspectorTabsForTextClip() {
-        let tabs = ClipPropertyRegistry.shared.tabs(for: .text)
+        let registry = ClipPropertyRegistry()
+        let tabs = registry.tabs(for: .text)
         #expect(tabs == ["Text", "Style", "Animation"])
 
         let timelineVM = TimelineViewModel(initialLayers: [])
@@ -250,10 +251,10 @@ struct TextIntegrationTests {
             description: "Mẫu test neon",
             config: neonConfig
         )
-        TextTemplateLoader.shared.updateInMemoryPreset(sampleNeon)
-        defer { TextTemplateLoader.shared.removeInMemoryPreset(id: "neon_yellow") }
+        let loader = TextTemplateLoader()
+        loader.updateInMemoryPreset(sampleNeon)
 
-        let neon = TextPreset.templates.first { $0.id == "neon_yellow" }
+        let neon = loader.loadAllTemplates().first { $0.id == "neon_yellow" }
         #expect(neon != nil)
         #expect(neon?.config.textColorHex == "#FDE047")
         #expect(neon?.config.shadowColorHex == "#F97316")

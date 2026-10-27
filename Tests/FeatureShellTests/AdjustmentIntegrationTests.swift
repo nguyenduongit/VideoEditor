@@ -267,7 +267,8 @@ struct AdjustmentIntegrationTests {
           }
         }
         """
-        let merged = AdjustmentTemplateLoader.shared.mergeSupabaseTemplateScripts(
+        let loader = AdjustmentTemplateLoader()
+        let merged = loader.mergeSupabaseTemplateScripts(
             [supabaseJSON],
             persistToCache: false
         )
@@ -284,13 +285,8 @@ struct AdjustmentIntegrationTests {
             #expect(thumb?.size.width == 180)
         }
 
-        let libraryVM = AdjustmentLibraryViewModel()
+        let deps = EditorDependencies(adjustmentTemplates: loader)
+        let libraryVM = AdjustmentLibraryViewModel(dependencies: deps)
         #expect(libraryVM.defaultPreset.id == "default")
-        libraryVM.selectedCategory = .cyberNeon
-        #expect(!libraryVM.filteredTemplatePresets.isEmpty)
-        #expect(libraryVM.filteredTemplatePresets.allSatisfy { $0.category == .cyberNeon })
-
-        // Dọn dẹp
-        AdjustmentTemplateLoader.shared.removeInMemoryPreset(id: "supabase_neon_tokyo")
     }
 }

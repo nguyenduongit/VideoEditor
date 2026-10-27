@@ -33,7 +33,7 @@ public struct TimelineClip: Identifiable, Sendable, Hashable, Equatable {
         self.maxDuration = maxDuration
         self.mediaURL = mediaURL
         self.sourceStartTime = sourceStartTime.timescale > 1 ? sourceStartTime : CMTime(seconds: CMTimeGetSeconds(sourceStartTime), preferredTimescale: 600)
-        self.properties = properties ?? ClipPropertyRegistry.shared.defaultProperties(for: kind)
+        self.properties = properties ?? BuiltInClipPropertyDefaults.properties(for: kind)
     }
 
     public mutating func trim(newStart: CMTime, newDuration: CMTime, newSourceStart: CMTime? = nil) {

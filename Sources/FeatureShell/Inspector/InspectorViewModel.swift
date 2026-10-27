@@ -18,9 +18,23 @@ public final class InspectorViewModel {
     private var lastClipKind: ClipKind?
     private var dragInitialProperties: [String: PropertyValue]?
 
-    public init(timelineViewModel: TimelineViewModel? = nil, mediaLibraryViewModel: MediaLibraryViewModel? = nil) {
+    public let propertyRegistry: ClipPropertyRegistry
+    public var dependencies: EditorDependencies {
+        timelineViewModel?.dependencies ?? EditorDependencies(propertyRegistry: propertyRegistry)
+    }
+
+    public init(
+        timelineViewModel: TimelineViewModel? = nil,
+        mediaLibraryViewModel: MediaLibraryViewModel? = nil,
+        propertyRegistry: ClipPropertyRegistry? = nil
+    ) {
         self.timelineViewModel = timelineViewModel
-        self.actionsPanelViewModel = ActionsPanelViewModel(timelineViewModel: timelineViewModel, mediaLibraryViewModel: mediaLibraryViewModel)
+        self.propertyRegistry = propertyRegistry ?? timelineViewModel?.dependencies.propertyRegistry ?? ClipPropertyRegistry()
+        self.actionsPanelViewModel = ActionsPanelViewModel(
+            timelineViewModel: timelineViewModel,
+            mediaLibraryViewModel: mediaLibraryViewModel,
+            dependencies: timelineViewModel?.dependencies
+        )
         syncWithSelection()
     }
 
@@ -35,12 +49,12 @@ public final class InspectorViewModel {
 
     public var availableTabs: [String] {
         guard let clip = selectedClip else { return [] }
-        return ClipPropertyRegistry.shared.tabs(for: clip.kind)
+        return propertyRegistry.tabs(for: clip.kind)
     }
 
     public var effectiveTab: String {
         guard let clip = selectedClip else { return selectedTab }
-        let tabs = ClipPropertyRegistry.shared.tabs(for: clip.kind)
+        let tabs = propertyRegistry.tabs(for: clip.kind)
         if tabs.contains(where: { $0.caseInsensitiveCompare(selectedTab) == .orderedSame }) {
             return selectedTab
         }
@@ -57,12 +71,12 @@ public final class InspectorViewModel {
 
     public var descriptors: [PropertyDescriptor] {
         guard let clip = selectedClip else { return [] }
-        return ClipPropertyRegistry.shared.descriptors(for: clip.kind)
+        return propertyRegistry.descriptors(for: clip.kind)
     }
 
     public var tabDescriptors: [PropertyDescriptor] {
         guard let clip = selectedClip else { return [] }
-        return ClipPropertyRegistry.shared.descriptors(for: clip.kind, tab: effectiveTab)
+        return propertyRegistry.descriptors(for: clip.kind, tab: effectiveTab)
     }
 
     public var groupedDescriptors: [(group: String, descriptors: [PropertyDescriptor])] {
@@ -85,7 +99,7 @@ public final class InspectorViewModel {
             if currentLoadedClipID != clip.id {
                 currentLoadedClipID = clip.id
                 liveProperties = clip.properties
-                let tabs = ClipPropertyRegistry.shared.tabs(for: clip.kind)
+                let tabs = propertyRegistry.tabs(for: clip.kind)
                 if lastClipKind != clip.kind || !tabs.contains(where: { $0.caseInsensitiveCompare(selectedTab) == .orderedSame }) {
                     selectedTab = tabs.first ?? "General"
                 }
@@ -228,7 +242,7 @@ public final class InspectorViewModel {
 
     public func resetGroup(name: String) {
         guard let clip = selectedClip, let timelineViewModel else { return }
-        let allDesc = ClipPropertyRegistry.shared.descriptors(for: clip.kind)
+        let allDesc = propertyRegistry.descriptors(for: clip.kind)
         let groupDesc = allDesc.filter { $0.group == name }
 
         for desc in groupDesc {

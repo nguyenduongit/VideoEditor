@@ -9,7 +9,7 @@ import CoreMedia
 struct InspectorMaskPropertiesTests {
     @Test("Video clip provides complete mask descriptors with picker control")
     func testVideoClipProvidesMaskDescriptors() {
-        let registry = ClipPropertyRegistry.shared
+        let registry = ClipPropertyRegistry()
         let maskDesc = registry.descriptors(for: .video, tab: "Mask")
 
         guard let typeDesc = maskDesc.first(where: { $0.id == "maskType" }) else {

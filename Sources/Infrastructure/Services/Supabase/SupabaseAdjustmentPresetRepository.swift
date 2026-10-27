@@ -8,14 +8,19 @@ import Supabase
 public final class SupabaseAdjustmentPresetRepository: AdjustmentPresetRepositoryProtocol, @unchecked Sendable {
     private let client: SupabaseClient?
     private let tableName = "adjustment_presets"
+    private let templateLoader: AdjustmentTemplateLoader
 
-    public init(client: SupabaseClient? = SupabaseConfig.makeClient()) {
+    public init(
+        client: SupabaseClient? = SupabaseConfig.makeClient(),
+        templateLoader: AdjustmentTemplateLoader = AdjustmentTemplateLoader()
+    ) {
         self.client = client
+        self.templateLoader = templateLoader
     }
 
     public func fetchPresets() async throws -> [AdjustmentPreset] {
         guard let client else {
-            return AdjustmentTemplateLoader.shared.loadAllTemplates()
+            return templateLoader.loadAllTemplates()
         }
 
         do {
@@ -27,17 +32,17 @@ public final class SupabaseAdjustmentPresetRepository: AdjustmentPresetRepositor
 
             let fetched = rows.map { $0.toPreset() }
             // Supabase là Nguồn Chân Lý Duy Nhất (Single Source of Truth)
-            AdjustmentTemplateLoader.shared.setInMemoryTemplates(fetched)
+            templateLoader.setInMemoryTemplates(fetched)
             return fetched
         } catch {
             // Mạng lỗi hoặc timeout: An toàn fallback về cache RAM hoặc mẫu mặc định
-            return AdjustmentTemplateLoader.shared.loadAllTemplates()
+            return templateLoader.loadAllTemplates()
         }
     }
 
     public func savePreset(_ preset: AdjustmentPreset) async throws {
         // 1. Lưu ngay vào RAM cache để giao diện phản hồi tức thì
-        AdjustmentTemplateLoader.shared.updateInMemoryPreset(preset)
+        templateLoader.updateInMemoryPreset(preset)
 
         // 2. Đồng bộ lên Supabase DB
         guard let client else { return }
@@ -65,7 +70,7 @@ public final class SupabaseAdjustmentPresetRepository: AdjustmentPresetRepositor
 
     public func deletePreset(id: String) async throws {
         // 1. Xóa khỏi RAM cache
-        AdjustmentTemplateLoader.shared.removeInMemoryPreset(id: id)
+        templateLoader.removeInMemoryPreset(id: id)
 
         // 2. Xóa trên Supabase DB
         guard let client else { return }
