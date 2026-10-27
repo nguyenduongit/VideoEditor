@@ -10,8 +10,8 @@ struct AudioAlignmentServiceTests {
 
     @Test("Spectral flux cross-correlation detects synthetic lag accurately")
     func testSpectralFluxCrossCorrelationWithSyntheticLag() {
-        let melService = MelSpectrogramService.shared
-        let alignmentService = AudioAlignmentService.shared
+        let melService = MelSpectrogramService()
+        let alignmentService = AudioAlignmentService(melService: melService)
         let sampleRate: Float = 22050.0
 
         // Generate distinct musical onsets with varying frequencies (0.5s, 1.3s, 2.2s, 3.5s)
@@ -52,8 +52,8 @@ struct AudioAlignmentServiceTests {
 
     @Test("Spectral flux handles silence and identical signals properly")
     func testIdenticalSignalsHaveZeroOffset() {
-        let melService = MelSpectrogramService.shared
-        let alignmentService = AudioAlignmentService.shared
+        let melService = MelSpectrogramService()
+        let alignmentService = AudioAlignmentService(melService: melService)
         let sampleRate: Float = 22050.0
 
         let durationSec = 4.0
@@ -77,7 +77,7 @@ struct AudioAlignmentServiceTests {
 
     @Test("Onset envelope refinement accurately refines sub-second lag")
     func testOnsetEnvelopeRefinement() {
-        let alignmentService = AudioAlignmentService.shared
+        let alignmentService = AudioAlignmentService()
         let sampleRate: Float = 22050.0
 
         let durationSec = 15.0

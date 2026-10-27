@@ -3,8 +3,6 @@ import Accelerate
 
 /// Computes Mel-Spectrogram and Normalized Spectral Flux from raw audio samples using Apple Accelerate.
 public final class MelSpectrogramService: @unchecked Sendable {
-    public static let shared = MelSpectrogramService()
-
     public let sampleRate: Float = 22050.0
     public let nFFT: Int = 4096
     public let hopLength: Int = 512

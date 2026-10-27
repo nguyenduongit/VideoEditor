@@ -5,8 +5,6 @@ import os
 
 /// Implementation of AudioAlignmentServiceProtocol using Normalized Mel Spectral Flux Cross-Correlation.
 public final class AudioAlignmentService: AudioAlignmentServiceProtocol, @unchecked Sendable {
-    public static let shared = AudioAlignmentService()
-
     public let minMatchScoreThreshold: Double = 3.0
     public let minCorrelationThreshold: Double = 0.05
 
@@ -15,8 +13,8 @@ public final class AudioAlignmentService: AudioAlignmentServiceProtocol, @unchec
     private let logger = Logger(subsystem: "com.videoeditor", category: "AudioAlignmentService")
 
     public init(
-        decoder: AudioDecoderService = .shared,
-        melService: MelSpectrogramService = .shared
+        decoder: AudioDecoderService = AudioDecoderService(),
+        melService: MelSpectrogramService = MelSpectrogramService()
     ) {
         self.decoder = decoder
         self.melService = melService

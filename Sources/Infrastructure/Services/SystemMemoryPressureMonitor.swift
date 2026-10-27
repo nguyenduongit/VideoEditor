@@ -4,12 +4,10 @@ import Domain
 /// Listens for OS-level low-memory / memory-pressure events on macOS and broadcasts
 /// `Notification.Name.appDidReceiveMemoryWarning` so bounded caches can purge themselves.
 public final class SystemMemoryPressureMonitor: @unchecked Sendable {
-    public static let shared = SystemMemoryPressureMonitor()
-
     private var source: (any DispatchSourceMemoryPressure)?
     private let queue = DispatchQueue(label: "com.videoeditor.memorypressure", qos: .utility)
 
-    private init() {
+    public init() {
         startMonitoring()
     }
 

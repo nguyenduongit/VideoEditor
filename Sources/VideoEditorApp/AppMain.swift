@@ -16,6 +16,7 @@ struct VideoEditorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var viewModel: ShellViewModel
     private let mcpTransport: (any MCPServerTransport)?
+    private let memoryPressureMonitor = SystemMemoryPressureMonitor()
 
     init() {
         let dependencies = EditorDependencies()
