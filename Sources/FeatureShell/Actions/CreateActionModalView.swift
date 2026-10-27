@@ -47,7 +47,7 @@ public struct CreateActionModalView: View {
                 .foregroundStyle(DSColors.accent)
                 .font(.system(size: 14))
 
-            Text("Tạo Action Mới")
+            Text(String(localized: "Tạo Action Mới"))
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(DSColors.textPrimary)
 
@@ -64,7 +64,7 @@ public struct CreateActionModalView: View {
 
     private var nameAndIconSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            TextField("Nhập tên Action (vd: Dựng TikTok 9:16)...", text: $name)
+            TextField(String(localized: "Nhập tên Action (vd: Dựng TikTok 9:16)..."), text: $name)
                 .textFieldStyle(.plain)
                 .font(.system(size: 11.5))
                 .foregroundStyle(DSColors.textPrimary)
@@ -94,7 +94,7 @@ public struct CreateActionModalView: View {
     private var orderedTasksSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Thứ tự các bước thực thi (\(orderedTaskIDs.count) tác vụ):")
+                Text(String(localized: "Thứ tự các bước thực thi (\(orderedTaskIDs.count) tác vụ):"))
                     .font(.system(size: 10.5, weight: .semibold))
                     .foregroundStyle(DSColors.textSecondary)
                 Spacer()
@@ -103,7 +103,7 @@ public struct CreateActionModalView: View {
             ScrollView {
                 VStack(spacing: 4) {
                     if orderedTaskIDs.isEmpty {
-                        Text("Chưa chọn tác vụ nào. Hãy thêm từ danh sách bên dưới.")
+                        Text(String(localized: "Chưa chọn tác vụ nào. Hãy thêm từ danh sách bên dưới."))
                             .font(.system(size: 10.5))
                             .foregroundStyle(DSColors.textSecondary.opacity(0.7))
                             .padding(.vertical, 8)
@@ -180,7 +180,7 @@ public struct CreateActionModalView: View {
         return Group {
             if !unselected.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("+ Thêm tác vụ khác vào quy trình:")
+                    Text(String(localized: "+ Thêm tác vụ khác vào quy trình:"))
                         .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(DSColors.textSecondary.opacity(0.7))
                         .padding(.top, 6)
@@ -220,7 +220,7 @@ public struct CreateActionModalView: View {
 
     private var footerActionButtons: some View {
         HStack(spacing: DSSpacing.sm) {
-            Button("Hủy") {
+            Button(String(localized: "Hủy")) {
                 isPresented = false
             }
             .buttonStyle(.plain)
@@ -231,9 +231,10 @@ public struct CreateActionModalView: View {
 
             Spacer()
 
-            Button("Lưu Action") {
+            Button(String(localized: "Lưu Action")) {
                 let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                let finalName = trimmed.isEmpty ? "Action Mới" : trimmed
+                let defaultName = String(localized: "Action Mới")
+                let finalName = trimmed.isEmpty ? defaultName : trimmed
                 onSave(finalName, selectedIcon, orderedTaskIDs)
                 isPresented = false
             }

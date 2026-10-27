@@ -7,6 +7,7 @@ import os
 
 /// Custom video compositor that performs GPU-accelerated layer blending and masking.
 /// Complies with R3.1, R9.4, and R9.8 of AGENTS.md.
+/// Bắt buộc kế thừa NSObject và conform AVVideoCompositing theo hợp đồng Apple AVFoundation; tài nguyên dùng chung được đồng bộ bởi frameCacheLock (R8.3).
 public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unchecked Sendable {
     private static let logger = Logger(subsystem: "com.videoeditor", category: "TimelineVideoCompositor")
     private let ciContext: CIContext

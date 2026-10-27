@@ -9,6 +9,7 @@ import os
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng) và R9.4 của AGENTS.md.
 extension ColorGradingEngine {
 
+    /// CIColorKernel là immutable sau khi biên dịch từ mã nguồn shader, thread-safe theo Apple Core Image (R8.3).
     nonisolated(unsafe) private static let colorWheelsKernel: CIColorKernel? = {
         let source = """
         kernel vec4 colorWheelsKernel(

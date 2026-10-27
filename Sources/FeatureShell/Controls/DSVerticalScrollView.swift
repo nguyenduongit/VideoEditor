@@ -170,7 +170,7 @@ public final class DSVerticalScrollViewAnchorNSView: NSView {
         onScrollViewFound?(sv)
         setupObservers(for: sv)
         sendMetrics(from: sv)
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self, let sv = self.enclosingScrollView else { return }
             self.sendMetrics(from: sv)
         }

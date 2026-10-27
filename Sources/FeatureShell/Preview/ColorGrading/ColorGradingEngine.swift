@@ -5,13 +5,13 @@ import os
 
 /// Engine áp dụng hiệu ứng chỉnh màu GPU thông qua Core Image & CIColorKernel.
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng) và R9.4 của AGENTS.md.
-public final class ColorGradingEngine: @unchecked Sendable {
+public final class ColorGradingEngine: Sendable {
     private static let logger = Logger(subsystem: "com.videoeditor", category: "ColorGradingEngine")
 
     public init() {}
 
     // MARK: - CIColorKernel HSL 8 dải màu
-
+    /// CIColorKernel là immutable sau khi biên dịch từ mã nguồn shader, thread-safe theo Apple Core Image (R8.3).
     nonisolated(unsafe) private static let hslSelectiveKernel: CIColorKernel? = {
         let source = """
         kernel vec4 hslSelectiveKernel(

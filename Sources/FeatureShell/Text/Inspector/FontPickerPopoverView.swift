@@ -44,7 +44,7 @@ public struct FontPickerPopoverView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(DSColors.textSecondary)
 
-            TextField("Tìm kiếm phông chữ...", text: $searchText)
+            TextField(String(localized: "Tìm kiếm phông chữ..."), text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .foregroundStyle(DSColors.textPrimary)
@@ -118,7 +118,7 @@ public struct FontPickerPopoverView: View {
             Image(systemName: icon)
                 .font(.system(size: 10))
                 .foregroundStyle(iconColor)
-            Text("\(title) (\(count))")
+            Text(String(localized: "\(title) (\(count))"))
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
             Spacer()
@@ -130,7 +130,7 @@ public struct FontPickerPopoverView: View {
 
     private var emptySearchPlaceholder: some View {
         VStack(spacing: 4) {
-            Text("Không tìm thấy phông chữ phù hợp")
+            Text(String(localized: "Không tìm thấy phông chữ phù hợp"))
                 .font(.system(size: 11))
                 .foregroundStyle(DSColors.textSecondary)
         }

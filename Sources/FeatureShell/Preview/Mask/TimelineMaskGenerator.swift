@@ -4,6 +4,7 @@ import CoreImage
 import AppKit
 
 /// Thread-safe in-memory cache for rendered mask CIImages.
+/// An toàn luồng được bảo vệ bởi NSLock nội bộ theo quy tắc R8.3 của AGENTS.md.
 final class MaskImageCache: @unchecked Sendable {
     private let lock = NSLock()
     private var cache: [String: CIImage] = [:]

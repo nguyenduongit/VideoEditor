@@ -1,5 +1,4 @@
 import Foundation
-import CoreGraphics
 
 /// Pure domain math engine for Auto Pan centering and boundary calculations.
 /// Guarantees that the camera pans to keep the subject centered along the vertical axis,

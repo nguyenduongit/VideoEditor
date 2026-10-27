@@ -69,7 +69,7 @@ public struct TextAnimationSlidersView: View {
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Text("Nâng cao")
+                    Text(String(localized: "Nâng cao"))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(DSColors.textSecondary)
                     Image(systemName: isAdvancedExpanded ? "chevron.up" : "chevron.down")
@@ -85,7 +85,7 @@ public struct TextAnimationSlidersView: View {
             if isAdvancedExpanded {
                 VStack(spacing: DSSpacing.xs) {
                     if selectedSubTab == .inAnimation && config.animation.inType == .typewriter1 {
-                        DSToggleRow(title: "Hiển thị con trỏ (|)", isOn: Binding(
+                        DSToggleRow(title: String(localized: "Hiển thị con trỏ (|)"), isOn: Binding(
                             get: { config.animation.isTypewriterCursorVisible },
                             set: { val in var c = config; c.animation.isTypewriterCursorVisible = val; onCommit(c) }
                         ))
@@ -151,7 +151,7 @@ public struct TextAnimationSlidersView: View {
 
     private var scopeSelectorRow: some View {
         HStack(spacing: DSSpacing.xs) {
-            Text("Phạm vi")
+            Text(String(localized: "Phạm vi"))
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(DSColors.textSecondary)
             Spacer()
@@ -176,7 +176,7 @@ public struct TextAnimationSlidersView: View {
 
     private var easingSelectorRow: some View {
         HStack(spacing: DSSpacing.xs) {
-            Text("Easing")
+            Text(String(localized: "Easing"))
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(DSColors.textSecondary)
             Spacer()

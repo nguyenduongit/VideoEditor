@@ -4,7 +4,7 @@ import Domain
 import os
 
 /// Implementation of AudioAlignmentServiceProtocol using Normalized Mel Spectral Flux Cross-Correlation.
-public final class AudioAlignmentService: AudioAlignmentServiceProtocol, @unchecked Sendable {
+public final class AudioAlignmentService: AudioAlignmentServiceProtocol, Sendable {
     public let minMatchScoreThreshold: Double = 3.0
     public let minCorrelationThreshold: Double = 0.05
 

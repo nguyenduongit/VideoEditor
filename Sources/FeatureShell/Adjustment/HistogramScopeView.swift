@@ -37,7 +37,7 @@ public struct HistogramScopeView: View {
 
     private var topBarRow: some View {
         HStack {
-            Text("Biểu đồ Histogram")
+            Text(String(localized: "Biểu đồ Histogram"))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
 
@@ -115,7 +115,7 @@ public struct HistogramScopeView: View {
             if histogramData.hasShadowClipping {
                 HStack(spacing: 4) {
                     Circle().fill(Color.blue).frame(width: 6, height: 6)
-                    Text("Bết tối (<5)")
+                    Text(String(localized: "Bết tối (<5)"))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(Color.blue)
                 }
@@ -124,7 +124,7 @@ public struct HistogramScopeView: View {
             if histogramData.hasHighlightClipping {
                 HStack(spacing: 4) {
                     Circle().fill(Color.red).frame(width: 6, height: 6)
-                    Text("Cháy sáng (>250)")
+                    Text(String(localized: "Cháy sáng (>250)"))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(Color.red)
                 }
@@ -132,7 +132,7 @@ public struct HistogramScopeView: View {
 
             Spacer()
 
-            Text("0 — 255 IRE")
+            Text(String(localized: "0 — 255 IRE"))
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(DSColors.textSecondary)
         }

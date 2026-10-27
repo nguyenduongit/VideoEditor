@@ -52,7 +52,7 @@ public struct ExportDialogView: View {
             Image(systemName: "film.fill")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(DSColors.accent)
-            Text("Xuất Video MP4")
+            Text(String(localized: "Xuất Video MP4"))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
             Spacer()
@@ -74,7 +74,7 @@ public struct ExportDialogView: View {
         HStack {
             Spacer()
             if !viewModel.isExporting {
-                Button("Đóng") {
+                Button(String(localized: "Đóng")) {
                     viewModel.closeDialog()
                 }
                 .buttonStyle(.plain)
@@ -83,11 +83,11 @@ public struct ExportDialogView: View {
             }
 
             if case .idle = viewModel.status {
-                DSActionButton(title: "Chọn nơi lưu & Xuất...", icon: "arrow.down.to.line") {
+                DSActionButton(title: String(localized: "Chọn nơi lưu & Xuất..."), icon: "arrow.down.to.line") {
                     viewModel.promptSaveAndStartExport(timelineViewModel: timelineViewModel)
                 }
             } else if case .cancelled = viewModel.status {
-                DSActionButton(title: "Xuất lại", icon: "arrow.clockwise") {
+                DSActionButton(title: String(localized: "Xuất lại"), icon: "arrow.clockwise") {
                     viewModel.promptSaveAndStartExport(timelineViewModel: timelineViewModel)
                 }
             }
@@ -108,11 +108,11 @@ public struct ExportDialogView: View {
 
     private var optionsSection: some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            Text("CẤU HÌNH XUẤT")
+            Text(String(localized: "CẤU HÌNH XUẤT"))
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(DSColors.textSecondary)
 
-            settingRow(title: "Độ phân giải") {
+            settingRow(title: String(localized: "Độ phân giải")) {
                 DSDropdown(
                     selection: $viewModel.resolution,
                     titleKeyPath: \.title,
@@ -120,7 +120,7 @@ public struct ExportDialogView: View {
                 )
             }
 
-            settingRow(title: "Tốc độ khung hình") {
+            settingRow(title: String(localized: "Tốc độ khung hình")) {
                 DSDropdown(
                     selection: $viewModel.frameRate,
                     titleKeyPath: \.title,
@@ -128,7 +128,7 @@ public struct ExportDialogView: View {
                 )
             }
 
-            settingRow(title: "Chuẩn mã hóa") {
+            settingRow(title: String(localized: "Chuẩn mã hóa")) {
                 DSDropdown(
                     selection: $viewModel.codec,
                     titleKeyPath: \.rawValue,
@@ -143,15 +143,15 @@ public struct ExportDialogView: View {
 
     private var fileInfoSection: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            Text("THÔNG TIN DỰ ÁN")
+            Text(String(localized: "THÔNG TIN DỰ ÁN"))
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(DSColors.textSecondary)
 
-            infoRow(label: "Tỉ lệ khung hình", value: timelineViewModel.aspectRatio.title)
-            infoRow(label: "Kích thước điểm ảnh", value: viewModel.renderDimensionsText(for: timelineViewModel.aspectRatio))
-            infoRow(label: "Thời lượng tổng", value: viewModel.formattedDuration(duration: timelineViewModel.totalDuration))
+            infoRow(label: String(localized: "Tỉ lệ khung hình"), value: timelineViewModel.aspectRatio.title)
+            infoRow(label: String(localized: "Kích thước điểm ảnh"), value: viewModel.renderDimensionsText(for: timelineViewModel.aspectRatio))
+            infoRow(label: String(localized: "Thời lượng tổng"), value: viewModel.formattedDuration(duration: timelineViewModel.totalDuration))
             infoRow(
-                label: "Dung lượng ước tính",
+                label: String(localized: "Dung lượng ước tính"),
                 value: viewModel.estimatedFileSize(
                     duration: timelineViewModel.totalDuration,
                     aspectRatio: timelineViewModel.aspectRatio
@@ -190,7 +190,7 @@ public struct ExportDialogView: View {
             Spacer()
             ProgressView()
                 .controlSize(.regular)
-            Text("Đang xuất video...")
+            Text(String(localized: "Đang xuất video..."))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
 
@@ -212,7 +212,7 @@ public struct ExportDialogView: View {
             }
             .padding(.horizontal, DSSpacing.lg)
 
-            Button("Hủy xuất") {
+            Button(String(localized: "Hủy xuất")) {
                 viewModel.cancelExport()
             }
             .buttonStyle(.plain)
@@ -228,7 +228,7 @@ public struct ExportDialogView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 38))
                 .foregroundStyle(Color.green)
-            Text("Xuất video thành công!")
+            Text(String(localized: "Xuất video thành công!"))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
 
@@ -238,7 +238,7 @@ public struct ExportDialogView: View {
                     .foregroundStyle(DSColors.textSecondary)
                     .lineLimit(1)
 
-                Button("Mở trong Finder") {
+                Button(String(localized: "Mở trong Finder")) {
                     viewModel.openInFinder()
                 }
                 .buttonStyle(.plain)
@@ -255,7 +255,7 @@ public struct ExportDialogView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 36))
                 .foregroundStyle(Color.red)
-            Text("Xuất video thất bại")
+            Text(String(localized: "Xuất video thất bại"))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
 

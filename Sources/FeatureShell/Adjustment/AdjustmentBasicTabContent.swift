@@ -189,7 +189,7 @@ public struct AdjustmentBasicTabContent: View {
                 Image(systemName: "wand.and.stars")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Color(red: 0.35, green: 0.85, blue: 1.0))
-                Text("Cân chỉnh tự động (Auto Balance)")
+                Text(String(localized: "Cân chỉnh tự động (Auto Balance)"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textPrimary)
                 Spacer()

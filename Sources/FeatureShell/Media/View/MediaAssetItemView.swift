@@ -106,7 +106,7 @@ public struct MediaAssetItemView: View {
             Image(systemName: "waveform")
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(DSColors.accent)
-            Text("AUDIO")
+            Text(String(localized: "AUDIO"))
                 .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(DSColors.textSecondary)
         }

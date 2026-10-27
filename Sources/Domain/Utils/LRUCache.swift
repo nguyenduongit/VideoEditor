@@ -3,6 +3,7 @@ import Foundation
 /// A thread-safe, bounded Least-Recently-Used (LRU) in-memory cache.
 /// When the cache reaches its capacity, the oldest unread/unwritten item is automatically evicted.
 /// Optionally listens for `Notification.Name.appDidReceiveMemoryWarning` to purge all cached data.
+/// An toàn luồng được bảo vệ bởi NSLock nội bộ theo quy tắc R8.3 của AGENTS.md.
 public final class LRUCache<Key: Hashable, Value>: @unchecked Sendable {
     private final class Node {
         let key: Key

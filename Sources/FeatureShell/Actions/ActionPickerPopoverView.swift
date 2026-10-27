@@ -52,7 +52,7 @@ public struct ActionPickerPopoverView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(DSColors.textSecondary)
 
-            TextField("Tìm kiếm Action...", text: $searchText)
+            TextField(String(localized: "Tìm kiếm Action..."), text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .foregroundStyle(DSColors.textPrimary)
@@ -92,7 +92,7 @@ public struct ActionPickerPopoverView: View {
             Image(systemName: "bolt.fill")
                 .font(.system(size: 10))
                 .foregroundStyle(DSColors.accent)
-            Text("Danh sách Action (\(count))")
+            Text(String(localized: "Danh sách Action (\(count))"))
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
             Spacer()
@@ -104,7 +104,7 @@ public struct ActionPickerPopoverView: View {
 
     private var emptySearchPlaceholder: some View {
         VStack(spacing: 4) {
-            Text("Không tìm thấy Action phù hợp")
+            Text(String(localized: "Không tìm thấy Action phù hợp"))
                 .font(.system(size: 11))
                 .foregroundStyle(DSColors.textSecondary)
         }
@@ -129,7 +129,7 @@ public struct ActionPickerPopoverView: View {
                         .foregroundStyle(isSelected ? Color.white : DSColors.textPrimary)
                         .lineLimit(1)
 
-                    Text("\(action.taskIDs.count) tác vụ")
+                    Text(String(localized: "\(action.taskIDs.count) tác vụ"))
                         .font(.system(size: 9.5))
                         .foregroundStyle(DSColors.textSecondary.opacity(0.8))
                 }

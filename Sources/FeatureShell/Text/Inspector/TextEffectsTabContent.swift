@@ -25,7 +25,7 @@ public struct TextEffectsTabContent: View {
 
     private var spacingSection: some View {
         VStack(alignment: .leading, spacing: DSSpacing.md) {
-            Text("Spacing")
+            Text(String(localized: "Spacing"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
 
@@ -76,7 +76,7 @@ public struct TextEffectsTabContent: View {
 
     private var transformSection: some View {
         VStack(alignment: .leading, spacing: DSSpacing.md) {
-            Text("Transform")
+            Text(String(localized: "Transform"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
 

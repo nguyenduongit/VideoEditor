@@ -98,7 +98,7 @@ public struct TopbarView: View {
             HStack(spacing: DSSpacing.xs) {
                 Image(systemName: "square.and.arrow.down")
                     .font(.system(size: 10, weight: .semibold))
-                Text("Import Script")
+                Text(String(localized: "Import Script"))
                     .font(.system(size: 11, weight: .medium))
             }
             .foregroundStyle(DSColors.textSecondary)
@@ -109,7 +109,7 @@ public struct TopbarView: View {
             .contentShape(RoundedRectangle(cornerRadius: DSRadius.control))
         }
         .buttonStyle(.plain)
-        .help("Import Project Script JSON (⇧⌘I)")
+        .help(String(localized: "Import Project Script JSON (⇧⌘I)"))
     }
 
     private var exportScriptButton: some View {
@@ -117,7 +117,7 @@ public struct TopbarView: View {
             HStack(spacing: DSSpacing.xs) {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 10, weight: .semibold))
-                Text("Export Script")
+                Text(String(localized: "Export Script"))
                     .font(.system(size: 11, weight: .medium))
             }
             .foregroundStyle(DSColors.textSecondary)
@@ -128,16 +128,16 @@ public struct TopbarView: View {
             .contentShape(RoundedRectangle(cornerRadius: DSRadius.control))
         }
         .buttonStyle(.plain)
-        .help("Export Project Script JSON (⇧⌘S)")
+        .help(String(localized: "Export Project Script JSON (⇧⌘S)"))
     }
 
     private var exportVideoButton: some View {
         DSActionButton(
-            title: "Xuất Video",
+            title: String(localized: "Xuất Video"),
             icon: "film.fill",
             action: handleOpenExportDialog
         )
-        .help("Xuất dự án ra video MP4 (⌘E)")
+        .help(String(localized: "Xuất dự án ra video MP4 (⌘E)"))
     }
 
     private func handleClose() {

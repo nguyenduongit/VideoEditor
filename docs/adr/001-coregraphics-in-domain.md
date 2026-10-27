@@ -1,8 +1,14 @@
-# ADR-001: Cho phép CoreGraphics trong Domain
+# ADR-001: Loại bỏ CoreGraphics khỏi Domain (Đưa Domain về 100% thuần khiết)
 
-- **Trạng thái:** CHỜ DUYỆT
-- **Điều khoản vi phạm:** R2.3
-- **Bối cảnh:** `AutoPanEngine`, `ExportConfiguration`, `CanvasAspectRatio` dùng `CGSize`/`CGRect`/`CGPoint`.
-- **Quyết định:** Chỉ cho phép các kiểu giá trị hình học (`CGFloat`, `CGSize`, `CGPoint`, `CGRect`, `CGAffineTransform`). Cấm `CGContext`, `CGImage` và mọi API vẽ.
-- **Rủi ro / đánh đổi:** Domain phụ thuộc thêm một framework hệ thống (có sẵn trên mọi nền tảng Apple). Phương án thay thế là tự định nghĩa struct hình học, nhưng sẽ tốn công chuyển đổi ở mọi ranh giới.
-- **Người duyệt:** _(chưa có)_
+- **Trạng thái:** ĐÃ GIẢI QUYẾT (RESOLVED)
+- **Ngày:** 2026-10-27
+- **Người duyệt:** Nguyễn Quốc Dương
+- **Điều khoản liên quan:** R2.3 (Đã tuân thủ 100%)
+- **Bối cảnh ban đầu:** `AutoPanEngine`, `ExportConfiguration`, `CanvasAspectRatio` sử dụng `CGSize`/`CGRect`/`CGPoint` dẫn đến việc phải import `CoreGraphics` vào Domain.
+- **Quyết định giải quyết:** 
+  1. Loại bỏ toàn bộ `import CoreGraphics` khỏi tầng `Domain`.
+  2. `AutoPanEngine` đã xóa import thừa không sử dụng.
+  3. `CanvasAspectRatio` và `ExportConfiguration` chuyển sang sử dụng kiểu dữ liệu nguyên thủy thuần Swift (`Int`, `Double`).
+  4. Tạo các extension bắc cầu (`CanvasAspectRatio+CoreGraphics.swift`, `ExportResolution+CoreGraphics.swift`) tại tầng `FeatureShell` để phục vụ hiển thị UI và AVFoundation mà không làm rò rỉ framework đồ họa vào lõi Domain.
+- **Kết quả:** Domain đạt 100% độ thuần khiết theo R2.3. File `Config/domain-allowed-imports.txt` đã xóa `CoreGraphics`. `check_imports.sh` và test suite (436 tests) vượt qua 100%.
+

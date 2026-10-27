@@ -124,12 +124,12 @@ public struct ActionsPanelView: View {
                 if viewModel.isProcessing {
                     ProgressView()
                         .controlSize(.small)
-                    Text("Đang thực thi...")
+                    Text(String(localized: "Đang thực thi..."))
                         .font(.system(size: 12, weight: .semibold))
                 } else {
                     Image(systemName: "play.fill")
                         .font(.system(size: 10, weight: .bold))
-                    Text("Thực thi \(viewModel.currentAction?.name ?? "Action")")
+                    Text(String(localized: "Thực thi \(viewModel.currentAction?.name ?? "Action")"))
                         .font(.system(size: 12, weight: .semibold))
                 }
             }

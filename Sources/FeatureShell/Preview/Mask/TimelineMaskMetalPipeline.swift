@@ -19,6 +19,7 @@ public struct MaskShaderUniforms {
 
 /// GPU Metal compute pipeline for high-performance mask synthesis.
 /// Eliminates CPU NSBitmapImageRep allocations and executes in VRAM (< 0.1ms/frame).
+/// Bọc các đối tượng Metal (MTLDevice, MTLCommandQueue, MTLComputePipelineState); toàn bộ là immutable 'let' constants và thread-safe theo Apple Metal framework (R8.3).
 public final class TimelineMaskMetalPipeline: @unchecked Sendable {
     private let device: MTLDevice?
     private let commandQueue: MTLCommandQueue?

@@ -117,7 +117,7 @@ public struct ColorWheelControlView: View {
 
     private var lumaRow: some View {
         HStack(spacing: DSSpacing.sm) {
-            Text("Luma")
+            Text(String(localized: "Luma"))
                 .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(DSColors.textSecondary)
                 .frame(width: 36, alignment: .leading)

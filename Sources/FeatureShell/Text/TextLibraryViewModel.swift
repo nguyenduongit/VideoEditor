@@ -19,6 +19,7 @@ public final class TextLibraryViewModel {
     public private(set) var templatePresets: [TextPreset] = []
     public let dependencies: EditorDependencies
     public weak var timelineViewModel: TimelineViewModel?
+    /// Cho phép truy cập dọn dẹp NotificationCenter observer trong nonisolated deinit (R8.3).
     @ObservationIgnored nonisolated(unsafe) private var notificationObserver: (any NSObjectProtocol)?
 
     public init(timelineViewModel: TimelineViewModel? = nil, dependencies: EditorDependencies? = nil) {

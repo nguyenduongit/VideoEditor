@@ -100,7 +100,7 @@ public struct MediaLibraryView: View {
     }
 
     private var itemCountLabel: some View {
-        Text("\(viewModel.filteredAssets.count) items")
+        Text(String(localized: "\(viewModel.filteredAssets.count) items"))
             .font(.system(size: 11, weight: .regular))
             .foregroundStyle(DSColors.textSecondary)
     }

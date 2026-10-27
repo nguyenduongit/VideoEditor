@@ -115,7 +115,7 @@ public struct TaskItemRowView: View {
                 .background(DSColors.blockBorder)
 
             HStack(spacing: 8) {
-                Text("Preset")
+                Text(String(localized: "Preset"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
                     .frame(width: 52, alignment: .leading)
@@ -130,12 +130,12 @@ public struct TaskItemRowView: View {
             }
 
             HStack(spacing: 8) {
-                Text("Tiêu đề")
+                Text(String(localized: "Tiêu đề"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
                     .frame(width: 52, alignment: .leading)
 
-                TextField("Nhập tiêu đề video...", text: $viewModel.titleText)
+                TextField(String(localized: "Nhập tiêu đề video..."), text: $viewModel.titleText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 11.5))
                     .padding(.horizontal, 10)

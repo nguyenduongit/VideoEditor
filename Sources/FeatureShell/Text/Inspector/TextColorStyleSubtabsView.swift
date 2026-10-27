@@ -52,7 +52,7 @@ public struct TextColorStyleSubtabsView: View {
 
     private var headerRow: some View {
         HStack {
-            Text("Color & Effects")
+            Text(String(localized: "Color & Effects"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
             Spacer()

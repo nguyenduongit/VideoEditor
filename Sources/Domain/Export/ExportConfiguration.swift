@@ -1,5 +1,4 @@
 import Foundation
-import CoreGraphics
 
 /// Lựa chọn độ phân giải khi xuất video MP4.
 public enum ExportResolution: String, CaseIterable, Sendable, Codable {
@@ -12,20 +11,20 @@ public enum ExportResolution: String, CaseIterable, Sendable, Codable {
     }
 
     /// Tính kích thước điểm ảnh chẵn chuẩn hóa theo CanvasAspectRatio hiện tại.
-    public func dimensions(for aspect: CanvasAspectRatio) -> CGSize {
-        let scale: CGFloat
+    public func pixelDimensions(for aspect: CanvasAspectRatio) -> (width: Int, height: Int) {
+        let scale: Double
         switch self {
         case .res720p:  scale = 720.0 / 1080.0
         case .res1080p: scale = 1.0
         case .res4k:    scale = 2160.0 / 1080.0
         }
 
-        let rawWidth = aspect.renderSize.width * scale
-        let rawHeight = aspect.renderSize.height * scale
+        let rawWidth = Double(aspect.pixelWidth) * scale
+        let rawHeight = Double(aspect.pixelHeight) * scale
         // Bộ mã hóa H.264 và HEVC yêu cầu kích thước bắt buộc phải là số chẵn
         let evenWidth = floor(rawWidth / 2.0) * 2.0
         let evenHeight = floor(rawHeight / 2.0) * 2.0
-        return CGSize(width: max(2.0, evenWidth), height: max(2.0, evenHeight))
+        return (width: Int(max(2.0, evenWidth)), height: Int(max(2.0, evenHeight)))
     }
 }
 

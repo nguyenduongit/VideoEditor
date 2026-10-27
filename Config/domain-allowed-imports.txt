@@ -2,4 +2,3 @@
 # Mỗi dòng ngoài Foundation/CoreMedia phải có ADR tương ứng.
 Foundation
 CoreMedia    # chỉ dùng CMTime / CMTimeRange
-CoreGraphics # ADR-001 (CHỜ DUYỆT)

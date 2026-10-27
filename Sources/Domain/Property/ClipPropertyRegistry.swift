@@ -2,6 +2,7 @@ import Foundation
 
 /// Registry providing property descriptors for each clip kind.
 /// Complies with R5.1 & R6.1 of AGENTS.md: Inspector looks up descriptors through this registry.
+/// An toàn luồng được bảo vệ bởi NSLock nội bộ theo quy tắc R8.3 của AGENTS.md.
 public final class ClipPropertyRegistry: @unchecked Sendable {
 
     private var storage: [ClipKind: [PropertyDescriptor]] = [:]

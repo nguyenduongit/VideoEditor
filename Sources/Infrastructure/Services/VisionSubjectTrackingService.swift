@@ -9,7 +9,7 @@ import os
 /// Infrastructure service using Apple Vision framework to track human subjects across video frames.
 /// Adopts 512px proxy hardware decoding, stream pipeline, candidate grouping, and Gaussian smoothing.
 /// Complies with R2.6, R3.1, and R7.5 of AGENTS.md.
-public final class VisionSubjectTrackingService: SubjectTrackingServiceProtocol, @unchecked Sendable {
+public final class VisionSubjectTrackingService: SubjectTrackingServiceProtocol, Sendable {
     private static let logger = Logger(subsystem: "com.videoeditor", category: "VisionSubjectTrackingService")
 
     public init() {}

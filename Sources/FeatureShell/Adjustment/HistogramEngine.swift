@@ -26,6 +26,7 @@ public struct HistogramData: Sendable, Equatable {
 
 /// Engine tính toán biểu đồ Histogram thời gian thực từ khung hình video
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng) của AGENTS.md.
+/// Bọc CIContext từ Apple Core Image SDK (CIContext là thread-safe theo tài liệu chính thức Apple; mọi hàm tính toán đều là thuần stateless) (R8.3).
 public final class HistogramEngine: @unchecked Sendable {
     private static let logger = Logger(subsystem: "com.videoeditor", category: "HistogramEngine")
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])

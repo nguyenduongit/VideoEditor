@@ -5,6 +5,7 @@ import Supabase
 /// Hiện thực kho lưu trữ mẫu chữ (Text Presets) qua Supabase Database và Cache cục bộ.
 /// Áp dụng cơ chế Offline-First / Stale-While-Revalidate (SWR) để đảm bảo độ mượt 0ms.
 /// Tuân thủ AGENTS.md R2.1 (Infrastructure hiện thực hóa Domain Protocol) và R3.1 (File <= 300 dòng).
+/// Bọc SupabaseClient bên thứ ba; toàn bộ thuộc tính đều là immutable 'let' và templateLoader thread-safe (Tuân thủ R8.3 của AGENTS.md).
 public final class SupabaseTextPresetRepository: TextPresetRepositoryProtocol, @unchecked Sendable {
     private let client: SupabaseClient?
     private let tableName = "text_presets"

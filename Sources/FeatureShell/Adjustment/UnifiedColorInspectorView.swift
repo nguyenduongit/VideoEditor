@@ -64,7 +64,7 @@ public struct UnifiedColorInspectorView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(isEnabled ? DSColors.toggleCyan : DSColors.textSecondary)
 
-                Text("Enable Adjustment")
+                Text(String(localized: "Enable Adjustment"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(isEnabled ? DSColors.textPrimary : DSColors.textSecondary)
 

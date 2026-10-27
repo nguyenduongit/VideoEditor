@@ -85,7 +85,7 @@ public struct InspectorView: View {
                     Image(systemName: "square.dashed")
                         .font(.system(size: 26))
                         .foregroundStyle(DSColors.textSecondary.opacity(0.45))
-                    Text("Tính năng \(viewModel.selectedTab) đang được phát triển")
+                    Text(String(localized: "Tính năng \(viewModel.selectedTab) đang được phát triển"))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(DSColors.textSecondary)
                     Spacer(minLength: 40)

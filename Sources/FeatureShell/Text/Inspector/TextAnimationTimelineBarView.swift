@@ -43,7 +43,7 @@ public struct TextAnimationTimelineBarView: View {
 
         return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                Text("Tiến trình hoạt ảnh")
+                Text(String(localized: "Tiến trình hoạt ảnh"))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
                 Spacer()
@@ -59,7 +59,7 @@ public struct TextAnimationTimelineBarView: View {
                             .foregroundStyle(DSColors.textSecondary.opacity(0.8))
                     }
                     .buttonStyle(.plain)
-                    .help("Bỏ toàn bộ hoạt ảnh Text")
+                    .help(String(localized: "Bỏ toàn bộ hoạt ảnh Text"))
                 }
             }
 
@@ -114,14 +114,15 @@ public struct TextAnimationTimelineBarView: View {
         if config.animation.outType != .none {
             parts.append(String(format: "Out %.1fs", config.animation.outDuration))
         }
-        return parts.isEmpty ? "Mặc định" : parts.joined(separator: " • ")
+        let defaultLabel = String(localized: "Mặc định")
+        return parts.isEmpty ? defaultLabel : parts.joined(separator: " • ")
     }
 
     // MARK: - Stagger Direction & Anchor Point
 
     private var staggerDirectionRow: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Thứ tự xuất hiện")
+            Text(String(localized: "Thứ tự xuất hiện"))
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(DSColors.textSecondary)
 
@@ -155,7 +156,7 @@ public struct TextAnimationTimelineBarView: View {
 
     private var anchorPointRow: some View {
         HStack(spacing: DSSpacing.xs) {
-            Text("Tâm biến đổi")
+            Text(String(localized: "Tâm biến đổi"))
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(DSColors.textSecondary)
             Spacer()

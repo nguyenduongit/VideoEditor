@@ -6,6 +6,7 @@ import os
 /// Hiện thực kho lưu trữ Custom Actions thuần Online qua Supabase Database và RAM cache.
 /// Tuyệt đối không ghi file đĩa cục bộ theo yêu cầu hệ thống chỉ lưu trữ Online.
 /// Tuân thủ AGENTS.md R2.1 (Infrastructure hiện thực hóa Domain Protocol) và R3.1 (File <= 300 dòng).
+/// An toàn luồng được bảo vệ bởi NSLock nội bộ theo quy tắc R8.3 của AGENTS.md.
 public final class SupabaseActionRepository: ActionRepositoryProtocol, @unchecked Sendable {
     private static let logger = Logger(subsystem: "com.videoeditor", category: "SupabaseActionRepository")
     private let client: SupabaseClient?

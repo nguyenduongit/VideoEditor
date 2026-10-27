@@ -36,14 +36,14 @@ Cấp độ dự án: L (Swift Package cục bộ: Domain / DesignSystem / Infra
 Nền tảng & Deployment Target tối thiểu: macOS 14.0+
 Mô hình trạng thái (State): @Observable
 Strict Concurrency (Swift 6): Bật (swift-tools-version 6.0, Swift 6 language mode)
-Localization: Chưa (xem ADR-003, chờ duyệt)
-Hệ thống Undo/Redo: [CẦN XÁC NHẬN — chưa xác định từ codebase]
+Localization: Đã triển khai (String(localized:) theo Foundation & R9.2)
+Hệ thống Undo/Redo: TimelineCommandExecutor với TimelineHistoryRecord (Forward + Inverse Command Stack)
 Kiểu biểu diễn thời gian trong Domain: CMTime + TimeRational (Sources/Domain/Time)
-Cơ chế thực thi Command/Event: [CẦN XÁC NHẬN]
+Cơ chế thực thi Command/Event: TimelineCommand (Codable, Sendable) thực thi qua TimelineCommandExecutor
 Hỗ trợ Dynamic Type (nếu macOS): Không áp dụng
 Thư viện bên thứ ba được phép: supabase-swift (lưu trữ & đồng bộ preset/action online)
-Framework ngoại lệ trong Domain: Xem Config/domain-allowed-imports.txt (CoreGraphics — ADR-001, chờ duyệt)
-Danh sách ADR ngoại lệ (docs/adr/): Chưa có ADR được duyệt (001, 002, 003 đang chờ duyệt)
+Framework ngoại lệ trong Domain: Không có (Domain 100% thuần khiết, không framework đồ hoạ/UI)
+Danh sách ADR ngoại lệ (docs/adr/): 002 (Đã duyệt ngoại lệ — Nguyễn Quốc Dương); ADR-001, ADR-003 đã giải quyết
 ```
 
 ---

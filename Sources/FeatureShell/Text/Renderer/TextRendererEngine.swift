@@ -8,7 +8,7 @@ import Domain
 
 /// Engine kết xuất văn bản (Typography) với định dạng font chữ, viền, bóng, nền và transform vật lý Pro.
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng) của AGENTS.md.
-public final class TextRendererEngine: @unchecked Sendable {
+public final class TextRendererEngine: Sendable {
     public init() {}
 
     /// Đo kích thước bounding box của văn bản dựa trên cấu hình và kích thước canvas.

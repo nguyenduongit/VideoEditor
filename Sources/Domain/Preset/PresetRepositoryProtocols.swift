@@ -18,6 +18,7 @@ public protocol TextPresetRepositoryProtocol: Sendable {
 
 /// Điểm cung cấp trung gian cho Dependency Injection giữa App Composition Root và Feature UI
 /// Giúp FeatureShell không cần import trực tiếp tầng Infrastructure hay Supabase SDK (R2.1, R2.5).
+/// An toàn luồng được bảo vệ bởi NSLock nội bộ theo quy tắc R8.3 của AGENTS.md.
 public final class PresetRepositoryProvider: @unchecked Sendable {
 
     private let lock = NSLock()

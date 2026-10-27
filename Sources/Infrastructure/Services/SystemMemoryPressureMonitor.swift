@@ -3,8 +3,10 @@ import Domain
 
 /// Listens for OS-level low-memory / memory-pressure events on macOS and broadcasts
 /// `Notification.Name.appDidReceiveMemoryWarning` so bounded caches can purge themselves.
+/// Bọc DispatchSourceMemoryPressure từ Darwin libdispatch; an toàn luồng được bảo vệ bởi queue nội bộ (R8.3).
 public final class SystemMemoryPressureMonitor: @unchecked Sendable {
     private var source: (any DispatchSourceMemoryPressure)?
+    /// Hàng đợi bắt buộc bởi Apple Darwin libdispatch API: DispatchSource.makeMemoryPressureSource(queue:)
     private let queue = DispatchQueue(label: "com.videoeditor.memorypressure", qos: .utility)
 
     public init() {

@@ -116,20 +116,20 @@ struct VideoEditorApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .undoRedo) {
-                Button("Undo") {
+                Button(String(localized: "Undo")) {
                     viewModel.timelineViewModel.undo()
                 }
                 .keyboardShortcut("z", modifiers: .command)
                 .disabled(!viewModel.timelineViewModel.canUndo)
 
-                Button("Redo") {
+                Button(String(localized: "Redo")) {
                     viewModel.timelineViewModel.redo()
                 }
                 .keyboardShortcut("z", modifiers: [.command, .shift])
                 .disabled(!viewModel.timelineViewModel.canRedo)
             }
             CommandGroup(after: .newItem) {
-                Button("Import Project Script...") {
+                Button(String(localized: "Import Project Script...")) {
                     TimelineProjectIO.importProjectScript(
                         into: viewModel.timelineViewModel,
                         mediaLibraryViewModel: viewModel.mediaLibraryViewModel
@@ -138,7 +138,7 @@ struct VideoEditorApp: App {
                 }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
 
-                Button("Export Project Script...") {
+                Button(String(localized: "Export Project Script...")) {
                     TimelineProjectIO.exportProjectScript(from: viewModel.timelineViewModel)
                 }
                 .keyboardShortcut("s", modifiers: [.command, .shift])

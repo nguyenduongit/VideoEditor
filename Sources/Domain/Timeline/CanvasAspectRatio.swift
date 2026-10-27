@@ -1,8 +1,7 @@
 import Foundation
-import CoreGraphics
 
 /// Working canvas aspect ratio and render dimension specification for preview and export.
-/// Complies with R2.3 of AGENTS.md.
+/// Pure Domain model complying with R2.3 of AGENTS.md.
 public enum CanvasAspectRatio: String, Codable, Sendable, CaseIterable, Equatable, Hashable {
     case ratio16x9 = "16:9"
     case ratio9x16 = "9:16"
@@ -17,7 +16,7 @@ public enum CanvasAspectRatio: String, Codable, Sendable, CaseIterable, Equatabl
         rawValue
     }
 
-    public var width: CGFloat {
+    public var pixelWidth: Int {
         switch self {
         case .ratio16x9: return 1920
         case .ratio9x16: return 1080
@@ -30,7 +29,7 @@ public enum CanvasAspectRatio: String, Codable, Sendable, CaseIterable, Equatabl
         }
     }
 
-    public var height: CGFloat {
+    public var pixelHeight: Int {
         switch self {
         case .ratio16x9: return 1080
         case .ratio9x16: return 1920
@@ -43,18 +42,14 @@ public enum CanvasAspectRatio: String, Codable, Sendable, CaseIterable, Equatabl
         }
     }
 
-    public var renderSize: CGSize {
-        CGSize(width: width, height: height)
+    public var ratio: Double {
+        Double(pixelWidth) / Double(pixelHeight)
     }
 
-    public var ratio: CGFloat {
-        width / height
-    }
-
-    /// Finds the closest supported aspect ratio for a given pixel dimension.
-    public static func closest(for size: CGSize) -> CanvasAspectRatio {
-        guard size.width > 0, size.height > 0 else { return .ratio16x9 }
-        let targetRatio = size.width / size.height
+    /// Finds the closest supported aspect ratio for given pixel dimensions.
+    public static func closest(width: Double, height: Double) -> CanvasAspectRatio {
+        guard width > 0, height > 0 else { return .ratio16x9 }
+        let targetRatio = width / height
         return allCases.min(by: { abs($0.ratio - targetRatio) < abs($1.ratio - targetRatio) }) ?? .ratio16x9
     }
 }

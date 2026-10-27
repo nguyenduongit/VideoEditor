@@ -3,6 +3,7 @@ import Foundation
 /// Bộ nạp và đồng bộ các mẫu chữ (Text Presets) trực tuyến từ Supabase và bộ nhớ đệm RAM.
 /// Tuyệt đối không lưu file đĩa cục bộ theo yêu cầu hệ thống chỉ lưu trữ Online.
 /// Tuân thủ AGENTS.md R2.3 (thuần Domain, chỉ import Foundation) và R3.1 (File <= 300 dòng, Hàm <= 50 dòng).
+/// An toàn luồng được bảo vệ bởi NSLock nội bộ theo quy tắc R8.3 của AGENTS.md.
 public final class TextTemplateLoader: @unchecked Sendable {
 
     private let lock = NSLock()

@@ -6,6 +6,7 @@ struct VideoTrackMetadata: Sendable {
     let naturalSize: CGSize
 }
 
+/// An toàn luồng được bảo vệ bởi NSLock nội bộ theo quy tắc R8.3 của AGENTS.md.
 final class VideoMetadataCache: @unchecked Sendable {
     private let lock = NSLock()
     private var cache: [URL: VideoTrackMetadata] = [:]

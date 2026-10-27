@@ -110,7 +110,7 @@ public struct TextCardItemView: View {
                 Image(systemName: "character.textbox")
                     .font(.system(size: 26, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
-                Text("Văn bản")
+                Text(String(localized: "Văn bản"))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(DSColors.textPrimary)
             }

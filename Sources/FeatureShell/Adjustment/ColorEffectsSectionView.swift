@@ -62,7 +62,7 @@ public struct ColorEffectsSectionView: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(DSColors.textPrimary)
                         .lineLimit(1)
-                    Text("3D LUT Active")
+                    Text(String(localized: "3D LUT Active"))
                         .font(.system(size: 10))
                         .foregroundStyle(DSColors.accent)
                 }
@@ -75,9 +75,9 @@ public struct ColorEffectsSectionView: View {
                         .foregroundStyle(DSColors.textSecondary)
                 }
                 .buttonStyle(.plain)
-                .help("Remove LUT")
+                .help(String(localized: "Remove LUT"))
             } else {
-                Text("No LUT Loaded")
+                Text(String(localized: "No LUT Loaded"))
                     .font(.system(size: 11))
                     .foregroundStyle(DSColors.textSecondary)
 
@@ -86,7 +86,7 @@ public struct ColorEffectsSectionView: View {
                 Button(action: pickLUTFile) {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
-                        Text("Load .cube")
+                        Text(String(localized: "Load .cube"))
                     }
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textPrimary)

@@ -35,7 +35,7 @@ public struct MediaDragThumbnailCardView: View {
                 Image(systemName: "waveform")
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundStyle(DSColors.accent)
-                Text("AUDIO")
+                Text(String(localized: "AUDIO"))
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(DSColors.textSecondary)
             }

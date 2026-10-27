@@ -28,7 +28,7 @@ public struct TextBasicTabContent: View {
 
     private var contentSection: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            Text("Content")
+            Text(String(localized: "Content"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
 
@@ -64,7 +64,7 @@ public struct TextBasicTabContent: View {
 
     private var typographySection: some View {
         VStack(alignment: .leading, spacing: DSSpacing.md) {
-            Text("Typography")
+            Text(String(localized: "Typography"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
 

@@ -78,7 +78,7 @@ public struct AIInspectorView: View {
                     } else {
                         Image(systemName: "sparkles")
                             .font(.system(size: 10, weight: .semibold))
-                        Text("Analyze")
+                        Text(String(localized: "Analyze"))
                             .font(.system(size: 11, weight: .semibold))
                     }
                 }
@@ -92,11 +92,11 @@ public struct AIInspectorView: View {
             .disabled(isAnalyzing)
 
             if !autoPanConfig.keyframes.isEmpty {
-                Text("\(autoPanConfig.keyframes.count) frame")
+                Text(String(localized: "\(autoPanConfig.keyframes.count) frame"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
             } else if isAnalyzing {
-                Text("Đang quét...")
+                Text(String(localized: "Đang quét..."))
                     .font(.system(size: 11))
                     .foregroundStyle(DSColors.toggleCyan)
             }
@@ -107,7 +107,7 @@ public struct AIInspectorView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 16))
                     .foregroundStyle(Color(red: 0.18, green: 0.8, blue: 0.35))
-                    .help("Đã phân tích hoàn tất")
+                    .help(String(localized: "Đã phân tích hoàn tất"))
             }
         }
         .padding(.horizontal, DSSpacing.sm)
@@ -161,7 +161,7 @@ public struct AIInspectorView: View {
     }
 
     private var autoPanDescriptionNote: some View {
-        Text("Tự động căn giữa nhân vật theo trục ngang (X). Camera chỉ lia trong phạm vi khung hình gốc để không lộ viền đen.")
+        Text(String(localized: "Tự động căn giữa nhân vật theo trục ngang (X). Camera chỉ lia trong phạm vi khung hình gốc để không lộ viền đen."))
             .font(.system(size: 11))
             .foregroundStyle(DSColors.textSecondary)
             .lineSpacing(2)

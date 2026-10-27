@@ -63,7 +63,7 @@ public struct SavePresetModalView: View {
         HStack {
             Image(systemName: "square.and.arrow.down.fill")
                 .foregroundStyle(DSColors.accent)
-            Text(originPresetID != nil ? "Lưu Preset Mới (Bản sao)" : "Lưu thành Preset")
+            Text(originPresetID != nil ? String(localized: "Lưu Preset Mới (Bản sao)") : String(localized: "Lưu thành Preset"))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
             Spacer()
@@ -79,10 +79,10 @@ public struct SavePresetModalView: View {
     private var inputFormView: some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Tên Preset")
+                Text(String(localized: "Tên Preset"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
-                TextField("Nhập tên preset...", text: $name)
+                TextField(String(localized: "Nhập tên preset..."), text: $name)
                     .textFieldStyle(.plain)
                     .padding(6)
                     .background(DSColors.inputBackground)
@@ -90,17 +90,17 @@ public struct SavePresetModalView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Danh mục")
+                Text(String(localized: "Danh mục"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
                 categoryPicker
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Ghi chú / Mô tả (tùy chọn)")
+                Text(String(localized: "Ghi chú / Mô tả (tùy chọn)"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
-                TextField("Mô tả ngắn phong cách...", text: $description)
+                TextField(String(localized: "Mô tả ngắn phong cách..."), text: $description)
                     .textFieldStyle(.plain)
                     .padding(6)
                     .background(DSColors.inputBackground)
@@ -141,7 +141,7 @@ public struct SavePresetModalView: View {
 
     private var actionButtonsView: some View {
         HStack(spacing: DSSpacing.sm) {
-            Button("Hủy", action: onDismiss)
+            Button(String(localized: "Hủy"), action: onDismiss)
                 .buttonStyle(.plain)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
@@ -158,7 +158,7 @@ public struct SavePresetModalView: View {
                     } else {
                         Image(systemName: "icloud.and.arrow.up")
                     }
-                    Text("Lưu lên Supabase")
+                    Text(String(localized: "Lưu lên Supabase"))
                 }
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Color.white)

@@ -7,6 +7,7 @@ import Domain
 
 /// Video composition instruction holding layer rendering information, grid configuration, and mask parameters.
 /// Complies with R3.1 and R4.1 of AGENTS.md.
+/// Bắt buộc kế thừa NSObject và conform AVVideoCompositionInstructionProtocol theo Apple AVFoundation; dữ liệu chỉ đọc trong quá trình render (R8.3).
 public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoCompositionInstructionProtocol, @unchecked Sendable {
     public struct LayerRenderInfo: Sendable {
         public let trackID: CMPersistentTrackID

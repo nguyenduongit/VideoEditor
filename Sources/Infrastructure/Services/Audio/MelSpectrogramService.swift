@@ -2,6 +2,7 @@ import Foundation
 import Accelerate
 
 /// Computes Mel-Spectrogram and Normalized Spectral Flux from raw audio samples using Apple Accelerate.
+/// Bọc FFTSetup (C-pointer của Apple Accelerate vDSP); toàn bộ bộ đệm tính toán đều bất biến sau khi khởi tạo (R8.3).
 public final class MelSpectrogramService: @unchecked Sendable {
     public let sampleRate: Float = 22050.0
     public let nFFT: Int = 4096

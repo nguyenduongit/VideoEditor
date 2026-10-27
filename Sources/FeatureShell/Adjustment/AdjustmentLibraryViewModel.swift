@@ -20,6 +20,7 @@ public final class AdjustmentLibraryViewModel {
     public let dependencies: EditorDependencies
     public let thumbnailRenderer: AdjustmentThumbnailRenderer
     public weak var timelineViewModel: TimelineViewModel?
+    /// Cho phép truy cập dọn dẹp NotificationCenter observer trong nonisolated deinit (R8.3).
     @ObservationIgnored nonisolated(unsafe) private var notificationObserver: (any NSObjectProtocol)?
 
     public init(

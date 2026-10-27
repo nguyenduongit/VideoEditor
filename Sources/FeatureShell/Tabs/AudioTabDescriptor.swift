@@ -12,10 +12,10 @@ public struct AudioTabDescriptor: TabDescriptor {
     public func makeSidebarView() -> AnyView {
         AnyView(
             VStack(alignment: .leading, spacing: DSSpacing.md) {
-                Text("Audio Library")
+                Text(String(localized: "Audio Library"))
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(DSColors.textPrimary)
-                Text("Nội dung tab Audio: Danh sách hiệu ứng âm thanh, nhạc nền và voiceover.")
+                Text(String(localized: "Nội dung tab Audio: Danh sách hiệu ứng âm thanh, nhạc nền và voiceover."))
                     .font(.system(size: 12))
                     .foregroundStyle(DSColors.textSecondary)
                 Spacer()

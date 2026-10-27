@@ -57,12 +57,12 @@ public struct TextPresetActionSectionView: View {
             )
         }
         .alert("Xác nhận ghi đè Preset", isPresented: $isOverwriteAlertPresented) {
-            Button("Ghi đè", role: .destructive) {
+            Button(String(localized: "Ghi đè"), role: .destructive) {
                 overwriteCurrentPreset()
             }
-            Button("Hủy", role: .cancel) {}
+            Button(String(localized: "Hủy"), role: .cancel) {}
         } message: {
-            Text("Bạn có chắc chắn muốn cập nhật toàn bộ định dạng và hiệu ứng mới vào preset \"\(originPresetName ?? "")\" trên Supabase không?")
+            Text(String(localized: "Bạn có chắc chắn muốn cập nhật toàn bộ định dạng và hiệu ứng mới vào preset \"\(originPresetName ?? "")\" trên Supabase không?"))
         }
     }
 
@@ -75,7 +75,7 @@ public struct TextPresetActionSectionView: View {
                     } else {
                         Image(systemName: "arrow.triangle.2.circlepath")
                     }
-                    Text("Ghi đè \"\(originName)\"")
+                    Text(String(localized: "Ghi đè \"\(originName)\""))
                         .lineLimit(1)
                 }
                 .font(.system(size: 11, weight: .semibold))
@@ -98,7 +98,7 @@ public struct TextPresetActionSectionView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
-            .help("Lưu thành bản sao preset mới...")
+            .help(String(localized: "Lưu thành bản sao preset mới..."))
         }
     }
 
@@ -106,7 +106,7 @@ public struct TextPresetActionSectionView: View {
         Button(action: { isSaveModalPresented = true }) {
             HStack(spacing: 6) {
                 Image(systemName: "square.and.arrow.down")
-                Text("Lưu thành Preset...")
+                Text(String(localized: "Lưu thành Preset..."))
                 Spacer()
                 Image(systemName: "icloud.and.arrow.up")
                     .foregroundStyle(DSColors.textSecondary)

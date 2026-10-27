@@ -44,7 +44,7 @@ public struct TimelineRulerRowView: View {
     }
 
     private var leftBar: some View {
-        Text("\(playheadState.fps) fps")
+        Text(String(localized: "\(playheadState.fps) fps"))
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(DSColors.textSecondary)
             .frame(width: DSSize.layerHeaderWidth, height: DSSize.rulerHeight)

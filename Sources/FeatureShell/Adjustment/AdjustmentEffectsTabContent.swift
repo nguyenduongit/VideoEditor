@@ -98,7 +98,7 @@ public struct AdjustmentEffectsTabContent: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(DSColors.textPrimary)
                         .lineLimit(1)
-                    Text("3D LUT Active")
+                    Text(String(localized: "3D LUT Active"))
                         .font(.system(size: 10))
                         .foregroundStyle(DSColors.accent)
                 }
@@ -111,9 +111,9 @@ public struct AdjustmentEffectsTabContent: View {
                         .foregroundStyle(DSColors.textSecondary)
                 }
                 .buttonStyle(.plain)
-                .help("Gỡ LUT")
+                .help(String(localized: "Gỡ LUT"))
             } else {
-                Text("Chưa chọn tệp .cube")
+                Text(String(localized: "Chưa chọn tệp .cube"))
                     .font(.system(size: 11))
                     .foregroundStyle(DSColors.textSecondary)
 
@@ -122,7 +122,7 @@ public struct AdjustmentEffectsTabContent: View {
                 Button(action: pickLUTFile) {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
-                        Text("Nạp .cube")
+                        Text(String(localized: "Nạp .cube"))
                     }
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textPrimary)

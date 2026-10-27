@@ -3,9 +3,11 @@ import Network
 import os
 import Domain
 
+/// Bọc NWListener từ Apple Network.framework (quản lý kết nối mạng nội bộ MCP); an toàn luồng được bảo vệ bởi queue nội bộ (R8.3).
 public final class LocalNWServerTransport: @unchecked Sendable, MCPServerTransport {
     private let logger = Logger(subsystem: "com.videoeditor.mcp", category: "Transport")
     private var listener: NWListener?
+    /// Hàng đợi bắt buộc bởi Apple Network.framework cho NWListener.start(queue:)
     private let queue = DispatchQueue(label: "com.videoeditor.mcp.queue", qos: .userInitiated)
 
     public let port: UInt16

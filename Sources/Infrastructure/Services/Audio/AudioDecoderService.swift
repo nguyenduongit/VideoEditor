@@ -4,7 +4,7 @@ import AudioToolbox
 import os
 
 /// Decodes audio tracks from video or audio files into Mono Float32 PCM at 22,050 Hz.
-public final class AudioDecoderService: @unchecked Sendable {
+public final class AudioDecoderService: Sendable {
     public static let targetSampleRate: Double = 22050.0
 
     private let logger = Logger(subsystem: "com.videoeditor", category: "AudioDecoderService")
