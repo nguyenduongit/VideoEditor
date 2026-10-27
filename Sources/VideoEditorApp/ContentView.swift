@@ -1,5 +1,6 @@
 import Supabase
 import SwiftUI
+import os
 
 struct ContentView: View {
   @State var todos: [Todo] = []
@@ -12,9 +13,11 @@ struct ContentView: View {
       .navigationTitle("Todos")
       .task {
         do {
+          guard let supabase else { return }
           todos = try await supabase.from("todos").select().execute().value
         } catch {
-          debugPrint(error)
+          Logger(subsystem: "VideoEditor", category: "ContentView")
+            .error("Tải todos thất bại: \(error.localizedDescription, privacy: .public)")
         }
       }
     }

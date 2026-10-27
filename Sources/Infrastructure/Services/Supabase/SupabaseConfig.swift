@@ -1,18 +1,21 @@
 import Foundation
 import Supabase
+import os
 
 /// Quản lý cấu hình kết nối Supabase client
-/// Ưu tiên biến môi trường hệ thống, tự động fallback về cấu hình dự án mặc định.
+/// Đọc từ biến môi trường hệ thống, fallback về file `.env` (không commit — R9.3).
 public enum SupabaseConfig {
-    public static let defaultURL = "https://cbtfcbkczilkwngrxwgt.supabase.co"
-    public static let defaultAnonKey = "sb_publishable_slaMIVdTU6RIrJJi9nSqEw_lh2CSGXL"
+    private static let logger = Logger(subsystem: "VideoEditor", category: "SupabaseConfig")
 
     public static func makeClient() -> SupabaseClient? {
         let env = ProcessInfo.processInfo.environment
         let envFile = loadEnvFile()
-        let urlString = env["SUPABASE_URL"] ?? envFile["SUPABASE_URL"] ?? defaultURL
-        let key = env["SUPABASE_PUBLISHABLE_KEY"] ?? envFile["SUPABASE_PUBLISHABLE_KEY"] ?? defaultAnonKey
-        guard let url = URL(string: urlString), !key.isEmpty else { return nil }
+        let urlString = env["SUPABASE_URL"] ?? envFile["SUPABASE_URL"] ?? ""
+        let key = env["SUPABASE_PUBLISHABLE_KEY"] ?? envFile["SUPABASE_PUBLISHABLE_KEY"] ?? ""
+        guard let url = URL(string: urlString), !urlString.isEmpty, !key.isEmpty else {
+            logger.error("Thiếu SUPABASE_URL hoặc SUPABASE_PUBLISHABLE_KEY (env hoặc .env); bỏ qua đồng bộ online")
+            return nil
+        }
 
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 25.0
