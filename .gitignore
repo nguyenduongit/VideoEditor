@@ -14,6 +14,8 @@ DerivedData/
 # Artifacts
 *.ipa
 *.app
+*.mp4
+*.mov
 
 # Node & Environment
 node_modules/

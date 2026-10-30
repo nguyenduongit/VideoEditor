@@ -65,6 +65,16 @@ public final class AdjustmentLibraryViewModel {
         .default
     }
 
+    /// Danh sách toàn bộ mẫu màu hiển thị với item Mặc định ở vị trí đầu tiên (khi chọn Tất cả và không tìm kiếm)
+    public var filteredPresetsWithDefaultFirst: [AdjustmentPreset] {
+        let trimmed = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        if selectedCategory == .all && trimmed.isEmpty {
+            let withoutDefault = filteredTemplatePresets.filter { $0.id != defaultPreset.id }
+            return [defaultPreset] + withoutDefault
+        }
+        return filteredTemplatePresets
+    }
+
     /// Đồng bộ SWR: Tải danh sách mới nhất từ Supabase ngầm trong nền
     public func syncPresetsFromSupabase() {
         Task { [weak self] in

@@ -20,7 +20,9 @@ public struct TabID: Hashable, Sendable, Identifiable, ExpressibleByStringLitera
     }
 
     public static let media = TabID(rawValue: "media")
+    public static let library = TabID(rawValue: "library")
     public static let audio = TabID(rawValue: "audio")
     public static let text = TabID(rawValue: "text")
     public static let adjustment = TabID(rawValue: "adjustment")
+    public static let effect = TabID(rawValue: "effect")
 }

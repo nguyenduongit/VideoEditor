@@ -5,6 +5,7 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
     case audio
     case image
     case text
+    case effect
     case adjustment
 
     public var id: String {
@@ -21,6 +22,8 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
             return "Image"
         case .text:
             return "Text"
+        case .effect:
+            return "Effect"
         case .adjustment:
             return "Adjustment"
         }
@@ -30,7 +33,7 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
         switch self {
         case .video, .audio:
             return true
-        case .image, .text, .adjustment:
+        case .image, .text, .adjustment, .effect:
             return false
         }
     }
@@ -39,7 +42,7 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
         switch self {
         case .video, .audio:
             return true
-        case .image, .text, .adjustment:
+        case .image, .text, .adjustment, .effect:
             return false
         }
     }
@@ -48,7 +51,7 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
         switch self {
         case .video, .audio, .image:
             return true
-        case .text, .adjustment:
+        case .text, .adjustment, .effect:
             return false
         }
     }
@@ -57,14 +60,16 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
         switch self {
         case .text:
             return 0
-        case .adjustment:
+        case .effect:
             return 1
-        case .image:
+        case .adjustment:
             return 2
-        case .video:
+        case .image:
             return 3
-        case .audio:
+        case .video:
             return 4
+        case .audio:
+            return 5
         }
     }
 
@@ -72,7 +77,7 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
         switch self {
         case .video, .audio:
             return false
-        case .image, .text, .adjustment:
+        case .image, .text, .adjustment, .effect:
             return true
         }
     }
@@ -87,6 +92,8 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
             return "photo"
         case .text:
             return "textformat"
+        case .effect:
+            return "wand.and.stars"
         case .adjustment:
             return "slider.horizontal.3"
         }

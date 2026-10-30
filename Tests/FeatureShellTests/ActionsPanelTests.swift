@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import CoreMedia
+import CoreImage
 @testable import Domain
 @testable import FeatureShell
 
@@ -114,7 +115,15 @@ struct ActionsPanelTests {
     @Test("Executing selected tasks updates taskStates to completed and seeks playhead to start")
     func testExecutionWithMockTimeline() async {
         let timelineVM = TimelineViewModel()
-        timelineVM.seek(to: CMTime(seconds: 4.5, preferredTimescale: 600))
+        let validVideoURL = ProceduralAssetProvider.shared.blackVideoURL()
+        let clip = TimelineClip(
+            name: "Clip 1",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 0.5, preferredTimescale: 600)),
+            mediaURL: validVideoURL
+        )
+        timelineVM.addClip(clip)
+        timelineVM.seek(to: CMTime(seconds: 0.4, preferredTimescale: 600))
         #expect(CMTimeGetSeconds(timelineVM.currentTime) > 0)
 
         let viewModel = ActionsPanelViewModel(timelineViewModel: timelineVM)
@@ -128,7 +137,10 @@ struct ActionsPanelTests {
         #expect(viewModel.isProcessing)
 
         // Wait for asynchronous execution to complete
-        try? await Task.sleep(nanoseconds: 250_000_000)
+        for _ in 0..<50 {
+            if !viewModel.isProcessing { break }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
 
         #expect(!viewModel.isProcessing)
         #expect(viewModel.taskStates["autoColor"] == .completed)
@@ -139,17 +151,83 @@ struct ActionsPanelTests {
     }
 
     @Test("computeDynamicAutoColorJSON produces calibrated JSON with exposure and shadow offsets")
-    func testComputeDynamicAutoColorJSON() async {
+    func testComputeDynamicAutoColorJSON() async throws {
+        let timelineVM = TimelineViewModel()
+        let validVideoURL = ProceduralAssetProvider.shared.blackVideoURL()
+        let clip = TimelineClip(
+            name: "Clip 1",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 0.5, preferredTimescale: 600)),
+            mediaURL: validVideoURL
+        )
+        timelineVM.addClip(clip)
+
+        let viewModel = ActionsPanelViewModel(timelineViewModel: timelineVM)
+        let engine = TimelineScriptEngine(viewModel: timelineVM)
+        let dispatcher = MCPTimelineToolDispatcher(scriptEngine: engine)
+
+        let json = try await viewModel.computeDynamicAutoColorJSON(dispatcher: dispatcher)
+        guard let data = json.data(using: .utf8),
+              let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            Issue.record("Failed to parse AutoColor JSON")
+            return
+        }
+
+        #expect(dict["kind"] as? String == "adjustment")
+        // Dark procedural video -> AutoColorEngine boosts exposure (> 0) and shadow (> 0)
+        let exposure = try #require(dict["exposure"] as? Int)
+        let shadow = try #require(dict["shadow"] as? Int)
+        #expect(exposure >= 5)
+        #expect(shadow >= 10)
+    }
+
+    @Test("HistogramEngine analyzeTelemetry ignores letterbox black bars when computing blackPoint")
+    func testHistogramEngineLetterboxExclusion() {
+        let engine = HistogramEngine()
+        // Create 128x72 image with mid-gray active area (y: 12..<60) and black letterbox bars top/bottom
+        let baseBlack = CIImage(color: CIColor(red: 0, green: 0, blue: 0, alpha: 1))
+            .cropped(to: CGRect(x: 0, y: 0, width: 128, height: 72))
+        let midGrayCenter = CIImage(color: CIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1))
+            .cropped(to: CGRect(x: 0, y: 12, width: 128, height: 48))
+        let composited = midGrayCenter.composited(over: baseBlack)
+
+        let telemetry = engine.analyzeTelemetry(from: composited)
+
+        #expect(telemetry.averageLuma > 0.45 && telemetry.averageLuma < 0.55)
+        #expect(telemetry.blackPoint > 0.40)
+        #expect(telemetry.shadowClippingRatio == 0.0)
+    }
+
+    @Test("computeDynamicAutoColorJSON throws when video file does not exist")
+    func testComputeDynamicAutoColorJSONThrowsOnUnreadableFile() async {
+        let timelineVM = TimelineViewModel()
+        let clip = TimelineClip(
+            name: "Missing Clip",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 5, preferredTimescale: 600)),
+            mediaURL: URL(fileURLWithPath: "/tmp/non_existent_video_file_12345.mp4")
+        )
+        timelineVM.addClip(clip)
+
+        let viewModel = ActionsPanelViewModel(timelineViewModel: timelineVM)
+        let engine = TimelineScriptEngine(viewModel: timelineVM)
+        let dispatcher = MCPTimelineToolDispatcher(scriptEngine: engine)
+
+        await #expect(throws: AppError.self) {
+            _ = try await viewModel.computeDynamicAutoColorJSON(dispatcher: dispatcher)
+        }
+    }
+
+    @Test("computeDynamicAutoColorJSON throws when timeline has no video clip")
+    func testComputeDynamicAutoColorJSONThrowsWhenEmpty() async {
         let timelineVM = TimelineViewModel()
         let viewModel = ActionsPanelViewModel(timelineViewModel: timelineVM)
         let engine = TimelineScriptEngine(viewModel: timelineVM)
         let dispatcher = MCPTimelineToolDispatcher(scriptEngine: engine)
 
-        let json = await viewModel.computeDynamicAutoColorJSON(dispatcher: dispatcher)
-        #expect(json.contains("adjustment"))
-        #expect(json.contains("Cân chỉnh màu tự động"))
-        #expect(json.contains("exposure"))
-        #expect(json.contains("shadow"))
+        await #expect(throws: AppError.self) {
+            _ = try await viewModel.computeDynamicAutoColorJSON(dispatcher: dispatcher)
+        }
     }
 
     @Test("cycleAction steps forward and backward with wrapping")

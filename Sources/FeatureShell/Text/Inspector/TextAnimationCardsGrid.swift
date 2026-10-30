@@ -2,7 +2,8 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Grid hiển thị danh sách thẻ lựa chọn hoạt ảnh (Vào, Ra, Vòng lặp) kèm bộ lọc danh mục và mô phỏng trực tiếp.
+/// Grid hiển thị danh sách thẻ lựa chọn hoạt ảnh tinh tuyển (Vào, Ra, Vòng lặp) kèm mô phỏng trực tiếp.
+/// Thiết kế tinh giản chuẩn CapCut: không phân mảnh category rườm rà, tập trung chất lượng cao từng thẻ.
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, View body <= 80 dòng) và R4.3 (đơn nhiệm).
 public struct TextAnimationCardsGrid: View {
     public let selectedSubTab: TextAnimationTabContent.AnimationSubTab
@@ -10,10 +11,6 @@ public struct TextAnimationCardsGrid: View {
     public let onSelectIn: (TextInAnimationType) -> Void
     public let onSelectOut: (TextOutAnimationType) -> Void
     public let onSelectLoop: (TextLoopAnimationType) -> Void
-
-    @State private var selectedInCat: TextInAnimationCategory = .all
-    @State private var selectedOutCat: TextOutAnimationCategory = .all
-    @State private var selectedLoopCat: TextLoopAnimationCategory = .all
 
     public init(
         selectedSubTab: TextAnimationTabContent.AnimationSubTab,
@@ -30,135 +27,59 @@ public struct TextAnimationCardsGrid: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            categoryChipsRow
-                .padding(.horizontal, DSSpacing.md)
-
-            cardsScrollView
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: - Category Filter Chips
-
-    private var categoryChipsRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                switch selectedSubTab {
-                case .inAnimation:
-                    ForEach(TextInAnimationCategory.allCases) { cat in
-                        categoryChip(title: cat.rawValue, isSelected: selectedInCat == cat) {
-                            selectedInCat = cat
-                        }
-                    }
-                case .outAnimation:
-                    ForEach(TextOutAnimationCategory.allCases) { cat in
-                        categoryChip(title: cat.rawValue, isSelected: selectedOutCat == cat) {
-                            selectedOutCat = cat
-                        }
-                    }
-                case .loopAnimation:
-                    ForEach(TextLoopAnimationCategory.allCases) { cat in
-                        categoryChip(title: cat.rawValue, isSelected: selectedLoopCat == cat) {
-                            selectedLoopCat = cat
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 2)
-        }
-        .frame(height: 24)
-    }
-
-    private func categoryChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(isSelected ? DSColors.activeTabBackground : Color.white.opacity(0.04))
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
-                .overlay(
-                    RoundedRectangle(cornerRadius: DSRadius.small)
-                        .stroke(isSelected ? DSColors.toggleCyan.opacity(0.6) : Color.clear, lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Cards ScrollView
-
-    private var cardsScrollView: some View {
         ScrollView {
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 80), spacing: DSSpacing.xs)],
+                columns: [GridItem(.adaptive(minimum: 82), spacing: DSSpacing.xs)],
                 spacing: DSSpacing.xs
             ) {
                 switch selectedSubTab {
                 case .inAnimation:
-                    ForEach(filteredInAnimations) { item in
+                    ForEach(TextInAnimationType.allCases) { item in
+                        let isSelected = config.animation.inType == item
                         TextAnimationPreviewCardView(
                             title: item.rawValue,
                             iconName: item.iconName,
-                            isSelected: config.animation.inType == item,
+                            isSelected: isSelected,
                             previewConfig: makePreviewConfig(inType: item)
                         ) {
                             onSelectIn(item)
                         }
+                        .id("in-\(item.rawValue)-\(isSelected)")
                     }
                 case .outAnimation:
-                    ForEach(filteredOutAnimations) { item in
+                    ForEach(TextOutAnimationType.allCases) { item in
+                        let isSelected = config.animation.outType == item
                         TextAnimationPreviewCardView(
                             title: item.rawValue,
                             iconName: item.iconName,
-                            isSelected: config.animation.outType == item,
+                            isSelected: isSelected,
                             previewConfig: makePreviewConfig(outType: item)
                         ) {
                             onSelectOut(item)
                         }
+                        .id("out-\(item.rawValue)-\(isSelected)")
                     }
                 case .loopAnimation:
-                    ForEach(filteredLoopAnimations) { item in
+                    ForEach(TextLoopAnimationType.allCases) { item in
+                        let isSelected = config.animation.loopType == item
                         TextAnimationPreviewCardView(
                             title: item.rawValue,
                             iconName: item.iconName,
-                            isSelected: config.animation.loopType == item,
+                            isSelected: isSelected,
                             previewConfig: makePreviewConfig(loopType: item)
                         ) {
                             onSelectLoop(item)
                         }
+                        .id("loop-\(item.rawValue)-\(isSelected)")
                     }
                 }
             }
+            .id("\(selectedSubTab.rawValue)-\(config.animation.inType.rawValue)-\(config.animation.outType.rawValue)-\(config.animation.loopType.rawValue)")
             .padding(.horizontal, DSSpacing.md)
-            .padding(.top, 2)
+            .padding(.top, DSSpacing.xs)
             .padding(.bottom, DSSpacing.md)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: - Filter Helpers
-
-    private var filteredInAnimations: [TextInAnimationType] {
-        if selectedInCat == .all {
-            return TextInAnimationType.allCases
-        }
-        return [TextInAnimationType.none] + TextInAnimationType.allCases.filter { $0.category == selectedInCat }
-    }
-
-    private var filteredOutAnimations: [TextOutAnimationType] {
-        if selectedOutCat == .all {
-            return TextOutAnimationType.allCases
-        }
-        return [TextOutAnimationType.none] + TextOutAnimationType.allCases.filter { $0.category == selectedOutCat }
-    }
-
-    private var filteredLoopAnimations: [TextLoopAnimationType] {
-        if selectedLoopCat == .all {
-            return TextLoopAnimationType.allCases
-        }
-        return [TextLoopAnimationType.none] + TextLoopAnimationType.allCases.filter { $0.category == selectedLoopCat }
     }
 
     // MARK: - Preview Config Helpers
@@ -171,11 +92,11 @@ public struct TextAnimationCardsGrid: View {
         var sample = TextConfiguration(content: "Aa", fontSize: 16.0, isBold: true)
         sample.animation = TextAnimationConfiguration(
             inType: inType,
-            inDuration: 1.1,
+            inDuration: 1.0,
             outType: outType,
-            outDuration: 1.1,
+            outDuration: 1.0,
             loopType: loopType,
-            loopSpeed: 1.4,
+            loopSpeed: 1.2,
             motionEasing: config.animation.motionEasing
         )
         return sample

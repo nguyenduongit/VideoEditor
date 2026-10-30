@@ -50,4 +50,26 @@ extension ActionsPanelViewModel {
             }
         }
     }
+
+    public func updateTitlePreset(id: String) {
+        titlePresetID = id
+        guard let currentID = selectedActionID,
+              let idx = actions.firstIndex(where: { $0.id == currentID }) else { return }
+        actions[idx].titlePresetID = id
+        let updated = actions[idx]
+        Task {
+            try? await dependencies.actionRepositories.actionRepository?.saveAction(updated)
+        }
+    }
+
+    public func updateTitleText(_ text: String) {
+        titleText = text
+        guard let currentID = selectedActionID,
+              let idx = actions.firstIndex(where: { $0.id == currentID }) else { return }
+        actions[idx].titleText = text
+        let updated = actions[idx]
+        Task {
+            try? await dependencies.actionRepositories.actionRepository?.saveAction(updated)
+        }
+    }
 }

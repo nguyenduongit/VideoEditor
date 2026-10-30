@@ -10,11 +10,13 @@ extension TimelineCompositionBuilder {
     static func hasActiveMask(in layers: [TimelineLayer]) -> Bool {
         layers.contains { layer in
             if layer.isHidden { return false }
-            if (layer.kind == .adjustment || layer.kind == .text) && !layer.clips.isEmpty {
+            if (layer.kind == .adjustment || layer.kind == .text || layer.kind == .effect) && !layer.clips.isEmpty {
                 return true
             }
             return layer.kind == .video && layer.clips.contains { clip in
-                TimelineMaskParameters.extract(from: clip.properties).isMaskActive
+                (clip.properties["isSolidColor"]?.asBool ?? false)
+                    || (clip.properties["isProcedural"]?.asBool ?? false)
+                    || TimelineMaskParameters.extract(from: clip.properties).isMaskActive
                     || hasActiveGrid(in: clip)
                     || hasActiveAutoPan(in: clip)
                     || hasActiveAdjustment(in: clip)
@@ -23,27 +25,15 @@ extension TimelineCompositionBuilder {
     }
 
     private static func hasActiveAdjustment(in clip: TimelineClip) -> Bool {
-        guard let configStr = clip.properties["adjustmentConfig"]?.asString,
-              let config = AdjustmentConfiguration.decode(from: configStr) else {
-            return false
-        }
-        return config.hasGradingChanges
+        clip.properties["adjustmentConfig"]?.asString.flatMap { AdjustmentConfiguration.decode(from: $0) }?.hasGradingChanges ?? false
     }
 
     private static func hasActiveAutoPan(in clip: TimelineClip) -> Bool {
-        guard let configStr = clip.properties["autoPanConfig"]?.asString,
-              let config = AutoPanConfiguration.decode(from: configStr) else {
-            return false
-        }
-        return config.isEnabled && !config.keyframes.isEmpty
+        clip.properties["autoPanConfig"]?.asString.flatMap { AutoPanConfiguration.decode(from: $0) }.map { $0.isEnabled && !$0.keyframes.isEmpty } ?? false
     }
 
     private static func hasActiveGrid(in clip: TimelineClip) -> Bool {
-        guard let configStr = clip.properties["gridConfig"]?.asString,
-              let _ = GridConfiguration.decode(from: configStr) else {
-            return false
-        }
-        return true
+        clip.properties["gridConfig"]?.asString.flatMap { GridConfiguration.decode(from: $0) } != nil
     }
 
     static func buildMaskVideoComposition(
@@ -58,7 +48,7 @@ extension TimelineCompositionBuilder {
         let outputRenderSize = renderSize ?? logicalCanvasSize
         let safeDuration = CMTimeMaximum(duration, CMTime(value: 1, timescale: 30))
         let timeRanges = computeInstructionTimeRanges(layers: layers, duration: safeDuration)
-        let activeLayers = layers.filter { !$0.isHidden && ($0.kind == .video || $0.kind == .adjustment || $0.kind == .text) }
+        let activeLayers = layers.filter { !$0.isHidden && ($0.kind == .video || $0.kind == .adjustment || $0.kind == .text || $0.kind == .effect) }
 
         let customInstructions = buildInstructions(
             timeRanges: timeRanges,
@@ -96,6 +86,12 @@ extension TimelineCompositionBuilder {
                     }
                     continue
                 }
+                if layer.kind == .effect {
+                    if let effectInfo = makeEffectRenderInfo(layer: layer, range: range) {
+                        layerInfos.append(effectInfo)
+                    }
+                    continue
+                }
                 if layer.kind == .text {
                     if let textInfo = makeTextRenderInfo(layer: layer, range: range) {
                         layerInfos.append(textInfo)
@@ -118,6 +114,29 @@ extension TimelineCompositionBuilder {
             customInstructions.append(instruction)
         }
         return customInstructions
+    }
+
+    private static func makeEffectRenderInfo(
+        layer: TimelineLayer,
+        range: CMTimeRange
+    ) -> TimelineCustomVideoCompositionInstruction.LayerRenderInfo? {
+        let midTime = CMTimeAdd(range.start, CMTimeMultiplyByFloat64(range.duration, multiplier: 0.5))
+        guard let clip = layer.clips.first(where: {
+            $0.timeRange.containsTime(midTime) || ($0.timeRange.start <= range.start && $0.timeRange.end >= range.end)
+        }) else { return nil }
+        let config = clip.properties["effectConfig"]?.asString.flatMap {
+            EffectConfiguration.decode(from: $0)
+        } ?? EffectConfiguration()
+        let opacity = Float(clip.properties["opacity"]?.asNumber ?? 1.0)
+        return TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
+            trackID: kCMPersistentTrackID_Invalid,
+            transform: .identity,
+            opacity: opacity,
+            maskParameters: nil,
+            clipTimeRange: clip.timeRange,
+            isEffect: true,
+            effectConfig: config
+        )
     }
 
     private static func makeAdjustmentRenderInfo(
@@ -155,14 +174,10 @@ extension TimelineCompositionBuilder {
             TextConfiguration.decode(from: $0)
         } ?? TextConfiguration(content: clip.properties["textContent"]?.asString ?? clip.name)
 
-        if let px = clip.properties["positionX"]?.asNumber { config.positionX = px }
-        if let py = clip.properties["positionY"]?.asNumber { config.positionY = py }
-        if let s = clip.properties["scale"]?.asNumber { config.scale = s }
-        if let r = clip.properties["rotation"]?.asNumber { config.rotation = r }
-        if let op = clip.properties["opacity"]?.asNumber { config.opacity = op }
-        if let content = clip.properties["textContent"]?.asString { config.content = content }
-        if let size = clip.properties["fontSize"]?.asNumber { config.fontSize = size }
-        if let font = clip.properties["fontName"]?.asString { config.fontName = font }
+        if let px = clip.properties["positionX"]?.asNumber { config.positionX = px }; if let py = clip.properties["positionY"]?.asNumber { config.positionY = py }
+        if let s = clip.properties["scale"]?.asNumber { config.scale = s }; if let r = clip.properties["rotation"]?.asNumber { config.rotation = r }
+        if let op = clip.properties["opacity"]?.asNumber { config.opacity = op }; if let content = clip.properties["textContent"]?.asString { config.content = content }
+        if let size = clip.properties["fontSize"]?.asNumber { config.fontSize = size }; if let font = clip.properties["fontName"]?.asString { config.fontName = font }
 
         let opacity = Float(clip.properties["opacity"]?.asNumber ?? config.opacity)
         return TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
@@ -229,13 +244,15 @@ extension TimelineCompositionBuilder {
             finalScale: computed.finalScale,
             userScaleY: effectiveScaleY,
             normalizedOffsetY: normalizedOffsetY,
-            adjustmentConfig: (adjConfig?.isNeutral == false) ? adjConfig : nil
+            adjustmentConfig: (adjConfig?.isNeutral == false) ? adjConfig : nil,
+            isSolidColor: clip.properties["isSolidColor"]?.asBool ?? false,
+            solidColorHex: clip.properties["solidColorHex"]?.asString
         )
     }
 
     private static func computeInstructionTimeRanges(layers: [TimelineLayer], duration: CMTime) -> [CMTimeRange] {
         var points: [CMTime] = [.zero, duration]
-        for layer in layers where !layer.isHidden && (layer.kind == .video || layer.kind == .adjustment || layer.kind == .text) {
+        for layer in layers where !layer.isHidden && (layer.kind == .video || layer.kind == .adjustment || layer.kind == .text || layer.kind == .effect) {
             for clip in layer.clips {
                 let s = clip.timeRange.start
                 let e = clip.timeRange.end

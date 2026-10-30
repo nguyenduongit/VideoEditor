@@ -17,6 +17,7 @@ public struct MediaLibraryView: View {
 
     private let columns = [
         GridItem(.flexible(), spacing: DSSpacing.md),
+        GridItem(.flexible(), spacing: DSSpacing.md),
         GridItem(.flexible(), spacing: DSSpacing.md)
     ]
 
@@ -25,8 +26,16 @@ public struct MediaLibraryView: View {
     }
 
     public var body: some View {
-        VStack(spacing: DSSpacing.none) {
-            subTabBar
+        LibraryScaffoldView(
+            searchQuery: Binding(
+                get: { viewModel.searchQuery },
+                set: { viewModel.searchQuery = $0 }
+            ),
+            searchPlaceholder: "Tìm kiếm tệp...",
+            categories: MediaLibraryViewModel.MediaFilter.allCases.map(\.displayName),
+            selectedCategory: categoryBinding,
+            trailingAction: trailingHeaderAction
+        ) {
             contentArea
         }
         .focusable()
@@ -58,51 +67,34 @@ public struct MediaLibraryView: View {
         }
     }
 
-    private var subTabBar: some View {
-        HStack(spacing: DSSpacing.xs) {
-            ForEach(MediaLibraryViewModel.MediaFilter.allCases, id: \.self) { filter in
-                Button(action: {
-                    viewModel.selectedFilter = filter
-                }) {
-                    Text(filter.rawValue)
-                        .font(.system(size: 12, weight: viewModel.selectedFilter == filter ? .semibold : .medium))
-                        .foregroundStyle(viewModel.selectedFilter == filter ? DSColors.textPrimary : DSColors.textSecondary)
-                        .padding(.vertical, DSSpacing.xs)
-                        .padding(.horizontal, DSSpacing.md)
-                        .background(
-                            viewModel.selectedFilter == filter ? Color.white.opacity(0.12) : Color.clear
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+    private var categoryBinding: Binding<String> {
+        Binding(
+            get: { viewModel.selectedFilter.displayName },
+            set: { name in
+                if let found = MediaLibraryViewModel.MediaFilter.allCases.first(where: { $0.displayName == name }) {
+                    viewModel.selectedFilter = found
                 }
-                .buttonStyle(.plain)
             }
-            Spacer()
-            if !viewModel.selectedAssetIDs.isEmpty {
-                deleteButton
-            }
-            itemCountLabel
+        )
+    }
+
+    private var trailingHeaderAction: AnyView? {
+        if !viewModel.selectedAssetIDs.isEmpty {
+            return AnyView(deleteButton)
         }
-        .padding(.horizontal, DSSpacing.md)
-        .padding(.vertical, DSSpacing.sm)
+        return nil
     }
 
     private var deleteButton: some View {
         Button(action: { viewModel.deleteSelected() }) {
             Image(systemName: "trash")
-                .font(.system(size: 12))
+                .font(.system(size: 11))
                 .foregroundStyle(Color.red.opacity(0.9))
-                .padding(DSSpacing.xs)
+                .padding(5)
                 .background(Color.red.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
-                .contentShape(RoundedRectangle(cornerRadius: DSRadius.small))
         }
         .buttonStyle(.plain)
-    }
-
-    private var itemCountLabel: some View {
-        Text(String(localized: "\(viewModel.filteredAssets.count) items"))
-            .font(.system(size: 11, weight: .regular))
-            .foregroundStyle(DSColors.textSecondary)
     }
 
     private var contentArea: some View {
@@ -123,10 +115,9 @@ public struct MediaLibraryView: View {
                     )
                     .background(frameReporter(for: asset.id))
                 }
+                importTileCard
             }
-            .padding(.leading, DSSpacing.lg)
-            .padding(.trailing, DSSpacing.sm)
-            .padding(.vertical, DSSpacing.lg)
+            .padding(DSSpacing.md)
         }
         .coordinateSpace(name: "MediaGridSpace")
         .overlay(alignment: .topLeading) {
@@ -149,6 +140,34 @@ public struct MediaLibraryView: View {
                 value: [id: geo.frame(in: .named("MediaGridSpace"))]
             )
         }
+    }
+
+    private var importTileCard: some View {
+        Button(action: {
+            isFocused = true
+            viewModel.importFiles()
+        }) {
+            VStack(spacing: DSSpacing.xs) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: DSRadius.block)
+                        .fill(DSColors.windowBackground.opacity(0.4))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DSRadius.block)
+                                .stroke(DSColors.blockBorder, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                        )
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(DSColors.textSecondary)
+                }
+                .aspectRatio(1.0, contentMode: .fit)
+
+                Text(String(localized: "Thêm tệp"))
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(DSColors.textSecondary)
+                    .lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder

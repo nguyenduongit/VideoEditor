@@ -41,6 +41,7 @@ public struct TextAnimationTabContent: View {
                 TextAnimationSlidersView(
                     selectedSubTab: selectedSubTab,
                     config: Binding(get: { currentConfig }, set: { _ in }),
+                    clipDuration: selectedClipDuration,
                     onCommit: commitConfig,
                     onUpdateLive: { updateConfig($0, commit: false) },
                     onEditingEnded: onSliderEditingEnded
@@ -52,6 +53,14 @@ public struct TextAnimationTabContent: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DSColors.blockBackground)
+    }
+
+    private var selectedClipDuration: Double {
+        if let clip = viewModel.selectedClip {
+            let sec = clip.timeRange.duration.seconds
+            return sec > 0.1 ? sec : 3.0
+        }
+        return 3.0
     }
 
     private var hasActiveAnimationForCurrentSubTab: Bool {
@@ -90,25 +99,50 @@ public struct TextAnimationTabContent: View {
     // MARK: - State & Selection Helpers
 
     private var currentConfig: TextConfiguration {
-        let json = viewModel.liveProperties["textConfig"]?.asString ?? ""
-        return TextConfiguration.decode(from: json) ?? TextConfiguration()
+        if let json = viewModel.liveProperties["textConfig"]?.asString,
+           let cfg = TextConfiguration.decode(from: json) {
+            return cfg
+        }
+        if let json = viewModel.selectedClip?.properties["textConfig"]?.asString,
+           let cfg = TextConfiguration.decode(from: json) {
+            return cfg
+        }
+        return TextConfiguration()
     }
 
     private func updateInAnimation(_ item: TextInAnimationType) {
         var cfg = currentConfig
-        cfg.animation.inType = (cfg.animation.inType == item || item == .none) ? .none : item
+        if item == .none {
+            cfg.animation.inType = .none
+        } else {
+            cfg.animation.inType = (cfg.animation.inType == item) ? .none : item
+            if cfg.animation.inDuration <= 0.05 {
+                cfg.animation.inDuration = 1.0
+            }
+        }
         commitConfig(cfg)
     }
 
     private func updateOutAnimation(_ item: TextOutAnimationType) {
         var cfg = currentConfig
-        cfg.animation.outType = (cfg.animation.outType == item || item == .none) ? .none : item
+        if item == .none {
+            cfg.animation.outType = .none
+        } else {
+            cfg.animation.outType = (cfg.animation.outType == item) ? .none : item
+            if cfg.animation.outDuration <= 0.05 {
+                cfg.animation.outDuration = 1.0
+            }
+        }
         commitConfig(cfg)
     }
 
     private func updateLoopAnimation(_ item: TextLoopAnimationType) {
         var cfg = currentConfig
-        cfg.animation.loopType = (cfg.animation.loopType == item || item == .none) ? .none : item
+        if item == .none {
+            cfg.animation.loopType = .none
+        } else {
+            cfg.animation.loopType = (cfg.animation.loopType == item) ? .none : item
+        }
         commitConfig(cfg)
     }
 

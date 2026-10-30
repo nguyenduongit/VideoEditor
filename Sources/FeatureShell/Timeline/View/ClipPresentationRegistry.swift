@@ -99,6 +99,19 @@ public enum ClipPresentationRegistry: Sendable {
             hasWaveform: false,
             hasFilmstrip: false
         ),
+        .effect: ClipPresentationDescriptor(
+            color: DSColors.clipEffect,
+            headerColor: DSColors.clipEffectHeader,
+            borderColor: Color.white.opacity(0.4),
+            iconName: "wand.and.stars",
+            defaultLayerHeight: DSSize.compactLayerHeight,
+            hasHeaderBar: false,
+            showsHeaderIcon: true,
+            showsHeaderDuration: true,
+            hasAudioFadeHandles: false,
+            hasWaveform: false,
+            hasFilmstrip: false
+        ),
         .adjustment: ClipPresentationDescriptor(
             color: DSColors.clipAdjustment,
             headerColor: DSColors.clipAdjustmentHeader,

@@ -19,6 +19,9 @@ public struct ColorTelemetryProfile: Codable, Equatable, Sendable {
     public var suggestedTempOffset: Float   // Gợi ý bù trừ nhiệt độ (-100 ... +100)
     public var suggestedTintOffset: Float   // Gợi ý bù trừ sắc thái (-100 ... +100)
 
+    // 3. Độ bão hoà màu (Saturation & Vibrance)
+    public var averageSaturation: Float     // Độ bão hoà màu trung bình đo từ quang phổ (0.0 ... 1.0)
+
     public init(
         averageLuma: Float = 0.5,
         blackPoint: Float = 0.05,
@@ -31,7 +34,8 @@ public struct ColorTelemetryProfile: Codable, Equatable, Sendable {
         meanBlue: Float = 0.5,
         dominantCast: String = "neutral",
         suggestedTempOffset: Float = 0.0,
-        suggestedTintOffset: Float = 0.0
+        suggestedTintOffset: Float = 0.0,
+        averageSaturation: Float = 0.25
     ) {
         self.averageLuma = averageLuma
         self.blackPoint = blackPoint
@@ -45,5 +49,23 @@ public struct ColorTelemetryProfile: Codable, Equatable, Sendable {
         self.dominantCast = dominantCast
         self.suggestedTempOffset = suggestedTempOffset
         self.suggestedTintOffset = suggestedTintOffset
+        self.averageSaturation = averageSaturation
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.averageLuma = try c.decode(Float.self, forKey: .averageLuma)
+        self.blackPoint = try c.decode(Float.self, forKey: .blackPoint)
+        self.whitePoint = try c.decode(Float.self, forKey: .whitePoint)
+        self.dynamicRange = try c.decode(Float.self, forKey: .dynamicRange)
+        self.shadowClippingRatio = try c.decode(Float.self, forKey: .shadowClippingRatio)
+        self.highlightClippingRatio = try c.decode(Float.self, forKey: .highlightClippingRatio)
+        self.meanRed = try c.decode(Float.self, forKey: .meanRed)
+        self.meanGreen = try c.decode(Float.self, forKey: .meanGreen)
+        self.meanBlue = try c.decode(Float.self, forKey: .meanBlue)
+        self.dominantCast = try c.decode(String.self, forKey: .dominantCast)
+        self.suggestedTempOffset = try c.decode(Float.self, forKey: .suggestedTempOffset)
+        self.suggestedTintOffset = try c.decode(Float.self, forKey: .suggestedTintOffset)
+        self.averageSaturation = (try? c.decodeIfPresent(Float.self, forKey: .averageSaturation)) ?? 0.25
     }
 }

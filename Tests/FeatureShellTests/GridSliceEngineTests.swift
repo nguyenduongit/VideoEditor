@@ -258,4 +258,41 @@ struct GridSliceEngineTests {
         #expect(abs(resolvedEnd.rowDividers[1] - 0.88) < 0.001)
         #expect(abs(resolvedEnd.rowHeights[1] - (0.48 * 1.15)) < 0.001)
     }
+
+    @Test("Test GridSliceCompositor does not produce black seam at row dividers")
+    func testGridSliceCompositorSeam() {
+        let canvasSize = CGSize(width: 1920, height: 1080)
+        let red = CIColor(red: 0.2, green: 0.8, blue: 0.2, alpha: 1.0)
+        guard let filter = CIFilter(name: "CILinearGradient", parameters: [
+            "inputPoint0": CIVector(x: 960, y: 0), "inputColor0": red,
+            "inputPoint1": CIVector(x: 960, y: 1080), "inputColor1": CIColor(red: 0.9, green: 0.9, blue: 0.1, alpha: 1.0)
+        ]), let inputImage = filter.outputImage?.cropped(to: CGRect(origin: .zero, size: canvasSize)) else { return }
+
+        var config = GridConfiguration(rows: 3, columns: 1)
+        GridSliceEngine.setBodyLines(config: &config, waistY: 0.50, ankleY: 0.80)
+        GridSliceEngine.applyLegStretch(config: &config, ratio: 1.15)
+        let outputImage = GridSliceCompositor.applyGrid(to: inputImage, config: config, canvasSize: canvasSize)
+
+        let context = CIContext()
+        guard let cgImage = context.createCGImage(outputImage, from: CGRect(origin: .zero, size: canvasSize)),
+              let data = cgImage.dataProvider?.data,
+              let ptr = CFDataGetBytePtr(data) else {
+            Issue.record("Failed to create cgImage or get byte ptr")
+            return
+        }
+        let bpp = cgImage.bitsPerPixel / 8
+        let bpr = cgImage.bytesPerRow
+
+        let seamY = Int((1.0 - config.rowOffsets[0] - config.rowHeights[0]) * canvasSize.height)
+        var rValues: [Int: UInt8] = [:]
+        for y in (seamY - 5)...(seamY + 5) {
+            let offset = y * bpr + 960 * bpp
+            rValues[y] = ptr[offset]
+            #expect(ptr[offset + 3] == 255, "Alpha at y=\(y) must be 255")
+        }
+        if let rBefore = rValues[seamY - 1], let rAt = rValues[seamY], let rAfter = rValues[seamY + 1] {
+            let diff = abs(Int(rAt) - (Int(rBefore) + Int(rAfter)) / 2)
+            #expect(diff <= 2, "Seam artifact detected: diff=\(diff)")
+        }
+    }
 }

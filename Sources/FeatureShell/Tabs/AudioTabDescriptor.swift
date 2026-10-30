@@ -11,17 +11,21 @@ public struct AudioTabDescriptor: TabDescriptor {
 
     public func makeSidebarView() -> AnyView {
         AnyView(
-            VStack(alignment: .leading, spacing: DSSpacing.md) {
-                Text(String(localized: "Audio Library"))
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(DSColors.textPrimary)
-                Text(String(localized: "Nội dung tab Audio: Danh sách hiệu ứng âm thanh, nhạc nền và voiceover."))
-                    .font(.system(size: 12))
-                    .foregroundStyle(DSColors.textSecondary)
-                Spacer()
+            LibraryScaffoldView(
+                searchPlaceholder: "Tìm kiếm âm thanh, SFX..."
+            ) {
+                VStack(alignment: .leading, spacing: DSSpacing.md) {
+                    Text(String(localized: "Audio Library"))
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(DSColors.textPrimary)
+                    Text(String(localized: "Nội dung tab Audio: Danh sách hiệu ứng âm thanh, nhạc nền và voiceover."))
+                        .font(.system(size: 12))
+                        .foregroundStyle(DSColors.textSecondary)
+                    Spacer()
+                }
+                .padding(DSSpacing.lg)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .padding(DSSpacing.lg)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         )
     }
 }

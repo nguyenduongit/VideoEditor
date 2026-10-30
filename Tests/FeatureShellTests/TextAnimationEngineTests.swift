@@ -3,6 +3,9 @@ import Foundation
 import CoreGraphics
 import CoreImage
 import CoreMedia
+#if os(macOS)
+import AppKit
+#endif
 @testable import Domain
 @testable import FeatureShell
 
@@ -15,8 +18,8 @@ struct TextAnimationEngineTests {
         #expect(config.inType == .none)
         #expect(config.outType == .none)
         #expect(config.loopType == .none)
-        #expect(config.inDuration == 0.5)
-        #expect(config.outDuration == 0.5)
+        #expect(config.inDuration == 1.0)
+        #expect(config.outDuration == 1.0)
         #expect(config.loopSpeed == 1.0)
         #expect(config.isTypewriterCursorVisible == true)
         #expect(config.motionEasing == .smooth)
@@ -49,7 +52,7 @@ struct TextAnimationEngineTests {
     @Test("Typewriter animation generates substring progression with optional cursor")
     func testTypewriterAnimationProgression() {
         var config = TextConfiguration(content: "Hello World")
-        config.animation.inType = .typewriter1
+        config.animation.inType = .typewriter
         config.animation.inDuration = 1.0
         config.animation.isTypewriterCursorVisible = true
 
@@ -90,60 +93,58 @@ struct TextAnimationEngineTests {
         #expect(abs(evalSlideDone.config.positionY - 0.0) < 0.001)
     }
 
-    @Test("Pro In Animations evaluate transforms: SlideDown, SpinIn, LightStreak")
+    @Test("Pro In Animations evaluate transforms: SlideUp, WhipRight, KineticDrop")
     func testProInAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
-        var cfgFly = TextConfiguration(content: "Fly In")
-        cfgFly.animation.inType = .slideDown
-        cfgFly.animation.inDuration = 1.0
-        let evalFly0 = TextAnimationEvaluator.evaluate(config: cfgFly, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalFly0.config.positionY < -100.0)
+        var cfgSlide = TextConfiguration(content: "Slide Up")
+        cfgSlide.animation.inType = .slideUp
+        cfgSlide.animation.inDuration = 1.0
+        let evalSlide0 = TextAnimationEvaluator.evaluate(config: cfgSlide, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalSlide0.config.positionY > 50.0)
 
-        var cfgVortex = TextConfiguration(content: "Vortex")
-        cfgVortex.animation.inType = .spinIn
-        cfgVortex.animation.inDuration = 1.0
-        let evalVortex0 = TextAnimationEvaluator.evaluate(config: cfgVortex, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalVortex0.config.rotation >= 350.0)
-        #expect(evalVortex0.config.scale <= 0.05)
+        var cfgWhip = TextConfiguration(content: "Whip")
+        cfgWhip.animation.inType = .whipRight
+        cfgWhip.animation.inDuration = 1.0
+        let evalWhip0 = TextAnimationEvaluator.evaluate(config: cfgWhip, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalWhip0.config.positionX < -50.0)
 
-        var cfgGlitch = TextConfiguration(content: "Glitch")
-        cfgGlitch.animation.inType = .glitch
-        cfgGlitch.animation.inDuration = 1.0
-        let evalGlitch0 = TextAnimationEvaluator.evaluate(config: cfgGlitch, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalGlitch0.rgbSplitIntensity > 0.0)
-        #expect(evalGlitch0.overlay.glitchSliceIntensity > 0.0)
+        var cfgDrop = TextConfiguration(content: "Drop")
+        cfgDrop.animation.inType = .kineticDrop
+        cfgDrop.animation.inDuration = 1.0
+        let evalDrop0 = TextAnimationEvaluator.evaluate(config: cfgDrop, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalDrop0.config.positionY < -50.0)
     }
 
-    @Test("Pro Out Animations evaluate exit transitions: SpinOut, Dissolve")
+    @Test("Pro Out Animations evaluate exit transitions: DropDown, WhipOut")
     func testProOutAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
         let dur = 4.0
 
-        var cfgPixel = TextConfiguration(content: "Pixel")
-        cfgPixel.animation.outType = .dissolve
-        cfgPixel.animation.outDuration = 1.0
-        let evalPixelEnd = TextAnimationEvaluator.evaluate(config: cfgPixel, localTime: 4.0, duration: dur, canvasSize: canvasSize)
-        #expect(evalPixelEnd.pixelateScale >= 25.0)
-        #expect(evalPixelEnd.config.opacity == 0.0)
+        var cfgDrop = TextConfiguration(content: "Drop Down")
+        cfgDrop.animation.outType = .dropDown
+        cfgDrop.animation.outDuration = 1.0
+        let evalDropEnd = TextAnimationEvaluator.evaluate(config: cfgDrop, localTime: 4.0, duration: dur, canvasSize: canvasSize)
+        #expect(evalDropEnd.config.positionY > 50.0)
+        #expect(evalDropEnd.config.opacity <= 0.05)
 
-        var cfgSpiral = TextConfiguration(content: "Spiral")
-        cfgSpiral.animation.outType = .spinOut
-        cfgSpiral.animation.outDuration = 1.0
-        let evalSpiralEnd = TextAnimationEvaluator.evaluate(config: cfgSpiral, localTime: 4.0, duration: dur, canvasSize: canvasSize)
-        #expect(evalSpiralEnd.config.rotation >= 350.0)
-        #expect(evalSpiralEnd.config.scale <= 0.05)
+        var cfgWhip = TextConfiguration(content: "Whip Out")
+        cfgWhip.animation.outType = .whipOut
+        cfgWhip.animation.outDuration = 1.0
+        let evalWhipEnd = TextAnimationEvaluator.evaluate(config: cfgWhip, localTime: 4.0, duration: dur, canvasSize: canvasSize)
+        #expect(evalWhipEnd.config.positionX > 50.0)
+        #expect(evalWhipEnd.config.opacity <= 0.05)
     }
 
-    @Test("Pro Loop Animations evaluate heart and wobble effects")
+    @Test("Pro Loop Animations evaluate heart and shake effects")
     func testProLoopAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
-        var cfgQuake = TextConfiguration(content: "Quake")
-        cfgQuake.animation.loopType = .wobble
-        cfgQuake.animation.loopSpeed = 1.0
-        let evalQuake = TextAnimationEvaluator.evaluate(config: cfgQuake, localTime: 0.35, duration: 5.0, canvasSize: canvasSize)
-        #expect(abs(evalQuake.config.rotation) > 0.001 || abs(evalQuake.config.positionX) > 0.001)
+        var cfgShake = TextConfiguration(content: "Shake")
+        cfgShake.animation.loopType = .shake
+        cfgShake.animation.loopSpeed = 1.0
+        let evalShake = TextAnimationEvaluator.evaluate(config: cfgShake, localTime: 0.35, duration: 5.0, canvasSize: canvasSize)
+        #expect(abs(evalShake.config.rotation) > 0.001 || abs(evalShake.config.positionX) > 0.001)
 
         var cfgHeart = TextConfiguration(content: "Heart")
         cfgHeart.animation.loopType = .pulse
@@ -169,7 +170,7 @@ struct TextAnimationEngineTests {
         config.hasGlow = true
         config.glowColorHex = "#00FFFF"
         config.glowRadius = 12.0
-        config.animation.outType = .dissolve
+        config.animation.outType = .fadeOut
         config.animation.outDuration = 1.0
 
         let canvasSize = CGSize(width: 600, height: 400)
@@ -185,4 +186,144 @@ struct TextAnimationEngineTests {
             #expect(image.extent.height > 0)
         }
     }
+
+    @Test("Verify actual pixels of background and glow in rendered image")
+    func testVerifyBackgroundAndGlowPixels() {
+        var config = TextConfiguration(content: "TEST")
+        config.textColorHex = "#FFFFFF"
+        config.hasBackground = true
+        config.backgroundColorHex = "#FF0000FF"
+        config.backgroundPadding = 30.0
+
+        let renderer = TextRendererEngine()
+        let canvasSize = CGSize(width: 400, height: 200)
+
+        // 1. Static render (no animation)
+        guard let ciImg = renderer.renderAnimatedImage(for: config, localTime: 1.0, duration: 5.0, canvasSize: canvasSize) else {
+            Issue.record("Failed to render static image")
+            return
+        }
+
+        let rep = NSCIImageRep(ciImage: ciImg)
+        let nsImg = NSImage(size: canvasSize)
+        nsImg.addRepresentation(rep)
+        guard let tiff = nsImg.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff) else {
+            Issue.record("Failed to create bitmap")
+            return
+        }
+
+        // Check center or near background
+        var foundRed = false
+        for x in stride(from: 50, to: 350, by: 10) {
+            for y in stride(from: 50, to: 150, by: 10) {
+                if let color = bitmap.colorAt(x: x, y: y) {
+                    if color.redComponent > 0.8 && color.greenComponent < 0.2 && color.blueComponent < 0.2 {
+                        foundRed = true
+                        break
+                    }
+                }
+            }
+            if foundRed { break }
+        }
+        print("STATIC FOUND RED BACKGROUND:", foundRed)
+
+        // 2. Animated render (kinetic)
+        config.animation.inType = .slideUp
+        config.animation.inDuration = 0.5
+        guard let ciAnim = renderer.renderAnimatedImage(for: config, localTime: 1.0, duration: 5.0, canvasSize: canvasSize) else {
+            Issue.record("Failed to render anim image")
+            return
+        }
+        let repAnim = NSCIImageRep(ciImage: ciAnim)
+        let nsAnim = NSImage(size: canvasSize)
+        nsAnim.addRepresentation(repAnim)
+        guard let tiffAnim = nsAnim.tiffRepresentation,
+              let bitmapAnim = NSBitmapImageRep(data: tiffAnim) else {
+            Issue.record("Failed to create anim bitmap")
+            return
+        }
+        var foundAnimRed = false
+        for x in stride(from: 50, to: 350, by: 10) {
+            for y in stride(from: 50, to: 150, by: 10) {
+                if let color = bitmapAnim.colorAt(x: x, y: y) {
+                    if color.redComponent > 0.8 && color.greenComponent < 0.2 && color.blueComponent < 0.2 {
+                        foundAnimRed = true
+                        break
+                    }
+                }
+            }
+            if foundAnimRed { break }
+        }
+        print("ANIM FOUND RED BACKGROUND:", foundAnimRed)
+
+        // 3. Test Glow
+        var glowConfig = TextConfiguration(content: "GLOW")
+        glowConfig.textColorHex = "#000000"
+        glowConfig.hasGlow = true
+        glowConfig.glowColorHex = "#FF0000"
+        glowConfig.glowRadius = 15.0
+
+        // Static Glow
+        guard let ciGlowStatic = renderer.renderAnimatedImage(for: glowConfig, localTime: 1.0, duration: 5.0, canvasSize: canvasSize) else {
+            Issue.record("Failed to render static glow")
+            return
+        }
+        let repGlow = NSCIImageRep(ciImage: ciGlowStatic)
+        let nsGlow = NSImage(size: canvasSize)
+        nsGlow.addRepresentation(repGlow)
+        guard let tiffGlow = nsGlow.tiffRepresentation,
+              let bitmapGlow = NSBitmapImageRep(data: tiffGlow) else {
+            Issue.record("Failed to create glow bitmap")
+            return
+        }
+        var foundStaticRedGlow = false
+        for x in stride(from: 50, to: 350, by: 5) {
+            for y in stride(from: 50, to: 150, by: 5) {
+                if let color = bitmapGlow.colorAt(x: x, y: y) {
+                    if color.redComponent > 0.4 && color.greenComponent < 0.2 && color.blueComponent < 0.2 {
+                        foundStaticRedGlow = true
+                        break
+                    }
+                }
+            }
+            if foundStaticRedGlow { break }
+        }
+        print("STATIC FOUND RED GLOW:", foundStaticRedGlow)
+
+        // Anim Glow
+        glowConfig.animation.inType = .slideUp
+        glowConfig.animation.inDuration = 0.5
+        guard let ciGlowAnim = renderer.renderAnimatedImage(for: glowConfig, localTime: 1.0, duration: 5.0, canvasSize: canvasSize) else {
+            Issue.record("Failed to render anim glow")
+            return
+        }
+        let repGlowAnim = NSCIImageRep(ciImage: ciGlowAnim)
+        let nsGlowAnim = NSImage(size: canvasSize)
+        nsGlowAnim.addRepresentation(repGlowAnim)
+        guard let tiffGlowAnim = nsGlowAnim.tiffRepresentation,
+              let bitmapGlowAnim = NSBitmapImageRep(data: tiffGlowAnim) else {
+            Issue.record("Failed to create anim glow bitmap")
+            return
+        }
+        var foundAnimRedGlow = false
+        for x in stride(from: 50, to: 350, by: 5) {
+            for y in stride(from: 50, to: 150, by: 5) {
+                if let color = bitmapGlowAnim.colorAt(x: x, y: y) {
+                    if color.redComponent > 0.4 && color.greenComponent < 0.2 && color.blueComponent < 0.2 {
+                        foundAnimRedGlow = true
+                        break
+                    }
+                }
+            }
+            if foundAnimRedGlow { break }
+        }
+        print("ANIM FOUND RED GLOW:", foundAnimRedGlow)
+        #expect(foundRed == true, "Static text must render background")
+        #expect(foundAnimRed == true, "Animated text must render background")
+        #expect(foundStaticRedGlow == true, "Static text must render glow")
+        #expect(foundAnimRedGlow == true, "Animated text must render glow")
+    }
 }
+
+

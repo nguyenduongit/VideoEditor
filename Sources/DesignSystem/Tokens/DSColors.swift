@@ -19,6 +19,7 @@ public enum DSColors {
     public static let clipAudio = Color(red: 0.08, green: 0.20, blue: 0.34)
     public static let clipImage = Color(red: 0.88, green: 0.58, blue: 0.18)
     public static let clipText = Color(red: 0.58, green: 0.35, blue: 0.88)
+    public static let clipEffect = Color(red: 0.40, green: 0.28, blue: 0.88)
     public static let clipAdjustment = Color(red: 0.88, green: 0.28, blue: 0.58)
 
     public static let dropIndicator = Color(red: 0.25, green: 0.65, blue: 1.0)
@@ -28,6 +29,7 @@ public enum DSColors {
     public static let clipHeaderBackground = Color(red: 0.04, green: 0.15, blue: 0.20)
     public static let clipVideoHeader = Color(red: 0.03, green: 0.24, blue: 0.27)
     public static let clipAudioHeader = Color(red: 0.06, green: 0.15, blue: 0.27)
+    public static let clipEffectHeader = Color(red: 0.32, green: 0.20, blue: 0.72)
     public static let clipAdjustmentHeader = Color(red: 0.72, green: 0.20, blue: 0.46)
     public static let waveformBar = Color(red: 0.15, green: 0.58, blue: 0.90)
     public static let waveformPeak = Color(red: 0.98, green: 0.48, blue: 0.16)

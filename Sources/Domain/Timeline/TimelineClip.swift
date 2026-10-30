@@ -76,7 +76,8 @@ public struct TimelineClip: Identifiable, Sendable, Hashable, Equatable {
 
         let speed = max(0.01, properties["speed"]?.asNumber ?? 1.0)
         let rightSourceStart: CMTime
-        if kind.hasFixedSourceDuration {
+        let isProcedural = properties["isProcedural"]?.asBool ?? false
+        if kind.hasFixedSourceDuration && !isProcedural {
             if abs(speed - 1.0) < 0.0001 {
                 rightSourceStart = sourceStartTime + leftDuration
             } else {

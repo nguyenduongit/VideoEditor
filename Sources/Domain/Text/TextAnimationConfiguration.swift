@@ -35,9 +35,9 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable {
 
     public init(
         inType: TextInAnimationType = .none,
-        inDuration: Double = 0.5,
+        inDuration: Double = 1.0,
         outType: TextOutAnimationType = .none,
-        outDuration: Double = 0.5,
+        outDuration: Double = 1.0,
         loopType: TextLoopAnimationType = .none,
         loopSpeed: Double = 1.0,
         comboType: TextComboAnimationType = .none,
@@ -76,9 +76,9 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.inType = (try? c.decodeIfPresent(TextInAnimationType.self, forKey: .inType)) ?? .none
-        self.inDuration = (try? c.decodeIfPresent(Double.self, forKey: .inDuration)) ?? 0.5
+        self.inDuration = (try? c.decodeIfPresent(Double.self, forKey: .inDuration)) ?? 1.0
         self.outType = (try? c.decodeIfPresent(TextOutAnimationType.self, forKey: .outType)) ?? .none
-        self.outDuration = (try? c.decodeIfPresent(Double.self, forKey: .outDuration)) ?? 0.5
+        self.outDuration = (try? c.decodeIfPresent(Double.self, forKey: .outDuration)) ?? 1.0
         self.loopType = (try? c.decodeIfPresent(TextLoopAnimationType.self, forKey: .loopType)) ?? .none
         self.loopSpeed = (try? c.decodeIfPresent(Double.self, forKey: .loopSpeed)) ?? 1.0
         self.comboType = (try? c.decodeIfPresent(TextComboAnimationType.self, forKey: .comboType)) ?? .none

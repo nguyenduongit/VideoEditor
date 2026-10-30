@@ -6,6 +6,7 @@ extension ClipPropertyRegistry {
         register(descriptors: imageDescriptors, for: .image)
         register(descriptors: audioDescriptors, for: .audio)
         register(descriptors: textDescriptors, for: .text, tabs: ["Text", "Style", "Animation"])
+        register(descriptors: effectDescriptors(), for: .effect, tabs: ["Effect"])
         register(descriptors: adjustmentDescriptors, for: .adjustment, tabs: ["Basic", "HSL", "Wheels", "Curves", "Effects"])
     }
 

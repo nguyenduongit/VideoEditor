@@ -160,18 +160,27 @@ public struct TextColorStyleSubtabsView: View {
             if !isNone { cfg.strokeColorHex = hex }
         case .glow:
             cfg.hasGlow = !isNone
-            if !isNone { cfg.glowColorHex = hex }
+            if !isNone {
+                cfg.glowColorHex = hex
+                if cfg.glowRadius <= 0 { cfg.glowRadius = 8.0 }
+            }
         case .shadow:
             cfg.shadowColorHex = hex
             cfg.hasShadow = !isNone
+            if !isNone && cfg.shadowRadius <= 0 && cfg.shadowOffsetX == 0 && cfg.shadowOffsetY == 0 {
+                cfg.shadowRadius = 6.0
+                cfg.shadowOffsetX = 2.0
+                cfg.shadowOffsetY = 2.0
+            }
         case .background:
             cfg.hasBackground = !isNone
             if !isNone {
                 let cleanCurrent = currentConfig.backgroundColorHex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
-                let currentAlpha = cleanCurrent.count == 8 ? String(cleanCurrent.suffix(2)) : "B2"
+                let currentAlpha = (cleanCurrent.count == 8 && cleanCurrent.suffix(2) != "00") ? String(cleanCurrent.suffix(2)) : "B2"
                 let cleanNew = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
                 let rgb = String(cleanNew.prefix(6))
                 cfg.backgroundColorHex = "#" + rgb + currentAlpha
+                if cfg.backgroundPadding <= 0 { cfg.backgroundPadding = 12.0 }
             }
         }
         commitConfig(cfg)

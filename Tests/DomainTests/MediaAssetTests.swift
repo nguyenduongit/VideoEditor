@@ -28,10 +28,11 @@ struct MediaAssetTests {
 
     @Test func testClipKindDefaultTier() {
         #expect(ClipKind.text.defaultTier == 0)
-        #expect(ClipKind.adjustment.defaultTier == 1)
-        #expect(ClipKind.image.defaultTier == 2)
-        #expect(ClipKind.video.defaultTier == 3)
-        #expect(ClipKind.audio.defaultTier == 4)
+        #expect(ClipKind.effect.defaultTier == 1)
+        #expect(ClipKind.adjustment.defaultTier == 2)
+        #expect(ClipKind.image.defaultTier == 3)
+        #expect(ClipKind.video.defaultTier == 4)
+        #expect(ClipKind.audio.defaultTier == 5)
 
         #expect(MediaType.video.clipKind == .video)
         #expect(MediaType.audio.clipKind == .audio)

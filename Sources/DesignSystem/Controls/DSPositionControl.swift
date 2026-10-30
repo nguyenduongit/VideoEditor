@@ -43,6 +43,7 @@ public struct DSPositionControl: View {
             )
             .disabled(isXDisabled)
             .opacity(isXDisabled ? 0.45 : 1.0)
+            .help(isXDisabled ? String(localized: "Trục X đang do AI Auto Pan tự động điều khiển. Tắt Auto Pan trong tab AI để chỉnh thủ công.") : "")
             .frame(width: DSSize.inspectorColumnWidth)
 
             // Y block in Column 3

@@ -13,6 +13,7 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
     private let ciContext: CIContext
     private let colorGradingEngine = ColorGradingEngine()
     private let textRenderer = TextRendererEngine()
+    private let effectEngine = EffectEngine()
     private let frameCacheLock = NSLock()
     private var lastFrameByTrackID: [CMPersistentTrackID: CIImage] = [:]
 
@@ -74,6 +75,23 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
                 continue
             }
 
+            if info.isEffect {
+                if let config = info.effectConfig {
+                    let compTime = asyncVideoCompositionRequest.compositionTime
+                    let clipStart = info.clipTimeRange?.start ?? .zero
+                    let clipDuration = info.clipTimeRange?.duration.seconds ?? 3.0
+                    let localTime = max(0.0, CMTimeSubtract(compTime, clipStart).seconds)
+                    canvas = effectEngine.applyEffect(
+                        to: canvas,
+                        config: config,
+                        localTime: localTime,
+                        duration: clipDuration,
+                        canvasSize: canvasSize
+                    ).cropped(to: canvasRect)
+                }
+                continue
+            }
+
             if info.isText {
                 if let config = info.textConfig {
                     let compTime = asyncVideoCompositionRequest.compositionTime
@@ -89,6 +107,22 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
                         canvas = textImage.composited(over: canvas)
                     }
                 }
+                continue
+            }
+
+            if info.isSolidColor {
+                let color = info.solidColorHex.flatMap { Self.parseCIColor(hex: $0) } ?? CIColor.black
+                var solidImg = CIImage(color: color).cropped(to: canvasRect)
+                if info.opacity < 1.0 {
+                    let alphaVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(max(0.0, info.opacity)))
+                    if let matrix = CIFilter(name: "CIColorMatrix", parameters: ["inputAVector": alphaVector, kCIInputImageKey: solidImg]) {
+                        solidImg = matrix.outputImage ?? solidImg
+                    }
+                }
+                if let maskParams = info.maskParameters, maskParams.isMaskActive {
+                    solidImg = TimelineMaskGenerator.applyMask(to: solidImg, params: maskParams, canvasSize: canvasSize)
+                }
+                canvas = solidImg.composited(over: canvas)
                 continue
             }
 
@@ -208,6 +242,15 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
         frameCacheLock.lock()
         defer { frameCacheLock.unlock() }
         return lastFrameByTrackID[trackID]
+    }
+
+    private static func parseCIColor(hex: String) -> CIColor? {
+        let clean = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        guard clean.count == 6, let intVal = UInt64(clean, radix: 16) else { return nil }
+        let r = CGFloat((intVal >> 16) & 0xFF) / 255.0
+        let g = CGFloat((intVal >> 8) & 0xFF) / 255.0
+        let b = CGFloat(intVal & 0xFF) / 255.0
+        return CIColor(red: r, green: g, blue: b)
     }
 
     public func cancelAllPendingVideoCompositionRequests() {}

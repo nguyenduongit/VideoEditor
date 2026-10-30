@@ -9,7 +9,9 @@ public struct AdjustmentLibraryView: View {
     @Bindable private var viewModel: AdjustmentLibraryViewModel
 
     private let columns = [
-        GridItem(.adaptive(minimum: 95, maximum: 125), spacing: DSSpacing.md)
+        GridItem(.flexible(), spacing: DSSpacing.md),
+        GridItem(.flexible(), spacing: DSSpacing.md),
+        GridItem(.flexible(), spacing: DSSpacing.md)
     ]
 
     public init(viewModel: AdjustmentLibraryViewModel) {
@@ -17,95 +19,54 @@ public struct AdjustmentLibraryView: View {
     }
 
     public var body: some View {
-        VStack(spacing: DSSpacing.none) {
-            subTabBar
-                .padding(.horizontal, DSSpacing.md)
-                .padding(.vertical, DSSpacing.sm)
-            if viewModel.selectedSubTab == .templates {
-                categoryFilterBar
-                    .padding(.horizontal, DSSpacing.md)
-                    .padding(.bottom, DSSpacing.sm)
-            }
-            Divider()
-                .background(DSColors.blockBorder)
+        LibraryScaffoldView(
+            searchQuery: $viewModel.searchQuery,
+            searchPlaceholder: "Tìm kiếm mẫu màu...",
+            categories: AdjustmentTemplateCategory.allCases.map(\.rawValue),
+            selectedCategory: categoryBinding,
+            trailingAction: AnyView(reloadButton)
+        ) {
             contentScrollView
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DSColors.blockBackground)
     }
 
-    private var subTabBar: some View {
-        HStack(spacing: DSSpacing.xs) {
-            ForEach(AdjustmentLibraryViewModel.SubTab.allCases, id: \.self) { tab in
-                Button(action: {
-                    viewModel.selectedSubTab = tab
-                }) {
-                    Text(tab.rawValue)
-                        .font(.system(size: 12, weight: viewModel.selectedSubTab == tab ? .semibold : .regular))
-                        .foregroundStyle(viewModel.selectedSubTab == tab ? DSColors.textPrimary : DSColors.textSecondary)
-                        .padding(.vertical, DSSpacing.xs)
-                        .padding(.horizontal, DSSpacing.md)
-                        .background(
-                            viewModel.selectedSubTab == tab ? DSColors.windowBackground : Color.clear
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+    private var categoryBinding: Binding<String> {
+        Binding(
+            get: { viewModel.selectedCategory.rawValue },
+            set: { val in
+                if let cat = AdjustmentTemplateCategory(rawValue: val) {
+                    viewModel.selectedCategory = cat
                 }
-                .buttonStyle(.plain)
             }
-            Spacer()
-            if viewModel.selectedSubTab == .templates {
-                Button(action: { viewModel.reloadTemplates() }) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(DSColors.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .help("Tải lại JSON Adjustment Templates")
-            }
-        }
+        )
     }
 
-    private var categoryFilterBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(AdjustmentTemplateCategory.allCases, id: \.self) { category in
-                    let isSelected = viewModel.selectedCategory == category
-                    Button(action: {
-                        viewModel.selectedCategory = category
-                    }) {
-                        Text(category.rawValue)
-                            .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
-                            .foregroundStyle(isSelected ? Color.white : DSColors.textSecondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(isSelected ? DSColors.accent : DSColors.windowBackground)
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+    private var reloadButton: some View {
+        Button(action: { viewModel.reloadTemplates() }) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(DSColors.textSecondary)
+                .frame(width: 24, height: 24)
+                .background(DSColors.windowBackground)
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
         }
+        .buttonStyle(.plain)
+        .help(String(localized: "Tải lại JSON Adjustment Templates"))
     }
 
     private var contentScrollView: some View {
         DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-            if viewModel.selectedSubTab == .default {
-                LazyVGrid(columns: columns, spacing: DSSpacing.md) {
-                    AdjustmentCardItemView(preset: viewModel.defaultPreset, thumbnailRenderer: viewModel.thumbnailRenderer) {
-                        viewModel.addPresetToTimeline(viewModel.defaultPreset)
-                    }
-                }
-                .padding(DSSpacing.md)
-            } else if viewModel.filteredTemplatePresets.isEmpty {
+            let presets = viewModel.filteredPresetsWithDefaultFirst
+            if presets.isEmpty {
                 emptyTemplatesView
             } else {
                 LazyVGrid(columns: columns, spacing: DSSpacing.md) {
-                    ForEach(viewModel.filteredTemplatePresets) { preset in
+                    ForEach(presets) { preset in
                         AdjustmentCardItemView(
                             preset: preset,
                             thumbnailRenderer: viewModel.thumbnailRenderer,
                             onAdd: { viewModel.addPresetToTimeline(preset) },
-                            onDelete: { viewModel.deletePreset(preset) }
+                            onDelete: preset.isSystem ? nil : { viewModel.deletePreset(preset) }
                         )
                     }
                 }

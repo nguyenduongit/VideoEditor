@@ -9,15 +9,21 @@ extension TimelineViewModel {
         named name: String = "Văn bản",
         config: TextConfiguration = TextConfiguration(),
         durationSeconds: Double = 5.0,
-        at time: CMTime? = nil
+        at time: CMTime? = nil,
+        originPresetID: String? = nil,
+        originPresetName: String? = nil
     ) {
         let proposedStart = time ?? currentTime
         let targetStart = TimeRational.snapToFrame(time: proposedStart)
         let resolvedDuration = resolveTextClipDuration(preferredSeconds: durationSeconds, at: targetStart)
+        var finalConfig = config
+        TextAutoFitter.autoScaleFontSize(config: &finalConfig, canvasSize: aspectRatio.renderSize)
         let clip = makeTextTimelineClip(
             named: name,
-            config: config,
-            timeRange: CMTimeRange(start: targetStart, duration: resolvedDuration)
+            config: finalConfig,
+            timeRange: CMTimeRange(start: targetStart, duration: resolvedDuration),
+            originPresetID: originPresetID,
+            originPresetName: originPresetName
         )
 
         var simulatedLayers = layers

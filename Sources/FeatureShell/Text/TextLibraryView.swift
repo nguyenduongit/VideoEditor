@@ -9,7 +9,9 @@ public struct TextLibraryView: View {
     @Bindable private var viewModel: TextLibraryViewModel
 
     private let columns = [
-        GridItem(.adaptive(minimum: 96, maximum: 128), spacing: DSSpacing.md)
+        GridItem(.flexible(), spacing: DSSpacing.md),
+        GridItem(.flexible(), spacing: DSSpacing.md),
+        GridItem(.flexible(), spacing: DSSpacing.md)
     ]
 
     public init(viewModel: TextLibraryViewModel) {
@@ -17,103 +19,55 @@ public struct TextLibraryView: View {
     }
 
     public var body: some View {
-        VStack(spacing: DSSpacing.none) {
-            subTabBar
-                .padding(.horizontal, DSSpacing.md)
-                .padding(.vertical, DSSpacing.sm)
-            if viewModel.selectedSubTab == .templates {
-                categoryFilterBar
-                    .padding(.horizontal, DSSpacing.md)
-                    .padding(.bottom, DSSpacing.sm)
-            }
-            Divider()
-                .background(DSColors.blockBorder)
+        LibraryScaffoldView(
+            searchQuery: $viewModel.searchQuery,
+            searchPlaceholder: "Tìm kiếm mẫu chữ...",
+            categories: TextTemplateCategory.allCases.map(\.rawValue),
+            selectedCategory: categoryBinding,
+            trailingAction: AnyView(reloadButton)
+        ) {
             contentScrollView
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DSColors.blockBackground)
     }
 
-    private var subTabBar: some View {
-        HStack(spacing: DSSpacing.xs) {
-            ForEach(TextLibraryViewModel.SubTab.allCases, id: \.self) { tab in
-                Button(action: {
-                    viewModel.selectedSubTab = tab
-                }) {
-                    Text(tab.rawValue)
-                        .font(.system(size: 12, weight: viewModel.selectedSubTab == tab ? .semibold : .regular))
-                        .foregroundStyle(viewModel.selectedSubTab == tab ? DSColors.textPrimary : DSColors.textSecondary)
-                        .padding(.vertical, DSSpacing.xs)
-                        .padding(.horizontal, DSSpacing.md)
-                        .background(
-                            viewModel.selectedSubTab == tab ? DSColors.windowBackground : Color.clear
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+    private var categoryBinding: Binding<String> {
+        Binding(
+            get: { viewModel.selectedCategory.rawValue },
+            set: { val in
+                if let cat = TextTemplateCategory(rawValue: val) {
+                    viewModel.selectedCategory = cat
                 }
-                .buttonStyle(.plain)
             }
-            Spacer()
-            if viewModel.selectedSubTab == .templates {
-                Button {
-                    viewModel.reloadTemplates()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(DSColors.textSecondary)
-                        .frame(width: 24, height: 24)
-                        .background(DSColors.windowBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
-                }
-                .buttonStyle(.plain)
-                .help("Nạp lại kịch bản JSON Templates")
-            }
-        }
+        )
     }
 
-    private var categoryFilterBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(TextTemplateCategory.allCases) { category in
-                    let isSelected = viewModel.selectedCategory == category
-                    Button {
-                        viewModel.selectedCategory = category
-                    } label: {
-                        Text(category.rawValue)
-                            .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
-                            .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(isSelected ? DSColors.activeTabBackground : DSColors.windowBackground)
-                            .clipShape(Capsule())
-                            .overlay(
-                                Capsule()
-                                    .stroke(isSelected ? DSColors.toggleCyan.opacity(0.75) : DSColors.blockBorder, lineWidth: 0.8)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+    private var reloadButton: some View {
+        Button {
+            viewModel.reloadTemplates()
+        } label: {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(DSColors.textSecondary)
+                .frame(width: 24, height: 24)
+                .background(DSColors.windowBackground)
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
         }
+        .buttonStyle(.plain)
+        .help(String(localized: "Nạp lại kịch bản JSON Templates"))
     }
 
     private var contentScrollView: some View {
         DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-            if viewModel.selectedSubTab == .default {
-                LazyVGrid(columns: columns, spacing: DSSpacing.md) {
-                    TextCardItemView(preset: viewModel.defaultPreset) {
-                        viewModel.addPresetToTimeline(viewModel.defaultPreset)
-                    }
-                }
-                .padding(DSSpacing.md)
-            } else if viewModel.filteredTemplatePresets.isEmpty {
+            let presets = viewModel.filteredPresetsWithDefaultFirst
+            if presets.isEmpty {
                 emptyTemplatesView
             } else {
                 LazyVGrid(columns: columns, spacing: DSSpacing.md) {
-                    ForEach(viewModel.filteredTemplatePresets) { preset in
+                    ForEach(presets) { preset in
                         TextCardItemView(
                             preset: preset,
                             onAdd: { viewModel.addPresetToTimeline(preset) },
-                            onDelete: { viewModel.deletePreset(preset) }
+                            onDelete: preset.isSystem ? nil : { viewModel.deletePreset(preset) }
                         )
                     }
                 }

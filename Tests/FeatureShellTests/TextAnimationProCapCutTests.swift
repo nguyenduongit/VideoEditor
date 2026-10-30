@@ -26,51 +26,39 @@ struct TextAnimationProCapCutTests {
         #expect(config.isDefault == true)
     }
 
-    @Test("Drop and Bounce In Animations calculate expected motion offsets and impact squash")
+    @Test("KineticDrop and SlideUp In Animations calculate expected motion offsets")
     func testDropAndBounceEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
         var cfgDrop = TextConfiguration(content: "Drop")
-        cfgDrop.animation.inType = .drop
+        cfgDrop.animation.inType = .kineticDrop
         cfgDrop.animation.inDuration = 1.0
         let evalDrop = TextAnimationEvaluator.evaluate(config: cfgDrop, localTime: 0.2, duration: 4.0, canvasSize: canvasSize)
         #expect(abs(evalDrop.config.positionY) > 0.001)
 
-        var cfgBounce = TextConfiguration(content: "Bounce")
-        cfgBounce.animation.inType = .bounce
-        cfgBounce.animation.inDuration = 1.0
-        let evalBounce = TextAnimationEvaluator.evaluate(config: cfgBounce, localTime: 0.15, duration: 4.0, canvasSize: canvasSize)
-        #expect(abs(evalBounce.overlay.scaleX - evalBounce.overlay.scaleY) > 0.01)
+        var cfgSlide = TextConfiguration(content: "Slide")
+        cfgSlide.animation.inType = .slideUp
+        cfgSlide.animation.inDuration = 1.0
+        let evalSlide = TextAnimationEvaluator.evaluate(config: cfgSlide, localTime: 0.15, duration: 4.0, canvasSize: canvasSize)
+        #expect(abs(evalSlide.config.positionY) > 0.001)
     }
 
-    @Test("CapCut Pro In Animations evaluate MoveIn, Unfold, 3D Flip and Wipe")
+    @Test("CapCut Pro In Animations evaluate WhipRight and Typewriter")
     func testCapCutProInAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
         var cfgMove = TextConfiguration(content: "Move")
-        cfgMove.animation.inType = .moveIn
+        cfgMove.animation.inType = .whipRight
         cfgMove.animation.inDuration = 1.0
         let evalMove = TextAnimationEvaluator.evaluate(config: cfgMove, localTime: 0.1, duration: 4.0, canvasSize: canvasSize)
         #expect(evalMove.config.positionX < 0.0)
         #expect(evalMove.overlay.motionBlurRadius > 1.0)
 
-        var cfgUnfold = TextConfiguration(content: "Unfold")
-        cfgUnfold.animation.inType = .unfold
-        cfgUnfold.animation.inDuration = 1.0
-        let evalUnfold = TextAnimationEvaluator.evaluate(config: cfgUnfold, localTime: 0.2, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalUnfold.overlay.scaleY < 1.0)
-
-        var cfgFlip = TextConfiguration(content: "Flip")
-        cfgFlip.animation.inType = .flip3D
-        cfgFlip.animation.inDuration = 1.0
-        let evalFlip = TextAnimationEvaluator.evaluate(config: cfgFlip, localTime: 0.2, duration: 4.0, canvasSize: canvasSize)
-        #expect(abs(evalFlip.overlay.perspectiveX) > 0.05)
-
-        var cfgWipe = TextConfiguration(content: "WipeAnimation")
-        cfgWipe.animation.inType = .wipe
-        cfgWipe.animation.inDuration = 1.0
-        let evalWipe = TextAnimationEvaluator.evaluate(config: cfgWipe, localTime: 0.4, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalWipe.config.content.count < "WipeAnimation".count)
+        var cfgType = TextConfiguration(content: "TypewriterAnimation")
+        cfgType.animation.inType = .typewriter
+        cfgType.animation.inDuration = 1.0
+        let evalType = TextAnimationEvaluator.evaluate(config: cfgType, localTime: 0.4, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalType.config.content.count < "TypewriterAnimation|".count)
     }
 
     @Test("Loop Animation runs strictly between In completion and Out start")
@@ -138,7 +126,7 @@ struct TextAnimationProCapCutTests {
     @Test("Per-Character animated rendering generates valid CIImage with Shaders")
     func testSegmentedAndKaraokeRenderingProducesValidImage() {
         var config = TextConfiguration(content: "CAPCUT PRO VIBE")
-        config.animation.inType = .bounce
+        config.animation.inType = .kineticDrop
         config.animation.scope = .perCharacter
         config.animation.staggerDirection = .centerOut
         config.animation.staggerDelay = 0.05

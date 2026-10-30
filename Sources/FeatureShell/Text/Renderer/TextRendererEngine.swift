@@ -43,7 +43,7 @@ public final class TextRendererEngine: Sendable {
         canvasSize: CGSize
     ) -> CIImage? {
         #if os(macOS)
-        if config.animation.scope != .wholeBlock && !config.animation.isDefault {
+        if shouldRenderSegmented(for: config) {
             return renderSegmentedAnimatedImage(
                 for: config, localTime: localTime,
                 duration: duration, canvasSize: canvasSize
@@ -64,64 +64,6 @@ public final class TextRendererEngine: Sendable {
         )
     }
 
-    #if os(macOS)
-    /// Kết xuất phân cấp từng ký tự, từng từ hoặc Karaoke Highlight
-    private func renderSegmentedAnimatedImage(
-        for config: TextConfiguration,
-        localTime: Double,
-        duration: Double,
-        canvasSize: CGSize
-    ) -> CIImage? {
-        let width = Int(canvasSize.width)
-        let height = Int(canvasSize.height)
-        guard width > 0, height > 0,
-              let context = createBitmapContext(width: width, height: height) else { return nil }
-
-        let nsGraphicsContext = NSGraphicsContext(cgContext: context, flipped: false)
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = nsGraphicsContext
-        defer { NSGraphicsContext.restoreGraphicsState() }
-
-        let effectiveScope: TextAnimationScope = config.animation.scope == .wholeBlock ? .perWord : config.animation.scope
-        let font = resolveFont(name: config.fontName, size: CGFloat(config.fontSize), isBold: config.isBold, isItalic: config.isItalic)
-        let displayContent = config.isAllCaps
-            ? config.content.precomposedStringWithCanonicalMapping.uppercased()
-            : config.content.precomposedStringWithCanonicalMapping
-        let (tokens, totalWidth) = TextSegmentRenderer.tokenize(
-            content: displayContent, scope: effectiveScope,
-            font: font, spacing: config.characterSpacing
-        )
-        let textSize = measureSize(for: config, canvasSize: canvasSize)
-
-        let cx = canvasSize.width / 2.0 + CGFloat(config.positionX)
-        let cy = canvasSize.height / 2.0 - CGFloat(config.positionY)
-        context.saveGState()
-        context.translateBy(x: cx, y: cy)
-
-        TextSegmentRenderer.drawSegmentedText(
-            tokens: tokens, totalWidth: totalWidth, totalHeight: textSize.height,
-            baseConfig: config, localTime: localTime, duration: duration,
-            canvasSize: canvasSize, in: context,
-            makeAttributedString: { [weak self] in self?.makeAttributedString(for: $0) ?? NSAttributedString() }
-        )
-        context.restoreGState()
-
-        guard let cgImage = context.makeImage() else { return nil }
-        let ciImage = CIImage(cgImage: cgImage)
-        let globalEval = TextAnimationEvaluator.evaluate(
-            config: config, localTime: localTime, duration: duration, canvasSize: canvasSize
-        )
-        return TextShaderFilterEngine.applyFilters(
-            to: ciImage,
-            blurRadius: globalEval.blurRadius,
-            hueAngle: globalEval.hueAngle,
-            pixelateScale: globalEval.pixelateScale,
-            rgbSplitIntensity: globalEval.rgbSplitIntensity,
-            overlay: globalEval.overlay,
-            lightSweepIntensity: config.animation.lightSweepIntensity
-        )
-    }
-    #endif
 
     /// Kết xuất văn bản tĩnh hoặc biến đổi khối thành CIImage
     public func renderImage(
@@ -154,7 +96,7 @@ public final class TextRendererEngine: Sendable {
         return ciImage
     }
 
-    private func createBitmapContext(width: Int, height: Int) -> CGContext? {
+    internal func createBitmapContext(width: Int, height: Int) -> CGContext? {
         CGContext(
             data: nil, width: width, height: height,
             bitsPerComponent: 8, bytesPerRow: width * 4,
@@ -188,6 +130,12 @@ public final class TextRendererEngine: Sendable {
         context.saveGState()
         context.translateBy(x: cx, y: cy + pivotY)
 
+        let maxSafeW = CGFloat(TextAutoFitter.maxSafeWidth(for: canvasSize))
+        if textWidth > maxSafeW && textWidth > 0 {
+            let safeguardScale = maxSafeW / textWidth
+            context.scaleBy(x: safeguardScale, y: safeguardScale)
+        }
+
         if abs(config.rotation) > 0.001 { context.rotate(by: CGFloat(-config.rotation * .pi / 180.0)) }
         if abs(overlay.skewX) > 0.001 { context.concatenate(CGAffineTransform(a: 1, b: 0, c: CGFloat(overlay.skewX), d: 1, tx: 0, ty: 0)) }
         let sx = CGFloat(max(0.01, config.scale * overlay.scaleX))
@@ -201,11 +149,15 @@ public final class TextRendererEngine: Sendable {
             let padX = padY + extraPadX
             let bgRect = CGRect(x: -textWidth / 2.0 - padX, y: -textHeight / 2.0 - padY, width: textWidth + padX * 2.0, height: textHeight + padY * 2.0)
             let corner = CGFloat(config.backgroundCornerRadius)
-            parseHexColor(config.backgroundColorHex).setFill()
-            NSBezierPath(roundedRect: bgRect, xRadius: corner, yRadius: corner).fill()
+            let path = CGPath(roundedRect: bgRect, cornerWidth: corner, cornerHeight: corner, transform: nil)
+            context.saveGState()
+            context.addPath(path)
+            context.setFillColor(parseHexColor(config.backgroundColorHex).cgColor)
+            context.fillPath()
+            context.restoreGState()
         }
 
-        if config.animation.isMaskEnabled || config.animation.inType == .wipe {
+        if config.animation.isMaskEnabled {
             let maskRect = CGRect(x: -textWidth / 2.0 - 10, y: -textHeight / 2.0 - 4, width: textWidth + 20, height: textHeight + 8)
             context.clip(to: maskRect)
         }
@@ -272,7 +224,7 @@ public final class TextRendererEngine: Sendable {
         return NSAttributedString(string: textString, attributes: attrs)
     }
 
-    private func resolveFont(name: String, size: CGFloat, isBold: Bool, isItalic: Bool) -> NSFont {
+    internal func resolveFont(name: String, size: CGFloat, isBold: Bool, isItalic: Bool) -> NSFont {
         let safeSize = max(6.0, size)
         if name.lowercased() == "system" {
             return isBold ? NSFont.boldSystemFont(ofSize: safeSize) : NSFont.systemFont(ofSize: safeSize)

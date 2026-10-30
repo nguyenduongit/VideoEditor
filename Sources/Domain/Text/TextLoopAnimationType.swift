@@ -1,71 +1,25 @@
 import Foundation
 
-/// Nhóm danh mục phân loại cho hoạt ảnh Vòng lặp (Loop Animation)
-public enum TextLoopAnimationCategory: String, CaseIterable, Sendable, Identifiable {
-    case all = "Tất cả"
-    case dynamicMotion = "Chuyển động nhịp nhàng"
-    case lightGlow = "Ánh sáng & Màu sắc"
-    case distortion = "Biến dạng & Tín hiệu lạ"
-
-    public var id: String { rawValue }
-}
-
-/// Danh mục đầy đủ 14 hiệu ứng vòng lặp (Loop Animation) chuyên nghiệp
+/// Danh mục hoạt ảnh Vòng lặp (Loop Animation) tinh tuyển chuẩn CapCut Pro
+/// Tuân thủ AGENTS.md R2.3 (thuần Domain, không UI) và R4.3 (đơn nhiệm).
 public enum TextLoopAnimationType: String, Sendable, CaseIterable, Identifiable {
     case none = "None"
-
-    // 1. Chuyển động nhịp nhàng (Dynamic Motion)
-    case pulse = "Pulse"
     case breathe = "Breathe"
-    case bounceLoop = "Bounce Loop"
-    case wobble = "Wobble"
-    case pendulumLoop = "Pendulum Loop"
-    case floating = "Floating"
-    case waveLoop = "Wave Loop"
-    case spinLoop = "Spin Loop"
-
-    // 2. Ánh sáng & Màu sắc (Light & Glow)
-    case flash = "Flash"
-    case neonGlow = "Neon Glow"
-    case shine = "Shine"
-    case rainbow = "Rainbow"
-
-    // 3. Biến dạng & Tín hiệu lạ (Distortion)
-    case glitchLoop = "Glitch Loop"
-    case ripple = "Ripple"
+    case wave = "Wave"
+    case pulse = "Pulse"
+    case shake = "Shake"
+    case flicker = "Flicker"
 
     public var id: String { rawValue }
-
-    public var category: TextLoopAnimationCategory {
-        switch self {
-        case .none:
-            return .all
-        case .pulse, .breathe, .bounceLoop, .wobble, .pendulumLoop, .floating, .waveLoop, .spinLoop:
-            return .dynamicMotion
-        case .flash, .neonGlow, .shine, .rainbow:
-            return .lightGlow
-        case .glitchLoop, .ripple:
-            return .distortion
-        }
-    }
 
     public var iconName: String {
         switch self {
         case .none: return "slash.circle"
-        case .pulse: return "waveform.path.ecg"
         case .breathe: return "lungs.fill"
-        case .bounceLoop: return "figure.run"
-        case .wobble: return "waveform.path"
-        case .pendulumLoop: return "metronome"
-        case .floating: return "water.waves"
-        case .waveLoop: return "waveform"
-        case .spinLoop: return "arrow.triangle.2.circlepath"
-        case .flash: return "bolt.fill"
-        case .neonGlow: return "lightbulb.fill"
-        case .shine: return "wand.and.rays"
-        case .rainbow: return "paintpalette"
-        case .glitchLoop: return "bolt.horizontal"
-        case .ripple: return "drop.degreesign.fill"
+        case .wave: return "waveform.path"
+        case .pulse: return "waveform.path.ecg"
+        case .shake: return "bell.and.waves.left.and.right"
+        case .flicker: return "bolt.fill"
         }
     }
 }
@@ -82,18 +36,14 @@ extension TextLoopAnimationType: Codable {
             self = match
             return
         }
-        switch raw.lowercased() {
-        case "light sweep", "lightsweep": self = .shine
-        case "jelly wave", "jellywave": self = .bounceLoop
-        case "3d pendulum", "swing3d": self = .pendulumLoop
-        case "liquid wave", "liquidwave": self = .waveLoop
-        case "wiggle": self = .wobble
-        case "glitch": self = .glitchLoop
-        case "heartbeat": self = .pulse
-        case "neon pulse", "neonpulse": self = .neonGlow
-        case "earthquake": self = .wobble
-        default: self = .none
-        }
+        // Backward-compatibility mapping for legacy animation names
+        let lower = raw.lowercased()
+        if lower.contains("breathe") || lower.contains("tho") { self = .breathe }
+        else if lower.contains("wave") || lower.contains("float") || lower.contains("ripple") { self = .wave }
+        else if lower.contains("pulse") || lower.contains("heart") || lower.contains("tim") { self = .pulse }
+        else if lower.contains("shake") || lower.contains("wobble") || lower.contains("jiggle") || lower.contains("bounce") || lower.contains("pendulum") || lower.contains("spin") { self = .shake }
+        else if lower.contains("flicker") || lower.contains("flash") || lower.contains("neon") || lower.contains("shine") || lower.contains("rainbow") || lower.contains("glitch") { self = .flicker }
+        else { self = .none }
     }
 
     public func encode(to encoder: Encoder) throws {

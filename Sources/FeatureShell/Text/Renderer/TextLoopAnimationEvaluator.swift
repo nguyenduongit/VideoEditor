@@ -2,7 +2,7 @@ import Foundation
 import CoreGraphics
 import Domain
 
-/// Bộ đánh giá và tính toán 14 hiệu ứng vòng lặp (Loop Animation) chuyên nghiệp
+/// Bộ đánh giá và tính toán 5 hoạt ảnh Vòng lặp (Loop Animation) tinh tuyển chuẩn CapCut Pro
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, Hàm <= 50 dòng) và R2.3 (thuần logic, không UI).
 public enum TextLoopAnimationEvaluator {
 
@@ -18,117 +18,76 @@ public enum TextLoopAnimationEvaluator {
     ) {
         guard loopType != .none, blend > 0.001 else { return }
 
-        switch loopType.category {
-        case .dynamicMotion:
-            applyDynamicMotion(
-                config: &config, overlay: &overlay, loopType: loopType,
-                phase: phase, blend: blend
-            )
-        case .lightGlow:
-            applyLightGlow(
-                config: &config, overlay: &overlay, loopType: loopType,
-                phase: phase, t: t, loopSpeed: loopSpeed, blend: blend, hue: &hue
-            )
-        case .distortion:
-            applyDistortion(
-                config: &config, overlay: &overlay, loopType: loopType,
-                phase: phase, t: t, loopSpeed: loopSpeed, blend: blend
-            )
-        case .all:
-            break
-        }
-    }
-
-    // MARK: - 1. Dynamic Motion
-
-    private static func applyDynamicMotion(
-        config: inout TextConfiguration, overlay: inout TextTransformOverlay,
-        loopType: TextLoopAnimationType, phase: Double, blend: Double
-    ) {
         switch loopType {
-        case .pulse:
-            let beat = pow(sin(phase), 4.0) + 0.45 * pow(sin(phase + 0.35), 4.0)
-            config.scale *= (1.0 + beat * 0.14 * blend)
+        case .none:
+            break
         case .breathe:
-            let breath = sin(phase * 0.65) * 0.06 * blend
-            config.scale *= (1.0 + breath)
-        case .bounceLoop:
-            let bounce = abs(sin(phase)) * 14.0 * blend
-            config.positionY -= bounce
-            let squash = (1.0 - abs(sin(phase))) * 0.09 * blend
-            overlay.scaleX *= (1.0 + squash); overlay.scaleY *= (1.0 - squash)
-        case .wobble:
-            config.rotation += sin(phase * 1.5) * 4.5 * blend
-            overlay.skewX += sin(phase * 1.5) * 0.08 * blend
-        case .pendulumLoop:
-            let s = sin(phase)
-            config.rotation += s * 14.0 * blend
-            overlay.perspectiveY += s * 0.35 * blend
-        case .floating:
-            config.positionY += sin(phase) * 9.0 * blend
-            config.rotation += cos(phase * 0.7) * 2.0 * blend
-        case .waveLoop:
-            overlay.liquidWavePhase = phase
-            let w = sin(phase) * 0.12 * blend
-            overlay.scaleX *= (1.0 + w); overlay.scaleY *= (1.0 - w * 0.8)
-        case .spinLoop:
-            let deg = (phase * 180.0 / .pi).truncatingRemainder(dividingBy: 360.0)
-            config.rotation += deg * blend
-        default:
-            break
+            applyBreathe(config: &config, phase: phase, blend: blend)
+        case .wave:
+            applyWave(config: &config, phase: phase, blend: blend)
+        case .pulse:
+            applyPulse(config: &config, phase: phase, blend: blend)
+        case .shake:
+            applyShake(config: &config, overlay: &overlay, phase: phase, blend: blend)
+        case .flicker:
+            applyFlicker(config: &config, phase: phase, blend: blend)
         }
     }
 
-    // MARK: - 2. Light & Glow
-
-    private static func applyLightGlow(
-        config: inout TextConfiguration, overlay: inout TextTransformOverlay,
-        loopType: TextLoopAnimationType, phase: Double, t: Double,
-        loopSpeed: Double, blend: Double, hue: inout Double
+    // MARK: - 1. Breathe (Thở nhẹ nhàng - co dãn êm dịu)
+    private static func applyBreathe(
+        config: inout TextConfiguration,
+        phase: Double,
+        blend: Double
     ) {
-        switch loopType {
-        case .flash:
-            let flashState = sin(phase * 3.0) > 0.1 ? 1.0 : 0.25
-            config.opacity *= (1.0 - blend + flashState * blend)
-        case .neonGlow:
-            let flicker = (0.75 + 0.25 * abs(sin(phase * 2.4)))
-            config.opacity *= (1.0 - blend + flicker * blend)
-            config.scale *= (1.0 + sin(phase * 2.4) * 0.02 * blend)
-        case .shine:
-            overlay.lightSweepPhase = (t * loopSpeed * 0.65).truncatingRemainder(dividingBy: 1.0)
-        case .rainbow:
-            hue = (phase * blend).truncatingRemainder(dividingBy: 2.0 * .pi)
-        default:
-            break
-        }
+        // Slow silky sinusoidal breathing between 0.96x and 1.04x
+        let breath = sin(phase * 0.8) * 0.045 * blend
+        config.scale *= (1.0 + breath)
     }
 
-    // MARK: - 3. Distortion
-
-    private static func applyDistortion(
-        config: inout TextConfiguration, overlay: inout TextTransformOverlay,
-        loopType: TextLoopAnimationType, phase: Double, t: Double,
-        loopSpeed: Double, blend: Double
+    // MARK: - 2. Wave (Lượn sóng dập dềnh)
+    private static func applyWave(
+        config: inout TextConfiguration,
+        phase: Double,
+        blend: Double
     ) {
-        switch loopType {
-        case .glitchLoop:
-            let tick = Int(t * loopSpeed * 8.0) % 8
-            if tick == 2 {
-                config.positionX += 6.0 * blend
-                config.rotation += 1.5 * blend
-                overlay.glitchSliceIntensity = 0.5 * blend
-            } else if tick == 5 {
-                config.positionX -= 5.0 * blend
-                config.rotation -= 1.5 * blend
-                overlay.glitchSliceIntensity = 0.4 * blend
-            }
-        case .ripple:
-            let rippleX = sin(phase * 2.0) * 0.08 * blend
-            let rippleY = cos(phase * 2.0) * 0.08 * blend
-            overlay.scaleX *= (1.0 + rippleX)
-            overlay.scaleY *= (1.0 + rippleY)
-        default:
-            break
-        }
+        let waveY = sin(phase * 1.2) * 10.0 * blend
+        config.positionY += waveY
+        config.rotation += sin(phase * 0.9) * 1.5 * blend
+    }
+
+    // MARK: - 3. Pulse (Nhịp tim đập 2 nhịp nhanh rồi nghỉ)
+    private static func applyPulse(
+        config: inout TextConfiguration,
+        phase: Double,
+        blend: Double
+    ) {
+        let beat = pow(sin(phase), 4.0) + 0.45 * pow(sin(phase + 0.35), 4.0)
+        config.scale *= (1.0 + beat * 0.14 * blend)
+    }
+
+    // MARK: - 4. Shake (Rung lắc sôi động)
+    private static func applyShake(
+        config: inout TextConfiguration,
+        overlay: inout TextTransformOverlay,
+        phase: Double,
+        blend: Double
+    ) {
+        let angle = sin(phase * 4.2) * 2.2 * blend
+        let offsetX = cos(phase * 5.0) * 3.5 * blend
+        config.rotation += angle
+        config.positionX += offsetX
+    }
+
+    // MARK: - 5. Flicker (Chớp sáng Neon Retro)
+    private static func applyFlicker(
+        config: inout TextConfiguration,
+        phase: Double,
+        blend: Double
+    ) {
+        let noise = sin(phase * 8.0) * cos(phase * 3.5)
+        let flicker = noise > 0.4 ? 0.45 : 1.0
+        let targetOpacity = 0.65 + 0.35 * flicker
+        config.opacity *= (1.0 - blend + targetOpacity * blend)
     }
 }

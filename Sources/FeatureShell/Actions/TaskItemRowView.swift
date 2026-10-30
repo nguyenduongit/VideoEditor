@@ -124,7 +124,7 @@ public struct TaskItemRowView: View {
                     selectedTitle: viewModel.selectedPresetName,
                     options: viewModel.availableTextPresets.map { DSDropdownOption(id: $0.id, title: $0.name) },
                     onSelect: { presetID in
-                        viewModel.titlePresetID = presetID
+                        viewModel.updateTitlePreset(id: presetID)
                     }
                 )
             }
@@ -135,7 +135,10 @@ public struct TaskItemRowView: View {
                     .foregroundStyle(DSColors.textSecondary)
                     .frame(width: 52, alignment: .leading)
 
-                TextField(String(localized: "Nhập tiêu đề video..."), text: $viewModel.titleText)
+                TextField(String(localized: "Nhập tiêu đề video..."), text: Binding(
+                    get: { viewModel.titleText },
+                    set: { viewModel.updateTitleText($0) }
+                ))
                     .textFieldStyle(.plain)
                     .font(.system(size: 11.5))
                     .padding(.horizontal, 10)

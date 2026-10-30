@@ -49,6 +49,11 @@ public struct InspectorView: View {
                             .padding(.leading, DSSize.inspectorContentPadding)
                             .padding(.trailing, DSSpacing.md)
                             .padding(.vertical, DSSpacing.md)
+                    } else if viewModel.selectedClip?.kind == .effect {
+                        EffectInspectorView(viewModel: viewModel)
+                            .padding(.leading, DSSize.inspectorContentPadding)
+                            .padding(.trailing, DSSpacing.md)
+                            .padding(.vertical, DSSpacing.md)
                     } else if viewModel.effectiveTab == "Adjustment" {
                         UnifiedColorInspectorView(viewModel: viewModel)
                             .padding(.leading, DSSize.inspectorContentPadding)

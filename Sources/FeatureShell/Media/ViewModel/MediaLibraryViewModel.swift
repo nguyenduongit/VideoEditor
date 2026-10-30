@@ -12,24 +12,34 @@ public final class MediaLibraryViewModel {
         case video = "Video"
         case audio = "Audio"
         case image = "Image"
+
+        public var displayName: String {
+            switch self {
+            case .all: return "Tất cả"
+            case .video: return "Video"
+            case .audio: return "Âm thanh"
+            case .image: return "Hình ảnh"
+            }
+        }
     }
 
     public var assets: [MediaAsset] = []
     public var selectedFilter: MediaFilter = .all
+    public var searchQuery: String = ""
     public var selectedAssetIDs: Set<UUID> = []
     public var thumbnails: [UUID: Image] = [:]
 
     public var filteredAssets: [MediaAsset] {
+        let base: [MediaAsset]
         switch selectedFilter {
-        case .all:
-            return assets
-        case .video:
-            return assets.filter { $0.type == .video }
-        case .audio:
-            return assets.filter { $0.type == .audio }
-        case .image:
-            return assets.filter { $0.type == .image }
+        case .all: base = assets
+        case .video: base = assets.filter { $0.type == .video }
+        case .audio: base = assets.filter { $0.type == .audio }
+        case .image: base = assets.filter { $0.type == .image }
         }
+        guard !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return base }
+        let query = searchQuery.lowercased()
+        return base.filter { $0.name.lowercased().contains(query) }
     }
 
     private let thumbnailService: any AssetThumbnailServiceProtocol

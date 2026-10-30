@@ -48,7 +48,7 @@ public final class ActionsPanelViewModel {
     public var errorMessage: String?
 
     public let dependencies: EditorDependencies
-    private var dispatcher: MCPTimelineToolDispatcher?
+    var dispatcher: MCPTimelineToolDispatcher?
     private var presetObserver: (any NSObjectProtocol)?
 
     public init(
@@ -103,7 +103,21 @@ public final class ActionsPanelViewModel {
         selectedActionID = action.id
         selectedTaskIDs = Set(action.taskIDs)
         if let text = action.titleText { titleText = text }
-        if let preset = action.titlePresetID { titlePresetID = preset }
+        if let preset = action.titlePresetID, !preset.isEmpty {
+            let matched = availableTextPresets.first {
+                $0.id.caseInsensitiveCompare(preset) == .orderedSame ||
+                $0.name.caseInsensitiveCompare(preset) == .orderedSame
+            }
+            if let matched {
+                titlePresetID = matched.id
+            } else if let first = availableTextPresets.first {
+                titlePresetID = first.id
+            } else {
+                titlePresetID = preset
+            }
+        } else if let first = availableTextPresets.first {
+            titlePresetID = first.id
+        }
         taskStates = [:]
         statusMessage = nil
     }
@@ -136,7 +150,14 @@ public final class ActionsPanelViewModel {
             if let repo = dependencies.presetRepositories.textRepository {
                 if let fresh = try? await repo.fetchPresets(), !fresh.isEmpty {
                     self.availableTextPresets = fresh.map { TextPresetItemInfo(id: $0.id, name: $0.name) }
-                    if !fresh.contains(where: { $0.id == self.titlePresetID }), let first = fresh.first {
+                    self.dependencies.textTemplates.setInMemoryTemplates(fresh)
+                    let matched = self.availableTextPresets.first {
+                        $0.id.caseInsensitiveCompare(self.titlePresetID) == .orderedSame ||
+                        $0.name.caseInsensitiveCompare(self.titlePresetID) == .orderedSame
+                    }
+                    if let matched {
+                        self.titlePresetID = matched.id
+                    } else if let first = fresh.first {
                         self.titlePresetID = first.id
                     }
                     return
@@ -145,7 +166,13 @@ public final class ActionsPanelViewModel {
             let inMemory = dependencies.textTemplates.loadAllTemplates()
             if !inMemory.isEmpty {
                 self.availableTextPresets = inMemory.map { TextPresetItemInfo(id: $0.id, name: $0.name) }
-                if !inMemory.contains(where: { $0.id == self.titlePresetID }), let first = inMemory.first {
+                let matched = self.availableTextPresets.first {
+                    $0.id.caseInsensitiveCompare(self.titlePresetID) == .orderedSame ||
+                    $0.name.caseInsensitiveCompare(self.titlePresetID) == .orderedSame
+                }
+                if let matched {
+                    self.titlePresetID = matched.id
+                } else if let first = inMemory.first {
                     self.titlePresetID = first.id
                 }
             }
@@ -165,97 +192,10 @@ public final class ActionsPanelViewModel {
     }
 
     public var selectedPresetName: String {
-        availableTextPresets.first(where: { $0.id.lowercased() == titlePresetID.lowercased() })?.name
-            ?? (availableTextPresets.first?.name ?? "Mẫu chữ trực tuyến")
-    }
-
-    // MARK: - Execution
-
-    public func executeSelectedTasks() {
-        guard !isProcessing, !selectedTaskIDs.isEmpty else { return }
-        prepareDispatcher()
-        guard let dispatcher else {
-            errorMessage = "Chưa kết nối được với Timeline."
-            return
-        }
-
-        isProcessing = true
-        taskStates = [:]
-        errorMessage = nil
-        let orderedTasks = tasks.filter { selectedTaskIDs.contains($0.id) }
-        statusMessage = "Đang thực thi \(orderedTasks.count) tác vụ..."
-        let startTime = CFAbsoluteTimeGetCurrent()
-
-        Task {
-            var completedCount = 0
-            for task in orderedTasks {
-                self.taskStates[task.id] = .running
-                do {
-                    try await executeSingleTask(id: task.id, dispatcher: dispatcher)
-                    self.taskStates[task.id] = .completed
-                    completedCount += 1
-                } catch {
-                    self.taskStates[task.id] = .failed
-                }
-            }
-            await seekPlayheadToStart(dispatcher: dispatcher)
-            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-            self.statusMessage = String(format: "✓ Đã hoàn thành %d/%d tác vụ (%.2fs)", completedCount, orderedTasks.count, elapsed)
-            self.isProcessing = false
-        }
-    }
-
-    public func runTaskItem(_ task: WorkflowTaskItem) { selectedTaskIDs = [task.id]; executeSelectedTasks() }
-    public func runActionItem(_ action: CustomAction) { selectAction(action); executeSelectedTasks() }
-
-    private func seekPlayheadToStart(dispatcher: MCPTimelineToolDispatcher) async {
-        _ = try? await dispatcher.handleToolCallAsync(toolName: "timeline_edit_clip", argumentsJSON: "{\"operation\": \"seek\", \"atTimeSeconds\": 0.0}")
-        self.timelineViewModel?.seek(to: .zero)
-    }
-
-    private func executeSingleTask(id: String, dispatcher: MCPTimelineToolDispatcher) async throws {
-        switch id {
-        case "syncAudio":
-            _ = try await dispatcher.handleToolCallAsync(
-                toolName: "timeline_sync_audio",
-                argumentsJSON: "{\"muteVideo\": true, \"trimExcessTail\": true}"
-            )
-        case "autoColor":
-            let colorJSON = await computeDynamicAutoColorJSON(dispatcher: dispatcher)
-            _ = try await dispatcher.handleToolCallAsync(
-                toolName: "timeline_apply_template",
-                argumentsJSON: colorJSON
-            )
-        case "aspect916":
-            _ = try await dispatcher.handleToolCallAsync(
-                toolName: "timeline_edit_clip",
-                argumentsJSON: "{\"operation\": \"setAspectRatio\", \"aspectRatio\": \"9:16\"}"
-            )
-        case "addTitle":
-            let content = titleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Tiêu đề video" : titleText
-            var dict: [String: Any] = [
-                "kind": "text",
-                "customText": content,
-                "position": "top",
-                "startTimeSeconds": 0.0,
-                "durationSeconds": 5.0
-            ]
-            if !titlePresetID.isEmpty { dict["templateId"] = titlePresetID }
-            if let data = try? JSONSerialization.data(withJSONObject: dict),
-               let jsonString = String(data: data, encoding: .utf8) {
-                _ = try await dispatcher.handleToolCallAsync(
-                    toolName: "timeline_apply_template",
-                    argumentsJSON: jsonString
-                )
-            }
-        case "visionFraming":
-            _ = try await dispatcher.handleToolCallAsync(
-                toolName: "timeline_ai_vision_framing",
-                argumentsJSON: "{\"centerSubject\": true, \"enableAutoPan\": true, \"targetSubjectHeightRatio\": 0.33, \"enableLegStretch\": true, \"legStretchRatio\": 1.12}"
-            )
-        default:
-            break
-        }
+        availableTextPresets.first(where: {
+            $0.id.caseInsensitiveCompare(titlePresetID) == .orderedSame ||
+            $0.name.caseInsensitiveCompare(titlePresetID) == .orderedSame
+        })?.name ?? (availableTextPresets.first?.name ?? "Mẫu chữ trực tuyến")
     }
 
     public var currentAction: CustomAction? {
@@ -267,7 +207,7 @@ public final class ActionsPanelViewModel {
         return action.taskIDs.compactMap { WorkflowTaskItem.find(by: $0) }
     }
 
-    private func prepareDispatcher() {
+    func prepareDispatcher() {
         if dispatcher == nil, let timelineViewModel {
             configure(timelineViewModel: timelineViewModel, mediaLibraryViewModel: mediaLibraryViewModel)
         }

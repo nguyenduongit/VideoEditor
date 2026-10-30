@@ -76,7 +76,7 @@ public enum TextAnimationEvaluator {
             TextOutAnimationEvaluator.apply(
                 config: &evaluated, overlay: &overlay, outType: anim.outType,
                 progress: progress, easedExit: easedExit, canvasSize: canvasSize,
-                blur: &blur, pixelate: &pixelate, rgbSplit: &rgbSplit
+                blur: &blur, rgbSplit: &rgbSplit
             )
         }
 

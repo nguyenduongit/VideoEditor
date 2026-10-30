@@ -110,6 +110,19 @@ public struct ActionsPanelView: View {
 
     private var bottomExecuteArea: some View {
         VStack(spacing: 8) {
+            if let error = viewModel.errorMessage {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Color.yellow)
+                        .font(.system(size: 11))
+                    Text(error)
+                        .font(.system(size: 11))
+                        .foregroundStyle(DSColors.textSecondary)
+                        .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+            }
             executeButton
         }
         .padding(.horizontal, DSSpacing.md)

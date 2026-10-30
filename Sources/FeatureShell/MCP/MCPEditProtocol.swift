@@ -52,6 +52,9 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
             let status = res.isSuccess ? "success" : "error"
             return "{\"status\":\"\(status)\",\"message\":\"\(res.message)\"}"
         }
+        if toolName == ToolName.getClipColorTelemetry.rawValue {
+            return try await getClipColorTelemetryArgument(argumentsJSON)
+        }
         return try handleToolCall(toolName: toolName, argumentsJSON: argumentsJSON)
     }
 
@@ -67,7 +70,7 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
             return try getLibraryCatalogArgument()
         case .addMediaAsset:
             return try addMediaAssetArgument(argumentsJSON)
-        case .syncAudio, .aiVisionFraming:
+        case .syncAudio, .aiVisionFraming, .getClipColorTelemetry:
             return "{\"status\":\"pending_async\"}"
         case .applyTemplate:
             return try applyTemplateArgument(argumentsJSON)
@@ -77,8 +80,6 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
             return try executeCommandsArgument(argumentsJSON)
         case .loadProjectScript:
             return try loadProjectArgument(argumentsJSON)
-        case .getClipColorTelemetry:
-            return try getClipColorTelemetryArgument(argumentsJSON)
         }
     }
 
@@ -117,7 +118,7 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
         return "{\"status\": \"success\"}"
     }
 
-    private func getClipColorTelemetryArgument(_ argumentsJSON: String) throws -> String {
+    private func getClipColorTelemetryArgument(_ argumentsJSON: String) async throws -> String {
         guard let data = argumentsJSON.data(using: .utf8),
               let dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let clipId = dict["clipId"] as? String else {
@@ -137,33 +138,21 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
             throw AppError.invalidParameter("Clip not found with ID: \(clipId)")
         }
 
-        let telemetry: ColorTelemetryProfile
-        if let mediaURL = clip.mediaURL {
-            let sampleTime = CMTimeAdd(clip.sourceStartTime, CMTimeMultiplyByFloat64(clip.timeRange.duration, multiplier: 0.5))
-            if let image = extractImageSynchronously(from: mediaURL, at: sampleTime) {
-                telemetry = HistogramEngine().analyzeTelemetry(from: image)
-            } else {
-                telemetry = ColorTelemetryProfile()
-            }
-        } else {
-            telemetry = ColorTelemetryProfile()
+        guard let mediaURL = clip.mediaURL else {
+            throw AppError.invalidParameter("Clip does not have an associated media URL: \(clipId)")
+        }
+
+        let engine = HistogramEngine()
+        guard let telemetry = await engine.extractMultiFrameTelemetry(
+            from: mediaURL,
+            start: clip.sourceStartTime,
+            duration: clip.timeRange.duration
+        ) else {
+            throw AppError.executionFailed("Không thể trích xuất khung hình video từ tệp media: \(mediaURL.lastPathComponent)")
         }
 
         let resData = try JSONEncoder().encode(telemetry)
         return String(decoding: resData, as: UTF8.self)
-    }
-
-    private func extractImageSynchronously(from url: URL, at time: CMTime) -> CIImage? {
-        let asset = AVURLAsset(url: url)
-        let generator = AVAssetImageGenerator(asset: asset)
-        generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 320, height: 180)
-        generator.requestedTimeToleranceBefore = .positiveInfinity
-        generator.requestedTimeToleranceAfter = .positiveInfinity
-        if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
-            return CIImage(cgImage: cgImage)
-        }
-        return nil
     }
 
     // MARK: - MCPServerDelegate (JSON-RPC 2.0)
@@ -252,7 +241,7 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
         }
 
         do {
-            let output = try handleToolCall(toolName: toolName, argumentsJSON: argsJSON)
+            let output = try await handleToolCallAsync(toolName: toolName, argumentsJSON: argsJSON)
             let result: [String: Any] = [
                 "content": [["type": "text", "text": output]],
                 "isError": false

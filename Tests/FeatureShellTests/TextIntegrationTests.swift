@@ -15,8 +15,8 @@ import Domain
 struct TextIntegrationTests {
     @Test func testTextPresetLibraryInitialState() {
         let vm = TextLibraryViewModel(timelineViewModel: nil)
-        #expect(vm.selectedSubTab == .default)
         #expect(vm.defaultPreset.id == "default")
+        #expect(vm.filteredPresetsWithDefaultFirst.first?.id == "default")
         #expect(vm.defaultPreset.name == "Văn bản mặc định")
         #expect(vm.defaultPreset.config.content == "Văn bản")
     }

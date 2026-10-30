@@ -24,8 +24,12 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
         public let normalizedOffsetY: Double
         public let isAdjustment: Bool
         public let adjustmentConfig: AdjustmentConfiguration?
+        public let isEffect: Bool
+        public let effectConfig: EffectConfiguration?
         public let isText: Bool
         public let textConfig: TextConfiguration?
+        public let isSolidColor: Bool
+        public let solidColorHex: String?
 
         public init(
             trackID: CMPersistentTrackID,
@@ -42,8 +46,12 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
             normalizedOffsetY: Double = 0.0,
             isAdjustment: Bool = false,
             adjustmentConfig: AdjustmentConfiguration? = nil,
+            isEffect: Bool = false,
+            effectConfig: EffectConfiguration? = nil,
             isText: Bool = false,
-            textConfig: TextConfiguration? = nil
+            textConfig: TextConfiguration? = nil,
+            isSolidColor: Bool = false,
+            solidColorHex: String? = nil
         ) {
             self.trackID = trackID
             self.transform = transform
@@ -59,8 +67,12 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
             self.normalizedOffsetY = normalizedOffsetY
             self.isAdjustment = isAdjustment
             self.adjustmentConfig = adjustmentConfig
+            self.isEffect = isEffect
+            self.effectConfig = effectConfig
             self.isText = isText
             self.textConfig = textConfig
+            self.isSolidColor = isSolidColor
+            self.solidColorHex = solidColorHex
         }
     }
 
@@ -85,7 +97,7 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
         self.canvasSize = canvasSize
         self.passthroughTrackID = kCMPersistentTrackID_Invalid
         self.requiredSourceTrackIDs = layerInfos
-            .filter { !$0.isAdjustment && !$0.isText && $0.trackID != kCMPersistentTrackID_Invalid }
+            .filter { !$0.isAdjustment && !$0.isText && !$0.isEffect && $0.trackID != kCMPersistentTrackID_Invalid }
             .map { NSNumber(value: $0.trackID) }
         super.init()
     }

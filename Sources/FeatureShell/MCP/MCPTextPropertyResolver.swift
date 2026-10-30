@@ -39,42 +39,11 @@ public enum MCPTextPropertyResolver {
         if let exact = TextInAnimationType(rawValue: trimmed) { return exact }
         let lower = trimmed.lowercased()
         if lower.contains("fade") { return .fadeIn }
-        if lower.contains("zoom") && (lower.contains("out") || lower.contains("thu")) { return .zoomOutIn }
-        if lower.contains("zoom") { return .zoomIn }
-        if lower.contains("slide") || lower.contains("truot") || lower.contains("fly") {
-            if lower.contains("up") || lower.contains("len") || lower.contains("top") { return .slideUp }
-            if lower.contains("down") || lower.contains("xuong") || lower.contains("bottom") { return .slideDown }
-            if lower.contains("left") || lower.contains("trai") { return .slideLeft }
-            if lower.contains("right") || lower.contains("phai") { return .slideRight }
-            return .slideUp
-        }
-        if lower.contains("move") || lower.contains("chuyen") { return .moveIn }
-        if lower.contains("wipe") || lower.contains("lau") { return .wipe }
-        if lower.contains("typewriter") || lower.contains("type") || lower.contains("danh may") {
-            if lower.contains("2") || lower.contains("ii") { return .typewriter2 }
-            return .typewriter1
-        }
-        if lower.contains("hand") || lower.contains("viet tay") { return .handwriting }
-        if lower.contains("ink") || lower.contains("muc") { return .inkSplash }
-        if lower.contains("chalk") || lower.contains("phan") || lower.contains("crayon") { return .chalk }
-        if lower.contains("drop") || lower.contains("roi") || lower.contains("fall") || lower.contains("crash") { return .drop }
-        if lower.contains("bounce") || lower.contains("spring") || lower.contains("nay") || lower.contains("pop") { return .bounce }
-        if lower.contains("pendulum") || lower.contains("swing") || lower.contains("lac") { return .pendulum }
-        if lower.contains("wobble") || lower.contains("lao dao") { return .wobble }
-        if lower.contains("flip") || lower.contains("lat") {
-            if lower.contains("horiz") || lower.contains("ngang") { return .flipHorizontal }
-            if lower.contains("vert") || lower.contains("doc") { return .flipVertical }
-            return .flip3D
-        }
-        if lower.contains("spin") || lower.contains("xoay") || lower.contains("vortex") || lower.contains("rotate") { return .spinIn }
-        if lower.contains("roll") || lower.contains("lan") { return .rollIn }
-        if lower.contains("page") || lower.contains("trang") { return .pageTurn }
-        if lower.contains("glitch") || lower.contains("nhieu") || lower.contains("noise") { return .glitch }
-        if lower.contains("pixel") { return .pixelate }
-        if lower.contains("blur") || lower.contains("nhoe") { return .blurIn }
-        if lower.contains("light") || lower.contains("streak") || lower.contains("flash") || lower.contains("chop") || lower.contains("shock") { return .lightStreak }
-        if lower.contains("unfold") || lower.contains("stretch") || lower.contains("gap") { return .unfold }
-        if lower.contains("cascade") || lower.contains("wave") || lower.contains("thac") { return .cascade }
+        if lower.contains("zoom") || lower.contains("expand") { return .zoomIn }
+        if lower.contains("slide") || lower.contains("truot") || lower.contains("fly") || lower.contains("up") { return .slideUp }
+        if lower.contains("whip") || lower.contains("move") || lower.contains("wipe") || lower.contains("right") || lower.contains("spin") || lower.contains("vortex") { return .whipRight }
+        if lower.contains("type") || lower.contains("danh may") || lower.contains("hand") { return .typewriter }
+        if lower.contains("drop") || lower.contains("bounce") || lower.contains("kinetic") || lower.contains("roi") || lower.contains("nay") { return .kineticDrop }
         return .fadeIn
     }
 
@@ -83,28 +52,11 @@ public enum MCPTextPropertyResolver {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if let exact = TextOutAnimationType(rawValue: trimmed) { return exact }
         let lower = trimmed.lowercased()
-        if lower.contains("fade") { return .fadeOut }
-        if lower.contains("zoom") && (lower.contains("in") || lower.contains("phong")) { return .zoomInOut }
-        if lower.contains("zoom") { return .zoomOut }
-        if lower.contains("slide") || lower.contains("truot") || lower.contains("fly") {
-            if lower.contains("up") || lower.contains("len") || lower.contains("top") { return .slideUp }
-            if lower.contains("down") || lower.contains("xuong") || lower.contains("bottom") { return .slideDown }
-            if lower.contains("left") || lower.contains("trai") { return .slideLeft }
-            if lower.contains("right") || lower.contains("phai") { return .slideRight }
-            return .slideDown
-        }
-        if lower.contains("dissolve") || lower.contains("tan") || lower.contains("pixel") { return .dissolve }
-        if lower.contains("drop") || lower.contains("roi") || lower.contains("fall") { return .dropOut }
-        if lower.contains("shrink") || lower.contains("co") { return .shrink }
-        if lower.contains("vapor") || lower.contains("smoke") || lower.contains("khoi") { return .vaporize }
-        if lower.contains("shatter") || lower.contains("explode") || lower.contains("vo") || lower.contains("no") || lower.contains("shock") { return .shatter }
-        if lower.contains("spin") || lower.contains("xoay") || lower.contains("spiral") { return .spinOut }
-        if lower.contains("roll") || lower.contains("lan") { return .rollOut }
-        if lower.contains("flip") || lower.contains("lat") { return .flipOut }
-        if lower.contains("blind") || lower.contains("rem") { return .blinds }
-        if lower.contains("tv") || lower.contains("tivi") { return .tvOff }
-        if lower.contains("glitch") { return .glitchOut }
-        if lower.contains("scan") { return .scanOut }
+        if lower.contains("fade") || lower.contains("dissolve") || lower.contains("pixel") { return .fadeOut }
+        if lower.contains("zoom") || lower.contains("shrink") { return .zoomOut }
+        if lower.contains("drop") || lower.contains("fall") || lower.contains("down") { return .dropDown }
+        if lower.contains("whip") || lower.contains("slide") || lower.contains("right") { return .whipOut }
+        if lower.contains("tv") || lower.contains("tivi") || lower.contains("crt") { return .tvOff }
         return .none
     }
 
@@ -113,22 +65,11 @@ public enum MCPTextPropertyResolver {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if let exact = TextLoopAnimationType(rawValue: trimmed) { return exact }
         let lower = trimmed.lowercased()
-        if lower.contains("neon") { return .neonGlow }
-        if lower.contains("heart") || lower.contains("tim") || lower.contains("pulse") { return .pulse }
+        if lower.contains("flicker") || lower.contains("flash") || lower.contains("neon") || lower.contains("chop") { return .flicker }
         if lower.contains("breathe") || lower.contains("tho") { return .breathe }
-        if lower.contains("bounce") || lower.contains("nhun") { return .bounceLoop }
-        if lower.contains("wobble") || lower.contains("jitter") || lower.contains("lac") || lower.contains("rung") || lower.contains("quake") || lower.contains("wiggle") { return .wobble }
-        if lower.contains("pendulum") || lower.contains("chuong") { return .pendulumLoop }
-        if lower.contains("float") || lower.contains("lo lung") { return .floating }
-        if lower.contains("wave") || lower.contains("song") { return .waveLoop }
-        if lower.contains("spin") || lower.contains("xoay") { return .spinLoop }
-        if lower.contains("flash") || lower.contains("flicker") || lower.contains("chop") { return .flash }
-        if lower.contains("neon") { return .neonGlow }
-        if lower.contains("shine") || lower.contains("shimmer") || lower.contains("sang") { return .shine }
-        if lower.contains("rainbow") || lower.contains("color") || lower.contains("mau") { return .rainbow }
-        if lower.contains("glitch") { return .glitchLoop }
-        if lower.contains("ripple") { return .ripple }
-        if lower.contains("none") { return .none }
+        if lower.contains("wave") || lower.contains("song") || lower.contains("float") { return .wave }
+        if lower.contains("pulse") || lower.contains("heart") || lower.contains("tim") { return .pulse }
+        if lower.contains("shake") || lower.contains("wobble") || lower.contains("jiggle") || lower.contains("rung") { return .shake }
         return .none
     }
 }

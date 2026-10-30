@@ -45,6 +45,8 @@ struct PresetCloudSyncTests {
         #expect(vm.defaultPreset.id == "default")
         #expect(vm.defaultPreset.name == "Văn bản mặc định")
         #expect(vm.templatePresets.isEmpty)
+        #expect(vm.filteredPresetsWithDefaultFirst.count == 1)
+        #expect(vm.filteredPresetsWithDefaultFirst.first?.id == "default")
     }
 
     @Test("AdjustmentLibraryViewModel provides defaultPreset while templatePresets reflects remote sync")
@@ -56,5 +58,7 @@ struct PresetCloudSyncTests {
         #expect(vm.defaultPreset.id == "default")
         #expect(vm.defaultPreset.name == "Mặc định")
         #expect(vm.templatePresets.isEmpty)
+        #expect(vm.filteredPresetsWithDefaultFirst.count == 1)
+        #expect(vm.filteredPresetsWithDefaultFirst.first?.id == "default")
     }
 }

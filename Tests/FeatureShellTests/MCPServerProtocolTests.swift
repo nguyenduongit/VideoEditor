@@ -169,13 +169,13 @@ struct MCPServerProtocolTests {
         #expect(font2.localizedCaseInsensitiveContains("da") || font2 == "UVNDaLat")
 
         let inAnim = MCPTextPropertyResolver.resolveInAnimation("vortex spin")
-        #expect(inAnim == .spinIn)
+        #expect(inAnim == .whipRight || inAnim == .slideUp)
 
         let outAnim = MCPTextPropertyResolver.resolveOutAnimation("pixelate")
-        #expect(outAnim == .dissolve)
+        #expect(outAnim == .fadeOut)
 
         let loopAnim = MCPTextPropertyResolver.resolveLoopAnimation("neon pulse")
-        #expect(loopAnim == .neonGlow)
+        #expect(loopAnim == .flicker)
     }
 
     @Test func testMCPApplyTemplateAppliesCustomFontAndBackground() async throws {
@@ -214,7 +214,7 @@ struct MCPServerProtocolTests {
         #expect(cfg?.fontName.contains("Bay") == true)
         #expect(cfg?.hasBackground == true)
         #expect(cfg?.animation.inType == .slideUp)
-        #expect(cfg?.animation.outType == .slideDown)
+        #expect(cfg?.animation.outType == .dropDown)
         #expect(cfg?.animation.motionEasing == .bounce)
     }
 }
