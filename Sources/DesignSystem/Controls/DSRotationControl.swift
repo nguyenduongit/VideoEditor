@@ -6,17 +6,20 @@ public struct DSRotationControl: View {
     private let title: String
     @Binding private var angle: Double
     private let step: Double
+    private let trailingAccessory: AnyView?
     private let onEditingChanged: ((Bool) -> Void)?
 
     public init(
         title: String = "Rotate",
         angle: Binding<Double>,
         step: Double = 0.1,
+        trailingAccessory: AnyView? = nil,
         onEditingChanged: ((Bool) -> Void)? = nil
     ) {
         self.title = title
         self._angle = angle
         self.step = step
+        self.trailingAccessory = trailingAccessory
         self.onEditingChanged = onEditingChanged
     }
 
@@ -26,9 +29,11 @@ public struct DSRotationControl: View {
             Text(title)
                 .font(.system(size: 12, weight: .regular))
                 .foregroundStyle(DSColors.textPrimary)
-                .frame(width: DSSize.inspectorColumnWidth, alignment: .leading)
+                .lineLimit(1)
 
-            // Angle pill in Column 2
+            Spacer(minLength: 0)
+
+            // Angle pill in Column 2 (aligned with Position X input above)
             DSNumberInput(
                 value: $angle,
                 step: step,
@@ -39,16 +44,20 @@ public struct DSRotationControl: View {
             )
             .frame(width: DSSize.inspectorColumnWidth)
 
-            // Circular dial in Column 3
+            // Circular dial in Column 3 (center-aligned with Position Y, Scale & Opacity inputs)
             DSRotationWheel(
                 angle: $angle,
                 onEditingChanged: onEditingChanged
             )
             .frame(width: DSSize.inspectorColumnWidth, alignment: .center)
 
-            // Empty Column 4 placeholder for alignment
-            Color.clear
-                .frame(width: DSSize.inspectorColumnWidth, height: 1)
+            if let trailingAccessory {
+                trailingAccessory
+                    .frame(width: 35, alignment: .center)
+            } else {
+                Color.clear
+                    .frame(width: 35, height: 18)
+            }
         }
         .frame(height: 28)
     }

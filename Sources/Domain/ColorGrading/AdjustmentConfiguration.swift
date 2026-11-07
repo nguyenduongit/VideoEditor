@@ -38,7 +38,25 @@ public struct HSLAdjustments: Codable, Equatable, Sendable {
     public var purple = HSLChannel()
     public var magenta = HSLChannel()
 
-    public init() {}
+    public init(
+        red: HSLChannel = HSLChannel(),
+        orange: HSLChannel = HSLChannel(),
+        yellow: HSLChannel = HSLChannel(),
+        green: HSLChannel = HSLChannel(),
+        cyan: HSLChannel = HSLChannel(),
+        blue: HSLChannel = HSLChannel(),
+        purple: HSLChannel = HSLChannel(),
+        magenta: HSLChannel = HSLChannel()
+    ) {
+        self.red = red
+        self.orange = orange
+        self.yellow = yellow
+        self.green = green
+        self.cyan = cyan
+        self.blue = blue
+        self.purple = purple
+        self.magenta = magenta
+    }
 
     public var isNeutral: Bool {
         red.isNeutral && orange.isNeutral && yellow.isNeutral &&

@@ -4,85 +4,37 @@ import CoreGraphics
 import Domain
 import os
 
-/// Extension mở rộng cho ColorGradingEngine thực thi các bộ lọc nâng cao:
-/// 3D LUT, Color Wheels, Curves, Vignette, Film Grain, Sharpen.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng) và R9.4 của AGENTS.md.
+/// Extension mở rộng cho `ColorGradingEngine` thực thi các bộ lọc nâng cao:
+/// 3D LUT (bảo toàn Premultiplied Alpha), Color Wheels (Metal GPU), Independent Master/R/G/B Curves,
+/// Vignette, Organic Film Grain (Metal GPU) và Sharpen.
+/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng), 0 force-unwrap và R9.4 của AGENTS.md.
 extension ColorGradingEngine {
 
-    /// CIColorKernel là immutable sau khi biên dịch từ mã nguồn shader, thread-safe theo Apple Core Image (R8.3).
-    nonisolated(unsafe) private static let colorWheelsKernel: CIColorKernel? = {
-        let source = """
-        kernel vec4 colorWheelsKernel(
-            __sample s,
-            vec4 lift,
-            vec4 gamma,
-            vec4 gain
-        ) {
-            vec3 rgb = s.rgb;
-            float luma = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
-
-            // 1. Lift (Shadows): tỷ trọng cao ở vùng tối (1.0 - luma)
-            float wLift = clamp(1.0 - luma, 0.0, 1.0);
-            rgb += lift.rgb * wLift;
-            rgb += vec3(lift.w) * wLift;
-
-            // 2. Gamma (Midtones): tỷ trọng cao ở vùng trung gian (luma ~ 0.5)
-            float diff = luma - 0.5;
-            float wGamma = clamp(1.0 - 4.0 * diff * diff, 0.0, 1.0);
-            rgb += gamma.rgb * wGamma;
-            rgb += vec3(gamma.w) * wGamma;
-
-            // 3. Gain (Highlights): tỷ trọng cao ở vùng sáng (luma)
-            float wGain = clamp(luma, 0.0, 1.0);
-            rgb += gain.rgb * wGain;
-            rgb += vec3(gain.w) * wGain;
-
-            return vec4(clamp(rgb, 0.0, 1.0), s.a);
-        }
-        """
-        return CIColorKernel(source: source)
-    }()
-
-    // MARK: - Color Wheels
+    // MARK: - Color Wheels (Metal Compute)
 
     func applyColorWheels(
         to image: CIImage,
         wheels: ColorWheelsAdjustments,
         intensity: Float
     ) -> CIImage {
-        guard !wheels.isNeutral, intensity > 0.001 else { return image }
-        guard let kernel = Self.colorWheelsKernel else { return image }
-        let k = CGFloat(intensity)
-
-        // Quy đổi tọa độ x, y trên bánh xe màu thành vector dịch chuyển RGB
-        let liftVec = CIVector(
-            x: CGFloat(wheels.lift.x * 0.25) * k,
-            y: CGFloat(-wheels.lift.y * 0.25) * k,
-            z: CGFloat(wheels.lift.y * 0.15) * k,
-            w: CGFloat(wheels.lift.luma / 200.0) * k
+        guard !wheels.isNeutral, intensity > 0.001, image.extent.width > 0, image.extent.height > 0 else {
+            return image
+        }
+        let k = intensity
+        let params: [Float] = [
+            wheels.lift.x * 0.25 * k, -wheels.lift.y * 0.25 * k, wheels.lift.y * 0.15 * k, (wheels.lift.luma / 200.0) * k,
+            wheels.gamma.x * 0.25 * k, -wheels.gamma.y * 0.25 * k, wheels.gamma.y * 0.15 * k, (wheels.gamma.luma / 200.0) * k,
+            wheels.gain.x * 0.25 * k, -wheels.gain.y * 0.25 * k, wheels.gain.y * 0.15 * k, (wheels.gain.luma / 200.0) * k
+        ]
+        return MetalComputeRuntimeEngine.shared.dispatchRawCompute(
+            kernelName: "metal_grading_wheels",
+            on: image,
+            uniformFloats: params,
+            canvasRect: image.extent
         )
-
-        let gammaVec = CIVector(
-            x: CGFloat(wheels.gamma.x * 0.25) * k,
-            y: CGFloat(-wheels.gamma.y * 0.25) * k,
-            z: CGFloat(wheels.gamma.y * 0.15) * k,
-            w: CGFloat(wheels.gamma.luma / 200.0) * k
-        )
-
-        let gainVec = CIVector(
-            x: CGFloat(wheels.gain.x * 0.25) * k,
-            y: CGFloat(-wheels.gain.y * 0.25) * k,
-            z: CGFloat(wheels.gain.y * 0.15) * k,
-            w: CGFloat(wheels.gain.luma / 200.0) * k
-        )
-
-        return kernel.apply(
-            extent: image.extent,
-            arguments: [image, liftVec, gammaVec, gainVec]
-        ) ?? image
     }
 
-    // MARK: - Color Curves
+    // MARK: - Color Curves (Master + Independent R / G / B)
 
     func applyColorCurves(
         to image: CIImage,
@@ -90,40 +42,56 @@ extension ColorGradingEngine {
         intensity: Float
     ) -> CIImage {
         guard !curves.isNeutral, intensity > 0.001 else { return image }
-        guard let filter = CIFilter(name: "CIToneCurve") else { return image }
-        filter.setValue(image, forKey: kCIInputImageKey)
-
-        // Tính 5 điểm neo nội suy trên Master Curve
-        let pts = curves.master
         let k = CGFloat(intensity)
+        var result = applyMasterToneCurve(to: image, points: curves.master, k: k)
 
-        let p0Y = interpolateCurveY(at: 0.0, in: pts, k: k)
-        let p1Y = interpolateCurveY(at: 0.25, in: pts, k: k)
-        let p2Y = interpolateCurveY(at: 0.50, in: pts, k: k)
-        let p3Y = interpolateCurveY(at: 0.75, in: pts, k: k)
-        let p4Y = interpolateCurveY(at: 1.0, in: pts, k: k)
+        if (!isChannelLinear(curves.red) || !isChannelLinear(curves.green) || !isChannelLinear(curves.blue)),
+           result.extent.width > 0, result.extent.height > 0 {
+            let rSamples = sampleCurve5(points: curves.red, k: k)
+            let gSamples = sampleCurve5(points: curves.green, k: k)
+            let bSamples = sampleCurve5(points: curves.blue, k: k)
+            result = MetalComputeRuntimeEngine.shared.dispatchRawCompute(
+                kernelName: "metal_grading_rgb_curves",
+                on: result,
+                uniformFloats: rSamples + gSamples + bSamples,
+                canvasRect: result.extent
+            )
+        }
+        return result
+    }
 
-        filter.setValue(CIVector(x: 0.0, y: p0Y), forKey: "inputPoint0")
-        filter.setValue(CIVector(x: 0.25, y: p1Y), forKey: "inputPoint1")
-        filter.setValue(CIVector(x: 0.50, y: p2Y), forKey: "inputPoint2")
-        filter.setValue(CIVector(x: 0.75, y: p3Y), forKey: "inputPoint3")
-        filter.setValue(CIVector(x: 1.0, y: p4Y), forKey: "inputPoint4")
-
+    private func applyMasterToneCurve(to image: CIImage, points: [CurvePoint], k: CGFloat) -> CIImage {
+        guard !isChannelLinear(points), let filter = CIFilter(name: "CIToneCurve") else { return image }
+        filter.setValue(image, forKey: kCIInputImageKey)
+        filter.setValue(CIVector(x: 0.00, y: interpolateCurveY(at: 0.00, in: points, k: k)), forKey: "inputPoint0")
+        filter.setValue(CIVector(x: 0.25, y: interpolateCurveY(at: 0.25, in: points, k: k)), forKey: "inputPoint1")
+        filter.setValue(CIVector(x: 0.50, y: interpolateCurveY(at: 0.50, in: points, k: k)), forKey: "inputPoint2")
+        filter.setValue(CIVector(x: 0.75, y: interpolateCurveY(at: 0.75, in: points, k: k)), forKey: "inputPoint3")
+        filter.setValue(CIVector(x: 1.00, y: interpolateCurveY(at: 1.00, in: points, k: k)), forKey: "inputPoint4")
         return filter.outputImage ?? image
     }
 
-    private func interpolateCurveY(at x: Float, in points: [CurvePoint], k: CGFloat) -> CGFloat {
-        guard !points.isEmpty else { return CGFloat(x) }
-        let sorted = points.sorted { $0.x < $1.x }
-        if x <= sorted.first!.x {
-            let targetY = CGFloat(sorted.first!.y)
-            return CGFloat(x) + (targetY - CGFloat(x)) * k
+    private func sampleCurve5(points: [CurvePoint], k: CGFloat) -> [Float] {
+        [0.0, 0.25, 0.50, 0.75, 1.0].map { x in
+            Float(interpolateCurveY(at: x, in: points, k: k))
         }
-        if x >= sorted.last!.x {
-            let targetY = CGFloat(sorted.last!.y)
-            return CGFloat(x) + (targetY - CGFloat(x)) * k
-        }
+    }
 
+    private func isChannelLinear(_ points: [CurvePoint]) -> Bool {
+        guard points.count == 2 else { return false }
+        return abs(points[0].x - 0.0) < 0.001 && abs(points[0].y - 0.0) < 0.001 &&
+               abs(points[1].x - 1.0) < 0.001 && abs(points[1].y - 1.0) < 0.001
+    }
+
+    private func interpolateCurveY(at x: Float, in points: [CurvePoint], k: CGFloat) -> CGFloat {
+        let sorted = points.sorted { $0.x < $1.x }
+        guard let firstPt = sorted.first, let lastPt = sorted.last else { return CGFloat(x) }
+        if x <= firstPt.x {
+            return CGFloat(x) + (CGFloat(firstPt.y) - CGFloat(x)) * k
+        }
+        if x >= lastPt.x {
+            return CGFloat(x) + (CGFloat(lastPt.y) - CGFloat(x)) * k
+        }
         for i in 0..<(sorted.count - 1) {
             let pA = sorted[i]
             let pB = sorted[i + 1]
@@ -137,7 +105,7 @@ extension ColorGradingEngine {
         return CGFloat(x)
     }
 
-    // MARK: - 3D LUT (.cube)
+    // MARK: - 3D LUT (.cube) — Premultiplied Alpha Safe
 
     func applyLUT(
         to image: CIImage,
@@ -145,29 +113,31 @@ extension ColorGradingEngine {
         intensity: Float
     ) -> CIImage {
         guard !lut.isNeutral, intensity > 0.001 else { return image }
-        guard let parsed = LUTParser.parse(cubeString: lut.lutDataString) else { return image }
-        guard let colorCubeFilter = CIFilter(name: "CIColorCube") else { return image }
+        guard let parsed = LUTParser.parse(cubeString: lut.lutDataString),
+              let colorCubeFilter = CIFilter(name: "CIColorCube") else { return image }
 
         colorCubeFilter.setValue(image, forKey: kCIInputImageKey)
         colorCubeFilter.setValue(parsed.dimension, forKey: "inputCubeDimension")
         colorCubeFilter.setValue(parsed.cubeData, forKey: "inputCubeData")
 
         guard let lutOutput = colorCubeFilter.outputImage else { return image }
-        let blendWeight = (lut.intensity / 100.0) * intensity
+        let blendWeight = max(0.0, min(1.0, (lut.intensity / 100.0) * intensity))
         if blendWeight >= 0.999 { return lutOutput }
+        if blendWeight <= 0.001 { return image }
 
-        let alphaVector = CIVector(x: 0, y: 0, z: 0, w: CGFloat(max(0.0, min(1.0, blendWeight))))
-        guard let alphaFilter = CIFilter(name: "CIColorMatrix", parameters: [
-            kCIInputImageKey: lutOutput,
-            "inputAVector": alphaVector
-        ]), let semiTransparentLUT = alphaFilter.outputImage else {
-            return lutOutput
+        if let dissolve = CIFilter(name: "CIDissolveTransition", parameters: [
+            kCIInputImageKey: image,
+            kCIInputTargetImageKey: lutOutput,
+            kCIInputTimeKey: CGFloat(blendWeight)
+        ]), let blended = dissolve.outputImage {
+            return blended.cropped(to: image.extent)
         }
-
-        return semiTransparentLUT.composited(over: image)
+        let premultLUT = TextSVGAndAssetCache.applyPremultipliedOpacity(Double(blendWeight), to: lutOutput)
+        let premultBase = TextSVGAndAssetCache.applyPremultipliedOpacity(Double(1.0 - blendWeight), to: image)
+        return premultLUT.composited(over: premultBase).cropped(to: image.extent)
     }
 
-    // MARK: - Film Effects (Vignette, Grain, Sharpen)
+    // MARK: - Film Effects (Vignette, Film Grain, Sharpen)
 
     func applyEffects(
         to image: CIImage,
@@ -178,30 +148,32 @@ extension ColorGradingEngine {
         var result = image
         let k = intensity
 
-        // 1. Vignette (Tối 4 góc)
-        if effects.vignetteAmount != 0.0 {
-            if let vigFilter = CIFilter(name: "CIVignette") {
-                vigFilter.setValue(result, forKey: kCIInputImageKey)
-                let vigIntensity = (effects.vignetteAmount / 100.0) * k * 2.0
-                let vigRadius = max(0.1, (effects.vignetteMidpoint / 100.0) * 3.0)
-                vigFilter.setValue(vigIntensity, forKey: "inputIntensity")
-                vigFilter.setValue(vigRadius, forKey: "inputRadius")
-                if let output = vigFilter.outputImage {
-                    result = output
-                }
+        if abs(effects.vignetteAmount) > 0.001, let vigFilter = CIFilter(name: "CIVignette") {
+            vigFilter.setValue(result, forKey: kCIInputImageKey)
+            vigFilter.setValue((effects.vignetteAmount / 100.0) * k * 2.0, forKey: "inputIntensity")
+            vigFilter.setValue(max(0.1, (effects.vignetteMidpoint / 100.0) * 3.0), forKey: "inputRadius")
+            if let output = vigFilter.outputImage {
+                result = output.cropped(to: image.extent)
             }
         }
 
-        // 2. Sharpen (Làm nét chi tiết)
-        if effects.sharpenAmount > 0.0 {
-            if let sharpFilter = CIFilter(name: "CISharpenLuminance") {
-                sharpFilter.setValue(result, forKey: kCIInputImageKey)
-                let sharpness = (effects.sharpenAmount / 100.0) * k * 1.5
-                sharpFilter.setValue(sharpness, forKey: "inputSharpness")
-                if let output = sharpFilter.outputImage {
-                    result = output
-                }
+        if effects.sharpenAmount > 0.001, let sharpFilter = CIFilter(name: "CISharpenLuminance") {
+            sharpFilter.setValue(result, forKey: kCIInputImageKey)
+            sharpFilter.setValue((effects.sharpenAmount / 100.0) * k * 1.5, forKey: "inputSharpness")
+            if let output = sharpFilter.outputImage {
+                result = output.cropped(to: image.extent)
             }
+        }
+
+        if effects.grainAmount > 0.001, result.extent.width > 0, result.extent.height > 0 {
+            let grainStrength = max(0.0, min(1.0, (effects.grainAmount / 100.0) * k))
+            let grainCellSize = 1.0 + (max(0.0, min(100.0, effects.grainSize)) / 100.0) * 2.5
+            result = MetalComputeRuntimeEngine.shared.dispatchRawCompute(
+                kernelName: "metal_grading_film_grain",
+                on: result,
+                uniformFloats: [grainStrength, grainCellSize],
+                canvasRect: result.extent
+            )
         }
 
         return result

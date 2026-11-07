@@ -9,6 +9,7 @@ extension TimelineViewModel {
         named name: String? = nil,
         config: EffectConfiguration = EffectConfiguration(),
         durationSeconds: Double? = nil,
+        originPresetID: String? = nil,
         at time: CMTime? = nil
     ) {
         let proposedStart = time ?? currentTime
@@ -27,6 +28,10 @@ extension TimelineViewModel {
         properties["speed"] = .number(config.speed)
 
         let clipName = name ?? config.type.displayName
+        if let originPresetID {
+            properties["originPresetId"] = .string(originPresetID)
+            properties["originPresetName"] = .string(clipName)
+        }
         let clip = TimelineClip(
             assetID: nil,
             name: clipName,

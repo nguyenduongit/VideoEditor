@@ -2,7 +2,7 @@ import Foundation
 import CoreMedia
 
 public enum TimeRational {
-    public static let defaultFPS: Int32 = 30
+    public static let defaultFPS: Int32 = 60
 }
 
 /// Tiện ích định dạng Timecode và căn chỉnh khung hình theo FPS.

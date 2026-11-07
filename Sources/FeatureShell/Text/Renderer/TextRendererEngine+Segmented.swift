@@ -12,6 +12,10 @@ extension TextRendererEngine {
 
     /// Kiểm tra hoạt ảnh có bản chất kinetic per-character (cần phân tách từng con chữ) hay không
     public static func isKineticTypographyAnimation(_ anim: TextAnimationConfiguration) -> Bool {
+        if let inM = anim.inManifest, inM.defaultScope != .wholeBlock { return true }
+        if let outM = anim.outManifest, outM.defaultScope != .wholeBlock { return true }
+        if let loopM = anim.loopManifest, loopM.defaultScope != .wholeBlock { return true }
+
         switch anim.inType {
         case .slideUp, .whipRight, .kineticDrop, .typewriter:
             return true
@@ -58,7 +62,6 @@ extension TextRendererEngine {
         NSGraphicsContext.current = nsGraphicsContext
         defer { NSGraphicsContext.restoreGraphicsState() }
 
-        // Mặc định CapCut: Per-Character cho các hiệu ứng kinetic, trừ khi chuỗi quá dài (> 50 ký tự) thì dùng Per-Word
         let effectiveScope: TextAnimationScope
         if config.animation.scope != .wholeBlock {
             effectiveScope = config.animation.scope
@@ -67,14 +70,12 @@ extension TextRendererEngine {
         }
 
         let font = resolveFont(name: config.fontName, size: CGFloat(config.fontSize), isBold: config.isBold, isItalic: config.isItalic)
-        let displayContent = config.isAllCaps
-            ? config.content.precomposedStringWithCanonicalMapping.uppercased()
-            : config.content.precomposedStringWithCanonicalMapping
+        let displayContent = config.content.precomposedStringWithCanonicalMapping
         let (tokens, totalWidth) = TextSegmentRenderer.tokenize(
             content: displayContent, scope: effectiveScope,
             font: font, spacing: config.characterSpacing
         )
-        let textSize = measureSize(for: config, canvasSize: canvasSize)
+        let textSize = measureCoreGlyphBounds(for: config)
 
         let cx = canvasSize.width / 2.0 + CGFloat(config.positionX)
         let cy = canvasSize.height / 2.0 - CGFloat(config.positionY)
@@ -86,17 +87,23 @@ extension TextRendererEngine {
             let safeguardScale = maxSafeW / totalWidth
             context.scaleBy(x: safeguardScale, y: safeguardScale)
         }
+        if abs(config.rotation) > 0.001 {
+            context.rotate(by: CGFloat(-config.rotation * .pi / 180.0))
+        }
+        if abs(config.scale - 1.0) > 0.001 {
+            context.scaleBy(x: CGFloat(config.scale), y: CGFloat(config.scale))
+        }
 
         TextSegmentRenderer.drawSegmentedText(
             tokens: tokens, totalWidth: totalWidth, totalHeight: textSize.height,
-            baseConfig: config, localTime: localTime, duration: duration,
-            canvasSize: canvasSize, in: context,
-            makeAttributedString: { [weak self] in self?.makeAttributedString(for: $0) ?? NSAttributedString() }
+            baseConfig: config, font: font, localTime: localTime, duration: duration,
+            canvasSize: canvasSize, in: context
         )
         context.restoreGState()
 
         guard let cgImage = context.makeImage() else { return nil }
-        let ciImage = CIImage(cgImage: cgImage)
+        var ciImage = CIImage(cgImage: cgImage)
+        ciImage = TextSVGAndAssetCache.applyPremultipliedOpacity(config.opacity, to: ciImage)
         let globalEval = TextAnimationEvaluator.evaluate(
             config: config, localTime: localTime, duration: duration, canvasSize: canvasSize
         )

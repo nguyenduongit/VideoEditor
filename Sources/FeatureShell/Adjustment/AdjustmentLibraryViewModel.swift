@@ -98,6 +98,7 @@ public final class AdjustmentLibraryViewModel {
             let query = trimmed.lowercased()
             if preset.name.lowercased().contains(query) { return true }
             if preset.description.lowercased().contains(query) { return true }
+            if preset.community.authorName.lowercased().contains(query) { return true }
             return preset.tags.contains { $0.lowercased().contains(query) }
         }
     }
@@ -111,7 +112,7 @@ public final class AdjustmentLibraryViewModel {
 
     /// Xóa 1 preset người dùng tạo khỏi Local Cache và Supabase
     public func deletePreset(_ preset: AdjustmentPreset) {
-        guard !preset.isSystem else { return }
+        guard preset.canBeModified(by: CommunityIdentity.currentAuthorID) else { return }
         templatePresets.removeAll { $0.id == preset.id }
         thumbnailRenderer.invalidateCache()
         Task {

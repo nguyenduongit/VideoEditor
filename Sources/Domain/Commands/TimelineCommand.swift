@@ -11,6 +11,8 @@ public enum TimelineCommand: Codable, Sendable, Equatable {
     case updateClipProperties(clipID: UUID, properties: [String: PropertyValue])
     case setLayerStatus(layerID: UUID, isLocked: Bool?, isHidden: Bool?, isMuted: Bool?)
     case setAspectRatio(CanvasAspectRatio)
+    case setCutTransition(layerID: UUID, transition: CutTransition)
+    case removeCutTransition(layerID: UUID, transitionID: UUID)
     case batch(commands: [TimelineCommand])
 
     private enum CodingKeys: String, CodingKey {
@@ -27,6 +29,8 @@ public enum TimelineCommand: Codable, Sendable, Equatable {
         case updateClipProperties
         case setLayerStatus
         case setAspectRatio
+        case setCutTransition
+        case removeCutTransition
         case batch
     }
 
@@ -91,6 +95,16 @@ public enum TimelineCommand: Codable, Sendable, Equatable {
         let aspectRatio: CanvasAspectRatio
     }
 
+    private struct SetCutTransitionPayload: Codable {
+        let layerID: UUID
+        let transition: CutTransition
+    }
+
+    private struct RemoveCutTransitionPayload: Codable {
+        let layerID: UUID
+        let transitionID: UUID
+    }
+
     private struct BatchPayload: Codable {
         let commands: [TimelineCommand]
     }
@@ -123,6 +137,12 @@ public enum TimelineCommand: Codable, Sendable, Equatable {
         case .setAspectRatio:
             let p = try container.decode(SetAspectRatioPayload.self, forKey: .payload)
             self = .setAspectRatio(p.aspectRatio)
+        case .setCutTransition:
+            let p = try container.decode(SetCutTransitionPayload.self, forKey: .payload)
+            self = .setCutTransition(layerID: p.layerID, transition: p.transition)
+        case .removeCutTransition:
+            let p = try container.decode(RemoveCutTransitionPayload.self, forKey: .payload)
+            self = .removeCutTransition(layerID: p.layerID, transitionID: p.transitionID)
         case .batch:
             let p = try container.decode(BatchPayload.self, forKey: .payload)
             self = .batch(commands: p.commands)
@@ -156,6 +176,12 @@ public enum TimelineCommand: Codable, Sendable, Equatable {
         case .setAspectRatio(let aspectRatio):
             try container.encode(Action.setAspectRatio, forKey: .action)
             try container.encode(SetAspectRatioPayload(aspectRatio: aspectRatio), forKey: .payload)
+        case .setCutTransition(let layerID, let transition):
+            try container.encode(Action.setCutTransition, forKey: .action)
+            try container.encode(SetCutTransitionPayload(layerID: layerID, transition: transition), forKey: .payload)
+        case .removeCutTransition(let layerID, let transitionID):
+            try container.encode(Action.removeCutTransition, forKey: .action)
+            try container.encode(RemoveCutTransitionPayload(layerID: layerID, transitionID: transitionID), forKey: .payload)
         case .batch(let commands):
             try container.encode(Action.batch, forKey: .action)
             try container.encode(BatchPayload(commands: commands), forKey: .payload)

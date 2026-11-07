@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import OSLog
 import Domain
 import FeatureShell
 import Infrastructure
@@ -13,6 +14,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 @main
 struct VideoEditorApp: App {
+    private static let logger = Logger(subsystem: "com.videoeditor.app", category: "AppMain")
+
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var viewModel: ShellViewModel
     private let mcpTransport: (any MCPServerTransport)?
@@ -20,34 +23,20 @@ struct VideoEditorApp: App {
 
     init() {
         let dependencies = EditorDependencies()
-        let adjustmentRepo = SupabaseAdjustmentPresetRepository(templateLoader: dependencies.adjustmentTemplates)
-        let textRepo = SupabaseTextPresetRepository(templateLoader: dependencies.textTemplates)
-        let actionRepo = SupabaseActionRepository()
-
-        dependencies.presetRepositories.adjustmentRepository = adjustmentRepo
-        dependencies.presetRepositories.textRepository = textRepo
-        dependencies.actionRepositories.actionRepository = actionRepo
-
-        Task {
-            _ = try? await textRepo.fetchPresets()
-            _ = try? await actionRepo.fetchActions()
-        }
+        Self.configureCloudRepositories(for: dependencies)
 
         let registry = TabRegistry()
-        let thumbnailService = MediaThumbnailService()
-        let timelineThumbnailService = TimelineThumbnailService()
         let audioWaveformService = AudioWaveformService()
-        let audioAlignmentService = AudioAlignmentService()
-        let subjectTrackingService = VisionSubjectTrackingService()
         let mediaViewModel = MediaLibraryViewModel(
-            thumbnailService: thumbnailService,
+            thumbnailService: MediaThumbnailService(),
             waveformService: audioWaveformService
         )
         let timelineViewModel = TimelineViewModel(
-            thumbnailService: timelineThumbnailService,
+            thumbnailService: TimelineThumbnailService(),
             waveformService: audioWaveformService,
-            audioAlignmentService: audioAlignmentService,
-            subjectTrackingService: subjectTrackingService,
+            audioAlignmentService: AudioAlignmentService(),
+            audioBeatDetectionService: AudioBeatDetectionService(),
+            subjectTrackingService: VisionSubjectTrackingService(),
             dependencies: dependencies
         )
         let shellViewModel = ShellViewModel(
@@ -56,41 +45,11 @@ struct VideoEditorApp: App {
             mediaLibraryViewModel: mediaViewModel
         )
 
-        mediaViewModel.onActiveAssetChange = { [weak shellViewModel] asset in
-            shellViewModel?.setPreviewAsset(asset)
-        }
-
-        shellViewModel.onTimelineActivated = { [weak mediaViewModel] in
-            mediaViewModel?.clearSelection()
-        }
-
-        mediaViewModel.onAddAssetToTimeline = { [weak shellViewModel, weak timelineViewModel] asset in
-            timelineViewModel?.addAsset(asset)
-            shellViewModel?.switchToTimelinePreview()
-        }
-
-        mediaViewModel.onAddAssetsToTimeline = { [weak shellViewModel, weak timelineViewModel] assets in
-            timelineViewModel?.addAssets(assets)
-            shellViewModel?.switchToTimelinePreview()
-        }
-
-        mediaViewModel.onAssetsDeleted = { [weak timelineViewModel, weak shellViewModel] deletedAssets in
-            let ids = Set(deletedAssets.map(\.id))
-            let urls = Set(deletedAssets.map(\.url))
-            timelineViewModel?.removeClips(forAssetIDs: ids, urls: urls)
-            shellViewModel?.updateTimelinePreview()
-        }
-
-        mediaViewModel.onUndoRequested = { [weak timelineViewModel] in
-            timelineViewModel?.undo() ?? false
-        }
-        mediaViewModel.onRedoRequested = { [weak timelineViewModel] in
-            timelineViewModel?.redo() ?? false
-        }
-        timelineViewModel.onClipsRestored = { [weak mediaViewModel] restoredClips in
-            mediaViewModel?.restoreAssetsForClips(restoredClips)
-        }
-
+        Self.bindCrossModuleCallbacks(
+            shellViewModel: shellViewModel,
+            mediaViewModel: mediaViewModel,
+            timelineViewModel: timelineViewModel
+        )
         Self.registerAllTabs(in: registry, mediaViewModel: mediaViewModel, timelineViewModel: timelineViewModel)
         _viewModel = State(initialValue: shellViewModel)
 
@@ -98,13 +57,17 @@ struct VideoEditorApp: App {
             viewModel: timelineViewModel,
             commandExecutor: timelineViewModel.commandExecutor
         )
-        let mcpDispatcher = MCPTimelineToolDispatcher(scriptEngine: scriptEngine)
+        let mcpDispatcher = MCPTimelineToolDispatcher(
+            scriptEngine: scriptEngine,
+            mediaLibraryViewModel: mediaViewModel,
+            dependencies: dependencies
+        )
         let transport = LocalNWServerTransport(port: 4088)
         transport.delegate = mcpDispatcher
         do {
             try transport.start()
         } catch {
-            // Port might be occupied; fails safely without crashing
+            Self.logger.error("Không thể khởi động cổng MCP 4088: \(error.localizedDescription, privacy: .public)")
         }
         self.mcpTransport = transport
     }
@@ -129,20 +92,117 @@ struct VideoEditorApp: App {
                 .disabled(!viewModel.timelineViewModel.canRedo)
             }
             CommandGroup(after: .newItem) {
-                Button(String(localized: "Import Project Script...")) {
-                    TimelineProjectIO.importProjectScript(
+                Button(String(localized: "Open Project...")) {
+                    TimelineProjectIO.openProject(
                         into: viewModel.timelineViewModel,
                         mediaLibraryViewModel: viewModel.mediaLibraryViewModel
                     )
                     viewModel.updateTimelinePreview()
                 }
-                .keyboardShortcut("i", modifiers: [.command, .shift])
+                .keyboardShortcut("o", modifiers: .command)
 
-                Button(String(localized: "Export Project Script...")) {
-                    TimelineProjectIO.exportProjectScript(from: viewModel.timelineViewModel)
+                Button(String(localized: "Save Project")) {
+                    TimelineProjectIO.saveProject(from: viewModel.timelineViewModel)
+                }
+                .keyboardShortcut("s", modifiers: .command)
+
+                Button(String(localized: "Save Project As...")) {
+                    TimelineProjectIO.saveProject(from: viewModel.timelineViewModel, saveAs: true)
                 }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
+
+                Divider()
+
+                Button(String(localized: "Xuất Video MP4...")) {
+                    viewModel.exportViewModel.openDialog(mediaType: .video)
+                }
+                .keyboardShortcut("e", modifiers: .command)
+
+                Button(String(localized: "Xuất Audio Only...")) {
+                    viewModel.exportViewModel.openDialog(mediaType: .audio)
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
             }
+        }
+    }
+
+    private static func configureCloudRepositories(for dependencies: EditorDependencies) {
+        let adjustmentRepo = SupabaseAdjustmentPresetRepository(templateLoader: dependencies.adjustmentTemplates)
+        let textRepo = SupabaseTextPresetRepository(templateLoader: dependencies.textTemplates)
+        let animationRepo = SupabaseAnimationPresetRepository(templateLoader: dependencies.animationTemplates)
+        let effectRepo = SupabaseEffectPresetRepository(templateLoader: dependencies.effectTemplates)
+        let stickerRepo = SupabaseStickerPresetRepository(templateLoader: dependencies.stickerTemplates)
+        let transitionRepo = SupabaseTransitionPresetRepository(templateLoader: dependencies.transitionTemplates)
+        let actionRepo = SupabaseActionRepository()
+
+        dependencies.presetRepositories.adjustmentRepository = adjustmentRepo
+        dependencies.presetRepositories.textRepository = textRepo
+        dependencies.presetRepositories.animationRepository = animationRepo
+        dependencies.presetRepositories.effectRepository = effectRepo
+        dependencies.presetRepositories.stickerRepository = stickerRepo
+        dependencies.presetRepositories.transitionRepository = transitionRepo
+        dependencies.actionRepositories.actionRepository = actionRepo
+
+        Task {
+            await prefetchPresetsSafely(
+                adjustmentRepo: adjustmentRepo, textRepo: textRepo, animationRepo: animationRepo,
+                effectRepo: effectRepo, stickerRepo: stickerRepo, transitionRepo: transitionRepo,
+                actionRepo: actionRepo
+            )
+        }
+    }
+
+    private static func prefetchPresetsSafely(
+        adjustmentRepo: SupabaseAdjustmentPresetRepository,
+        textRepo: SupabaseTextPresetRepository,
+        animationRepo: SupabaseAnimationPresetRepository,
+        effectRepo: SupabaseEffectPresetRepository,
+        stickerRepo: SupabaseStickerPresetRepository,
+        transitionRepo: SupabaseTransitionPresetRepository,
+        actionRepo: SupabaseActionRepository
+    ) async {
+        do { _ = try await adjustmentRepo.fetchPresets() } catch { logger.warning("Prefetch adjustment_presets lỗi: \(error.localizedDescription)") }
+        do { _ = try await textRepo.fetchPresets() } catch { logger.warning("Prefetch text_presets lỗi: \(error.localizedDescription)") }
+        do { _ = try await animationRepo.fetchPresets() } catch { logger.warning("Prefetch animation_presets lỗi: \(error.localizedDescription)") }
+        do { _ = try await effectRepo.fetchPresets() } catch { logger.warning("Prefetch effect_presets lỗi: \(error.localizedDescription)") }
+        do { _ = try await stickerRepo.fetchPresets() } catch { logger.warning("Prefetch sticker_presets lỗi: \(error.localizedDescription)") }
+        do { _ = try await transitionRepo.fetchPresets() } catch { logger.warning("Prefetch transition_presets lỗi: \(error.localizedDescription)") }
+        do { _ = try await actionRepo.fetchActions() } catch { logger.warning("Prefetch actions lỗi: \(error.localizedDescription)") }
+    }
+
+    private static func bindCrossModuleCallbacks(
+        shellViewModel: ShellViewModel,
+        mediaViewModel: MediaLibraryViewModel,
+        timelineViewModel: TimelineViewModel
+    ) {
+        mediaViewModel.onActiveAssetChange = { [weak shellViewModel] asset in
+            shellViewModel?.setPreviewAsset(asset)
+        }
+        shellViewModel.onTimelineActivated = { [weak mediaViewModel] in
+            mediaViewModel?.clearSelection()
+        }
+        mediaViewModel.onAddAssetToTimeline = { [weak shellViewModel, weak timelineViewModel] asset in
+            timelineViewModel?.addAsset(asset)
+            shellViewModel?.switchToTimelinePreview()
+        }
+        mediaViewModel.onAddAssetsToTimeline = { [weak shellViewModel, weak timelineViewModel] assets in
+            timelineViewModel?.addAssets(assets)
+            shellViewModel?.switchToTimelinePreview()
+        }
+        mediaViewModel.onAssetsDeleted = { [weak timelineViewModel, weak shellViewModel] deletedAssets in
+            let ids = Set(deletedAssets.map(\.id))
+            let urls = Set(deletedAssets.map(\.url))
+            timelineViewModel?.removeClips(forAssetIDs: ids, urls: urls)
+            shellViewModel?.updateTimelinePreview()
+        }
+        mediaViewModel.onUndoRequested = { [weak timelineViewModel] in
+            timelineViewModel?.undo() ?? false
+        }
+        mediaViewModel.onRedoRequested = { [weak timelineViewModel] in
+            timelineViewModel?.redo() ?? false
+        }
+        timelineViewModel.onClipsRestored = { [weak mediaViewModel] restoredClips in
+            mediaViewModel?.restoreAssetsForClips(restoredClips)
         }
     }
 
@@ -152,10 +212,11 @@ struct VideoEditorApp: App {
         timelineViewModel: TimelineViewModel
     ) {
         registry.register(MediaTabDescriptor(mediaViewModel: mediaViewModel))
-        registry.register(LibraryTabDescriptor(timelineViewModel: timelineViewModel, mediaViewModel: mediaViewModel))
-        registry.register(AudioTabDescriptor())
-        registry.register(TextTabDescriptor(timelineViewModel: timelineViewModel))
+        registry.register(AudioTabDescriptor(timelineViewModel: timelineViewModel))
         registry.register(AdjustmentTabDescriptor(timelineViewModel: timelineViewModel))
+        registry.register(TextTabDescriptor(timelineViewModel: timelineViewModel))
         registry.register(EffectTabDescriptor(timelineViewModel: timelineViewModel))
+        registry.register(TransitionTabDescriptor(timelineViewModel: timelineViewModel))
+        registry.register(StickerTabDescriptor(timelineViewModel: timelineViewModel))
     }
 }

@@ -7,6 +7,7 @@ public struct DSCustomSlider: View {
     private let range: ClosedRange<Double>
     private let step: Double
     private let defaultValue: Double?
+    private let accentColor: Color?
     private let onEditingChanged: ((Bool) -> Void)?
 
     @State private var isDragging = false
@@ -16,12 +17,14 @@ public struct DSCustomSlider: View {
         range: ClosedRange<Double>,
         step: Double = 0.01,
         defaultValue: Double? = nil,
+        accentColor: Color? = nil,
         onEditingChanged: ((Bool) -> Void)? = nil
     ) {
         self._value = value
         self.range = range
         self.step = step
         self.defaultValue = defaultValue
+        self.accentColor = accentColor
         self.onEditingChanged = onEditingChanged
     }
 
@@ -44,7 +47,7 @@ public struct DSCustomSlider: View {
 
                 // Active filled track
                 Capsule()
-                    .fill(Color(red: 0.12, green: 0.55, blue: 0.98))
+                    .fill(accentColor ?? Color(red: 0.12, green: 0.55, blue: 0.98))
                     .frame(width: max(0, CGFloat(normalized) * usableWidth), height: trackHeight)
                     .padding(.leading, thumbRadius)
 

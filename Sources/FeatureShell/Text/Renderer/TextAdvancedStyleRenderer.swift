@@ -2,14 +2,16 @@ import Foundation
 import CoreGraphics
 #if os(macOS)
 import AppKit
+import CoreText
 #endif
 import Domain
 
-/// Bộ kết xuất đồ họa nâng cao cho Text: Khối đổ bóng 3D (Extrusion), Viền kép (Sticker), và Gradient Fill đa sắc.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng) và R4.3 (đơn nhiệm) của AGENTS.md.
+/// Bộ kết xuất đồ họa vector chuyên sâu cho Text 1-Layer:
+/// Hỗ trợ Glow (Intensity + Range), Shadow (Opacity + Blur + Distance + Angle),
+/// Dual Stroke (2 viền độc lập có Gradient) và Linear Gradient Fill trên cả chữ thẳng lẫn chữ cong (Arc / Wave).
+/// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, Hàm <= 50 dòng).
 public enum TextAdvancedStyleRenderer: Sendable {
     #if os(macOS)
-    /// Tạo NSParagraphStyle chuẩn hóa theo cấu hình căn lề và khoảng cách dòng
     public static func makeParagraphStyle(for config: TextConfiguration) -> NSMutableParagraphStyle {
         let paragraph = NSMutableParagraphStyle()
         switch config.alignment {
@@ -17,197 +19,119 @@ public enum TextAdvancedStyleRenderer: Sendable {
         case .center: paragraph.alignment = .center
         case .right: paragraph.alignment = .right
         }
-        paragraph.lineSpacing = CGFloat(config.lineSpacing)
+        paragraph.lineBreakMode = .byClipping
         return paragraph
     }
 
-    /// Kết xuất Outer Glow và Drop Shadow nằm hoàn toàn phía sau lớp chữ và viền
-    /// Đảm bảo hào quang tỏa ra ngoài nhưng không bao giờ làm ám màu hay đục màu ruột chữ
-    public static func drawGlowAndShadow(
+    /// Vẽ trọn bộ 5 lớp (Shadow -> Glow -> Outer Stroke -> Inner Stroke -> Fill) trực tiếp lên đường dẫn Vector `CGPath`
+    public static func drawStyledVectorGlyphPath(
+        _ glyphPath: CGPath,
+        pathBounds: CGRect,
         config: TextConfiguration,
-        font: NSFont,
-        textString: String,
-        paragraph: NSParagraphStyle,
-        textRect: CGRect,
         in context: CGContext
     ) {
-        let hasGlow = config.hasGlow && config.glowRadius > 0
-        let hasShadow = config.hasShadow && (config.shadowRadius > 0 || config.shadowOffsetX != 0 || config.shadowOffsetY != 0)
-        guard hasGlow || hasShadow else { return }
+        guard !glyphPath.isEmpty else { return }
+        let innerW = config.innerStroke.isEnabled ? max(0.0, config.innerStroke.width) : 0.0
+        let outerW = config.outerStroke.isEnabled ? max(0.0, config.outerStroke.width) : 0.0
+        let fullSilhouetteStroke = (innerW + outerW) * 2.0
 
-        let totalStroke: Double
-        if config.hasOuterStroke && config.outerStrokeWidth > 0 {
-            totalStroke = abs(config.strokeWidth) + abs(config.outerStrokeWidth) * 2.0
-        } else if config.hasStroke && config.strokeWidth > 0 {
-            totalStroke = abs(config.strokeWidth)
-        } else {
-            totalStroke = 0.0
-        }
+        drawVectorShadow(glyphPath: glyphPath, silhouetteStroke: fullSilhouetteStroke, shadow: config.shadow, in: context)
+        drawVectorGlow(glyphPath: glyphPath, silhouetteStroke: fullSilhouetteStroke, glow: config.glow, in: context)
 
-        // 1. Drop Shadow (nằm dưới cùng)
-        if hasShadow {
-            context.saveGState()
-            let shadowColor = parseHexColor(config.shadowColorHex)
-            let shadowOffset = CGSize(width: config.shadowOffsetX, height: -config.shadowOffsetY)
-            context.setShadow(offset: shadowOffset, blur: CGFloat(config.shadowRadius), color: shadowColor.cgColor)
-            var shadowAttrs: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: shadowColor,
-                .paragraphStyle: paragraph,
-                .kern: CGFloat(config.characterSpacing)
-            ]
-            if totalStroke > 0 {
-                shadowAttrs[.strokeColor] = shadowColor
-                shadowAttrs[.strokeWidth] = -abs(totalStroke)
-            }
-            NSAttributedString(string: textString, attributes: shadowAttrs).draw(in: textRect)
-            context.restoreGState()
+        if config.outerStroke.isEnabled && outerW > 0.25 {
+            drawVectorStroke(
+                glyphPath: glyphPath,
+                bounds: pathBounds,
+                stroke: config.outerStroke,
+                strokeWidth: (innerW + outerW) * 2.0,
+                in: context
+            )
         }
-
-        // 2. Outer Glow (tỏa hào quang bên ngoài viền chữ mà không đè lên ruột chữ)
-        if hasGlow {
-            context.saveGState()
-            let glowColor = parseHexColor(config.glowColorHex)
-            context.setShadow(offset: .zero, blur: CGFloat(config.glowRadius), color: glowColor.cgColor)
-            var glowAttrs: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: glowColor,
-                .paragraphStyle: paragraph,
-                .kern: CGFloat(config.characterSpacing)
-            ]
-            if totalStroke > 0 {
-                glowAttrs[.strokeColor] = glowColor
-                glowAttrs[.strokeWidth] = -abs(totalStroke)
-            }
-            let glowStr = NSAttributedString(string: textString, attributes: glowAttrs)
-            glowStr.draw(in: textRect)
-            glowStr.draw(in: textRect)
-            context.restoreGState()
+        if config.innerStroke.isEnabled && innerW > 0.25 {
+            drawVectorStroke(
+                glyphPath: glyphPath,
+                bounds: pathBounds,
+                stroke: config.innerStroke,
+                strokeWidth: innerW * 2.0,
+                in: context
+            )
         }
+        drawVectorFill(glyphPath: glyphPath, bounds: pathBounds, config: config, in: context)
     }
 
-    /// Kết xuất bóng khối 3D kéo dài (Extruded 3D / Isometric block shadow)
-    public static func drawExtrusion(
-        config: TextConfiguration,
-        font: NSFont,
-        textString: String,
-        paragraph: NSParagraphStyle,
-        textRect: CGRect,
+    private static func drawVectorShadow(
+        glyphPath: CGPath,
+        silhouetteStroke: Double,
+        shadow: TextShadowStyle,
         in context: CGContext
     ) {
-        guard config.hasExtrusion && config.extrusionDepth > 0.5 else { return }
-        let rad = config.extrusionAngle * .pi / 180.0
-        let stepCount = max(2, min(40, Int(ceil(config.extrusionDepth * 1.5))))
-        let stepDx = cos(rad) * (config.extrusionDepth / Double(stepCount))
-        let stepDy = sin(rad) * (config.extrusionDepth / Double(stepCount))
-        let extColor = parseHexColor(config.extrusionColorHex)
+        guard shadow.isEnabled, shadow.opacity > 0.5 else { return }
+        let baseColor = parseHexColor(shadow.colorHex)
+        let alpha = CGFloat(shadow.opacity / 100.0) * baseColor.alphaComponent
+        let shadowColor = baseColor.withAlphaComponent(max(0.0, min(1.0, alpha)))
 
-        let totalStroke: Double
-        if config.hasOuterStroke && config.outerStrokeWidth > 0 {
-            totalStroke = abs(config.strokeWidth) + abs(config.outerStrokeWidth) * 2.0
-        } else if config.hasStroke && config.strokeWidth > 0 {
-            totalStroke = abs(config.strokeWidth)
-        } else {
-            totalStroke = 0.0
-        }
-
-        var extAttrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: extColor,
-            .paragraphStyle: paragraph,
-            .kern: CGFloat(config.characterSpacing)
-        ]
-        if totalStroke > 0 {
-            extAttrs[.strokeColor] = extColor
-            extAttrs[.strokeWidth] = -abs(totalStroke)
-        }
-
-        let extString = NSAttributedString(string: textString, attributes: extAttrs)
-        for i in stride(from: stepCount, through: 1, by: -1) {
-            let curDx = CGFloat(Double(i) * stepDx)
-            let curDy = CGFloat(Double(i) * stepDy)
-            let sliceRect = textRect.offsetBy(dx: curDx, dy: -curDy)
-            extString.draw(in: sliceRect)
-        }
-    }
-
-    /// Kết xuất viền ngoài thứ hai (Outer Stroke / Sticker Cutout Effect)
-    public static func drawOuterStroke(
-        config: TextConfiguration,
-        font: NSFont,
-        textString: String,
-        paragraph: NSParagraphStyle,
-        textRect: CGRect,
-        in context: CGContext
-    ) {
-        guard config.hasOuterStroke && config.outerStrokeWidth > 0.5 else { return }
-        let outerColor = parseHexColor(config.outerStrokeColorHex)
-        let totalStroke = abs(config.strokeWidth) + abs(config.outerStrokeWidth) * 2.0
-
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: outerColor,
-            .strokeColor: outerColor,
-            .strokeWidth: -abs(totalStroke),
-            .paragraphStyle: paragraph,
-            .kern: CGFloat(config.characterSpacing)
-        ]
-        let outerString = NSAttributedString(string: textString, attributes: attrs)
-        outerString.draw(in: textRect)
-    }
-
-    /// Kết xuất màu chuyển sắc (Linear Gradient Fill đa sắc) lên bề mặt glyphs của chữ
-    public static func drawGradientFill(
-        config: TextConfiguration,
-        font: NSFont,
-        textString: String,
-        paragraph: NSParagraphStyle,
-        textRect: CGRect,
-        in context: CGContext
-    ) {
-        guard config.isGradient && config.gradientColors.count >= 2 else { return }
-        let cgColors = config.gradientColors.map {
-            parseHexColor($0).cgColor
-        } as CFArray
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        guard let gradient = CGGradient(colorsSpace: colorSpace, colors: cgColors, locations: nil) else { return }
-
+        let silPath = makeSilhouettePath(from: glyphPath, extraStrokeWidth: silhouetteStroke)
         context.saveGState()
         context.beginTransparencyLayer(auxiliaryInfo: nil)
-
-        // Vẽ khuôn chữ với màu trắng đục làm mask alpha
-        let maskAttrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: NSColor.white,
-            .paragraphStyle: paragraph,
-            .kern: CGFloat(config.characterSpacing)
-        ]
-        let maskString = NSAttributedString(string: textString, attributes: maskAttrs)
-        maskString.draw(in: textRect)
-
-        // Áp dụng blend mode sourceIn để đổ gradient chỉ vào vùng có chữ
-        context.setBlendMode(.sourceIn)
-        let rad = config.gradientAngle * .pi / 180.0
-        let halfW = textRect.width / 2.0
-        let halfH = textRect.height / 2.0
-        let midX = textRect.midX
-        let midY = textRect.midY
-
-        let startPt = CGPoint(x: midX - cos(rad) * halfW, y: midY + sin(rad) * halfH)
-        let endPt = CGPoint(x: midX + cos(rad) * halfW, y: midY - sin(rad) * halfH)
-
-        context.drawLinearGradient(
-            gradient,
-            start: startPt,
-            end: endPt,
-            options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
-        )
-
+        let offset = CGSize(width: shadow.offsetX, height: -shadow.offsetY)
+        context.setShadow(offset: offset, blur: CGFloat(shadow.blur), color: shadowColor.cgColor)
+        context.addPath(silPath)
+        context.setFillColor(shadowColor.cgColor)
+        context.fillPath()
+        // Xóa phần nhân bên trong để bóng chỉ nằm phía sau, không ám đục ruột chữ bán trong suốt
+        context.setShadow(offset: .zero, blur: 0, color: nil)
+        context.setBlendMode(.clear)
+        context.addPath(silPath)
+        context.fillPath()
         context.endTransparencyLayer()
         context.restoreGState()
     }
 
-    /// Giải mã mã màu HEX thành NSColor chuẩn sRGB
+    private static func drawVectorGlow(
+        glyphPath: CGPath,
+        silhouetteStroke: Double,
+        glow: TextGlowStyle,
+        in context: CGContext
+    ) {
+        guard glow.isEnabled, glow.intensity > 0.5, glow.range > 0.2 else { return }
+        let baseColor = parseHexColor(glow.colorHex)
+        let normIntensity = max(0.0, min(1.0, glow.intensity / 100.0))
+        let glowColor = baseColor.withAlphaComponent(CGFloat(min(1.0, 0.35 + normIntensity * 0.65)))
+        let silPath = makeSilhouettePath(from: glyphPath, extraStrokeWidth: silhouetteStroke)
+
+        context.saveGState()
+        context.beginTransparencyLayer(auxiliaryInfo: nil)
+        context.setShadow(offset: .zero, blur: CGFloat(glow.range), color: glowColor.cgColor)
+        context.addPath(silPath)
+        context.setFillColor(glowColor.cgColor)
+        context.fillPath()
+        if normIntensity > 0.55 {
+            context.addPath(silPath)
+            context.fillPath()
+        }
+        context.setShadow(offset: .zero, blur: 0, color: nil)
+        context.setBlendMode(.clear)
+        context.addPath(silPath)
+        context.fillPath()
+        context.endTransparencyLayer()
+        context.restoreGState()
+    }
+
+    private static func makeSilhouettePath(from glyphPath: CGPath, extraStrokeWidth: Double) -> CGPath {
+        guard extraStrokeWidth > 0.5 else { return glyphPath }
+        let combined = CGMutablePath()
+        combined.addPath(glyphPath)
+        let stroked = glyphPath.copy(
+            strokingWithWidth: CGFloat(extraStrokeWidth),
+            lineCap: .round,
+            lineJoin: .round,
+            miterLimit: 4.0
+        )
+        combined.addPath(stroked)
+        return combined
+    }
+
+    /// Giải mã mã màu HEX (#RRGGBB hoặc #RRGGBBAA) thành NSColor chuẩn sRGB
     public static func parseHexColor(_ hex: String) -> NSColor {
         if hex.uppercased() == "NONE" { return .clear }
         var clean = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
@@ -218,23 +142,6 @@ public enum TextAdvancedStyleRenderer: Sendable {
         let b = CGFloat((num & 0x0000FF00) >> 8) / 255.0
         let a = CGFloat(num & 0x000000FF) / 255.0
         return NSColor(srgbRed: r, green: g, blue: b, alpha: a)
-    }
-
-    /// Tạo NSShadow cho hiệu ứng phát sáng Outer Glow
-    public static func makeGlowShadow(color: NSColor, radius: Double) -> NSShadow {
-        let glow = NSShadow()
-        glow.shadowColor = color
-        glow.shadowBlurRadius = CGFloat(radius)
-        return glow
-    }
-
-    /// Tạo NSShadow cho hiệu ứng đổ bóng Drop Shadow
-    public static func makeDropShadow(color: NSColor, radius: Double, dx: Double, dy: Double) -> NSShadow {
-        let shadow = NSShadow()
-        shadow.shadowColor = color
-        shadow.shadowBlurRadius = CGFloat(radius)
-        shadow.shadowOffset = NSSize(width: dx, height: -dy)
-        return shadow
     }
     #endif
 }

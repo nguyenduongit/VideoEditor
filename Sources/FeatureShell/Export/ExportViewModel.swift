@@ -11,6 +11,8 @@ import UniformTypeIdentifiers
 @MainActor
 public final class ExportViewModel {
     public var isPresented: Bool = false
+    public var mediaType: ExportMediaType = .video
+    public var audioFormat: ExportAudioFormat = .m4a
     public var resolution: ExportResolution = .res1080p
     public var frameRate: ExportFrameRate = .fps30
     public var codec: ExportCodec = .h264
@@ -30,7 +32,8 @@ public final class ExportViewModel {
         return false
     }
 
-    public func openDialog() {
+    public func openDialog(mediaType: ExportMediaType = .video) {
+        self.mediaType = mediaType
         status = .idle
         currentProgress = 0.0
         errorMessage = nil
@@ -44,7 +47,7 @@ public final class ExportViewModel {
         isPresented = false
     }
 
-    /// Tính dung lượng ước tính (MB) đã hiệu chuẩn theo bộ mã hóa phần cứng AVAssetExportSession trên macOS.
+    /// Tính dung lượng ước tính (MB) đã hiệu chuẩn theo bộ mã hóa phần cứng trên macOS.
     public func estimatedFileSizeMB(
         duration: CMTime,
         aspectRatio: CanvasAspectRatio = .ratio16x9
@@ -52,12 +55,18 @@ public final class ExportViewModel {
         let sec = max(0.0, CMTimeGetSeconds(duration))
         guard sec > 0, sec.isFinite else { return 0.0 }
 
+        if mediaType == .audio {
+            let audioMbps = Double(audioFormat.defaultBitrateKbps) / 1000.0
+            return (audioMbps * sec) / 8.0
+        }
+
         // Bitrate video cơ sở thực tế của AVAssetExportPresetHighestQuality tại 30fps (Mbps)
-        // Đã đo đạc thực nghiệm trên VideoToolbox macOS: 720p ~5.0 Mbps, 1080p ~10.52 Mbps, 4K ~25.05 Mbps
+        // Đã đo đạc thực nghiệm trên VideoToolbox macOS: 720p ~5.0 Mbps, 1080p ~10.52 Mbps, 2K ~16.50 Mbps, 4K ~25.05 Mbps
         let baseVideoMbps: Double
         switch resolution {
         case .res720p:  baseVideoMbps = 5.00
         case .res1080p: baseVideoMbps = 10.52
+        case .res2k:    baseVideoMbps = 16.50
         case .res4k:    baseVideoMbps = 25.05
         }
 
@@ -111,10 +120,10 @@ public final class ExportViewModel {
         return "\(Int(dim.width)) × \(Int(dim.height)) px"
     }
 
-    /// Bắt đầu quy trình xuất video: Mở hộp thoại chọn nơi lưu và thực thi render.
+    /// Bắt đầu quy trình xuất video hoặc audio: Mở hộp thoại chọn nơi lưu và thực thi render.
     public func promptSaveAndStartExport(timelineViewModel: TimelineViewModel) {
         guard !timelineViewModel.layers.flatMap(\.clips).isEmpty else {
-            errorMessage = "Timeline chưa có clip nào để xuất video."
+            errorMessage = "Timeline chưa có clip nào để xuất."
             status = .failed(errorMessage: errorMessage ?? "")
             return
         }
@@ -122,8 +131,16 @@ public final class ExportViewModel {
         let panel = NSSavePanel()
         panel.canCreateDirectories = true
         panel.showsTagField = false
-        panel.nameFieldStringValue = "VideoExport.mp4"
-        panel.allowedContentTypes = [UTType.mpeg4Movie]
+
+        if mediaType == .audio {
+            panel.nameFieldStringValue = "AudioExport.\(audioFormat.fileExtension)"
+            panel.allowedContentTypes = audioFormat == .m4a
+                ? [UTType(filenameExtension: "m4a") ?? .audio, .audio]
+                : [UTType.wav, .audio]
+        } else {
+            panel.nameFieldStringValue = "VideoExport.mp4"
+            panel.allowedContentTypes = [UTType.mpeg4Movie]
+        }
 
         let response = panel.runModal()
         guard response == .OK, let targetURL = panel.url else { return }
@@ -136,6 +153,8 @@ public final class ExportViewModel {
         let aspect = timelineViewModel.aspectRatio
         let duration = timelineViewModel.totalDuration
         let config = ExportConfiguration(
+            mediaType: mediaType,
+            audioFormat: audioFormat,
             resolution: resolution,
             frameRate: frameRate,
             codec: codec,

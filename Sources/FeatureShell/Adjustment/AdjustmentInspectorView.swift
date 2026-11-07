@@ -14,6 +14,9 @@ public struct AdjustmentInspectorView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.md) {
+            if viewModel.selectedClip?.originPresetID != nil && viewModel.effectiveTab == "Basic" {
+                presetMixSection
+            }
             switch viewModel.effectiveTab {
             case "Basic":
                 ColorBasicSectionView(viewModel: viewModel)
@@ -30,6 +33,52 @@ public struct AdjustmentInspectorView: View {
             }
         }
         .padding(.vertical, DSSpacing.sm)
+    }
+
+    private var presetMixSection: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.md) {
+            VStack(alignment: .leading, spacing: DSSpacing.md) {
+                Text(String(localized: "THUỘC TÍNH MÀU SẮC LÕI"))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(DSColors.textSecondary)
+
+                let intensityBinding = Binding<Double>(
+                    get: { viewModel.liveNumber(for: "intensity", default: 1.0) },
+                    set: { viewModel.updateLiveValue(key: "intensity", value: $0) }
+                )
+                DSSliderWithInput(
+                    title: "Cường độ mẫu (Mix)",
+                    value: intensityBinding,
+                    range: 0.0...1.0,
+                    step: 0.01,
+                    defaultValue: 1.0,
+                    unit: "%",
+                    onEditingChanged: { editing in
+                        viewModel.onSliderEditingChanged(key: "intensity", isEditing: editing)
+                    }
+                )
+
+                let opacityBinding = Binding<Double>(
+                    get: { viewModel.liveNumber(for: "opacity", default: 1.0) },
+                    set: { viewModel.updateLiveValue(key: "opacity", value: $0) }
+                )
+                DSSliderWithInput(
+                    title: "Độ mờ (Opacity)",
+                    value: opacityBinding,
+                    range: 0.0...1.0,
+                    step: 0.01,
+                    defaultValue: 1.0,
+                    unit: "%",
+                    onEditingChanged: { editing in
+                        viewModel.onSliderEditingChanged(key: "opacity", isEditing: editing)
+                    }
+                )
+            }
+            .padding(DSSpacing.md)
+            .background(DSColors.blockBackground)
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
+            .overlay(RoundedRectangle(cornerRadius: DSRadius.block).stroke(DSColors.blockBorder, lineWidth: 1))
+        }
     }
 
     private var curvesSection: some View {

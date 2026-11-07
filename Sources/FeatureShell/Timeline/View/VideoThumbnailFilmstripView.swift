@@ -90,7 +90,41 @@ public struct VideoThumbnailFilmstripView: View {
         isMuted || (clip.properties["volume"]?.asNumber ?? 1.0) <= 0.001
     }
 
+    private var isAudioExtracted: Bool {
+        clip.properties["isAudioExtracted"]?.asBool == true
+    }
+
     private var audioStrip: some View {
+        Group {
+            if isAudioExtracted {
+                silentAudioStrip
+            } else {
+                activeAudioStrip
+            }
+        }
+        .frame(height: 30)
+        .background(DSColors.waveformVideoBackground)
+        .overlay(
+            Rectangle()
+                .fill(Color.white.opacity(0.12))
+                .frame(height: 0.5),
+            alignment: .top
+        )
+    }
+
+    private var silentAudioStrip: some View {
+        ZStack {
+            Rectangle()
+                .fill(DSColors.waveformVideoBackground)
+
+            // Dãy im lặng (đường baseline phẳng biên độ 0)
+            Rectangle()
+                .fill(Color.white.opacity(0.18))
+                .frame(height: 1)
+        }
+    }
+
+    private var activeAudioStrip: some View {
         let inSec = clip.properties["fadeIn"]?.asNumber ?? 0.0
         let outSec = clip.properties["fadeOut"]?.asNumber ?? 0.0
         let speed = clip.properties["speed"]?.asNumber ?? 1.0
@@ -107,14 +141,6 @@ public struct VideoThumbnailFilmstripView: View {
         )
         .opacity(isAudioMuted ? 0.35 : 1.0)
         .animation(.easeInOut(duration: 0.2), value: isAudioMuted)
-        .frame(height: 30)
-        .background(DSColors.waveformVideoBackground)
-        .overlay(
-            Rectangle()
-                .fill(Color.white.opacity(0.12))
-                .frame(height: 0.5),
-            alignment: .top
-        )
     }
 
     private func loadThumbnails(slotCount: Int, thumbHeight: CGFloat) async {

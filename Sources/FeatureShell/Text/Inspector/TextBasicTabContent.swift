@@ -2,13 +2,22 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Tab "Text" (Cơ bản) cho đối tượng Text Clip.
-/// Tùy chỉnh nội dung, font chữ, cỡ chữ, định dạng B/I cùng dòng với font picker,
-/// và bảng điều khiển 5 hiệu ứng màu tinh gọn với thanh màu dùng chung.
+/// Tab `"Text"` hợp nhất cho cả người dùng và Template, chia thành 4 Subtab chuyên biệt:
+/// `Basic` (Nội dung 1 dòng, Typography, Tô màu, Transform) · `Stroke` (2 Viền độc lập) ·
+/// `Style` (Glow & Shadow độc lập) · `Curved` (Uốn cong CoreText `Arc` / `Wave`).
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
 public struct TextBasicTabContent: View {
     @Bindable private var viewModel: InspectorViewModel
-    @State private var isFontPickerPresented: Bool = false
+    @State private var selectedSubtab: Subtab = .basic
+
+    public enum Subtab: String, CaseIterable, Identifiable {
+        case basic = "Basic"
+        case stroke = "Stroke"
+        case style = "Style"
+        case curved = "Curved"
+
+        public var id: String { rawValue }
+    }
 
     public init(viewModel: InspectorViewModel) {
         self.viewModel = viewModel
@@ -16,236 +25,94 @@ public struct TextBasicTabContent: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.md) {
-            contentSection
-            typographySection
-            TextColorStyleSubtabsView(viewModel: viewModel)
-            TextPresetActionSectionView(viewModel: viewModel, currentConfig: currentConfig)
-        }
-        .padding(.vertical, DSSpacing.sm)
-    }
+            subtabBar
 
-    // MARK: - Sections
-
-    private var contentSection: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            Text(String(localized: "Content"))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DSColors.textSecondary)
-
-            let contentBinding = Binding<String>(
-                get: { currentConfig.content },
-                set: { newText in
-                    var cfg = currentConfig
-                    cfg.content = newText
-                    updateConfig(cfg, commit: false)
-                }
-            )
-            TextEditor(text: contentBinding)
-                .font(.system(size: 12))
-                .foregroundStyle(DSColors.textPrimary)
-                .scrollContentBackground(.hidden)
-                .padding(DSSpacing.sm)
-                .frame(minHeight: 65, maxHeight: 95)
-                .background(DSColors.windowBackground)
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
-                .overlay(
-                    RoundedRectangle(cornerRadius: DSRadius.small)
-                        .stroke(DSColors.blockBorder, lineWidth: 1)
-                )
-        }
-        .padding(DSSpacing.md)
-        .background(DSColors.blockBackground)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
-        .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.block)
-                .stroke(DSColors.blockBorder, lineWidth: 1)
-        )
-    }
-
-    private var typographySection: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.md) {
-            Text(String(localized: "Typography"))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DSColors.textSecondary)
-
-            fontAndFormatRow
-
-            let sizeBinding = Binding<Double>(
-                get: { currentConfig.fontSize },
-                set: { newSize in
-                    var cfg = currentConfig
-                    cfg.fontSize = newSize
-                    updateConfig(cfg, commit: false)
-                }
-            )
-            DSSliderWithInput(
-                title: "Font Size",
-                value: sizeBinding,
-                range: 12.0...160.0,
-                step: 1.0,
-                defaultValue: 48.0,
-                unit: "pt",
-                onEditingChanged: onSliderEditingEnded
-            )
-        }
-        .padding(DSSpacing.md)
-        .background(DSColors.blockBackground)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
-        .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.block)
-                .stroke(DSColors.blockBorder, lineWidth: 1)
-        )
-    }
-
-    /// Định dạng chữ (Bold, Italic) đặt bên trái, cùng dòng với ô chọn phông chữ.
-    private var fontAndFormatRow: some View {
-        HStack(spacing: DSSpacing.sm) {
-            HStack(spacing: 4) {
-                boldButton
-                italicButton
+            switch selectedSubtab {
+            case .basic:
+                basicSubtabContent
+            case .stroke:
+                TextDualStrokeControlsView(viewModel: viewModel)
+            case .style:
+                TextStyleSubtabView(viewModel: viewModel)
+            case .curved:
+                TextCurvedSectionView(viewModel: viewModel)
             }
-
-            Spacer(minLength: 4)
-
-            fontPickerButton
         }
+        .padding(.vertical, DSSpacing.xs)
     }
 
-    private var fontPickerButton: some View {
+    private var subtabBar: some View {
         HStack(spacing: 2) {
-            Button(action: { isFontPickerPresented.toggle() }) {
-                HStack(spacing: 5) {
-                    let isFav = viewModel.fontManager.isFavorite(fontID: currentConfig.fontName)
-                    if isFav {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Color.yellow)
+            ForEach(Subtab.allCases) { tab in
+                let isSelected = selectedSubtab == tab
+                Button(action: { selectedSubtab = tab }) {
+                    HStack(spacing: 4) {
+                        Text(tab.rawValue)
+                            .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                            .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
+                        if hasActiveIndicator(for: tab) {
+                            Circle()
+                                .fill(DSColors.toggleCyan)
+                                .frame(width: 5, height: 5)
+                        }
                     }
-
-                    Text(viewModel.fontManager.displayName(for: currentConfig.fontName))
-                        .font(.system(size: 12))
-                        .foregroundStyle(DSColors.textPrimary)
-                        .lineLimit(1)
-
-                    Spacer(minLength: 2)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 5)
+                    .background(isSelected ? DSColors.windowBackground : Color.clear)
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                    .contentShape(RoundedRectangle(cornerRadius: 5))
                 }
-                .padding(.leading, 8)
-                .padding(.trailing, 2)
-                .frame(height: 24)
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
-
-            DSStepperButton(
-                onIncrement: { cycleFont(forward: false) },
-                onDecrement: { cycleFont(forward: true) }
-            )
-            .padding(.trailing, 2)
         }
-        .frame(height: 24)
-        .frame(maxWidth: 185)
-        .background(DSColors.windowBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .padding(2)
+        .background(DSColors.inputBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    private var basicSubtabContent: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.md) {
+            TextContentAndTypographySection(viewModel: viewModel)
+            colorFillCard
+            TextTransformSectionView(viewModel: viewModel)
+        }
+    }
+
+    private var colorFillCard: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.sm) {
+            Text(String(localized: "Color"))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(DSColors.textSecondary)
+
+            TextFillModeControlsView(viewModel: viewModel)
+        }
+        .padding(DSSpacing.md)
+        .background(DSColors.blockBackground)
+        .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
         .overlay(
-            RoundedRectangle(cornerRadius: 4)
+            RoundedRectangle(cornerRadius: DSRadius.block)
                 .stroke(DSColors.blockBorder, lineWidth: 1)
         )
-        .popover(isPresented: $isFontPickerPresented, arrowEdge: .bottom) {
-            FontPickerPopoverView(
-                selectedFont: currentConfig.fontName,
-                fontManager: viewModel.fontManager,
-                onSelect: { chosenFont in
-                    var cfg = currentConfig
-                    cfg.fontName = chosenFont
-                    commitConfig(cfg)
-                },
-                onDismiss: { isFontPickerPresented = false }
-            )
+    }
+
+    private func hasActiveIndicator(for tab: Subtab) -> Bool {
+        switch tab {
+        case .basic:
+            return false
+        case .stroke:
+            return currentConfig.innerStroke.isActive || currentConfig.outerStroke.isActive
+        case .style:
+            return currentConfig.glow.isActive || currentConfig.shadow.isActive
+        case .curved:
+            return currentConfig.curve.isActive
         }
     }
-
-    private func cycleFont(forward: Bool) {
-        let allFonts = viewModel.fontManager.fonts
-        guard !allFonts.isEmpty else { return }
-
-        let currentName = currentConfig.fontName
-        let currentIndex = allFonts.firstIndex(where: {
-            $0.id.caseInsensitiveCompare(currentName) == .orderedSame ||
-            $0.displayName.caseInsensitiveCompare(currentName) == .orderedSame
-        }) ?? 0
-
-        let delta = forward ? 1 : -1
-        let newIndex = (currentIndex + delta + allFonts.count) % allFonts.count
-        let nextFont = allFonts[newIndex]
-
-        var cfg = currentConfig
-        cfg.fontName = nextFont.id
-        commitConfig(cfg)
-    }
-
-    private var boldButton: some View {
-        formatToggleButton(title: "B", isActive: currentConfig.isBold, isBold: true) {
-            var cfg = currentConfig
-            cfg.isBold.toggle()
-            commitConfig(cfg)
-        }
-    }
-
-    private var italicButton: some View {
-        formatToggleButton(title: "I", isActive: currentConfig.isItalic, isItalic: true) {
-            var cfg = currentConfig
-            cfg.isItalic.toggle()
-            commitConfig(cfg)
-        }
-    }
-
-    private func formatToggleButton(
-        title: String,
-        isActive: Bool,
-        isBold: Bool = false,
-        isItalic: Bool = false,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 11, weight: isBold ? .bold : .medium))
-                .italic(isItalic)
-                .foregroundStyle(isActive ? Color.white : DSColors.textSecondary)
-                .frame(width: 26, height: 24)
-                .background(isActive ? DSColors.accent : DSColors.windowBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .overlay(RoundedRectangle(cornerRadius: 4).stroke(DSColors.blockBorder, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Helpers
 
     private var currentConfig: TextConfiguration {
-        let str = viewModel.liveProperties["textConfig"]?.asString
-            ?? viewModel.selectedClip?.properties["textConfig"]?.asString ?? ""
-        return TextConfiguration.decode(from: str) ?? TextConfiguration()
+        viewModel.textConfiguration
     }
 
-    private func updateConfig(_ config: TextConfiguration, commit: Bool) {
-        if let json = config.encodeToJSON() {
-            if commit {
-                viewModel.commitTextProperty(key: "textConfig", text: json)
-            } else {
-                viewModel.updateLiveText(key: "textConfig", text: json)
-            }
-            viewModel.updateLiveText(key: "textContent", text: config.content)
-            viewModel.updateLiveValue(key: "fontSize", value: config.fontSize)
-        }
-    }
-
-    private func commitConfig(_ config: TextConfiguration) {
-        updateConfig(config, commit: true)
-    }
-
-    private func onSliderEditingEnded(isEditing: Bool) {
-        if !isEditing {
-            commitConfig(currentConfig)
-        }
+    private func updateConfig(_ updated: TextConfiguration, commit: Bool) {
+        viewModel.updateTextConfiguration(updated, commit: commit)
     }
 }

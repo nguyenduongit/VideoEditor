@@ -15,7 +15,7 @@ public enum TextSegmentRenderer: Sendable {
     }
 
     #if os(macOS)
-    /// Chia tách văn bản thành danh sách token kèm toạ độ x tương đối
+    /// Chia tách văn bản đơn dòng thành danh sách token kèm toạ độ x tương đối
     public static func tokenize(
         content: String,
         scope: TextAnimationScope,
@@ -52,7 +52,6 @@ public enum TextSegmentRenderer: Sendable {
         return (tokens, max(1.0, currentX - kern))
     }
 
-    /// Tách từ nhưng bảo toàn ký tự khoảng trắng
     private static func splitWordsPreservingSpaces(_ text: String) -> [String] {
         var result: [String] = []
         var current = ""
@@ -73,21 +72,26 @@ public enum TextSegmentRenderer: Sendable {
         return result
     }
 
-    /// Vẽ danh sách tokens với độ trễ theo hướng (stagger direction), vật lý Squash/Stretch và Karaoke Highlight
+    /// Vẽ danh sách tokens với độ trễ theo hướng (stagger direction) và Karaoke Highlight
     public static func drawSegmentedText(
         tokens: [TextToken],
         totalWidth: CGFloat,
         totalHeight: CGFloat,
         baseConfig: TextConfiguration,
+        font: NSFont,
         localTime: Double,
         duration: Double,
         canvasSize: CGSize,
-        in context: CGContext,
-        makeAttributedString: (TextConfiguration) -> NSAttributedString
+        in context: CGContext
     ) {
         let startX = -totalWidth / 2.0
         if baseConfig.animation.isMaskEnabled {
-            let clipRect = CGRect(x: -totalWidth / 2.0 - 24, y: -totalHeight / 2.0 - 8, width: totalWidth + 48, height: totalHeight + 16)
+            let clipRect = CGRect(
+                x: -totalWidth / 2.0 - 24,
+                y: -totalHeight / 2.0 - 12,
+                width: totalWidth + 48,
+                height: totalHeight + 24
+            )
             context.clip(to: clipRect)
         }
 
@@ -99,25 +103,6 @@ public enum TextSegmentRenderer: Sendable {
         let exactWordPos = globalProgress * Double(visibleIndices.count)
         let activeOrder = Int(floor(exactWordPos))
         let wordLocalFrac = exactWordPos - Double(activeOrder)
-
-        if baseConfig.hasBackground {
-            let padY = CGFloat(baseConfig.backgroundPadding)
-            let extraPadX = max(10.0, ceil(CGFloat(baseConfig.fontSize) * 0.22))
-            let padX = padY + extraPadX
-            let bgRect = CGRect(
-                x: -totalWidth / 2.0 - padX,
-                y: -totalHeight / 2.0 - padY,
-                width: totalWidth + padX * 2.0,
-                height: totalHeight + padY * 2.0
-            )
-            let corner = CGFloat(baseConfig.backgroundCornerRadius)
-            let path = CGPath(roundedRect: bgRect, cornerWidth: corner, cornerHeight: corner, transform: nil)
-            context.saveGState()
-            context.addPath(path)
-            context.setFillColor(TextAdvancedStyleRenderer.parseHexColor(baseConfig.backgroundColorHex).cgColor)
-            context.fillPath()
-            context.restoreGState()
-        }
 
         if baseConfig.animation.comboType == .karaokeBox {
             drawKaraokeHighlightBox(
@@ -132,8 +117,8 @@ public enum TextSegmentRenderer: Sendable {
             tokens: tokens, visibleIndices: visibleIndices,
             activeOrder: activeOrder, wordLocalFrac: wordLocalFrac,
             startX: startX, totalHeight: totalHeight,
-            baseConfig: baseConfig, localTime: localTime, duration: duration,
-            canvasSize: canvasSize, in: context, makeAttributedString: makeAttributedString
+            baseConfig: baseConfig, font: font, localTime: localTime, duration: duration,
+            canvasSize: canvasSize, in: context
         )
     }
 
@@ -145,17 +130,16 @@ public enum TextSegmentRenderer: Sendable {
         startX: CGFloat,
         totalHeight: CGFloat,
         baseConfig: TextConfiguration,
+        font: NSFont,
         localTime: Double,
         duration: Double,
         canvasSize: CGSize,
-        in context: CGContext,
-        makeAttributedString: (TextConfiguration) -> NSAttributedString
+        in context: CGContext
     ) {
         let isKaraokeBox = baseConfig.animation.comboType == .karaokeBox
         let isKaraokeGlow = baseConfig.animation.comboType == .karaokeGlow
         let visibleCount = visibleIndices.count
 
-        // Tính độ trễ sóng động thích ứng theo độ dài văn bản và thời lượng In Duration
         let effectiveStaggerDelay: Double
         let inDur = baseConfig.animation.inDuration
         if inDur > 0.05, visibleCount > 1 {
@@ -174,8 +158,7 @@ public enum TextSegmentRenderer: Sendable {
             let tokenDelay = staggerOrder * effectiveStaggerDelay
             let rawItemTime = localTime - tokenDelay
 
-            // Nếu đang trong giai đoạn In animation và con chữ này chưa đến lượt xuất hiện -> ẩn hoàn toàn
-            if rawItemTime < 0, baseConfig.animation.inType != .none {
+            if rawItemTime < 0, baseConfig.animation.hasInAnimation {
                 continue
             }
             let itemLocalTime = max(0.0, rawItemTime)
@@ -184,6 +167,9 @@ public enum TextSegmentRenderer: Sendable {
             singleConfig.content = token.text
             singleConfig.positionX = 0.0
             singleConfig.positionY = 0.0
+            singleConfig.scale = 1.0
+            singleConfig.rotation = 0.0
+            singleConfig.opacity = 1.0
 
             var evaluated = TextAnimationEvaluator.evaluate(
                 config: singleConfig, localTime: itemLocalTime,
@@ -200,23 +186,21 @@ public enum TextSegmentRenderer: Sendable {
 
             let tokenCenter = startX + token.relativeX + token.width / 2.0
             drawSingleToken(
-                evaluated.config, overlay: evaluated.overlay,
+                evaluated.config, font: font, overlay: evaluated.overlay,
                 center: CGPoint(x: tokenCenter, y: 0),
-                tokenWidth: token.width, totalHeight: totalHeight,
-                in: context, makeAttributedString: makeAttributedString
+                totalHeight: totalHeight,
+                in: context
             )
         }
     }
 
-
     private static func drawSingleToken(
         _ config: TextConfiguration,
+        font: NSFont,
         overlay: TextTransformOverlay,
         center: CGPoint,
-        tokenWidth: CGFloat,
         totalHeight: CGFloat,
-        in context: CGContext,
-        makeAttributedString: (TextConfiguration) -> NSAttributedString
+        in context: CGContext
     ) {
         context.saveGState()
         let pivotOffsetY: CGFloat
@@ -247,41 +231,12 @@ public enum TextSegmentRenderer: Sendable {
             context.setAlpha(CGFloat(max(0.0, config.opacity)))
         }
 
-        let attr = makeAttributedString(config)
-        let measured = attr.size()
-        let drawW = max(tokenWidth, ceil(measured.width)) + 16.0
-        let drawH = max(totalHeight, ceil(measured.height)) + 8.0
-        let rect = CGRect(x: -drawW / 2.0, y: -drawH / 2.0, width: drawW, height: drawH)
-
-        let safeContent = config.content.precomposedStringWithCanonicalMapping
-        let textString = config.isAllCaps ? safeContent.uppercased() : safeContent
-        let font = (attr.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)
-            ?? NSFont.systemFont(ofSize: CGFloat(config.fontSize))
-        let paragraph = TextAdvancedStyleRenderer.makeParagraphStyle(for: config)
-
-        // 1. Tỏa Outer Glow và Drop Shadow ở lớp đáy
-        TextAdvancedStyleRenderer.drawGlowAndShadow(
-            config: config, font: font, textString: textString,
-            paragraph: paragraph, textRect: rect, in: context
+        TextAdvancedStyleRenderer.drawStyledTokenString(
+            config.content,
+            font: font,
+            config: config,
+            in: context
         )
-        // 2. Khối 3D Extrusion (nếu có)
-        TextAdvancedStyleRenderer.drawExtrusion(
-            config: config, font: font, textString: textString,
-            paragraph: paragraph, textRect: rect, in: context
-        )
-        // 3. Viền kép ngoài (Sticker)
-        TextAdvancedStyleRenderer.drawOuterStroke(
-            config: config, font: font, textString: textString,
-            paragraph: paragraph, textRect: rect, in: context
-        )
-        // 4. Gradient Fill (nếu có)
-        TextAdvancedStyleRenderer.drawGradientFill(
-            config: config, font: font, textString: textString,
-            paragraph: paragraph, textRect: rect, in: context
-        )
-        // 5. Chữ sắc nét trên cùng
-        attr.draw(in: rect)
-
         context.restoreGState()
     }
     #endif

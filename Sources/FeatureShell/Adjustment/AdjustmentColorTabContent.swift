@@ -47,9 +47,11 @@ public struct AdjustmentColorTabContent: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 4)
                         .background(selectedSubTab == tab ? DSColors.windowBackground : Color.clear)
+                        .contentShape(RoundedRectangle(cornerRadius: 5))
                         .clipShape(RoundedRectangle(cornerRadius: 5))
                 }
                 .buttonStyle(.plain)
+                .contentShape(RoundedRectangle(cornerRadius: 5))
             }
         }
         .padding(2)

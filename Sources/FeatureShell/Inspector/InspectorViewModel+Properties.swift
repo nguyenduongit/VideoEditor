@@ -14,6 +14,16 @@ extension InspectorViewModel {
                 return CMTimeGetSeconds(clip.timeRange.duration)
             }
         }
+        let kfMap = currentKeyframeMap
+        if kfMap.hasKeyframes(for: key) {
+            let base = liveProperties[key]?.asNumber ?? selectedClip?.properties[key]?.asNumber ?? defaultValue
+            return KeyframeEvaluator.evaluate(
+                propertyKey: key,
+                baseValue: base,
+                atLocalTime: currentClipLocalTime,
+                map: kfMap
+            )
+        }
         if let live = liveProperties[key]?.asNumber {
             return live
         }

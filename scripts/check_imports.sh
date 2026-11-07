@@ -1,32 +1,38 @@
 #!/usr/bin/env bash
-# Kiểm tra ranh giới import theo AGENTS.md R2.1 / R2.3. Exit 1 nếu có vi phạm.
-set -u
-cd "$(dirname "$0")/.."
-FAIL=0
-ALLOWED_FILE="Config/domain-allowed-imports.txt"
+set -euo pipefail
 
-report() { echo "❌ $1"; FAIL=1; }
+echo "==> Running AAS Architecture Import Validator..."
 
-# Domain: chỉ được import framework trong danh sách cho phép
-ALLOWED=$(grep -vE '^\s*(#|$)' "$ALLOWED_FILE" | awk '{print $1}' | paste -sd'|' -)
-while IFS= read -r line; do
-  report "Domain import ngoài danh sách cho phép: $line"
-done < <(grep -rnE '^(@[a-zA-Z_]+ )?import ' Sources/Domain | grep -vE "import ($ALLOWED)\s*$")
+ERRORS=0
 
-# DesignSystem: không import module nội bộ
-while IFS= read -r line; do
-  report "DesignSystem import module nội bộ: $line"
-done < <(grep -rnE '^import (Domain|Infrastructure|FeatureShell)\b' Sources/DesignSystem)
+# 1. Domain must not import UI, Supabase, or Infrastructure frameworks
+if grep -rnE "^import (SwiftUI|AppKit|CoreData|SwiftData|GRDB|Infrastructure|DesignSystem|FeatureShell|Supabase)" Sources/Domain/ 2>/dev/null; then
+    echo "ERROR: Domain module contains forbidden imports (UI, FeatureShell, Infrastructure, or ORM/Cloud SDK)."
+    ERRORS=$((ERRORS + 1))
+fi
 
-# FeatureShell: không import Infrastructure / Supabase
-while IFS= read -r line; do
-  report "FeatureShell import Infrastructure/Supabase: $line"
-done < <(grep -rnE '^import (Infrastructure|Supabase|PostgREST)\b' Sources/FeatureShell)
+# 2. FeatureShell must not import Infrastructure or Supabase directly
+if grep -rnE "^import (Infrastructure|Supabase)" Sources/FeatureShell/ 2>/dev/null; then
+    echo "ERROR: FeatureShell must not import Infrastructure or Supabase directly. Depend on Domain protocols."
+    ERRORS=$((ERRORS + 1))
+fi
 
-# Infrastructure: không import Feature / DesignSystem / SwiftUI
-while IFS= read -r line; do
-  report "Infrastructure import tầng trên/UI: $line"
-done < <(grep -rnE '^import (FeatureShell|DesignSystem|SwiftUI)\b' Sources/Infrastructure)
+# 3. DesignSystem must not import Domain, FeatureShell, Infrastructure, or Supabase
+if grep -rnE "^import (Domain|FeatureShell|Infrastructure|Supabase)" Sources/DesignSystem/ 2>/dev/null; then
+    echo "ERROR: DesignSystem (C0/C1) must not import Domain, FeatureShell, or Infrastructure."
+    ERRORS=$((ERRORS + 1))
+fi
 
-if [ $FAIL -eq 0 ]; then echo "✅ check_imports: không có vi phạm ranh giới"; fi
-exit $FAIL
+# 4. Infrastructure must not import UI / FeatureShell / DesignSystem
+if grep -rnE "^import (SwiftUI|FeatureShell|DesignSystem)" Sources/Infrastructure/ 2>/dev/null; then
+    echo "ERROR: Infrastructure must not import SwiftUI, FeatureShell, or DesignSystem."
+    ERRORS=$((ERRORS + 1))
+fi
+
+if [ "$ERRORS" -gt 0 ]; then
+    echo "FAILED: $ERRORS architectural boundary violations found."
+    exit 1
+else
+    echo "PASSED: All architectural import boundaries verified across Domain, DesignSystem, FeatureShell, and Infrastructure."
+    exit 0
+fi

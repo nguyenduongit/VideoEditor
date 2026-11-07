@@ -25,6 +25,9 @@ extension TimelineViewModel {
                 }
                 points.append(clip.timeRange.start)
                 points.append(clip.timeRange.end)
+                if let beatConfig = AudioBeatConfiguration.from(clip: clip) {
+                    points.append(contentsOf: beatConfig.timelineBeatTimes(for: clip))
+                }
             }
         }
 

@@ -46,3 +46,28 @@ public enum DSColors {
     public static let controlTrack = Color.white.opacity(0.18)
     public static let controlProgress = Color.white.opacity(0.92)
 }
+
+public extension Color {
+    init(hex: String) {
+        if hex.uppercased() == "NONE" {
+            self = .clear
+            return
+        }
+        var clean = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
+        if clean.count == 3 {
+            clean = clean.map { "\($0)\($0)" }.joined()
+        }
+        if clean.count == 6 {
+            clean.append("FF")
+        }
+        guard clean.count == 8, let num = UInt64(clean, radix: 16) else {
+            self = .white
+            return
+        }
+        let r = Double((num & 0xFF000000) >> 24) / 255.0
+        let g = Double((num & 0x00FF0000) >> 16) / 255.0
+        let b = Double((num & 0x0000FF00) >> 8) / 255.0
+        let a = Double(num & 0x000000FF) / 255.0
+        self = Color(red: r, green: g, blue: b, opacity: a)
+    }
+}

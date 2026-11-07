@@ -28,9 +28,17 @@ public struct TextPresetActionSectionView: View {
             ?? viewModel.selectedClip?.properties["originPresetName"]?.asString
     }
 
+    private var canOverwriteOrigin: Bool {
+        guard let originID = originPresetID else { return false }
+        guard let existing = viewModel.dependencies.textTemplates.loadAllTemplates().first(where: { $0.id == originID }) else {
+            return true
+        }
+        return existing.canBeModified(by: CommunityIdentity.currentAuthorID)
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            if let originID = originPresetID, let originName = originPresetName {
+            if let originID = originPresetID, let originName = originPresetName, canOverwriteOrigin {
                 existingPresetButtons(originID: originID, originName: originName)
             } else {
                 newPresetButton
@@ -138,8 +146,8 @@ public struct TextPresetActionSectionView: View {
             fallbackFontName: existing?.fallbackFontName,
             remoteFontURL: existing?.remoteFontURL,
             config: currentConfig,
-            subLayers: existing?.subLayers ?? [],
-            isSystem: false
+            isSystem: false,
+            community: existing?.community
         )
         Task {
             _ = viewModel.dependencies.textTemplates.saveTemplateToUserCache(updatedPreset)

@@ -2,10 +2,9 @@ import Foundation
 @preconcurrency import AVFoundation
 import CoreMedia
 import CoreGraphics
-
 import Domain
 
-/// Video composition instruction holding layer rendering information, grid configuration, and mask parameters.
+/// Video composition instruction holding layer rendering information, active dual-texture transitions, grid, and mask parameters.
 /// Complies with R3.1 and R4.1 of AGENTS.md.
 /// Bắt buộc kế thừa NSObject và conform AVVideoCompositionInstructionProtocol theo Apple AVFoundation; dữ liệu chỉ đọc trong quá trình render (R8.3).
 public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoCompositionInstructionProtocol, @unchecked Sendable {
@@ -28,8 +27,17 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
         public let effectConfig: EffectConfiguration?
         public let isText: Bool
         public let textConfig: TextConfiguration?
+        public let isSticker: Bool
+        public let stickerConfig: StickerConfiguration?
+        public let isStillImage: Bool
+        public let stillImageURL: URL?
         public let isSolidColor: Bool
         public let solidColorHex: String?
+        public let isProcedural: Bool
+        public let proceduralConfig: ProceduralConfiguration?
+        public let clip: TimelineClip?
+        public let videoTrackTransform: CGAffineTransform
+        public let activeTransition: ActiveTransitionRenderInfo?
 
         public init(
             trackID: CMPersistentTrackID,
@@ -50,8 +58,17 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
             effectConfig: EffectConfiguration? = nil,
             isText: Bool = false,
             textConfig: TextConfiguration? = nil,
+            isSticker: Bool = false,
+            stickerConfig: StickerConfiguration? = nil,
+            isStillImage: Bool = false,
+            stillImageURL: URL? = nil,
             isSolidColor: Bool = false,
-            solidColorHex: String? = nil
+            solidColorHex: String? = nil,
+            isProcedural: Bool = false,
+            proceduralConfig: ProceduralConfiguration? = nil,
+            clip: TimelineClip? = nil,
+            videoTrackTransform: CGAffineTransform = .identity,
+            activeTransition: ActiveTransitionRenderInfo? = nil
         ) {
             self.trackID = trackID
             self.transform = transform
@@ -71,8 +88,37 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
             self.effectConfig = effectConfig
             self.isText = isText
             self.textConfig = textConfig
+            self.isSticker = isSticker
+            self.stickerConfig = stickerConfig
+            self.isStillImage = isStillImage
+            self.stillImageURL = stillImageURL
             self.isSolidColor = isSolidColor
             self.solidColorHex = solidColorHex
+            self.isProcedural = isProcedural
+            self.proceduralConfig = proceduralConfig
+            self.clip = clip
+            self.videoTrackTransform = videoTrackTransform
+            self.activeTransition = activeTransition
+        }
+    }
+
+    /// Thông tin chuyển cảnh 2-texture (Outgoing Clip A -> Incoming Clip B) ngay trên một Video Layer.
+    public final class ActiveTransitionRenderInfo: Sendable {
+        public let transition: CutTransition
+        public let windowRange: CMTimeRange
+        public let fromLayerInfo: LayerRenderInfo
+        public let toLayerInfo: LayerRenderInfo
+
+        public init(
+            transition: CutTransition,
+            windowRange: CMTimeRange,
+            fromLayerInfo: LayerRenderInfo,
+            toLayerInfo: LayerRenderInfo
+        ) {
+            self.transition = transition
+            self.windowRange = windowRange
+            self.fromLayerInfo = fromLayerInfo
+            self.toLayerInfo = toLayerInfo
         }
     }
 
@@ -92,13 +138,34 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
     ) {
         self.timeRange = timeRange
         self.enablePostProcessing = false
-        self.containsTweening = false
+        self.containsTweening = layerInfos.contains {
+            $0.activeTransition != nil
+                || $0.isEffect
+                || $0.isText
+                || $0.isSticker
+                || $0.isProcedural
+                || ($0.autoPanConfig?.isEnabled == true)
+                || ($0.clip.flatMap { ClipKeyframeMap.from(clip: $0) }?.isEmpty == false)
+        }
         self.layerInfos = layerInfos
         self.canvasSize = canvasSize
         self.passthroughTrackID = kCMPersistentTrackID_Invalid
-        self.requiredSourceTrackIDs = layerInfos
-            .filter { !$0.isAdjustment && !$0.isText && !$0.isEffect && $0.trackID != kCMPersistentTrackID_Invalid }
-            .map { NSNumber(value: $0.trackID) }
+
+        var trackIDSet: [CMPersistentTrackID] = []
+        for info in layerInfos {
+            if let trans = info.activeTransition {
+                if trans.fromLayerInfo.trackID != kCMPersistentTrackID_Invalid && !trackIDSet.contains(trans.fromLayerInfo.trackID) {
+                    trackIDSet.append(trans.fromLayerInfo.trackID)
+                }
+                if trans.toLayerInfo.trackID != kCMPersistentTrackID_Invalid && !trackIDSet.contains(trans.toLayerInfo.trackID) {
+                    trackIDSet.append(trans.toLayerInfo.trackID)
+                }
+            } else if !info.isAdjustment && !info.isText && !info.isEffect && !info.isSticker && !info.isStillImage
+                        && info.trackID != kCMPersistentTrackID_Invalid && !trackIDSet.contains(info.trackID) {
+                trackIDSet.append(info.trackID)
+            }
+        }
+        self.requiredSourceTrackIDs = trackIDSet.map { NSNumber(value: $0) }
         super.init()
     }
 }

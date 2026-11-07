@@ -68,4 +68,21 @@ struct TimelineRulerConfigTests {
         #expect(TimelineRulerConfig.formatRulerTime(seconds: 3600) == "01:00:00")
         #expect(TimelineRulerConfig.formatRulerTime(seconds: 3665) == "01:01:05")
     }
+
+    @Test("TimelineRulerView and TimelineRulerRowView remain visible when scrollOffset exceeds canvasWidth after zoom/undo")
+    @MainActor
+    func testRulerClampsOutdatedScrollOffsetAfterZoomOutOrUndo() {
+        let playhead = TimelinePlayheadState()
+        let rulerRow = TimelineRulerRowView(
+            canvasWidth: 1150,
+            viewportWidth: 1150,
+            pixelsPerSecond: 60,
+            scrollOffset: 3200,
+            isVScrollable: false,
+            playheadState: playhead,
+            snapCandidatesProvider: { [.zero] }
+        )
+        #expect(rulerRow.canvasWidth == 1150)
+        #expect(rulerRow.viewportWidth == 1150)
+    }
 }

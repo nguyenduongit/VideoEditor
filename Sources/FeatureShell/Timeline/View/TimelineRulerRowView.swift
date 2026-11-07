@@ -62,7 +62,6 @@ public struct TimelineRulerRowView: View {
             viewportWidth: viewportWidth,
             snapCandidatesProvider: snapCandidatesProvider
         )
-        .offset(x: -scrollOffset)
         .frame(width: viewportWidth, height: DSSize.rulerHeight, alignment: .leading)
         .clipped()
     }

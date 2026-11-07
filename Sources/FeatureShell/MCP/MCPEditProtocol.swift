@@ -33,6 +33,7 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
         case exportProjectScript = "timeline_export_project_script"
         case getClipColorTelemetry = "timeline_get_clip_color_telemetry"
         case aiVisionFraming = "timeline_ai_vision_framing"
+        case registerTemplatePackage = "template_register_package"
     }
 
     public func handleToolCallAsync(toolName: String, argumentsJSON: String = "{}") async throws -> String {
@@ -80,6 +81,8 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
             return try executeCommandsArgument(argumentsJSON)
         case .loadProjectScript:
             return try loadProjectArgument(argumentsJSON)
+        case .registerTemplatePackage:
+            return try registerTemplatePackageArgument(argumentsJSON)
         }
     }
 

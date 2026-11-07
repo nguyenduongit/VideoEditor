@@ -4,7 +4,8 @@ import DesignSystem
 
 public struct MediaTabDescriptor: TabDescriptor {
     public let id: TabID = .media
-    public let title: String = "Cục bộ"
+    public let title: String = "Media"
+    public let iconName: String = "photo.on.rectangle"
     public let order: Int = 10
 
     private let mediaViewModel: MediaLibraryViewModel

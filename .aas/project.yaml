@@ -1,0 +1,33 @@
+schema_version: 1
+
+project:
+  name: MyMacApp
+  type: macos_application
+  platform: macOS
+  minimum_version: "14.0"
+
+standards:
+  core:
+    version: "1.0.0"
+  platforms:
+    apple:
+      version: "1.0.0"
+
+architecture:
+  blueprint: platforms/apple/blueprints/macos-app
+  blueprint_version: "1.0.0"
+
+technology:
+  language: swift
+  language_version: "6"
+  ui:
+    - SwiftUI
+    - AppKit
+  package_manager: Swift Package Manager
+
+quality:
+  strict_concurrency: true
+  swiftlint: true
+  tests_required: true
+
+project_overrides: []

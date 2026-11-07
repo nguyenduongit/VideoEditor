@@ -39,40 +39,41 @@ extension TimelineViewModel {
             newDropIndex = layers.count
             newHoverID = nil
         } else {
-            var currentLayerIndex = sourceIndex
-            for i in 0..<layers.count where dragY >= boundaryY[i] && dragY < boundaryY[i + 1] {
-                currentLayerIndex = i
-                break
+            // Kiểm tra 10% đoạn giữa chiều cao khối (45% - 55%, tức tâm dragY +- 5% chiều cao)
+            let halfBand = sourceHeight * 0.05
+            var straddledBoundary: Int? = nil
+
+            for i in 0...layers.count {
+                if abs(dragY - boundaryY[i]) <= halfBand {
+                    straddledBoundary = i
+                    break
+                }
             }
 
-            let targetLayer = layers[currentLayerIndex]
-            let isSameKind = (targetLayer.kind == movingClipKind) && !targetLayer.isLocked && !targetLayer.isHidden
+            if let boundaryIdx = straddledBoundary {
+                // Tâm khối nằm trong vùng 10% giữa vạch phân cách -> Kích hoạt highlight chèn layer mới
+                newDropIndex = boundaryIdx
+                newHoverID = nil
+            } else {
+                // Ngoài vùng 10%: Layer nào chứa > 50% diện tích khối (chứa tâm dragY) sẽ là layer đích
+                var currentLayerIndex = sourceIndex
+                for i in 0..<layers.count where dragY >= boundaryY[i] && dragY < boundaryY[i + 1] {
+                    currentLayerIndex = i
+                    break
+                }
 
-            let topDist = dragY - boundaryY[currentLayerIndex]
-            let bottomDist = boundaryY[currentLayerIndex + 1] - dragY
+                let targetLayer = layers[currentLayerIndex]
+                let isSameKind = (targetLayer.kind == movingClipKind) && !targetLayer.isLocked && !targetLayer.isHidden
 
-            if isSameKind {
-                let edgeMargin: CGFloat = 8.0
-                if topDist < edgeMargin {
-                    newDropIndex = currentLayerIndex
-                    newHoverID = nil
-                } else if bottomDist < edgeMargin {
-                    newDropIndex = currentLayerIndex + 1
-                    newHoverID = nil
-                } else {
+                if isSameKind {
                     newDropIndex = nil
                     newHoverID = targetLayer.id
-                }
-            } else {
-                let layerH = boundaryY[currentLayerIndex + 1] - boundaryY[currentLayerIndex]
-                if let existingDrop = dropBetweenIndex, existingDrop == currentLayerIndex {
-                    newDropIndex = (topDist < layerH * 0.6) ? currentLayerIndex : (currentLayerIndex + 1)
-                } else if let existingDrop = dropBetweenIndex, existingDrop == currentLayerIndex + 1 {
-                    newDropIndex = (bottomDist < layerH * 0.6) ? (currentLayerIndex + 1) : currentLayerIndex
                 } else {
+                    let topDist = dragY - boundaryY[currentLayerIndex]
+                    let bottomDist = boundaryY[currentLayerIndex + 1] - dragY
                     newDropIndex = (topDist <= bottomDist) ? currentLayerIndex : (currentLayerIndex + 1)
+                    newHoverID = nil
                 }
-                newHoverID = nil
             }
         }
 

@@ -20,12 +20,12 @@ public struct ColorBasicSectionView: View {
 
             whiteBalanceSection
             toneSection
-            AdjustmentPresetActionSectionView(viewModel: viewModel, currentConfig: currentConfig)
         }
     }
 
     private var intensitySection: some View {
-        DSCollapsibleSection(title: "Intensity", defaultExpanded: true) {
+        let keys = ["opacity"]
+        return DSCollapsibleSection(title: "Intensity", defaultExpanded: true) {
             let opacityBinding = Binding<Double>(
                 get: { viewModel.liveNumber(for: "opacity", default: 1.0) },
                 set: { viewModel.updateLiveValue(key: "opacity", value: $0) }
@@ -37,6 +37,25 @@ public struct ColorBasicSectionView: View {
                 step: 0.01,
                 defaultValue: 1.0,
                 unit: "%",
+                trailingAccessory: AnyView(
+                    DSKeyframeControl(
+                        hasKeyframesOnTrack: viewModel.hasKeyframes(for: keys),
+                        isAtKeyframe: viewModel.hasKeyframeAtPlayhead(for: keys),
+                        canGoPrevious: viewModel.canJumpToPreviousKeyframe(for: keys),
+                        canGoNext: viewModel.canJumpToNextKeyframe(for: keys),
+                        selectedCurveID: viewModel.activeInterpolation(for: keys).rawValue,
+                        curveOptions: viewModel.keyframeCurveOptions,
+                        onToggleKeyframe: { viewModel.toggleKeyframe(for: keys, defaultValues: ["opacity": 1.0]) },
+                        onPreviousKeyframe: { viewModel.jumpToPreviousKeyframe(for: keys) },
+                        onNextKeyframe: { viewModel.jumpToNextKeyframe(for: keys) },
+                        onSelectCurve: { curveID in
+                            if let interp = KeyframeInterpolation(rawValue: curveID) {
+                                viewModel.setInterpolation(interp, for: keys)
+                            }
+                        },
+                        onClearAllKeyframes: { viewModel.clearAllKeyframes(for: keys) }
+                    )
+                ),
                 onEditingChanged: { editing in
                     viewModel.onSliderEditingChanged(key: "opacity", isEditing: editing)
                 }

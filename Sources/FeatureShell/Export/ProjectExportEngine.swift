@@ -10,8 +10,10 @@ import os
 @MainActor
 public final class ProjectExportEngine {
     private static let logger = Logger(subsystem: "com.videoeditor", category: "ProjectExportEngine")
-    private var currentSession: AVAssetExportSession?
-    private var isCancelled = false
+    var currentSession: AVAssetExportSession?
+    var currentAudioReader: AVAssetReader?
+    var currentAudioWriter: AVAssetWriter?
+    var isCancelled = false
 
     public init() {}
 
@@ -31,29 +33,43 @@ public final class ProjectExportEngine {
             try? FileManager.default.removeItem(at: outputURL)
         }
 
-        // 2. Xây dựng AVComposition & Audio/Video tracks
+        // 2. Xây dựng AVComposition & Audio/Video tracks (kèm cặp rãnh A/B cho CutTransition)
         let composition = AVMutableComposition()
-        let tracksData = await TimelineCompositionBuilder.buildTracks(
+        let tracksData = await TimelineCompositionBuilder.buildComposedTracks(
             for: composition,
             from: layers,
             aspectRatio: aspectRatio
         )
 
-        let safeDuration = CMTimeMaximum(totalDuration, CMTime(value: 1, timescale: 30))
+        let safeDuration = CMTimeMaximum(totalDuration, CMTime(value: 1, timescale: TimeRational.defaultFPS))
         let targetDimensions = config.resolution.dimensions(for: aspectRatio)
         let frameDuration = CMTime(value: 1, timescale: Int32(config.frameRate.rawValue))
 
-        // 3. Xây dựng Video Composition
-        var layerTrackIDs: [UUID: CMPersistentTrackID] = [:]
-        let videoLayers = layers.filter { $0.kind == .video }
-        for (layer, inst) in zip(videoLayers, tracksData.instructions) {
-            layerTrackIDs[layer.id] = inst.trackID
+        // 3. Xây dựng Audio Mix
+        let audioMix = TimelineCompositionBuilder.buildAudioMix(
+            for: layers,
+            layerAudioTrackIDs: tracksData.trackMap
+        )
+
+        // Nếu là xuất Audio Only, không cần xử lý Video Composition
+        if config.mediaType == .audio {
+            try await exportAudio(
+                composition: composition,
+                audioMix: audioMix,
+                totalDuration: safeDuration,
+                format: config.audioFormat,
+                outputURL: outputURL,
+                onProgress: onProgress
+            )
+            return
         }
 
+        // 4. Xây dựng Video Composition
         var videoComposition = TimelineCompositionBuilder.buildVideoComposition(
             for: layers,
             composition: composition,
-            layerTrackIDs: layerTrackIDs,
+            layerTrackIDs: tracksData.primaryVideoTrackIDs,
+            secondaryTrackIDs: tracksData.secondaryVideoTrackIDs,
             aspectRatio: aspectRatio,
             duration: safeDuration,
             renderSize: targetDimensions
@@ -70,12 +86,6 @@ public final class ProjectExportEngine {
             )
             videoComposition?.frameDuration = frameDuration
         }
-
-        // 4. Xây dựng Audio Mix
-        let audioMix = TimelineCompositionBuilder.buildAudioMix(
-            for: layers,
-            layerAudioTrackIDs: tracksData.trackMap
-        )
 
         // 5. Cấu hình AVAssetExportSession (Ghi ra file tạm cục bộ để tránh lỗi timeout ETIMEDOUT / err 60 trên iCloud Drive ở 99%)
         let presetName = config.codec.isHEVC ? AVAssetExportPresetHEVCHighestQuality : AVAssetExportPresetHighestQuality
@@ -154,9 +164,11 @@ public final class ProjectExportEngine {
         }
     }
 
-    /// Hủy phiên xuất video đang diễn ra.
+    /// Hủy phiên xuất video hoặc audio đang diễn ra.
     public func cancel() {
         isCancelled = true
         currentSession?.cancelExport()
+        currentAudioReader?.cancelReading()
+        currentAudioWriter?.cancelWriting()
     }
 }

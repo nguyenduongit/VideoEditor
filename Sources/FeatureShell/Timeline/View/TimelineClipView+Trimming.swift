@@ -13,6 +13,11 @@ extension TimelineClipView {
     }
 
     func handleLeftTrimChanged(dx: CGFloat) {
+        isTrimming = true
+        if isSelected && isMultiSelected {
+            onTrimChange?(true, dx)
+            return
+        }
         let pps = pixelsPerSecond
         let ppf = pps / CGFloat(TimeRational.defaultFPS)
         let curStart = CMTimeGetSeconds(clip.timeRange.start)
@@ -32,6 +37,11 @@ extension TimelineClipView {
     }
 
     func handleLeftTrimEnded() {
+        defer { isTrimming = false }
+        if isSelected && isMultiSelected {
+            onTrimEnd?(true)
+            return
+        }
         let deltaSec = Double(trimLeftOffset / pixelsPerSecond)
         trimLeftOffset = 0
         guard abs(deltaSec) > 0.0001 else { return }
@@ -50,6 +60,11 @@ extension TimelineClipView {
     }
 
     func handleRightTrimChanged(dx: CGFloat) {
+        isTrimming = true
+        if isSelected && isMultiSelected {
+            onTrimChange?(false, dx)
+            return
+        }
         let pps = pixelsPerSecond
         let ppf = pps / CGFloat(TimeRational.defaultFPS)
         let curStart = CMTimeGetSeconds(clip.timeRange.start)
@@ -69,6 +84,11 @@ extension TimelineClipView {
     }
 
     func handleRightTrimEnded() {
+        defer { isTrimming = false }
+        if isSelected && isMultiSelected {
+            onTrimEnd?(false)
+            return
+        }
         let deltaSec = Double(trimRightOffset / pixelsPerSecond)
         trimRightOffset = 0
         guard abs(deltaSec) > 0.0001 else { return }

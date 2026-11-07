@@ -9,29 +9,32 @@ public final class AdjustmentTemplateLoader: @unchecked Sendable {
     private let lock = NSLock()
     private var cachedTemplates: [AdjustmentPreset]?
     private var inMemoryPresets: [AdjustmentPreset] = []
-    public private(set) var hasSyncedFromRemote = false
+    private var _hasSyncedFromRemote = false
+
+    public var hasSyncedFromRemote: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _hasSyncedFromRemote
+    }
 
     public init() {}
 
-    /// Đặt lại trạng thái đồng bộ (phục vụ unit test)
     public func resetSyncState() {
         lock.lock()
-        hasSyncedFromRemote = false
+        _hasSyncedFromRemote = false
         inMemoryPresets = []
         cachedTemplates = nil
         lock.unlock()
     }
 
-    /// Cập nhật toàn bộ danh sách presets trên RAM (nhận từ Supabase API)
     public func setInMemoryTemplates(_ presets: [AdjustmentPreset]) {
         lock.lock()
-        hasSyncedFromRemote = true
+        _hasSyncedFromRemote = true
         inMemoryPresets = presets
         cachedTemplates = presets
         lock.unlock()
     }
 
-    /// Thêm mới hoặc cập nhật 1 preset trên RAM khi người dùng lưu/ghi đè
     public func updateInMemoryPreset(_ preset: AdjustmentPreset) {
         lock.lock()
         if let idx = inMemoryPresets.firstIndex(where: { $0.id == preset.id }) {
@@ -43,7 +46,6 @@ public final class AdjustmentTemplateLoader: @unchecked Sendable {
         lock.unlock()
     }
 
-    /// Xóa 1 preset khỏi RAM khi người dùng xóa
     public func removeInMemoryPreset(id: String) {
         lock.lock()
         inMemoryPresets.removeAll { $0.id == id }
@@ -51,11 +53,10 @@ public final class AdjustmentTemplateLoader: @unchecked Sendable {
         lock.unlock()
     }
 
-    /// Nạp toàn bộ danh sách AdjustmentPreset từ RAM đã đồng bộ với Supabase hoặc fallback mặc định
     public func loadAllTemplates(forceReload: Bool = false) -> [AdjustmentPreset] {
         lock.lock()
         defer { lock.unlock() }
-        if hasSyncedFromRemote {
+        if _hasSyncedFromRemote {
             return inMemoryPresets
         }
         if !inMemoryPresets.isEmpty {
@@ -66,23 +67,20 @@ public final class AdjustmentTemplateLoader: @unchecked Sendable {
 
     private static let fallbackBuiltInTemplates: [AdjustmentPreset] = [
         AdjustmentPreset.default
-    ]
+    ] + AdjustmentPreset.creativeCatalog
 
-    /// Xóa bộ nhớ đệm và nạp lại từ Supabase / RAM
     @discardableResult
     public func reload() -> [AdjustmentPreset] {
         lock.lock()
-        hasSyncedFromRemote = false
+        _hasSyncedFromRemote = false
         lock.unlock()
         return loadAllTemplates(forceReload: true)
     }
 
-    /// Xóa preset khỏi bộ nhớ RAM
     public func deleteTemplateFromUserCache(id: String) {
         removeInMemoryPreset(id: id)
     }
 
-    /// Giải mã danh sách JSON trả về từ Supabase và nạp vào bộ nhớ RAM
     public func mergeSupabaseTemplateScripts(_ jsonPayloads: [String], persistToCache: Bool = true) -> [AdjustmentPreset] {
         for payload in jsonPayloads {
             guard let preset = AdjustmentPreset.decode(from: payload) else { continue }
@@ -91,7 +89,6 @@ public final class AdjustmentTemplateLoader: @unchecked Sendable {
         return loadAllTemplates(forceReload: true)
     }
 
-    /// Lưu 1 mẫu `AdjustmentPreset` vào RAM (không ghi file xuống đĩa máy)
     public func saveTemplateToUserCache(_ preset: AdjustmentPreset) -> URL? {
         updateInMemoryPreset(preset)
         return nil

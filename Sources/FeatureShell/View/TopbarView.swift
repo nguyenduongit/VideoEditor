@@ -11,18 +11,16 @@ public struct TopbarView: View {
     }
 
     public var body: some View {
-        DSBlockContainer {
-            HStack(spacing: DSSpacing.none) {
-                leftColumn
-                    .padding(.leading, DSSize.trafficLightVerticalPadding)
-                Spacer()
-                middleColumn
-                Spacer()
-                rightColumn
-                    .padding(.trailing, DSSize.exportButtonVerticalPadding)
-            }
-            .frame(height: DSSize.topbarHeight)
+        HStack(spacing: DSSpacing.none) {
+            leftColumn
+                .padding(.leading, DSSpacing.gap)
+            Spacer()
+            rightColumn
+                .padding(.trailing, DSSpacing.gap)
         }
+        .frame(height: DSSize.topbarHeight)
+        .frame(maxWidth: .infinity)
+        .background(Color.clear)
         .sheet(isPresented: Binding(
             get: { viewModel.exportViewModel.isPresented },
             set: { viewModel.exportViewModel.isPresented = $0 }
@@ -35,109 +33,49 @@ public struct TopbarView: View {
     }
 
     private var leftColumn: some View {
-        HStack(spacing: DSSpacing.sm) {
-            DSTrafficLights(
-                onClose: handleClose,
-                onMinimize: handleMinimize,
-                onZoom: handleZoom
-            )
-            undoRedoControls
-        }
-    }
-
-    private var undoRedoControls: some View {
-        HStack(spacing: DSSpacing.xs) {
-            Button(action: { viewModel.timelineViewModel.undo() }) {
-                Image(systemName: "arrow.uturn.backward")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(viewModel.timelineViewModel.canUndo ? DSColors.textPrimary : DSColors.textSecondary.opacity(0.4))
-                    .frame(width: 22, height: 22)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(!viewModel.timelineViewModel.canUndo)
-            .help("Undo (⌘Z)")
-
-            Button(action: { viewModel.timelineViewModel.redo() }) {
-                Image(systemName: "arrow.uturn.forward")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(viewModel.timelineViewModel.canRedo ? DSColors.textPrimary : DSColors.textSecondary.opacity(0.4))
-                    .frame(width: 22, height: 22)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(!viewModel.timelineViewModel.canRedo)
-            .help("Redo (⇧⌘Z)")
-        }
-        .padding(.leading, DSSpacing.xs)
-    }
-
-    private var middleColumn: some View {
-        HStack(spacing: DSSpacing.none) {
-            ForEach(viewModel.registry.tabs, id: \.id) { tab in
-                DSTabButton(
-                    title: tab.title,
-                    isSelected: viewModel.selectedTabID == tab.id,
-                    action: { viewModel.selectTab(tab.id) }
-                )
-            }
-        }
-        .frame(maxHeight: .infinity)
+        DSTrafficLights(
+            onClose: handleClose,
+            onMinimize: handleMinimize,
+            onZoom: handleZoom
+        )
     }
 
     private var rightColumn: some View {
-        HStack(spacing: DSSpacing.sm) {
-            importScriptButton
-            exportScriptButton
-            exportVideoButton
+        HStack(spacing: DSSpacing.xs) {
+            openButton
+            saveButton
+            exportButton
         }
     }
 
-    private var importScriptButton: some View {
-        Button(action: handleImport) {
-            HStack(spacing: DSSpacing.xs) {
-                Image(systemName: "square.and.arrow.down")
-                    .font(.system(size: 10, weight: .semibold))
-                Text(String(localized: "Import Script"))
-                    .font(.system(size: 11, weight: .medium))
-            }
-            .foregroundStyle(DSColors.textSecondary)
-            .padding(.horizontal, DSSpacing.sm)
-            .padding(.vertical, DSSpacing.xs)
-            .background(DSColors.blockBackground)
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.control))
-            .contentShape(RoundedRectangle(cornerRadius: DSRadius.control))
-        }
-        .buttonStyle(.plain)
-        .help(String(localized: "Import Project Script JSON (⇧⌘I)"))
+    private var openButton: some View {
+        DSTopbarButton(
+            title: "Open",
+            icon: "folder",
+            style: .secondary,
+            action: handleOpenProject
+        )
+        .help(String(localized: "Open Project (⌘O)"))
     }
 
-    private var exportScriptButton: some View {
-        Button(action: handleExportScript) {
-            HStack(spacing: DSSpacing.xs) {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 10, weight: .semibold))
-                Text(String(localized: "Export Script"))
-                    .font(.system(size: 11, weight: .medium))
-            }
-            .foregroundStyle(DSColors.textSecondary)
-            .padding(.horizontal, DSSpacing.sm)
-            .padding(.vertical, DSSpacing.xs)
-            .background(DSColors.blockBackground)
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.control))
-            .contentShape(RoundedRectangle(cornerRadius: DSRadius.control))
-        }
-        .buttonStyle(.plain)
-        .help(String(localized: "Export Project Script JSON (⇧⌘S)"))
+    private var saveButton: some View {
+        DSTopbarButton(
+            title: "Save",
+            icon: "square.and.arrow.down",
+            style: .secondary,
+            action: handleSaveProject
+        )
+        .help(String(localized: "Save Project (⌘S)"))
     }
 
-    private var exportVideoButton: some View {
-        DSActionButton(
-            title: String(localized: "Xuất Video"),
+    private var exportButton: some View {
+        DSTopbarButton(
+            title: "Export",
             icon: "film.fill",
+            style: .primary,
             action: handleOpenExportDialog
         )
-        .help(String(localized: "Xuất dự án ra video MP4 (⌘E)"))
+        .help(String(localized: "Export Video MP4 (⌘E)"))
     }
 
     private func handleClose() {
@@ -152,16 +90,16 @@ public struct TopbarView: View {
         NSApplication.shared.keyWindow?.zoom(nil)
     }
 
-    private func handleImport() {
-        TimelineProjectIO.importProjectScript(
+    private func handleOpenProject() {
+        TimelineProjectIO.openProject(
             into: viewModel.timelineViewModel,
             mediaLibraryViewModel: viewModel.mediaLibraryViewModel
         )
         viewModel.updateTimelinePreview()
     }
 
-    private func handleExportScript() {
-        TimelineProjectIO.exportProjectScript(from: viewModel.timelineViewModel)
+    private func handleSaveProject() {
+        TimelineProjectIO.saveProject(from: viewModel.timelineViewModel)
     }
 
     private func handleOpenExportDialog() {

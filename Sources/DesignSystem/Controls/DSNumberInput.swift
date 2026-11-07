@@ -45,7 +45,7 @@ public struct DSNumberInput: View {
         self.unit = unit
         self.prefix = prefix
         self.customWidth = customWidth
-        self.displayMultiplier = displayMultiplier ?? (unit == "%" ? 100.0 : 1.0)
+        self.displayMultiplier = displayMultiplier ?? ((unit == "%" && (max ?? 1.0) <= 10.0) ? 100.0 : 1.0)
         if let fractionDigits {
             self.fractionDigits = fractionDigits
         } else if unit == "%" {

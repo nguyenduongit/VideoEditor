@@ -1,7 +1,8 @@
 import SwiftUI
 
 public enum DSSize {
-    public static let topbarHeight: CGFloat = 50
+    public static let topbarHeight: CGFloat = 32
+    public static let topbarButtonHeight: CGFloat = 24
     public static let sidebarWidth: CGFloat = 400
     public static let sidebarHeaderHeight: CGFloat = 40
     public static let trafficLightSize: CGFloat = 12
@@ -10,8 +11,8 @@ public enum DSSize {
     public static let previewAspectRatio: CGFloat = 16.0 / 9.0
     public static let previewAspectMultiplier: CGFloat = 9.0 / 16.0
     public static let iconButtonSize: CGFloat = 28
-    public static let exportButtonHeight: CGFloat = 30
-    public static let exportButtonMinWidth: CGFloat = 72
+    public static let exportButtonHeight: CGFloat = 24
+    public static let exportButtonMinWidth: CGFloat = 64
     public static let exportButtonVerticalPadding: CGFloat = (topbarHeight - exportButtonHeight) / 2
     public static let trafficLightVerticalPadding: CGFloat = (topbarHeight - trafficLightSize) / 2
 

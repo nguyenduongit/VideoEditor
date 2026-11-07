@@ -4,7 +4,8 @@ import DesignSystem
 
 public struct EffectTabDescriptor: TabDescriptor {
     public let id: TabID = .effect
-    public let title: String = "Effects"
+    public let title: String = "Effect"
+    public let iconName: String = "sparkles"
     public let order: Int = 50
 
     private let timelineViewModel: TimelineViewModel?

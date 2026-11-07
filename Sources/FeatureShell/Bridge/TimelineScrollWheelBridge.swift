@@ -9,6 +9,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
     private let onTogglePlayPause: () -> Void
     private let onUndo: () -> Void
     private let onRedo: () -> Void
+    private let onStepFrame: ((Int64) -> Void)?
 
     public init(
         onCmdScrollWheel: @escaping (CGFloat, CGFloat) -> Void,
@@ -17,7 +18,8 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         onZoomOut: @escaping () -> Void = {},
         onTogglePlayPause: @escaping () -> Void = {},
         onUndo: @escaping () -> Void = {},
-        onRedo: @escaping () -> Void = {}
+        onRedo: @escaping () -> Void = {},
+        onStepFrame: ((Int64) -> Void)? = nil
     ) {
         self.onCmdScrollWheel = onCmdScrollWheel
         self.onResetZoom = onResetZoom
@@ -26,6 +28,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         self.onTogglePlayPause = onTogglePlayPause
         self.onUndo = onUndo
         self.onRedo = onRedo
+        self.onStepFrame = onStepFrame
     }
 
     public func makeNSView(context: Context) -> TimelineScrollWheelNSView {
@@ -37,6 +40,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         view.onTogglePlayPause = onTogglePlayPause
         view.onUndo = onUndo
         view.onRedo = onRedo
+        view.onStepFrame = onStepFrame
         return view
     }
 
@@ -48,6 +52,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         nsView.onTogglePlayPause = onTogglePlayPause
         nsView.onUndo = onUndo
         nsView.onRedo = onRedo
+        nsView.onStepFrame = onStepFrame
     }
 
     public static func dismantleNSView(_ nsView: TimelineScrollWheelNSView, coordinator: ()) {
@@ -63,6 +68,7 @@ public final class TimelineScrollWheelNSView: NSView {
     public var onTogglePlayPause: (() -> Void)?
     public var onUndo: (() -> Void)?
     public var onRedo: (() -> Void)?
+    public var onStepFrame: ((Int64) -> Void)?
     private var eventMonitor: Any?
 
     override public init(frame frameRect: NSRect) {
@@ -134,6 +140,17 @@ public final class TimelineScrollWheelNSView: NSView {
             onZoomOut?()
             return nil
         }
+
+        let userModifiers = flags.intersection([.command, .shift, .option, .control])
+        if userModifiers.isEmpty && (event.keyCode == 123 || event.keyCode == 124) {
+            if let window = self.window, let responder = window.firstResponder, (responder is NSTextView || responder is NSTextField) {
+                return event
+            }
+            let step: Int64 = event.keyCode == 123 ? -1 : 1
+            onStepFrame?(step)
+            return nil
+        }
+
         return event
     }
 

@@ -36,9 +36,12 @@ public final class TimelinePlayheadState {
     }
 
     public func stepFrame(by count: Int64) {
+        if isPlaying {
+            setPlaying(false)
+        }
         let currentFrame = TimeRational.frameIndex(for: currentTime, fps: fps)
         let targetFrame = max(0, currentFrame + count)
-        seek(to: TimeRational.time(forFrame: targetFrame, fps: fps))
+        seek(to: TimeRational.time(forFrame: targetFrame, fps: fps), force: true)
     }
 
     public func setPlaying(_ playing: Bool) {

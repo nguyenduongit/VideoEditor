@@ -30,6 +30,7 @@ extension TimelinePlaybackEngine {
             for: layers,
             composition: composition,
             layerTrackIDs: currentLayerTrackIDs,
+            secondaryTrackIDs: currentSecondaryLayerTrackIDs,
             aspectRatio: aspectRatio,
             duration: duration
         ) {
@@ -74,7 +75,10 @@ extension TimelinePlaybackEngine {
                 let spd = clip.properties["speed"]?.asNumber ?? 1.0
                 return "\(clip.id)-\(urlStr)-\(clip.timeRange.start.value)-\(clip.timeRange.duration.value)-\(clip.sourceStartTime.value)-spd:\(spd)"
             }
-            return "\(layer.id)-[\(clipsSig.joined(separator: ","))]"
+            let transStructSig = layer.transitions.map { t in
+                "\(t.id)-\(t.leadingClipID)-\(t.trailingClipID)-\(t.duration.value)-\(t.duration.timescale)-\(t.alignment.rawValue)"
+            }
+            return "\(layer.id)-[\(clipsSig.joined(separator: ","))]-T[\(transStructSig.joined(separator: ","))]"
         }.joined(separator: "|")
         return "\(aspectRatio.rawValue)::\(layersSig)"
     }
@@ -85,7 +89,11 @@ extension TimelinePlaybackEngine {
                 let propSig = clip.properties.sorted(by: { $0.key < $1.key }).map { "\($0.key)=\($0.value)" }.joined(separator: ";")
                 return "\(clip.id):[\(propSig)]"
             }
-            return "\(layer.id):hidden=\(layer.isHidden):muted=\(layer.isMuted):[\(clipsSig.joined(separator: ","))]"
+            let transPropSig = layer.transitions.map { t in
+                let pSig = t.parameterValues.sorted(by: { $0.key < $1.key }).map { "\($0.key)=\($0.value)" }.joined(separator: ";")
+                return "\(t.id):\(t.presetID):\(t.shaderType.rawValue):\(t.easing.rawValue):xfade=\(t.crossfadeAudio):msl=\(t.customMetalSource?.hashValue ?? 0):[\(pSig)]"
+            }
+            return "\(layer.id):hidden=\(layer.isHidden):muted=\(layer.isMuted):[\(clipsSig.joined(separator: ","))]:T[\(transPropSig.joined(separator: ","))]"
         }.joined(separator: "|")
     }
 }

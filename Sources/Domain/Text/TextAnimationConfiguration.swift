@@ -10,7 +10,7 @@ public enum TextMotionEasing: String, Codable, Sendable, CaseIterable, Identifia
     public var id: String { rawValue }
 }
 
-/// Cấu hình hoạt ảnh chuyển động toàn diện cho Text Clip (In, Out, Loop)
+/// Cấu hình hoạt ảnh chuyển động toàn diện cho Text Clip (In, Out, Loop & Open Creative Manifests).
 /// Tuân thủ AGENTS.md R2.3 (thuần Domain, không UI) và R4.3 (đơn nhiệm).
 public struct TextAnimationConfiguration: Codable, Sendable, Equatable {
     public var inType: TextInAnimationType
@@ -33,6 +33,12 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable {
     public var highlightColorHex: String
     public var motionEasing: TextMotionEasing
 
+    /// Gói công thức hoạt ảnh sáng tạo mở (Open Creative Animation Manifest) cho 3 pha In, Out, Loop
+    public var inManifest: CreativeAnimationManifest?
+    public var outManifest: CreativeAnimationManifest?
+    public var loopManifest: CreativeAnimationManifest?
+    public var parameterValues: [String: Double]
+
     public init(
         inType: TextInAnimationType = .none,
         inDuration: Double = 1.0,
@@ -51,7 +57,11 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable {
         isMotionBlurEnabled: Bool = true,
         isTypewriterCursorVisible: Bool = true,
         highlightColorHex: String = "#FDE047",
-        motionEasing: TextMotionEasing = .smooth
+        motionEasing: TextMotionEasing = .smooth,
+        inManifest: CreativeAnimationManifest? = nil,
+        outManifest: CreativeAnimationManifest? = nil,
+        loopManifest: CreativeAnimationManifest? = nil,
+        parameterValues: [String: Double] = [:]
     ) {
         self.inType = inType
         self.inDuration = max(0.1, min(3.0, inDuration))
@@ -71,6 +81,10 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable {
         self.isTypewriterCursorVisible = isTypewriterCursorVisible
         self.highlightColorHex = highlightColorHex
         self.motionEasing = motionEasing
+        self.inManifest = inManifest
+        self.outManifest = outManifest
+        self.loopManifest = loopManifest
+        self.parameterValues = parameterValues
     }
 
     public init(from decoder: Decoder) throws {
@@ -93,10 +107,39 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable {
         self.isTypewriterCursorVisible = (try? c.decodeIfPresent(Bool.self, forKey: .isTypewriterCursorVisible)) ?? true
         self.highlightColorHex = (try? c.decodeIfPresent(String.self, forKey: .highlightColorHex)) ?? "#FDE047"
         self.motionEasing = (try? c.decodeIfPresent(TextMotionEasing.self, forKey: .motionEasing)) ?? .smooth
+        self.inManifest = try? c.decodeIfPresent(CreativeAnimationManifest.self, forKey: .inManifest)
+        self.outManifest = try? c.decodeIfPresent(CreativeAnimationManifest.self, forKey: .outManifest)
+        self.loopManifest = try? c.decodeIfPresent(CreativeAnimationManifest.self, forKey: .loopManifest)
+        self.parameterValues = (try? c.decodeIfPresent([String: Double].self, forKey: .parameterValues)) ?? [:]
+    }
+
+    public var hasInAnimation: Bool {
+        inManifest != nil || inType != .none
+    }
+
+    public var hasOutAnimation: Bool {
+        outManifest != nil || outType != .none
+    }
+
+    public var hasLoopAnimation: Bool {
+        loopManifest != nil || loopType != .none
     }
 
     public var isDefault: Bool {
-        inType == .none && outType == .none && loopType == .none
+        !hasInAnimation && !hasOutAnimation && !hasLoopAnimation
             && rgbSplitIntensity == 0.0 && lightSweepIntensity == 0.0 && !isMaskEnabled
+    }
+
+    public func value(forParameter id: String, in manifest: CreativeAnimationManifest?) -> Double {
+        if let stored = parameterValues[id] { return stored }
+        return manifest?.customParameters.first(where: { $0.id == id })?.defaultValue ?? 0.0
+    }
+
+    public mutating func setValue(_ value: Double, forParameter id: String, in manifest: CreativeAnimationManifest?) {
+        if let descriptor = manifest?.customParameters.first(where: { $0.id == id }) {
+            parameterValues[id] = max(descriptor.minValue, min(descriptor.maxValue, value))
+        } else {
+            parameterValues[id] = value
+        }
     }
 }

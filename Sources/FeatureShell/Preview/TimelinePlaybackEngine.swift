@@ -23,6 +23,7 @@ public final class TimelinePlaybackEngine {
     var lastPropertiesSignature: String = ""
     var currentComposition: AVMutableComposition?
     var currentLayerTrackIDs: [UUID: CMPersistentTrackID] = [:]
+    var currentSecondaryLayerTrackIDs: [UUID: CMPersistentTrackID] = [:]
     var compositionTask: Task<Void, Never>?
     var pendingForceResume: Bool = false
     let logger = Logger(subsystem: "com.videoeditor", category: "TimelinePlaybackEngine")
@@ -103,7 +104,7 @@ public final class TimelinePlaybackEngine {
         compositionTask?.cancel()
         compositionTask = Task.detached(priority: .userInitiated) { [weak self] in
             let composition = AVMutableComposition()
-            let tracksData = await TimelineCompositionBuilder.buildTracks(
+            let tracksData = await TimelineCompositionBuilder.buildComposedTracks(
                 for: composition,
                 from: layers,
                 aspectRatio: aspectRatio
@@ -122,7 +123,7 @@ public final class TimelinePlaybackEngine {
 
     private func applyComposedTracks(
         composition: AVMutableComposition,
-        tracksData: (trackMap: [UUID: [CMPersistentTrackID]], instructions: [AVMutableVideoCompositionLayerInstruction], renderSize: CGSize),
+        tracksData: TimelineCompositionBuilder.ComposedTracksResult,
         layers: [TimelineLayer],
         totalDuration: CMTime,
         aspectRatio: CanvasAspectRatio,
@@ -146,27 +147,23 @@ public final class TimelinePlaybackEngine {
         item.seekingWaitsForVideoCompositionRendering = true
         self.layerAudioTrackIDs = tracksData.trackMap
         self.currentComposition = composition
-
-        var trackIDs: [UUID: CMPersistentTrackID] = [:]
-        let videoLayers = layers.filter { $0.kind == .video }
-        for (layer, inst) in zip(videoLayers, tracksData.instructions) {
-            trackIDs[layer.id] = inst.trackID
-        }
-        self.currentLayerTrackIDs = trackIDs
+        self.currentLayerTrackIDs = tracksData.primaryVideoTrackIDs
+        self.currentSecondaryLayerTrackIDs = tracksData.secondaryVideoTrackIDs
 
         applyAudioMix(layers: layers, to: item)
 
-        if !tracksData.instructions.isEmpty {
+        if !tracksData.instructions.isEmpty || TimelineCompositionBuilder.hasActiveMask(in: layers) {
             let duration = CMTimeMaximum(totalDuration, composition.duration)
             if let customComp = TimelineCompositionBuilder.buildVideoComposition(
                 for: layers,
                 composition: composition,
-                layerTrackIDs: trackIDs,
+                layerTrackIDs: tracksData.primaryVideoTrackIDs,
+                secondaryTrackIDs: tracksData.secondaryVideoTrackIDs,
                 aspectRatio: aspectRatio,
                 duration: duration
             ) {
                 item.videoComposition = customComp
-            } else {
+            } else if !tracksData.instructions.isEmpty {
                 item.videoComposition = TimelineCompositionBuilder.makeVideoComposition(
                     layerInstructions: tracksData.instructions,
                     renderSize: tracksData.renderSize,

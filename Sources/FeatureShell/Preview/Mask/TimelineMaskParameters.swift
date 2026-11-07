@@ -62,6 +62,25 @@ public struct TimelineMaskParameters: Sendable, Equatable {
         shape != .none
     }
 
+    public func scaled(sx: Double, sy: Double) -> TimelineMaskParameters {
+        guard abs(sx - 1.0) > 0.001 || abs(sy - 1.0) > 0.001 else { return self }
+        return TimelineMaskParameters(
+            shape: shape,
+            invert: invert,
+            feather: feather,
+            positionX: positionX * sx,
+            positionY: positionY * sy,
+            rotation: rotation,
+            radiusX: radiusX * sx,
+            radiusY: radiusY * sy,
+            width: width * sx,
+            height: height * sy,
+            cornerRadius: cornerRadius * min(sx, sy),
+            offsetY: offsetY * sy,
+            filmHeight: filmHeight * sy
+        )
+    }
+
     /// Extracts mask parameters from clip's raw property map.
     public static func extract(from properties: [String: PropertyValue]) -> TimelineMaskParameters {
         let typeStr = properties["maskType"]?.asString ?? "none"

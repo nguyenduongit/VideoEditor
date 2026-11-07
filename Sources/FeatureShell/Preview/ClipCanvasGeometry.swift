@@ -57,8 +57,29 @@ public struct ClipCanvasGeometry: Sendable {
             )
         }
 
+        if clip.kind == .sticker {
+            let refSize = CanvasAspectRatio.closest(for: canvasSize).renderSize
+            let coordScaleX = refSize.width > 0 ? Double(canvasSize.width / refSize.width) : 1.0
+            let coordScaleY = refSize.height > 0 ? Double(canvasSize.height / refSize.height) : 1.0
+            let baseSize = StickerRendererEngine.baseStickerSize(for: canvasSize)
+            let userScale = max(0.05, clip.properties["scale"]?.asNumber ?? 1.0)
+            let userPosX = (clip.properties["positionX"]?.asNumber ?? 0.0) * coordScaleX
+            let userPosY = (clip.properties["positionY"]?.asNumber ?? 0.0) * coordScaleY
+            let userRotation = clip.properties["rotation"]?.asNumber ?? 0.0
+            return ClipCanvasGeometry(
+                center: CGPoint(x: userPosX, y: userPosY),
+                size: CGSize(width: baseSize.width * CGFloat(userScale), height: baseSize.height * CGFloat(userScale)),
+                rotationDegrees: userRotation,
+                positionX: userPosX,
+                positionY: userPosY
+            )
+        }
+
         let meta: VideoTrackMetadata
-        if let url = clip.mediaURL, let cached = metadataCache.metadata(for: url) {
+        if clip.kind == .image, let url = clip.mediaURL,
+           let imgSize = TimelineMediaDimensionResolver.resolveDimension(for: url, type: .image) {
+            meta = VideoTrackMetadata(transform: .identity, naturalSize: imgSize)
+        } else if let url = clip.mediaURL, let cached = metadataCache.metadata(for: url) {
             meta = cached
         } else {
             meta = VideoTrackMetadata(transform: .identity, naturalSize: canvasSize)

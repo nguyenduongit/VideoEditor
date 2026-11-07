@@ -22,8 +22,8 @@ struct TabRegistryTests {
         #expect(registry.tabs.count == 4)
         #expect(registry.tabs[0].id == TabID.media)
         #expect(registry.tabs[1].id == TabID.audio)
-        #expect(registry.tabs[2].id == TabID.text)
-        #expect(registry.tabs[3].id == TabID.adjustment)
+        #expect(registry.tabs[2].id == TabID.adjustment)
+        #expect(registry.tabs[3].id == TabID.text)
     }
 
     @Test @MainActor func testSidebarViewResolution() {
@@ -53,5 +53,26 @@ struct TabRegistryTests {
         #expect(registry.tabs.count == 2)
         #expect(registry.tabs[1].id == TabID(rawValue: "effects"))
         #expect(registry.sidebarView(for: "effects") != nil)
+    }
+
+    @Test @MainActor func testTransitionAndStickerTabRegistration() {
+        let registry = TabRegistry()
+        registry.register(TransitionTabDescriptor())
+        registry.register(StickerTabDescriptor())
+
+        #expect(registry.tabs.count == 2)
+        let transition = registry.descriptor(for: .transition)
+        #expect(transition?.title == "Transition")
+        #expect(transition?.iconName == "arrow.left.arrow.right")
+        #expect(transition?.isSoon == false)
+        #expect(transition?.order == 60)
+        #expect(transition?.makeSidebarView() != nil)
+
+        let sticker = registry.descriptor(for: .sticker)
+        #expect(sticker?.title == "Sticker")
+        #expect(sticker?.iconName == "face.smiling")
+        #expect(sticker?.isSoon == false)
+        #expect(sticker?.order == 70)
+        #expect(sticker?.makeSidebarView() != nil)
     }
 }

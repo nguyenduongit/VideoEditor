@@ -4,6 +4,7 @@ import Foundation
 public enum ExportResolution: String, CaseIterable, Sendable, Codable {
     case res720p = "720p (HD)"
     case res1080p = "1080p (Full HD)"
+    case res2k = "2K (QHD)"
     case res4k = "4K (UHD)"
 
     public var title: String {
@@ -16,6 +17,7 @@ public enum ExportResolution: String, CaseIterable, Sendable, Codable {
         switch self {
         case .res720p:  scale = 720.0 / 1080.0
         case .res1080p: scale = 1.0
+        case .res2k:    scale = 1440.0 / 1080.0
         case .res4k:    scale = 2160.0 / 1080.0
         }
 
@@ -49,7 +51,39 @@ public enum ExportCodec: String, CaseIterable, Sendable, Codable {
     }
 }
 
-/// Trạng thái của quá trình xuất video.
+/// Loại nội dung cần xuất: Toàn bộ video hoặc chỉ âm thanh (Audio Only).
+public enum ExportMediaType: String, CaseIterable, Identifiable, Sendable, Codable {
+    case video = "Video (MP4)"
+    case audio = "Âm thanh (Audio Only)"
+
+    public var id: String { rawValue }
+    public var title: String { rawValue }
+}
+
+/// Lựa chọn định dạng âm thanh khi xuất Audio Only.
+public enum ExportAudioFormat: String, CaseIterable, Identifiable, Sendable, Codable {
+    case m4a = "M4A (AAC - Khuyên dùng)"
+    case wav = "WAV (Lossless 48kHz)"
+
+    public var id: String { rawValue }
+    public var title: String { rawValue }
+
+    public var fileExtension: String {
+        switch self {
+        case .m4a: return "m4a"
+        case .wav: return "wav"
+        }
+    }
+
+    public var defaultBitrateKbps: Int {
+        switch self {
+        case .m4a: return 256
+        case .wav: return 1536
+        }
+    }
+}
+
+/// Trạng thái của quá trình xuất tệp.
 public enum ExportStatus: Equatable, Sendable {
     case idle
     case exporting(progress: Double)
@@ -58,8 +92,10 @@ public enum ExportStatus: Equatable, Sendable {
     case cancelled
 }
 
-/// Cấu hình tổng hợp khi xuất video MP4.
+/// Cấu hình tổng hợp khi xuất video hoặc audio.
 public struct ExportConfiguration: Sendable, Equatable {
+    public var mediaType: ExportMediaType
+    public var audioFormat: ExportAudioFormat
     public var resolution: ExportResolution
     public var frameRate: ExportFrameRate
     public var codec: ExportCodec
@@ -67,12 +103,16 @@ public struct ExportConfiguration: Sendable, Equatable {
     public var outputURL: URL?
 
     public init(
+        mediaType: ExportMediaType = .video,
+        audioFormat: ExportAudioFormat = .m4a,
         resolution: ExportResolution = .res1080p,
         frameRate: ExportFrameRate = .fps30,
         codec: ExportCodec = .h264,
         customTitle: String = "Untitled",
         outputURL: URL? = nil
     ) {
+        self.mediaType = mediaType
+        self.audioFormat = audioFormat
         self.resolution = resolution
         self.frameRate = frameRate
         self.codec = codec

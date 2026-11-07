@@ -88,6 +88,12 @@ extension TimelineViewModel {
     }
 
     func applyAddedClips(_ items: [(clip: TimelineClip, targetLayerID: UUID)]) {
+        for item in items {
+            if item.clip.kind == .audio, let url = item.clip.mediaURL {
+                backgroundAnalyzeBeats(for: item.clip.id, url: url)
+            }
+        }
+
         if let executor = commandExecutor, !isApplyingCommand {
             let commands = items.map { item in
                 TimelineCommand.addClip(layerID: item.targetLayerID, clip: item.clip.toScript())

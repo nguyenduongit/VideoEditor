@@ -27,6 +27,15 @@ public struct TimelineRulerView: View {
         self.snapCandidatesProvider = snapCandidatesProvider
     }
 
+    private var effectiveViewportWidth: CGFloat {
+        max(1.0, viewportWidth ?? canvasWidth)
+    }
+
+    private var effectiveScrollOffset: CGFloat {
+        let maxScroll = max(0.0, canvasWidth - effectiveViewportWidth)
+        return max(0.0, min(scrollOffset, maxScroll))
+    }
+
     public var body: some View {
         ZStack(alignment: .leading) {
             rulerBackground
@@ -37,7 +46,7 @@ public struct TimelineRulerView: View {
                 .frame(maxHeight: .infinity, alignment: .bottom)
             playheadHandle
         }
-        .frame(width: canvasWidth, height: DSSize.rulerHeight)
+        .frame(width: effectiveViewportWidth, height: DSSize.rulerHeight)
         .contentShape(Rectangle())
         .gesture(rulerDragGesture)
     }
@@ -49,7 +58,7 @@ public struct TimelineRulerView: View {
 
     private var rulerTicksCanvas: some View {
         Canvas { context, size in
-            let pps = pixelsPerSecond
+            let pps = max(0.01, pixelsPerSecond)
             let fps = playheadState.fps
             let isFrameLevel = TimeRational.isFrameLevelZoom(pixelsPerSecond: pps, fps: fps)
 
@@ -68,16 +77,17 @@ public struct TimelineRulerView: View {
         fps: Int32
     ) {
         let pixelsPerFrame = pps / CGFloat(fps)
-        let totalFrames = Int(ceil(size.width / pixelsPerFrame))
-        let visibleMinX = max(0, scrollOffset - 50)
-        let visibleMaxX = min(size.width, scrollOffset + (viewportWidth ?? size.width) + 50)
+        let offset = effectiveScrollOffset
+        let totalFrames = Int(ceil(canvasWidth / pixelsPerFrame))
+        let visibleMinX = max(0, offset - 50)
+        let visibleMaxX = min(canvasWidth, offset + size.width + 50)
         let startFrame = max(0, Int(floor(visibleMinX / pixelsPerFrame)))
         let endFrame = min(totalFrames, Int(ceil(visibleMaxX / pixelsPerFrame)))
 
         guard startFrame <= endFrame else { return }
 
         for frame in startFrame...endFrame {
-            let x = CGFloat(frame) * pixelsPerFrame
+            let x = (CGFloat(frame) * pixelsPerFrame) - offset
             let isSecond = (frame % Int(fps) == 0)
             let isFiveFrame = (frame % 5 == 0)
 
@@ -119,16 +129,18 @@ public struct TimelineRulerView: View {
         let subTicks = config.subTicks
         let majorStepPx = CGFloat(stepSec) * pps
         let minorStepPx = majorStepPx / CGFloat(subTicks)
-        let totalSteps = Int(ceil(size.width / majorStepPx))
-        let visibleMinX = max(0, scrollOffset - 50)
-        let visibleMaxX = min(size.width, scrollOffset + (viewportWidth ?? size.width) + 50)
+        let offset = effectiveScrollOffset
+        let totalSteps = Int(ceil(canvasWidth / majorStepPx))
+        let visibleMinX = max(0, offset - 50)
+        let visibleMaxX = min(canvasWidth, offset + size.width + 50)
         let startStep = max(0, Int(floor(visibleMinX / majorStepPx)))
         let endStep = min(totalSteps, Int(ceil(visibleMaxX / majorStepPx)))
 
         guard startStep <= endStep else { return }
 
         for step in startStep...endStep {
-            let majorX = CGFloat(step) * majorStepPx
+            let majorCanvasX = CGFloat(step) * majorStepPx
+            let majorX = majorCanvasX - offset
 
             var majorPath = Path()
             majorPath.move(to: CGPoint(x: majorX, y: size.height - 10))
@@ -143,8 +155,9 @@ public struct TimelineRulerView: View {
             context.draw(context.resolve(text), at: CGPoint(x: majorX + 4, y: 7), anchor: .leading)
 
             for sub in 1..<subTicks {
-                let minorX = majorX + CGFloat(sub) * minorStepPx
-                if minorX <= size.width {
+                let minorCanvasX = majorCanvasX + CGFloat(sub) * minorStepPx
+                if minorCanvasX <= canvasWidth {
+                    let minorX = minorCanvasX - offset
                     let isMid = (subTicks % 2 == 0 && sub == subTicks / 2)
                     let tickHeight: CGFloat = isMid ? 6.5 : 4.0
                     var minorPath = Path()
@@ -164,7 +177,7 @@ public struct TimelineRulerView: View {
     private var playheadHandle: some View {
         let seconds = CMTimeGetSeconds(playheadState.currentTime)
         let safeSeconds = (seconds.isFinite && !seconds.isNaN) ? max(0, seconds) : 0
-        let x = CGFloat(safeSeconds) * pixelsPerSecond
+        let x = (CGFloat(safeSeconds) * pixelsPerSecond) - effectiveScrollOffset
         return PlayheadHandleShape()
             .fill(DSColors.accent)
             .frame(width: 12, height: 18)
@@ -175,8 +188,8 @@ public struct TimelineRulerView: View {
     private var rulerDragGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                let targetX = max(0, value.location.x)
-                let rawSec = Double(targetX / pixelsPerSecond)
+                let targetX = max(0, min(canvasWidth, value.location.x + effectiveScrollOffset))
+                let rawSec = Double(targetX / max(0.01, pixelsPerSecond))
                 let rawTime = CMTime(seconds: rawSec, preferredTimescale: 600)
                 let candidates = snapCandidatesProvider?() ?? [.zero]
                 let threshold = TimelineSnapEngine.thresholdTime(pixelsPerSecond: pixelsPerSecond)

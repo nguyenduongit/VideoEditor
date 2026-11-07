@@ -34,7 +34,7 @@ public final class SupabaseAdjustmentPresetRepository: AdjustmentPresetRepositor
             let fetched = rows.map { $0.toPreset() }
             // Supabase là Nguồn Chân Lý Duy Nhất (Single Source of Truth)
             templateLoader.setInMemoryTemplates(fetched)
-            return fetched
+            return templateLoader.loadAllTemplates()
         } catch {
             // Mạng lỗi hoặc timeout: An toàn fallback về cache RAM hoặc mẫu mặc định
             return templateLoader.loadAllTemplates()
@@ -83,6 +83,23 @@ public final class SupabaseAdjustmentPresetRepository: AdjustmentPresetRepositor
 
         NotificationCenter.default.post(name: .presetStoreDidUpdate, object: nil)
     }
+
+    /// Khởi tạo/cập nhật bộ sưu tập 5-Stage Film Grading bằng Upsert an toàn (bảo toàn 100% gói cộng đồng).
+    public func seedSystemCatalogSafely(preserving existingUserPresets: [AdjustmentPreset] = []) async throws {
+        let catalog = [AdjustmentPreset.default] + AdjustmentPreset.creativeCatalog
+        let userOnly = existingUserPresets.filter { !$0.isSystem }
+        templateLoader.setInMemoryTemplates(catalog + userOnly)
+
+        if let client {
+            let rows = catalog.map { AdjustmentPresetRow(from: $0) }
+            try await client
+                .from(tableName)
+                .upsert(rows)
+                .execute()
+        }
+
+        NotificationCenter.default.post(name: .presetStoreDidUpdate, object: nil)
+    }
 }
 
 // MARK: - Supabase DTO Row
@@ -103,7 +120,11 @@ private struct AdjustmentPresetRow: Codable, Sendable {
         self.name = preset.name
         self.description = preset.description
         self.category = preset.category.rawValue
-        self.tags = preset.tags
+        var mergedTags = preset.tags
+        if let metaTag = preset.community.encodeToTag() {
+            mergedTags.append(metaTag)
+        }
+        self.tags = mergedTags
         self.preview_badge = preset.previewBadge
         self.preview_colors_hex = preset.previewColorsHex
         self.config = preset.config
@@ -112,16 +133,19 @@ private struct AdjustmentPresetRow: Codable, Sendable {
 
     func toPreset() -> AdjustmentPreset {
         let cat = AdjustmentTemplateCategory(rawValue: category) ?? .cinematic
+        let sys = is_system ?? false
+        let (cleanTags, communityMeta) = CommunityMetadata.extract(from: tags, isSystem: sys)
         return AdjustmentPreset(
             id: id,
             name: name,
             description: description ?? "",
             category: cat,
-            tags: tags ?? [],
+            tags: cleanTags,
             previewBadge: preview_badge,
             previewColorsHex: preview_colors_hex ?? ["#27272A", "#52525B"],
             config: config,
-            isSystem: is_system ?? false
+            isSystem: sys,
+            community: communityMeta
         )
     }
 }

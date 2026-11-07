@@ -103,4 +103,19 @@ struct TimelineMarqueeSelectionTests {
         let view = TimelineMarqueeSelectionView(rect: rect)
         #expect(view.rect == rect)
     }
+
+    @Test("Marquee starting inside empty area of a layer selects target clips")
+    func testMarqueeStartingInsideEmptyLayerArea() {
+        let (vm, clip1, _, clip3) = makeTimelineViewModel()
+        let topSpacer: CGFloat = 100.0
+        // Layer 0: Y = 100...180 (height 80), Layer 1: Y = 180...240 (height 60)
+        // In Layer 0, X: 260 is an empty gap between Clip 1 and Clip 2.
+        // User starts drag inside Layer 0 empty area at (260, 140) and drags to (50, 200)
+        let marqueeFromInsideLayer = CGRect(x: 260, y: 140, width: -210, height: 60)
+        let selected = vm.clipsIntersecting(rect: marqueeFromInsideLayer, topSpacerHeight: topSpacer)
+        #expect(selected == [clip1.id, clip3.id])
+
+        vm.updateMarqueeSelection(rect: marqueeFromInsideLayer, topSpacerHeight: topSpacer)
+        #expect(vm.selectedClipIDs == [clip1.id, clip3.id])
+    }
 }

@@ -2,11 +2,15 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Tab "Animation" cho Text Clip, hỗ trợ 3 nhóm hoạt ảnh chuyên nghiệp: Vào (In), Ra (Out), và Vòng lặp (Loop).
+/// Tab `"Animation"` cho Text Clip, kết nối Kho Thư Viện Animation Sáng Tạo Mở (`AnimationPreset` + Supabase)
+/// hỗ trợ 3 pha: Vào (`In`), Ra (`Out`), và Vòng lặp (`Loop`) kèm thanh trượt thông số động.
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
 public struct TextAnimationTabContent: View {
     @Bindable private var viewModel: InspectorViewModel
     @State private var selectedSubTab: AnimationSubTab = .inAnimation
+    @State private var inPresets: [AnimationPreset] = AnimationPreset.inCatalog
+    @State private var outPresets: [AnimationPreset] = AnimationPreset.outCatalog
+    @State private var loopPresets: [AnimationPreset] = AnimationPreset.loopCatalog
 
     public enum AnimationSubTab: String, CaseIterable {
         case inAnimation = "In"
@@ -28,9 +32,12 @@ public struct TextAnimationTabContent: View {
             TextAnimationCardsGrid(
                 selectedSubTab: selectedSubTab,
                 config: currentConfig,
-                onSelectIn: { updateInAnimation($0) },
-                onSelectOut: { updateOutAnimation($0) },
-                onSelectLoop: { updateLoopAnimation($0) }
+                inPresets: inPresets,
+                outPresets: outPresets,
+                loopPresets: loopPresets,
+                onSelectInPreset: { updateInPreset($0) },
+                onSelectOutPreset: { updateOutPreset($0) },
+                onSelectLoopPreset: { updateLoopPreset($0) }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -53,6 +60,24 @@ public struct TextAnimationTabContent: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DSColors.blockBackground)
+        .task {
+            reloadFromTemplateLoader()
+            if !viewModel.dependencies.animationTemplates.hasSyncedFromRemote,
+               let repo = viewModel.dependencies.presetRepositories.animationRepository,
+               let _ = try? await repo.fetchPresets() {
+                reloadFromTemplateLoader()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .presetStoreDidUpdate)) { _ in
+            reloadFromTemplateLoader()
+        }
+    }
+
+    private func reloadFromTemplateLoader() {
+        let loader = viewModel.dependencies.animationTemplates
+        inPresets = loader.loadTemplates(for: .inAnimation)
+        outPresets = loader.loadTemplates(for: .outAnimation)
+        loopPresets = loader.loadTemplates(for: .loopAnimation)
     }
 
     private var selectedClipDuration: Double {
@@ -66,15 +91,13 @@ public struct TextAnimationTabContent: View {
     private var hasActiveAnimationForCurrentSubTab: Bool {
         switch selectedSubTab {
         case .inAnimation:
-            return currentConfig.animation.inType != .none
+            return currentConfig.animation.hasInAnimation
         case .outAnimation:
-            return currentConfig.animation.outType != .none
+            return currentConfig.animation.hasOutAnimation
         case .loopAnimation:
-            return currentConfig.animation.loopType != .none
+            return currentConfig.animation.hasLoopAnimation
         }
     }
-
-    // MARK: - SubTabBar (System Flat Segmented Style)
 
     private var subTabBar: some View {
         HStack(spacing: 2) {
@@ -86,9 +109,11 @@ public struct TextAnimationTabContent: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 5)
                         .background(selectedSubTab == tab ? DSColors.windowBackground : Color.clear)
+                        .contentShape(RoundedRectangle(cornerRadius: 5))
                         .clipShape(RoundedRectangle(cornerRadius: 5))
                 }
                 .buttonStyle(.plain)
+                .contentShape(RoundedRectangle(cornerRadius: 5))
             }
         }
         .padding(2)
@@ -96,63 +121,61 @@ public struct TextAnimationTabContent: View {
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
-    // MARK: - State & Selection Helpers
-
     private var currentConfig: TextConfiguration {
-        if let json = viewModel.liveProperties["textConfig"]?.asString,
-           let cfg = TextConfiguration.decode(from: json) {
-            return cfg
-        }
-        if let json = viewModel.selectedClip?.properties["textConfig"]?.asString,
-           let cfg = TextConfiguration.decode(from: json) {
-            return cfg
-        }
-        return TextConfiguration()
+        viewModel.textConfiguration
     }
 
-    private func updateInAnimation(_ item: TextInAnimationType) {
+    private func updateInPreset(_ preset: AnimationPreset?) {
         var cfg = currentConfig
-        if item == .none {
-            cfg.animation.inType = .none
-        } else {
-            cfg.animation.inType = (cfg.animation.inType == item) ? .none : item
-            if cfg.animation.inDuration <= 0.05 {
-                cfg.animation.inDuration = 1.0
+        cfg.animation.inType = .none
+        if let preset {
+            if cfg.animation.inManifest?.id == preset.manifest.id {
+                cfg.animation.inManifest = nil
+            } else {
+                cfg.animation.inManifest = preset.manifest
+                cfg.animation.scope = preset.manifest.defaultScope
+                cfg.animation.staggerDirection = preset.manifest.defaultStaggerDirection
+                if cfg.animation.inDuration <= 0.05 { cfg.animation.inDuration = 1.0 }
             }
+        } else {
+            cfg.animation.inManifest = nil
         }
         commitConfig(cfg)
     }
 
-    private func updateOutAnimation(_ item: TextOutAnimationType) {
+    private func updateOutPreset(_ preset: AnimationPreset?) {
         var cfg = currentConfig
-        if item == .none {
-            cfg.animation.outType = .none
-        } else {
-            cfg.animation.outType = (cfg.animation.outType == item) ? .none : item
-            if cfg.animation.outDuration <= 0.05 {
-                cfg.animation.outDuration = 1.0
+        cfg.animation.outType = .none
+        if let preset {
+            if cfg.animation.outManifest?.id == preset.manifest.id {
+                cfg.animation.outManifest = nil
+            } else {
+                cfg.animation.outManifest = preset.manifest
+                if cfg.animation.outDuration <= 0.05 { cfg.animation.outDuration = 1.0 }
             }
+        } else {
+            cfg.animation.outManifest = nil
         }
         commitConfig(cfg)
     }
 
-    private func updateLoopAnimation(_ item: TextLoopAnimationType) {
+    private func updateLoopPreset(_ preset: AnimationPreset?) {
         var cfg = currentConfig
-        if item == .none {
-            cfg.animation.loopType = .none
+        cfg.animation.loopType = .none
+        if let preset {
+            if cfg.animation.loopManifest?.id == preset.manifest.id {
+                cfg.animation.loopManifest = nil
+            } else {
+                cfg.animation.loopManifest = preset.manifest
+            }
         } else {
-            cfg.animation.loopType = (cfg.animation.loopType == item) ? .none : item
+            cfg.animation.loopManifest = nil
         }
         commitConfig(cfg)
     }
 
     private func updateConfig(_ cfg: TextConfiguration, commit: Bool) {
-        guard let json = cfg.encodeToJSON() else { return }
-        if commit {
-            viewModel.commitTextProperty(key: "textConfig", text: json)
-        } else {
-            viewModel.updateLiveText(key: "textConfig", text: json)
-        }
+        viewModel.updateTextConfiguration(cfg, commit: commit)
     }
 
     private func commitConfig(_ cfg: TextConfiguration) {
@@ -160,6 +183,7 @@ public struct TextAnimationTabContent: View {
     }
 
     private func onSliderEditingEnded(_ editing: Bool) {
-        viewModel.onSliderEditingChanged(key: "textConfig", isEditing: editing)
+        let key = viewModel.selectedClip?.kind == .sticker ? "stickerConfig" : "textConfig"
+        viewModel.onSliderEditingChanged(key: key, isEditing: editing)
     }
 }

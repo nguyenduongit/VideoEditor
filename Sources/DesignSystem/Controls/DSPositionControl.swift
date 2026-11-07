@@ -8,6 +8,7 @@ public struct DSPositionControl: View {
     @Binding private var yValue: Double
     private let step: Double
     private let isXDisabled: Bool
+    private let trailingAccessory: AnyView?
     private let onEditingChanged: ((Bool) -> Void)?
 
     public init(
@@ -16,6 +17,7 @@ public struct DSPositionControl: View {
         yValue: Binding<Double>,
         step: Double = 1.0,
         isXDisabled: Bool = false,
+        trailingAccessory: AnyView? = nil,
         onEditingChanged: ((Bool) -> Void)? = nil
     ) {
         self.title = title
@@ -23,6 +25,7 @@ public struct DSPositionControl: View {
         self._yValue = yValue
         self.step = step
         self.isXDisabled = isXDisabled
+        self.trailingAccessory = trailingAccessory
         self.onEditingChanged = onEditingChanged
     }
 
@@ -32,7 +35,9 @@ public struct DSPositionControl: View {
             Text(title)
                 .font(.system(size: 12, weight: .regular))
                 .foregroundStyle(DSColors.textPrimary)
-                .frame(width: DSSize.inspectorColumnWidth, alignment: .leading)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
 
             // X block in Column 2
             DSNumberInput(
@@ -46,7 +51,7 @@ public struct DSPositionControl: View {
             .help(isXDisabled ? String(localized: "Trục X đang do AI Auto Pan tự động điều khiển. Tắt Auto Pan trong tab AI để chỉnh thủ công.") : "")
             .frame(width: DSSize.inspectorColumnWidth)
 
-            // Y block in Column 3
+            // Y block in Column 3 (aligned with Scale input below)
             DSNumberInput(
                 value: $yValue,
                 step: step,
@@ -55,9 +60,13 @@ public struct DSPositionControl: View {
             )
             .frame(width: DSSize.inspectorColumnWidth)
 
-            // Empty Column 4 placeholder for alignment
-            Color.clear
-                .frame(width: DSSize.inspectorColumnWidth, height: 1)
+            if let trailingAccessory {
+                trailingAccessory
+                    .frame(width: 35, alignment: .center)
+            } else {
+                Color.clear
+                    .frame(width: 35, height: 18)
+            }
         }
         .frame(height: 28)
     }

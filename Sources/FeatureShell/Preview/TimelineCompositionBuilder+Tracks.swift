@@ -89,4 +89,47 @@ extension TimelineCompositionBuilder {
             logger.error("Insert audio track failed: \(error.localizedDescription)")
         }
     }
+
+    /// Bổ sung rãnh video nền đen im lặng khi Timeline có các lớp thị giác phi-video (`.image`, `.sticker`, `.text`, `.effect`, `.adjustment`)
+    /// kéo dài vượt quá thời lượng rãnh `.video` vật lý (hoặc khi dự án không có tệp `.video`), giúp `AVPlayer` và `AVAssetExportSession` chạy mượt.
+    static func appendCarrierVideoTrackIfNeeded(
+        to composition: AVMutableComposition,
+        layers: [TimelineLayer]
+    ) async {
+        let nonVideoVisualKinds: Set<ClipKind> = [.image, .sticker, .text, .effect, .adjustment]
+        var maxNonVideoVisualEnd: CMTime = .zero
+        for layer in layers where !layer.isHidden && nonVideoVisualKinds.contains(layer.kind) {
+            for clip in layer.clips where clip.timeRange.end > maxNonVideoVisualEnd {
+                maxNonVideoVisualEnd = clip.timeRange.end
+            }
+        }
+        guard maxNonVideoVisualEnd > .zero else { return }
+        let currentCompDur = composition.duration.isNumeric ? composition.duration : .zero
+        guard CMTimeCompare(currentCompDur, maxNonVideoVisualEnd) < 0 else { return }
+
+        let blackURL = ProceduralAssetProvider.shared.blackVideoURL()
+        let blackAsset = AVURLAsset(url: blackURL)
+        guard let srcVideoTrack = try? await blackAsset.loadTracks(withMediaType: .video).first,
+              let srcDur = try? await blackAsset.load(.duration),
+              srcDur > .zero,
+              let carrierTrack = composition.addMutableTrack(
+                  withMediaType: .video,
+                  preferredTrackID: kCMPersistentTrackID_Invalid
+              ) else {
+            return
+        }
+        do {
+            let insertRange = CMTimeRange(start: .zero, duration: srcDur)
+            try carrierTrack.insertTimeRange(insertRange, of: srcVideoTrack, at: .zero)
+            let insertedDur = carrierTrack.timeRange.duration
+            if insertedDur > .zero {
+                carrierTrack.scaleTimeRange(
+                    CMTimeRange(start: .zero, duration: insertedDur),
+                    toDuration: maxNonVideoVisualEnd
+                )
+            }
+        } catch {
+            logger.error("Carrier video track insertion failed: \(error.localizedDescription)")
+        }
+    }
 }

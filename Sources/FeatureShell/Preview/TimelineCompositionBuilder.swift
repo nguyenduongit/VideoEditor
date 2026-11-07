@@ -14,49 +14,15 @@ struct TimelineCompositionBuilder {
         from layers: [TimelineLayer],
         aspectRatio: CanvasAspectRatio = .ratio16x9
     ) async -> (trackMap: [UUID: [CMPersistentTrackID]], instructions: [AVMutableVideoCompositionLayerInstruction], renderSize: CGSize) {
-        var trackMap: [UUID: [CMPersistentTrackID]] = [:]
-        var instructions: [AVMutableVideoCompositionLayerInstruction] = []
-        let canvasSize = aspectRatio.renderSize
-
-        for layer in layers {
-            var videoTrack: AVMutableCompositionTrack?
-            if layer.kind == .video {
-                videoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
-            }
-
-            var audioTrack: AVMutableCompositionTrack?
-            if layer.kind == .video || layer.kind == .audio {
-                audioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
-                if let track = audioTrack {
-                    trackMap[layer.id, default: []].append(track.trackID)
-                }
-            }
-
-            var layerInstruction: AVMutableVideoCompositionLayerInstruction?
-            if let videoTrack {
-                let inst = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
-                if layer.isHidden {
-                    inst.setOpacity(0.0, at: .zero)
-                }
-                layerInstruction = inst
-                instructions.append(inst)
-            }
-
-            await insertLayerClips(
-                layer,
-                intoVideo: videoTrack,
-                audio: audioTrack,
-                layerInstruction: layerInstruction,
-                canvasSize: canvasSize
-            )
-        }
-        return (trackMap, instructions, canvasSize)
+        let composed = await buildComposedTracks(for: composition, from: layers, aspectRatio: aspectRatio)
+        return (composed.trackMap, composed.instructions, composed.renderSize)
     }
 
     static func buildVideoComposition(
         for layers: [TimelineLayer],
         composition: AVMutableComposition,
         layerTrackIDs: [UUID: CMPersistentTrackID],
+        secondaryTrackIDs: [UUID: CMPersistentTrackID] = [:],
         aspectRatio: CanvasAspectRatio,
         duration: CMTime,
         renderSize: CGSize? = nil
@@ -67,6 +33,7 @@ struct TimelineCompositionBuilder {
                 for: layers,
                 composition: composition,
                 layerTrackIDs: layerTrackIDs,
+                secondaryTrackIDs: secondaryTrackIDs,
                 aspectRatio: aspectRatio,
                 duration: duration,
                 renderSize: canvasSize
@@ -121,18 +88,19 @@ struct TimelineCompositionBuilder {
         let videoComposition = AVMutableVideoComposition()
         let size = (renderSize.width > 0 && renderSize.height > 0) ? renderSize : CGSize(width: 1920, height: 1080)
         videoComposition.renderSize = size
-        videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+        videoComposition.frameDuration = CMTime(value: 1, timescale: TimeRational.defaultFPS)
 
         let instruction = AVMutableVideoCompositionInstruction()
-        let safeDuration = CMTimeMaximum(duration, CMTime(value: 1, timescale: 30))
+        let safeDuration = CMTimeMaximum(duration, CMTime(value: 1, timescale: TimeRational.defaultFPS))
         instruction.timeRange = CMTimeRange(start: .zero, duration: safeDuration)
         instruction.layerInstructions = layerInstructions
         videoComposition.instructions = [instruction]
         return videoComposition
     }
 
-    private static func insertLayerClips(
+    static func insertLayerClips(
         _ layer: TimelineLayer,
+        allLayers: [TimelineLayer],
         intoVideo videoTrack: AVMutableCompositionTrack?,
         audio audioTrack: AVMutableCompositionTrack?,
         layerInstruction: AVMutableVideoCompositionLayerInstruction?,
@@ -143,6 +111,16 @@ struct TimelineCompositionBuilder {
         let sortedClips = layer.clips.sorted { $0.timeRange.start < $1.timeRange.start }
 
         for clip in sortedClips {
+            if clip.kind == .audio, clip.properties["isBeatCounter"]?.asBool == true, let audioTrack {
+                await insertBeatCounterClip(
+                    clip: clip,
+                    allLayers: allLayers,
+                    audioTrack: audioTrack,
+                    currentAudioTime: &currentAudioTime
+                )
+                continue
+            }
+
             guard let url = clip.mediaURL else { continue }
             let asset = AVURLAsset(url: url)
             guard let assetDuration = try? await asset.load(.duration) else { continue }
@@ -169,14 +147,17 @@ struct TimelineCompositionBuilder {
                 )
             }
             if (clip.kind == .video || clip.kind == .audio), let audioTrack {
-                await insertAudioTrack(
-                    clip: clip,
-                    asset: asset,
-                    sourceRange: sourceRange,
-                    speed: speed,
-                    audioTrack: audioTrack,
-                    currentAudioTime: &currentAudioTime
-                )
+                let isAudioExtracted = clip.kind == .video && clip.properties["isAudioExtracted"]?.asBool == true
+                if !isAudioExtracted {
+                    await insertAudioTrack(
+                        clip: clip,
+                        asset: asset,
+                        sourceRange: sourceRange,
+                        speed: speed,
+                        audioTrack: audioTrack,
+                        currentAudioTime: &currentAudioTime
+                    )
+                }
             }
         }
     }

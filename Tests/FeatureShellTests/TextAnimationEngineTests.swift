@@ -44,9 +44,8 @@ struct TextAnimationEngineTests {
         #expect(decoded.fontSize == 40.0)
         #expect(decoded.animation.isDefault == true)
         #expect(decoded.hasGlow == false)
-        #expect(decoded.isUnderline == false)
-        #expect(decoded.isStrikethrough == false)
-        #expect(decoded.isAllCaps == false)
+        #expect(decoded.isBold == false)
+        #expect(decoded.isItalic == false)
     }
 
     @Test("Typewriter animation generates substring progression with optional cursor")
@@ -164,9 +163,8 @@ struct TextAnimationEngineTests {
 
     @Test("TextRendererEngine renders valid animated CIImage with pixelation and glow")
     func testTextRendererEngineRendering() {
-        var config = TextConfiguration(content: "Awesome Motion")
-        config.isAllCaps = true
-        config.isUnderline = true
+        var config = TextConfiguration(content: "AWESOME MOTION")
+        config.isBold = true
         config.hasGlow = true
         config.glowColorHex = "#00FFFF"
         config.glowRadius = 12.0
@@ -198,131 +196,54 @@ struct TextAnimationEngineTests {
         let renderer = TextRendererEngine()
         let canvasSize = CGSize(width: 400, height: 200)
 
-        // 1. Static render (no animation)
-        guard let ciImg = renderer.renderAnimatedImage(for: config, localTime: 1.0, duration: 5.0, canvasSize: canvasSize) else {
-            Issue.record("Failed to render static image")
+        guard let ciImg = renderer.renderAnimatedImage(for: config, localTime: 1.0, duration: 5.0, canvasSize: canvasSize),
+              let ciAnim = {
+                  var animCfg = config
+                  animCfg.animation.inType = .slideUp
+                  animCfg.animation.inDuration = 0.5
+                  return renderer.renderAnimatedImage(for: animCfg, localTime: 1.0, duration: 5.0, canvasSize: canvasSize)
+              }() else {
+            Issue.record("Failed to render background images")
             return
         }
+        #expect(containsDominantRed(in: ciImg, canvasSize: canvasSize, threshold: 0.8), "Static text must render background")
+        #expect(containsDominantRed(in: ciAnim, canvasSize: canvasSize, threshold: 0.8), "Animated text must render background")
 
-        let rep = NSCIImageRep(ciImage: ciImg)
-        let nsImg = NSImage(size: canvasSize)
-        nsImg.addRepresentation(rep)
-        guard let tiff = nsImg.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff) else {
-            Issue.record("Failed to create bitmap")
-            return
-        }
-
-        // Check center or near background
-        var foundRed = false
-        for x in stride(from: 50, to: 350, by: 10) {
-            for y in stride(from: 50, to: 150, by: 10) {
-                if let color = bitmap.colorAt(x: x, y: y) {
-                    if color.redComponent > 0.8 && color.greenComponent < 0.2 && color.blueComponent < 0.2 {
-                        foundRed = true
-                        break
-                    }
-                }
-            }
-            if foundRed { break }
-        }
-        print("STATIC FOUND RED BACKGROUND:", foundRed)
-
-        // 2. Animated render (kinetic)
-        config.animation.inType = .slideUp
-        config.animation.inDuration = 0.5
-        guard let ciAnim = renderer.renderAnimatedImage(for: config, localTime: 1.0, duration: 5.0, canvasSize: canvasSize) else {
-            Issue.record("Failed to render anim image")
-            return
-        }
-        let repAnim = NSCIImageRep(ciImage: ciAnim)
-        let nsAnim = NSImage(size: canvasSize)
-        nsAnim.addRepresentation(repAnim)
-        guard let tiffAnim = nsAnim.tiffRepresentation,
-              let bitmapAnim = NSBitmapImageRep(data: tiffAnim) else {
-            Issue.record("Failed to create anim bitmap")
-            return
-        }
-        var foundAnimRed = false
-        for x in stride(from: 50, to: 350, by: 10) {
-            for y in stride(from: 50, to: 150, by: 10) {
-                if let color = bitmapAnim.colorAt(x: x, y: y) {
-                    if color.redComponent > 0.8 && color.greenComponent < 0.2 && color.blueComponent < 0.2 {
-                        foundAnimRed = true
-                        break
-                    }
-                }
-            }
-            if foundAnimRed { break }
-        }
-        print("ANIM FOUND RED BACKGROUND:", foundAnimRed)
-
-        // 3. Test Glow
         var glowConfig = TextConfiguration(content: "GLOW")
         glowConfig.textColorHex = "#000000"
         glowConfig.hasGlow = true
         glowConfig.glowColorHex = "#FF0000"
         glowConfig.glowRadius = 15.0
 
-        // Static Glow
-        guard let ciGlowStatic = renderer.renderAnimatedImage(for: glowConfig, localTime: 1.0, duration: 5.0, canvasSize: canvasSize) else {
-            Issue.record("Failed to render static glow")
+        guard let ciGlowStatic = renderer.renderAnimatedImage(for: glowConfig, localTime: 1.0, duration: 5.0, canvasSize: canvasSize),
+              let ciGlowAnim = {
+                  var animGlow = glowConfig
+                  animGlow.animation.inType = .slideUp
+                  animGlow.animation.inDuration = 0.5
+                  return renderer.renderAnimatedImage(for: animGlow, localTime: 1.0, duration: 5.0, canvasSize: canvasSize)
+              }() else {
+            Issue.record("Failed to render glow images")
             return
         }
-        let repGlow = NSCIImageRep(ciImage: ciGlowStatic)
-        let nsGlow = NSImage(size: canvasSize)
-        nsGlow.addRepresentation(repGlow)
-        guard let tiffGlow = nsGlow.tiffRepresentation,
-              let bitmapGlow = NSBitmapImageRep(data: tiffGlow) else {
-            Issue.record("Failed to create glow bitmap")
-            return
-        }
-        var foundStaticRedGlow = false
-        for x in stride(from: 50, to: 350, by: 5) {
-            for y in stride(from: 50, to: 150, by: 5) {
-                if let color = bitmapGlow.colorAt(x: x, y: y) {
-                    if color.redComponent > 0.4 && color.greenComponent < 0.2 && color.blueComponent < 0.2 {
-                        foundStaticRedGlow = true
-                        break
-                    }
-                }
-            }
-            if foundStaticRedGlow { break }
-        }
-        print("STATIC FOUND RED GLOW:", foundStaticRedGlow)
+        #expect(containsDominantRed(in: ciGlowStatic, canvasSize: canvasSize, threshold: 0.4), "Static text must render glow")
+        #expect(containsDominantRed(in: ciGlowAnim, canvasSize: canvasSize, threshold: 0.4), "Animated text must render glow")
+    }
 
-        // Anim Glow
-        glowConfig.animation.inType = .slideUp
-        glowConfig.animation.inDuration = 0.5
-        guard let ciGlowAnim = renderer.renderAnimatedImage(for: glowConfig, localTime: 1.0, duration: 5.0, canvasSize: canvasSize) else {
-            Issue.record("Failed to render anim glow")
-            return
-        }
-        let repGlowAnim = NSCIImageRep(ciImage: ciGlowAnim)
-        let nsGlowAnim = NSImage(size: canvasSize)
-        nsGlowAnim.addRepresentation(repGlowAnim)
-        guard let tiffGlowAnim = nsGlowAnim.tiffRepresentation,
-              let bitmapGlowAnim = NSBitmapImageRep(data: tiffGlowAnim) else {
-            Issue.record("Failed to create anim glow bitmap")
-            return
-        }
-        var foundAnimRedGlow = false
+    private func containsDominantRed(in ciImage: CIImage, canvasSize: CGSize, threshold: CGFloat) -> Bool {
+        let rep = NSCIImageRep(ciImage: ciImage)
+        let nsImg = NSImage(size: canvasSize)
+        nsImg.addRepresentation(rep)
+        guard let tiff = nsImg.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff) else { return false }
         for x in stride(from: 50, to: 350, by: 5) {
             for y in stride(from: 50, to: 150, by: 5) {
-                if let color = bitmapGlowAnim.colorAt(x: x, y: y) {
-                    if color.redComponent > 0.4 && color.greenComponent < 0.2 && color.blueComponent < 0.2 {
-                        foundAnimRedGlow = true
-                        break
-                    }
+                if let color = bitmap.colorAt(x: x, y: y),
+                   color.redComponent > threshold && color.greenComponent < 0.2 && color.blueComponent < 0.2 {
+                    return true
                 }
             }
-            if foundAnimRedGlow { break }
         }
-        print("ANIM FOUND RED GLOW:", foundAnimRedGlow)
-        #expect(foundRed == true, "Static text must render background")
-        #expect(foundAnimRed == true, "Animated text must render background")
-        #expect(foundStaticRedGlow == true, "Static text must render glow")
-        #expect(foundAnimRedGlow == true, "Animated text must render glow")
+        return false
     }
 }
 

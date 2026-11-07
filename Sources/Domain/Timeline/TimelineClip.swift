@@ -14,6 +14,15 @@ public struct TimelineClip: Identifiable, Sendable, Hashable, Equatable {
 
     public static let minDuration = CMTime(value: 1, timescale: 10) // 0.1s
 
+    public var originPresetID: String? {
+        properties["originPresetId"]?.asString
+    }
+
+    /// Toàn bộ mẫu nghệ thuật mở khóa 100% để chỉnh sửa trên cùng 1 lõi với người dùng.
+    public var isLockedTemplate: Bool {
+        false
+    }
+
     public init(
         id: UUID = UUID(),
         assetID: UUID? = nil,
@@ -53,6 +62,29 @@ public struct TimelineClip: Identifiable, Sendable, Hashable, Equatable {
             clampedDuration = CMTimeMaximum(clampedDuration, Self.minDuration)
         }
 
+        let oldStartSec = CMTimeGetSeconds(self.timeRange.start)
+        let oldSourceSec = CMTimeGetSeconds(self.sourceStartTime)
+        let speed = max(0.01, properties["speed"]?.asNumber ?? 1.0)
+        let leftDeltaSec: Double
+        if newSourceStart != nil {
+            leftDeltaSec = (CMTimeGetSeconds(clampedSourceStart) - oldSourceSec) / speed
+        } else {
+            leftDeltaSec = CMTimeGetSeconds(validStart) - oldStartSec
+        }
+        if abs(leftDeltaSec) > 0.0001 || abs(CMTimeGetSeconds(clampedDuration) - CMTimeGetSeconds(self.timeRange.duration)) > 0.0001 {
+            if let kfMap = ClipKeyframeMap.from(properties: properties), !kfMap.isEmpty {
+                let trimmedMap = kfMap.trimmed(
+                    leftDeltaSeconds: leftDeltaSec,
+                    newDurationSeconds: CMTimeGetSeconds(clampedDuration)
+                )
+                if let json = trimmedMap.encodeToJSON() {
+                    properties[ClipKeyframeMap.propertyKey] = .string(json)
+                } else {
+                    properties.removeValue(forKey: ClipKeyframeMap.propertyKey)
+                }
+            }
+        }
+
         self.timeRange = CMTimeRange(start: validStart, duration: clampedDuration)
         self.sourceStartTime = clampedSourceStart
     }
@@ -73,6 +105,22 @@ public struct TimelineClip: Identifiable, Sendable, Hashable, Equatable {
 
         var left = self
         left.timeRange = CMTimeRange(start: timeRange.start, duration: leftDuration)
+
+        var rightProperties = properties
+        if let kfMap = ClipKeyframeMap.from(properties: properties), !kfMap.isEmpty {
+            let splitSec = CMTimeGetSeconds(leftDuration)
+            let (leftMap, rightMap) = kfMap.split(atOffsetSeconds: splitSec)
+            if let lJSON = leftMap.encodeToJSON() {
+                left.properties[ClipKeyframeMap.propertyKey] = .string(lJSON)
+            } else {
+                left.properties.removeValue(forKey: ClipKeyframeMap.propertyKey)
+            }
+            if let rJSON = rightMap.encodeToJSON() {
+                rightProperties[ClipKeyframeMap.propertyKey] = .string(rJSON)
+            } else {
+                rightProperties.removeValue(forKey: ClipKeyframeMap.propertyKey)
+            }
+        }
 
         let speed = max(0.01, properties["speed"]?.asNumber ?? 1.0)
         let rightSourceStart: CMTime
@@ -98,7 +146,7 @@ public struct TimelineClip: Identifiable, Sendable, Hashable, Equatable {
             maxDuration: maxDuration,
             mediaURL: mediaURL,
             sourceStartTime: rightSourceStart,
-            properties: properties
+            properties: rightProperties
         )
 
         return (left, right)

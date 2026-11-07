@@ -43,6 +43,13 @@ extension TimelineView {
     }
 
     func handleClipMoveEnd(clipID: UUID) {
+        defer {
+            viewModel.cleanEmptyLayers()
+            viewModel.hoverLayerID = nil
+            viewModel.dropBetweenIndex = nil
+            movingClipID = nil
+            movingSourceLayerID = nil
+        }
         guard let sourceLayerID = movingSourceLayerID else { return }
         if viewModel.selectedClipIDs.count > 1 && viewModel.selectedClipIDs.contains(clipID) {
             let effectiveDelta = viewModel.clampedGroupMoveDelta(pivotClipID: clipID, proposedStart: pendingStartTime)
@@ -60,15 +67,36 @@ extension TimelineView {
             }
         }
         playheadState.seek(to: playheadState.currentTime, force: true)
-        viewModel.hoverLayerID = nil
-        viewModel.dropBetweenIndex = nil
-        movingClipID = nil
-        movingSourceLayerID = nil
+    }
+
+    func handleClipTrimGroupChanged(clipID: UUID, isLeft: Bool, dx: CGFloat) {
+        if viewModel.selectedClipIDs.count > 1 && viewModel.selectedClipIDs.contains(clipID) {
+            viewModel.updateGroupTrim(isLeft: isLeft, dx: dx)
+        }
+    }
+
+    func handleClipTrimGroupEnded(clipID: UUID, isLeft: Bool) {
+        if viewModel.selectedClipIDs.count > 1 && viewModel.selectedClipIDs.contains(clipID) {
+            let offset = isLeft ? viewModel.groupTrimLeftOffset : viewModel.groupTrimRightOffset
+            let deltaSec = Double(offset / viewModel.pixelsPerSecond)
+            let delta = CMTime(seconds: deltaSec, preferredTimescale: 600)
+            viewModel.commitGroupTrim(isLeft: isLeft, delta: delta)
+            playheadState.seek(to: playheadState.currentTime, force: true)
+        } else {
+            viewModel.resetGroupTrim()
+        }
     }
 
     func handleEmptyCanvasTap(x: CGFloat, pps: CGFloat) {
         isTimelineFocused = true
+        viewModel.cleanEmptyLayers()
         viewModel.clearSelection()
+        viewModel.hoverLayerID = nil
+        viewModel.dropBetweenIndex = nil
+        viewModel.resetGroupMove()
+        viewModel.resetGroupTrim()
+        movingClipID = nil
+        movingSourceLayerID = nil
         let rawTime = CMTime(seconds: max(0, Double(x / pps)), preferredTimescale: 600)
         let (snapped, didSnap) = TimelineSnapEngine.snapPoint(
             time: rawTime,
@@ -80,7 +108,6 @@ extension TimelineView {
 
     func handleMarqueeDrag(value: DragGesture.Value, topSpacerHeight: CGFloat) {
         let start = value.startLocation
-        guard start.y <= topSpacerHeight else { return }
         let current = value.location
         let dx = current.x - start.x
         let dy = current.y - start.y
@@ -94,7 +121,7 @@ extension TimelineView {
     func handleMarqueeEnd(value: DragGesture.Value, topSpacerHeight: CGFloat, pps: CGFloat) {
         if marqueeRect != nil {
             marqueeRect = nil
-        } else if value.startLocation.y <= topSpacerHeight && hypot(value.location.x - value.startLocation.x, value.location.y - value.startLocation.y) < 3 {
+        } else if hypot(value.location.x - value.startLocation.x, value.location.y - value.startLocation.y) < 3 {
             handleEmptyCanvasTap(x: value.location.x, pps: pps)
         }
     }

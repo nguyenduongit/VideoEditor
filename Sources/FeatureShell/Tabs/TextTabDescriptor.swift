@@ -5,7 +5,8 @@ import DesignSystem
 public struct TextTabDescriptor: TabDescriptor {
     public let id: TabID = .text
     public let title: String = "Text"
-    public let order: Int = 30
+    public let iconName: String = "textformat"
+    public let order: Int = 40
 
     private let timelineViewModel: TimelineViewModel?
 

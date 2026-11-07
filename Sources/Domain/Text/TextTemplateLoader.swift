@@ -9,14 +9,19 @@ public final class TextTemplateLoader: @unchecked Sendable {
     private let lock = NSLock()
     private var cachedTemplates: [TextPreset]?
     private var inMemoryPresets: [TextPreset] = []
-    public private(set) var hasSyncedFromRemote = false
+    private var _hasSyncedFromRemote = false
+    public var hasSyncedFromRemote: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _hasSyncedFromRemote
+    }
 
     public init() {}
 
     /// Đặt lại trạng thái đồng bộ (phục vụ unit test)
     public func resetSyncState() {
         lock.lock()
-        hasSyncedFromRemote = false
+        _hasSyncedFromRemote = false
         inMemoryPresets = []
         cachedTemplates = nil
         lock.unlock()
@@ -25,7 +30,7 @@ public final class TextTemplateLoader: @unchecked Sendable {
     /// Cập nhật toàn bộ danh sách presets trên RAM (nhận từ Supabase API)
     public func setInMemoryTemplates(_ presets: [TextPreset]) {
         lock.lock()
-        hasSyncedFromRemote = true
+        _hasSyncedFromRemote = true
         inMemoryPresets = presets
         cachedTemplates = presets
         lock.unlock()
@@ -55,7 +60,7 @@ public final class TextTemplateLoader: @unchecked Sendable {
     public func loadAllTemplates(forceReload: Bool = false) -> [TextPreset] {
         lock.lock()
         defer { lock.unlock() }
-        if hasSyncedFromRemote {
+        if _hasSyncedFromRemote {
             return inMemoryPresets
         }
         if !inMemoryPresets.isEmpty {
@@ -66,13 +71,13 @@ public final class TextTemplateLoader: @unchecked Sendable {
 
     private static let fallbackBuiltInTemplates: [TextPreset] = [
         TextPreset.default
-    ]
+    ] + TextPreset.creativeCatalog
 
     /// Xóa bộ nhớ đệm và nạp lại từ Supabase / RAM
     @discardableResult
     public func reload() -> [TextPreset] {
         lock.lock()
-        hasSyncedFromRemote = false
+        _hasSyncedFromRemote = false
         lock.unlock()
         return loadAllTemplates(forceReload: true)
     }

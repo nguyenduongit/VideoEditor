@@ -53,6 +53,7 @@ extension TimelineViewModel {
                 )
             }
             _ = executor.execute(commands.count == 1 ? commands[0] : .batch(commands: commands))
+            cleanEmptyLayers()
             return
         }
 

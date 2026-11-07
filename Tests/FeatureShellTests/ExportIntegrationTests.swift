@@ -33,6 +33,10 @@ struct ExportIntegrationTests {
         #expect(s16x9_720.width == 1280)
         #expect(s16x9_720.height == 720)
 
+        let s16x9_2k = ExportResolution.res2k.dimensions(for: .ratio16x9)
+        #expect(s16x9_2k.width == 2560)
+        #expect(s16x9_2k.height == 1440)
+
         let s16x9_4k = ExportResolution.res4k.dimensions(for: .ratio16x9)
         #expect(s16x9_4k.width == 3840)
         #expect(s16x9_4k.height == 2160)
@@ -46,6 +50,10 @@ struct ExportIntegrationTests {
         #expect(s9x16_720.width == 720)
         #expect(s9x16_720.height == 1280)
 
+        let s9x16_2k = ExportResolution.res2k.dimensions(for: .ratio9x16)
+        #expect(s9x16_2k.width == 1440)
+        #expect(s9x16_2k.height == 2560)
+
         let s9x16_4k = ExportResolution.res4k.dimensions(for: .ratio9x16)
         #expect(s9x16_4k.width == 2160)
         #expect(s9x16_4k.height == 3840)
@@ -54,6 +62,10 @@ struct ExportIntegrationTests {
         let s1x1_1080 = ExportResolution.res1080p.dimensions(for: .ratio1x1)
         #expect(s1x1_1080.width == 1080)
         #expect(s1x1_1080.height == 1080)
+
+        let s1x1_2k = ExportResolution.res2k.dimensions(for: .ratio1x1)
+        #expect(s1x1_2k.width == 1440)
+        #expect(s1x1_2k.height == 1440)
     }
 
     @Test func testExportViewModelDurationFormatting() {
@@ -81,6 +93,18 @@ struct ExportIntegrationTests {
         vm.codec = .hevc
         let sizeHEVC = vm.estimatedFileSize(duration: t60s)
         #expect(sizeHEVC.contains("MB"))
+
+        // Verify 2K estimated size is between 1080p and 4K
+        vm.resolution = .res2k
+        vm.codec = .h264
+        let size2K = vm.estimatedFileSize(duration: t60s)
+        #expect(size2K.contains("MB"))
+        let mb2K = vm.estimatedFileSizeMB(duration: t60s)
+        let mb1080p = {
+            vm.resolution = .res1080p
+            return vm.estimatedFileSizeMB(duration: t60s)
+        }()
+        #expect(mb2K > mb1080p)
 
         // Verify 4K 30fps H.264 for 93.53s matches actual ~301 MB output closely
         vm.resolution = .res4k

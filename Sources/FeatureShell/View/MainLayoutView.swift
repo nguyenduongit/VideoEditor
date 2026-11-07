@@ -14,16 +14,19 @@ public struct MainLayoutView: View {
             let previewViewportHeight = previewWidth * DSSize.previewAspectMultiplier
             let middleHeight = previewViewportHeight + DSSize.previewBottomBarHeight
 
-            VStack(spacing: DSSpacing.gap) {
+            VStack(spacing: DSSpacing.none) {
                 TopbarView(viewModel: viewModel)
-                middleSection(height: middleHeight)
-                TimelineView(
-                    viewModel: viewModel.timelineViewModel,
-                    playheadState: viewModel.playheadState,
-                    onTimelineActivated: { viewModel.switchToTimelinePreview() }
-                )
+                VStack(spacing: DSSpacing.gap) {
+                    middleSection(height: middleHeight)
+                    TimelineView(
+                        viewModel: viewModel.timelineViewModel,
+                        playheadState: viewModel.playheadState,
+                        onTimelineActivated: { viewModel.switchToTimelinePreview() }
+                    )
+                }
+                .padding([.horizontal, .bottom], DSSpacing.gap)
+                .padding(.top, DSSpacing.gap)
             }
-            .padding(DSSpacing.gap)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(DSColors.windowBackground)
@@ -41,6 +44,9 @@ public struct MainLayoutView: View {
         return HStack(spacing: DSSpacing.gap) {
             SidebarView(
                 title: sidebarTitle,
+                tabs: viewModel.registry.tabs,
+                selectedTabID: viewModel.selectedTabID,
+                onSelectTab: { viewModel.selectTab($0) },
                 customContent: sidebarContent,
                 trailingAccessory: sidebarAccessory
             )

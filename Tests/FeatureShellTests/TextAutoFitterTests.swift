@@ -87,5 +87,24 @@ struct TextAutoFitterTests {
         #expect(totalWidth < 1080.0)
         #expect(totalWidth > 0.0)
     }
+
+    @Test("TextAutoFitter autoFitScaleToCanvasWidth calibrates scale to 80 percent of canvas width")
+    func testAutoFitScaleTo80PercentOfCanvasWidth() {
+        let canvas169 = CGSize(width: 1920, height: 1080)
+        var config = TextConfiguration(content: "Văn bản", fontSize: 48.0)
+
+        let fittedScale = TextAutoFitter.autoFitScaleToCanvasWidth(
+            config: &config,
+            canvasSize: canvas169,
+            targetWidthRatio: 0.80
+        )
+
+        #expect(fittedScale == config.scale)
+        #expect(config.scale > 5.0)
+        let baseWidth = Double(TextRendererEngine().measureSize(for: config, canvasSize: canvas169).width)
+        let renderedWidth = baseWidth * config.scale
+        let expectedWidth = 1920.0 * 0.80
+        #expect(abs(renderedWidth - expectedWidth) <= baseWidth * 0.02)
+    }
     #endif
 }

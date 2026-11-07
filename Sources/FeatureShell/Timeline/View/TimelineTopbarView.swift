@@ -14,9 +14,18 @@ public struct TimelineTopbarView: View {
     private let onResetZoom: () -> Void
     private let onSplit: () -> Void
     private let canSplit: Bool
+    private let canExtractAudio: Bool
+    private let onExtractAudio: () -> Void
     private let canSyncAudio: Bool
     private let isSyncingAudio: Bool
     private let onSyncAudio: () -> Void
+    private let canMarkBeats: Bool
+    private let isDetectingBeats: Bool
+    private let hasBeats: Bool
+    private let activeBeatMode: AudioBeatDetectionMode?
+    private let onAutoMarkBeats: (AudioBeatDetectionMode) -> Void
+    private let onToggleBeatAtPlayhead: () -> Void
+    private let onClearBeats: () -> Void
 
     public init(
         currentTime: CMTime = .zero,
@@ -25,13 +34,22 @@ public struct TimelineTopbarView: View {
         maxPixelsPerSecond: CGFloat = TimelineZoom.maxPPS(),
         zoomPercentageText: String = "100%",
         canSplit: Bool = false,
+        canExtractAudio: Bool = false,
         canSyncAudio: Bool = false,
         isSyncingAudio: Bool = false,
+        canMarkBeats: Bool = false,
+        isDetectingBeats: Bool = false,
+        hasBeats: Bool = false,
+        activeBeatMode: AudioBeatDetectionMode? = nil,
         onZoomIn: @escaping () -> Void = {},
         onZoomOut: @escaping () -> Void = {},
         onResetZoom: @escaping () -> Void = {},
         onSplit: @escaping () -> Void = {},
-        onSyncAudio: @escaping () -> Void = {}
+        onExtractAudio: @escaping () -> Void = {},
+        onSyncAudio: @escaping () -> Void = {},
+        onAutoMarkBeats: @escaping (AudioBeatDetectionMode) -> Void = { _ in },
+        onToggleBeatAtPlayhead: @escaping () -> Void = {},
+        onClearBeats: @escaping () -> Void = {}
     ) {
         self.currentTime = currentTime
         self._pixelsPerSecond = pixelsPerSecond
@@ -39,29 +57,29 @@ public struct TimelineTopbarView: View {
         self.maxPixelsPerSecond = maxPixelsPerSecond
         self.zoomPercentageText = zoomPercentageText
         self.canSplit = canSplit
+        self.canExtractAudio = canExtractAudio
+        self.onExtractAudio = onExtractAudio
         self.canSyncAudio = canSyncAudio
         self.isSyncingAudio = isSyncingAudio
+        self.canMarkBeats = canMarkBeats
+        self.isDetectingBeats = isDetectingBeats
+        self.hasBeats = hasBeats
+        self.activeBeatMode = activeBeatMode
         self.onZoomIn = onZoomIn
         self.onZoomOut = onZoomOut
         self.onResetZoom = onResetZoom
         self.onSplit = onSplit
         self.onSyncAudio = onSyncAudio
+        self.onAutoMarkBeats = onAutoMarkBeats
+        self.onToggleBeatAtPlayhead = onToggleBeatAtPlayhead
+        self.onClearBeats = onClearBeats
     }
 
     public init(currentTime: CMTime = .zero) {
-        self.currentTime = currentTime
-        self._pixelsPerSecond = .constant(TimelineZoom.defaultPPS)
-        self.minPixelsPerSecond = TimelineZoom.minPPS()
-        self.maxPixelsPerSecond = TimelineZoom.maxPPS()
-        self.zoomPercentageText = "100%"
-        self.canSplit = false
-        self.canSyncAudio = false
-        self.isSyncingAudio = false
-        self.onZoomIn = {}
-        self.onZoomOut = {}
-        self.onResetZoom = {}
-        self.onSplit = {}
-        self.onSyncAudio = {}
+        self.init(
+            currentTime: currentTime,
+            pixelsPerSecond: .constant(TimelineZoom.defaultPPS)
+        )
     }
 
     public var body: some View {
@@ -70,14 +88,22 @@ public struct TimelineTopbarView: View {
             if canSplit {
                 splitButton
             }
+            if canExtractAudio {
+                extractAudioButton
+            }
             if canSyncAudio {
                 syncAudioButton
+            }
+            if canMarkBeats {
+                beatActionButtons
             }
             Spacer()
             zoomControls
         }
         .animation(.easeInOut(duration: 0.15), value: canSplit)
+        .animation(.easeInOut(duration: 0.15), value: canExtractAudio)
         .animation(.easeInOut(duration: 0.15), value: canSyncAudio)
+        .animation(.easeInOut(duration: 0.15), value: canMarkBeats)
         .padding(.horizontal, DSSpacing.lg)
         .frame(height: DSSize.timelineTopbarHeight)
         .background(DSColors.blockBackground)
@@ -98,6 +124,15 @@ public struct TimelineTopbarView: View {
         )
     }
 
+    private var extractAudioButton: some View {
+        TimelineToolbarActionButton(
+            icon: "waveform.badge.plus",
+            title: "Tách âm thanh",
+            help: "Tách âm thanh từ video clip thành audio clip riêng biệt (⌘E)",
+            action: onExtractAudio
+        )
+    }
+
     private var syncAudioButton: some View {
         TimelineToolbarActionButton(
             icon: "waveform.badge.magnifyingglass",
@@ -107,6 +142,48 @@ public struct TimelineTopbarView: View {
             help: "Tự động khớp âm thanh của 2 clip được chọn theo dạng sóng (waveform)",
             action: onSyncAudio
         )
+    }
+
+    private var beatActionButtons: some View {
+        HStack(spacing: DSSpacing.xs) {
+            TimelineToolbarActionButton(
+                icon: "metronome.fill",
+                title: "Beat 1",
+                isLoading: isDetectingBeats && activeBeatMode == .majorOnly,
+                isDisabled: isDetectingBeats,
+                isActive: hasBeats && activeBeatMode == .majorOnly,
+                help: "Tự động đánh dấu Nhịp 1 - Phách mạnh (Kick drum)",
+                action: { onAutoMarkBeats(.majorOnly) }
+            )
+
+            TimelineToolbarActionButton(
+                icon: "waveform.path.ecg",
+                title: "Beat 2",
+                isLoading: isDetectingBeats && activeBeatMode == .allBeats,
+                isDisabled: isDetectingBeats,
+                isActive: hasBeats && activeBeatMode == .allBeats,
+                help: "Tự động đánh dấu Nhịp 2 - Nhịp chi tiết (Kick & Snare)",
+                action: { onAutoMarkBeats(.allBeats) }
+            )
+
+            TimelineToolbarActionButton(
+                icon: "bookmark.fill",
+                title: "Mark (M)",
+                isDisabled: isDetectingBeats,
+                help: "Thêm hoặc xóa điểm nhịp thủ công tại vị trí Playhead (Phím tắt: M)",
+                action: onToggleBeatAtPlayhead
+            )
+
+            if hasBeats {
+                TimelineToolbarActionButton(
+                    icon: "xmark.circle",
+                    title: "Clear",
+                    isDisabled: isDetectingBeats,
+                    help: "Xóa toàn bộ điểm nhịp trên clip đang chọn",
+                    action: onClearBeats
+                )
+            }
+        }
     }
 
     private var timecodeDisplay: some View {
@@ -165,49 +242,3 @@ public struct TimelineTopbarView: View {
         TimeRational.formatTimecode(time: currentTime)
     }
 }
-
-private struct TimelineToolbarActionButton: View {
-    let icon: String
-    let title: String
-    var isLoading: Bool = false
-    var isDisabled: Bool = false
-    let help: String
-    let action: () -> Void
-
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 5) {
-                if isLoading {
-                    ProgressView()
-                        .controlSize(.mini)
-                        .scaleEffect(0.65)
-                        .frame(width: 12, height: 12)
-                } else {
-                    Image(systemName: icon)
-                        .font(.system(size: 11, weight: .medium))
-                }
-                Text(title)
-                    .font(.system(size: 11, weight: .medium))
-            }
-            .foregroundStyle(isDisabled ? DSColors.textSecondary.opacity(0.6) : DSColors.textPrimary)
-            .padding(.horizontal, DSSpacing.sm)
-            .padding(.vertical, 3.5)
-            .background(
-                RoundedRectangle(cornerRadius: DSRadius.small)
-                    .fill(isHovered && !isDisabled ? Color.white.opacity(0.10) : DSColors.layerTrackBackground)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DSRadius.small)
-                    .stroke(isHovered && !isDisabled ? Color.white.opacity(0.20) : DSColors.blockBorder, lineWidth: 1)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: DSRadius.small))
-        }
-        .buttonStyle(.plain)
-        .disabled(isDisabled || isLoading)
-        .onHover { isHovered = $0 }
-        .help(help)
-    }
-}
-

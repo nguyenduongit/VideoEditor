@@ -195,33 +195,28 @@ struct TextAnimationProCapCutTests {
         #expect(decodedRemote.config.animation.comboType == .karaokeBox)
     }
 
-    @Test("Multi-layer compound template adds both main and subLayer clips in single undoable transaction")
-    func testCompoundMultiLayerTemplateInsertion() {
+    @Test("Unified TextPreset adds a single undoable TextClip transaction onto the timeline")
+    func testUnifiedPresetSingleClipInsertionAndUndo() {
         let timelineVM = TimelineViewModel(initialLayers: [])
         let libraryVM = TextLibraryViewModel(timelineViewModel: timelineVM)
 
-        var subConfig = TextConfiguration(content: "SUBTITLE", fontSize: 32.0)
-        subConfig.positionY = 50.0
-        let compound = TextPreset(
-            id: "compound_test_preset",
-            name: "Compound Headline",
-            description: "Test compound template",
+        let preset = TextPreset(
+            id: "unified_test_preset",
+            name: "Unified Headline",
+            description: "Test unified template",
             category: .trending,
             tags: ["news", "headline"],
-            config: TextConfiguration(content: "BREAKING NEWS", fontSize: 64.0),
-            subLayers: [
-                TextTemplateSubLayer(
-                    name: "sub_1",
-                    config: subConfig
-                )
-            ],
+            config: TextConfiguration(
+                content: "BREAKING NEWS",
+                fontSize: 64.0,
+                background: TextBackgroundStyle(isEnabled: true, sourceKind: .solid, solidColorHex: "#EF4444")
+            ),
             isSystem: false
         )
-        #expect(!compound.subLayers.isEmpty)
 
-        libraryVM.addPresetToTimeline(compound)
+        libraryVM.addPresetToTimeline(preset)
         let textClips = timelineVM.layers.flatMap(\.clips).filter { $0.kind == .text }
-        #expect(textClips.count == 2)
+        #expect(textClips.count == 1)
         #expect(timelineVM.canUndo == true)
 
         _ = timelineVM.undo()

@@ -141,7 +141,9 @@ public struct ProjectScript: Codable, Sendable, Equatable {
         var seen = Set<URL>()
         for layer in layers {
             for clip in layer.clips {
-                if case .file(let url) = clip.source {
+                if case .file(let url) = clip.source,
+                   url.path != "/",
+                   !url.path.isEmpty {
                     if !seen.contains(url) {
                         seen.insert(url)
                         urls.append(url)

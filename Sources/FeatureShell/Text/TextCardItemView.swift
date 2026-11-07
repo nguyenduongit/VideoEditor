@@ -127,15 +127,6 @@ public struct TextCardItemView: View {
 
     private var staticTemplateStage: some View {
         VStack(spacing: 4) {
-            if let firstSub = preset.subLayers.first {
-                Text(firstSub.config.content)
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(Color(hex: firstSub.config.textColorHex))
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 1)
-                    .background(Color(hex: firstSub.config.backgroundColorHex))
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
-            }
             styledSampleText(preset.config.content)
         }
         .padding(.horizontal, DSSpacing.xs)
@@ -190,8 +181,8 @@ public struct TextCardItemView: View {
                     ? Color(hex: preset.config.glowColorHex)
                     : (preset.config.hasShadow ? previewShadowColor : Color.clear),
                 radius: CGFloat(min(preset.config.hasGlow ? preset.config.glowRadius : preset.config.shadowRadius, 8)),
-                x: CGFloat(preset.config.hasGlow ? 0 : preset.config.shadowOffsetX * 0.5),
-                y: CGFloat(preset.config.hasGlow ? 0 : preset.config.shadowOffsetY * 0.5)
+                x: CGFloat(preset.config.hasGlow ? 0 : preset.config.shadow.offsetX * 0.5),
+                y: CGFloat(preset.config.hasGlow ? 0 : preset.config.shadow.offsetY * 0.5)
             )
     }
 

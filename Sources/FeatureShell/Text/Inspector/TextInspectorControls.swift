@@ -2,30 +2,6 @@ import SwiftUI
 import AppKit
 import DesignSystem
 
-/// Tiện ích phân tích mã màu Hex và hàng chọn màu nhanh (Quick Swatches) cho Text Inspector.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
-public extension Color {
-    init(hex: String) {
-        if hex.uppercased() == "NONE" {
-            self = .clear
-            return
-        }
-        var clean = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
-        if clean.count == 6 {
-            clean.append("FF")
-        }
-        guard clean.count == 8, let num = UInt64(clean, radix: 16) else {
-            self = .white
-            return
-        }
-        let r = Double((num & 0xFF000000) >> 24) / 255.0
-        let g = Double((num & 0x00FF0000) >> 16) / 255.0
-        let b = Double((num & 0x0000FF00) >> 8) / 255.0
-        let a = Double(num & 0x000000FF) / 255.0
-        self = Color(red: r, green: g, blue: b, opacity: a)
-    }
-}
-
 /// Bộ điều phối mở NSColorPanel trên macOS để chọn màu chi tiết và hỗ trợ eyedropper.
 @MainActor
 public final class DSColorPickerPresenter: NSObject {
@@ -93,11 +69,13 @@ public final class DSColorPickerPresenter: NSObject {
     }
 }
 
-/// Hàng nút tròn chọn bảng màu nhanh kèm nút mở bảng màu tùy chỉnh.
+/// Hàng dãy ô vuông chọn bảng màu nhanh liền khối kèm nút mở bảng màu tùy chỉnh HSB dạng Popover.
 public struct TextColorSwatchesRow: View {
     public static let defaultSwatches: [String] = [
-        "#FFFFFF", "#000000", "#EF4444", "#F97316",
-        "#FDE047", "#22C55E", "#06B6D4", "#3B82F6", "#A855F7"
+        "#FFFFFF", "#000000",
+        "#EF4444", "#F97316", "#F59E0B", "#FDE047",
+        "#84CC16", "#22C55E", "#14B8A6", "#06B6D4",
+        "#3B82F6", "#6366F1", "#A855F7", "#EC4899"
     ]
 
     public let title: String?
@@ -106,6 +84,8 @@ public struct TextColorSwatchesRow: View {
     public let allowNone: Bool
     public let showCustomPicker: Bool
     public let onSelect: (String) -> Void
+
+    @State private var isShowingColorPicker: Bool = false
 
     public init(
         title: String? = nil,
@@ -131,25 +111,29 @@ public struct TextColorSwatchesRow: View {
                     .foregroundStyle(DSColors.textSecondary)
             }
 
-            HStack(spacing: DSSpacing.sm) {
+            HStack(spacing: DSSpacing.xs) {
                 if allowNone {
                     noneColorButton
                 }
 
-                ForEach(swatches, id: \.self) { hex in
-                    let isSelected = Self.isColorMatching(swatchHex: hex, selectedHex: selectedHex)
-                    Button(action: { onSelect(hex) }) {
-                        swatchCircle(color: Color(hex: hex), isSelected: isSelected)
+                // Dải 14 ô vuông liền mạch
+                HStack(spacing: 1) {
+                    ForEach(swatches, id: \.self) { hex in
+                        let isSelected = Self.isColorMatching(swatchHex: hex, selectedHex: selectedHex)
+                        Button(action: { onSelect(hex) }) {
+                            swatchSquare(hex: hex, isSelected: isSelected)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(1)
+                .background(DSColors.inputBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+                .overlay(RoundedRectangle(cornerRadius: 3).stroke(DSColors.blockBorder, lineWidth: 1))
+
+                Spacer(minLength: 4)
 
                 if showCustomPicker {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.12))
-                        .frame(width: 1, height: 16)
-                        .padding(.horizontal, 1)
-
                     customColorButton
                 }
             }
@@ -163,43 +147,45 @@ public struct TextColorSwatchesRow: View {
     private var noneColorButton: some View {
         Button(action: { onSelect("NONE") }) {
             ZStack {
-                Circle()
+                Rectangle()
                     .fill(Color.white.opacity(0.08))
-                    .frame(width: 18, height: 18)
-                    .overlay(Circle().stroke(Color.white.opacity(0.3), lineWidth: 1))
+                    .frame(width: 16, height: 16)
                 Path { path in
-                    path.move(to: CGPoint(x: 4, y: 14))
-                    path.addLine(to: CGPoint(x: 14, y: 4))
+                    path.move(to: CGPoint(x: 2, y: 14))
+                    path.addLine(to: CGPoint(x: 14, y: 2))
                 }
-                .stroke(Color.red, lineWidth: 1.8)
-                .frame(width: 18, height: 18)
+                .stroke(Color.red, lineWidth: 1.5)
 
                 if isNoneSelected {
-                    Circle()
-                        .stroke(DSColors.accent, lineWidth: 2)
-                        .frame(width: 24, height: 24)
+                    Rectangle()
+                        .stroke(Color.white, lineWidth: 1.5)
+                        .frame(width: 16, height: 16)
                 }
             }
-            .frame(width: 24, height: 24)
+            .clipShape(RoundedRectangle(cornerRadius: 2))
+            .overlay(RoundedRectangle(cornerRadius: 2).stroke(DSColors.blockBorder, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .help("Không màu / Tắt hiệu ứng (None)")
     }
 
     @ViewBuilder
-    private func swatchCircle(color: Color, isSelected: Bool) -> some View {
+    private func swatchSquare(hex: String, isSelected: Bool) -> some View {
         ZStack {
-            Circle()
-                .fill(color)
-                .frame(width: 18, height: 18)
-                .overlay(Circle().stroke(Color.white.opacity(0.3), lineWidth: 1))
+            Rectangle()
+                .fill(Color(hex: hex))
+                .frame(width: 16, height: 16)
+
             if isSelected {
-                Circle()
-                    .stroke(DSColors.accent, lineWidth: 2)
-                    .frame(width: 24, height: 24)
+                Rectangle()
+                    .stroke(Color.white, lineWidth: 1.5)
+                    .frame(width: 16, height: 16)
+                    .overlay(
+                        Rectangle()
+                            .stroke(Color.black.opacity(0.8), lineWidth: 0.8)
+                    )
             }
         }
-        .frame(width: 24, height: 24)
     }
 
     private var isCustomSelected: Bool {
@@ -208,34 +194,37 @@ public struct TextColorSwatchesRow: View {
     }
 
     private var customColorButton: some View {
-        Button(action: {
-            let initialHex = isNoneSelected ? "#FFFFFF" : selectedHex
-            DSColorPickerPresenter.show(currentHex: initialHex, onSelect: onSelect)
-        }) {
+        Button(action: { isShowingColorPicker.toggle() }) {
             ZStack {
                 if isCustomSelected {
-                    Circle()
+                    RoundedRectangle(cornerRadius: 3)
                         .fill(Color(hex: selectedHex))
-                        .frame(width: 18, height: 18)
-                        .overlay(Circle().stroke(Color.white.opacity(0.3), lineWidth: 1))
-                    Circle()
-                        .stroke(DSColors.accent, lineWidth: 2)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 22, height: 22)
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(Color.white, lineWidth: 1.5)
+                        .frame(width: 22, height: 22)
+                        .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.black.opacity(0.8), lineWidth: 0.8))
                 } else {
-                    Circle()
+                    RoundedRectangle(cornerRadius: 3)
                         .fill(
                             AngularGradient(
                                 gradient: Gradient(colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red]),
                                 center: .center
                             )
                         )
-                        .frame(width: 18, height: 18)
-                        .overlay(Circle().stroke(Color.white.opacity(0.3), lineWidth: 1))
+                        .frame(width: 22, height: 22)
+                        .overlay(RoundedRectangle(cornerRadius: 3).stroke(DSColors.blockBorder, lineWidth: 1))
                 }
             }
-            .frame(width: 24, height: 24)
+            .frame(width: 22, height: 22)
         }
         .buttonStyle(.plain)
+        .popover(isPresented: $isShowingColorPicker, arrowEdge: .bottom) {
+            DSColorSpectrumPicker(
+                initialHex: isNoneSelected ? "#FFFFFF" : selectedHex,
+                onSelect: onSelect
+            )
+        }
         .help("Chọn màu tùy chỉnh")
     }
 

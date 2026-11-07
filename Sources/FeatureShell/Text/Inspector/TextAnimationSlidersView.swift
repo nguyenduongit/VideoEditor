@@ -2,8 +2,8 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Khối thanh trượt đáy Inspector cho Text Animation chuẩn phong cách CapCut.
-/// Hỗ trợ thanh trượt đôi cho Hoạt ảnh Vào (In) & Ra (Out), và thanh đơn cho Vòng lặp (Loop).
+/// Khối thanh trượt đáy Inspector cho Text Animation, tự động dựng thêm các thanh trượt `customParameters`
+/// của Gói Hoạt Ảnh Sáng Tạo Mở (`CreativeAnimationManifest`).
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, Hàm <= 50 dòng, View body <= 80 dòng).
 public struct TextAnimationSlidersView: View {
     public let selectedSubTab: TextAnimationTabContent.AnimationSubTab
@@ -30,20 +30,69 @@ public struct TextAnimationSlidersView: View {
     }
 
     public var body: some View {
-        HStack(spacing: DSSpacing.xs) {
+        VStack(alignment: .leading, spacing: DSSpacing.xs) {
             if selectedSubTab == .loopAnimation {
                 loopSpeedControlRow
             } else {
                 dualDurationControlRow
             }
+
+            if let manifest = activeManifest, !manifest.customParameters.isEmpty {
+                ForEach(manifest.customParameters) { param in
+                    customParameterRow(param, manifest: manifest)
+                }
+            }
         }
         .padding(.vertical, DSSpacing.xxs)
+    }
+
+    private var activeManifest: CreativeAnimationManifest? {
+        switch selectedSubTab {
+        case .inAnimation: return config.animation.inManifest
+        case .outAnimation: return config.animation.outManifest
+        case .loopAnimation: return config.animation.loopManifest
+        }
+    }
+
+    private func customParameterRow(_ param: CustomParameterDescriptor, manifest: CreativeAnimationManifest) -> some View {
+        let binding = Binding<Double>(
+            get: { config.animation.value(forParameter: param.id, in: manifest) },
+            set: { val in
+                mutate { $0.animation.setValue(val, forParameter: param.id, in: manifest) }
+            }
+        )
+        return HStack(spacing: DSSpacing.xs) {
+            Text(param.title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(DSColors.textSecondary)
+                .lineLimit(1)
+                .frame(width: 96, alignment: .leading)
+
+            DSCustomSlider(
+                value: binding,
+                range: param.minValue...param.maxValue,
+                step: param.step,
+                defaultValue: param.defaultValue,
+                onEditingChanged: onEditingEnded
+            )
+
+            DSNumberInput(
+                value: binding,
+                step: param.step,
+                min: param.minValue,
+                max: param.maxValue,
+                unit: param.unit,
+                fractionDigits: param.step < 1.0 ? 2 : 0,
+                customWidth: 52,
+                onEditingChanged: onEditingEnded
+            )
+        }
     }
 
     // MARK: - Dual Duration Row (In & Out)
 
     private var isDualActive: Bool {
-        config.animation.inType != .none && config.animation.outType != .none
+        config.animation.hasInAnimation && config.animation.hasOutAnimation
     }
 
     private var dualDurationControlRow: some View {
@@ -63,8 +112,8 @@ public struct TextAnimationSlidersView: View {
                 totalDuration: clipDuration,
                 minDuration: 0.1,
                 step: 0.05,
-                showsInThumb: config.animation.inType != .none,
-                showsOutThumb: config.animation.outType != .none,
+                showsInThumb: config.animation.hasInAnimation,
+                showsOutThumb: config.animation.hasOutAnimation,
                 onEditingChanged: onEditingEnded
             )
 
@@ -75,7 +124,7 @@ public struct TextAnimationSlidersView: View {
     }
 
     private var inDurationInput: some View {
-        let maxOut = config.animation.outType == .none ? 0.0 : config.animation.outDuration
+        let maxOut = !config.animation.hasOutAnimation ? 0.0 : config.animation.outDuration
         return DSNumberInput(
             value: inDurationBinding,
             step: 0.05,
@@ -89,7 +138,7 @@ public struct TextAnimationSlidersView: View {
     }
 
     private var outDurationInput: some View {
-        let maxIn = config.animation.inType == .none ? 0.0 : config.animation.inDuration
+        let maxIn = !config.animation.hasInAnimation ? 0.0 : config.animation.inDuration
         return DSNumberInput(
             value: outDurationBinding,
             step: 0.05,
@@ -138,7 +187,7 @@ public struct TextAnimationSlidersView: View {
         Binding(
             get: { config.animation.inDuration },
             set: { val in
-                let maxOut = config.animation.outType == .none ? 0.0 : config.animation.outDuration
+                let maxOut = !config.animation.hasOutAnimation ? 0.0 : config.animation.outDuration
                 let maxAllowed = max(0.1, clipDuration - maxOut)
                 let clamped = max(0.1, min(maxAllowed, val))
                 mutate { $0.animation.inDuration = (clamped * 100).rounded() / 100 }
@@ -150,7 +199,7 @@ public struct TextAnimationSlidersView: View {
         Binding(
             get: { config.animation.outDuration },
             set: { val in
-                let maxIn = config.animation.inType == .none ? 0.0 : config.animation.inDuration
+                let maxIn = !config.animation.hasInAnimation ? 0.0 : config.animation.inDuration
                 let maxAllowed = max(0.1, clipDuration - maxIn)
                 let clamped = max(0.1, min(maxAllowed, val))
                 mutate { $0.animation.outDuration = (clamped * 100).rounded() / 100 }

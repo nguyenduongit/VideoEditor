@@ -91,8 +91,9 @@ public final class TextLibraryViewModel {
             let inName = preset.name.lowercased().contains(query)
             let inDesc = preset.description.lowercased().contains(query)
             let inContent = preset.config.content.lowercased().contains(query)
+            let inAuthor = preset.community.authorName.lowercased().contains(query)
             let inTags = preset.tags.contains { $0.lowercased().contains(query) }
-            return inName || inDesc || inContent || inTags
+            return inName || inDesc || inContent || inAuthor || inTags
         }
     }
 
@@ -104,7 +105,7 @@ public final class TextLibraryViewModel {
 
     /// Xóa 1 preset người dùng tạo khỏi Local Cache và Supabase
     public func deletePreset(_ preset: TextPreset) {
-        guard !preset.isSystem else { return }
+        guard preset.canBeModified(by: CommunityIdentity.currentAuthorID) else { return }
         templatePresets.removeAll { $0.id == preset.id }
         Task {
             try? await dependencies.presetRepositories.textRepository?.deletePreset(id: preset.id)

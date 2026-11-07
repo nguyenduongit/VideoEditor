@@ -2,7 +2,7 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Hộp thoại tùy chỉnh thông số và theo dõi tiến trình Xuất Video MP4.
+/// Hộp thoại tùy chỉnh thông số và theo dõi tiến trình Xuất Video/Audio.
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
 public struct ExportDialogView: View {
     @Bindable private var viewModel: ExportViewModel
@@ -36,7 +36,7 @@ public struct ExportDialogView: View {
             Divider().background(DSColors.blockBorder)
             footerBar
         }
-        .frame(width: 460, height: 420)
+        .frame(width: 460, height: 440)
         .background(DSColors.blockBackground)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
         .overlay(
@@ -49,10 +49,10 @@ public struct ExportDialogView: View {
 
     private var headerBar: some View {
         HStack {
-            Image(systemName: "film.fill")
+            Image(systemName: viewModel.mediaType == .video ? "film.fill" : "waveform")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(DSColors.accent)
-            Text(String(localized: "Xuất Video MP4"))
+            Text(viewModel.mediaType == .video ? String(localized: "Xuất Video MP4") : String(localized: "Xuất Audio Only"))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
             Spacer()
@@ -83,7 +83,10 @@ public struct ExportDialogView: View {
             }
 
             if case .idle = viewModel.status {
-                DSActionButton(title: String(localized: "Chọn nơi lưu & Xuất..."), icon: "arrow.down.to.line") {
+                let title = viewModel.mediaType == .video
+                    ? String(localized: "Chọn nơi lưu & Xuất Video...")
+                    : String(localized: "Chọn nơi lưu & Xuất Audio...")
+                DSActionButton(title: title, icon: "arrow.down.to.line") {
                     viewModel.promptSaveAndStartExport(timelineViewModel: timelineViewModel)
                 }
             } else if case .cancelled = viewModel.status {
@@ -101,43 +104,37 @@ public struct ExportDialogView: View {
 
     private var settingsContent: some View {
         VStack(alignment: .leading, spacing: DSSpacing.md) {
-            optionsSection
+            mediaTypeSwitcher
+            if viewModel.mediaType == .video {
+                ExportVideoOptionsView(viewModel: viewModel)
+            } else {
+                ExportAudioOptionsView(viewModel: viewModel)
+            }
             fileInfoSection
         }
     }
 
-    private var optionsSection: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            Text(String(localized: "CẤU HÌNH XUẤT"))
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(DSColors.textSecondary)
-
-            settingRow(title: String(localized: "Độ phân giải")) {
-                DSDropdown(
-                    selection: $viewModel.resolution,
-                    titleKeyPath: \.title,
-                    width: 170
-                )
-            }
-
-            settingRow(title: String(localized: "Tốc độ khung hình")) {
-                DSDropdown(
-                    selection: $viewModel.frameRate,
-                    titleKeyPath: \.title,
-                    width: 170
-                )
-            }
-
-            settingRow(title: String(localized: "Chuẩn mã hóa")) {
-                DSDropdown(
-                    selection: $viewModel.codec,
-                    titleKeyPath: \.rawValue,
-                    width: 170
-                )
+    private var mediaTypeSwitcher: some View {
+        HStack(spacing: DSSpacing.xs) {
+            ForEach(ExportMediaType.allCases) { type in
+                Button(action: { viewModel.mediaType = type }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: type == .video ? "film" : "waveform")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(type.title)
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(viewModel.mediaType == type ? DSColors.accent : DSColors.windowBackground)
+                    .foregroundStyle(viewModel.mediaType == type ? Color.white : DSColors.textSecondary)
+                    .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+                }
+                .buttonStyle(.plain)
             }
         }
-        .padding(DSSpacing.sm)
-        .background(DSColors.windowBackground)
+        .padding(3)
+        .background(DSColors.blockBackground)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
     }
 
@@ -147,8 +144,14 @@ public struct ExportDialogView: View {
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(DSColors.textSecondary)
 
-            infoRow(label: String(localized: "Tỉ lệ khung hình"), value: timelineViewModel.aspectRatio.title)
-            infoRow(label: String(localized: "Kích thước điểm ảnh"), value: viewModel.renderDimensionsText(for: timelineViewModel.aspectRatio))
+            if viewModel.mediaType == .video {
+                infoRow(label: String(localized: "Tỉ lệ khung hình"), value: timelineViewModel.aspectRatio.title)
+                infoRow(label: String(localized: "Kích thước điểm ảnh"), value: viewModel.renderDimensionsText(for: timelineViewModel.aspectRatio))
+            } else {
+                infoRow(label: String(localized: "Định dạng xuất"), value: viewModel.audioFormat.title)
+                infoRow(label: String(localized: "Cấu hình kênh"), value: "Stereo (2 kênh) • 48 kHz")
+            }
+
             infoRow(label: String(localized: "Thời lượng tổng"), value: viewModel.formattedDuration(duration: timelineViewModel.totalDuration))
             infoRow(
                 label: String(localized: "Dung lượng ước tính"),
@@ -161,16 +164,6 @@ public struct ExportDialogView: View {
         .padding(DSSpacing.sm)
         .background(DSColors.windowBackground)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
-    }
-
-    private func settingRow<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(DSColors.textPrimary)
-            Spacer()
-            content()
-        }
     }
 
     private func infoRow(label: String, value: String) -> some View {
@@ -190,7 +183,7 @@ public struct ExportDialogView: View {
             Spacer()
             ProgressView()
                 .controlSize(.regular)
-            Text(String(localized: "Đang xuất video..."))
+            Text(viewModel.mediaType == .video ? String(localized: "Đang xuất video...") : String(localized: "Đang xuất audio..."))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
 
@@ -228,7 +221,7 @@ public struct ExportDialogView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 38))
                 .foregroundStyle(Color.green)
-            Text(String(localized: "Xuất video thành công!"))
+            Text(viewModel.mediaType == .video ? String(localized: "Xuất video thành công!") : String(localized: "Xuất audio thành công!"))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
 
@@ -255,7 +248,7 @@ public struct ExportDialogView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 36))
                 .foregroundStyle(Color.red)
-            Text(String(localized: "Xuất video thất bại"))
+            Text(viewModel.mediaType == .video ? String(localized: "Xuất video thất bại") : String(localized: "Xuất audio thất bại"))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
 

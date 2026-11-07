@@ -67,7 +67,7 @@ public struct TextLibraryView: View {
                         TextCardItemView(
                             preset: preset,
                             onAdd: { viewModel.addPresetToTimeline(preset) },
-                            onDelete: preset.isSystem ? nil : { viewModel.deletePreset(preset) }
+                            onDelete: preset.canBeModified(by: CommunityIdentity.currentAuthorID) ? { viewModel.deletePreset(preset) } : nil
                         )
                     }
                 }
@@ -84,7 +84,7 @@ public struct TextLibraryView: View {
             Text(String(localized: "Chưa có Preset nào"))
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
-            Text(String(localized: "Tùy chỉnh kiểu chữ trong Inspector và bấm\n\"Lưu thành Preset\" để lưu lên Supabase."))
+            Text(String(localized: "Đồng bộ các gói kiểu chữ & hoạt ảnh từ Kho Thư viện Cộng đồng Supabase."))
                 .font(.system(size: 10))
                 .foregroundStyle(DSColors.textSecondary.opacity(0.7))
                 .multilineTextAlignment(.center)

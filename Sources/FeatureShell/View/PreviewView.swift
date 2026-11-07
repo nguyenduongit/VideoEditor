@@ -98,15 +98,8 @@ public struct PreviewView: View {
     }
 
     private var timelineContent: some View {
-        ZStack {
-            VideoPlayerBridge(player: viewModel.playbackEngine.player)
-                .opacity((viewModel.isTimelineVideoActive || viewModel.isPlaying) ? 1.0 : 0.0)
-            if let nsImage = viewModel.timelinePreviewImage {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .scaledToFill()
-            }
-        }
+        VideoPlayerBridge(player: viewModel.playbackEngine.player)
+            .opacity((viewModel.isTimelineVideoActive || viewModel.hasActiveTimelineVisual || viewModel.isPlaying) ? 1.0 : 0.0)
     }
 
     private var bottomBar: some View {

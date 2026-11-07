@@ -11,7 +11,7 @@ struct TimelinePlayheadStateTests {
         #expect(state.currentTime == .zero)
         #expect(state.isPlaying == false)
         #expect(state.isScrubbing == false)
-        #expect(state.fps == 30)
+        #expect(state.fps == 60)
         #expect(state.pixelsPerSecond == 60)
         #expect(state.currentX == 0)
         #expect(state.timecodeString == "00:00:00:00")
@@ -24,12 +24,12 @@ struct TimelinePlayheadStateTests {
             notifiedTime = time
         }
 
-        // Seek to 0.034s -> snaps to 1 frame (1/30 = 0.0333s)
-        let rawTime = CMTime(seconds: 0.034, preferredTimescale: 600)
+        // Seek to 0.017s -> snaps to 1 frame at 60fps (1/60 = 0.01667s)
+        let rawTime = CMTime(seconds: 0.017, preferredTimescale: 600)
         state.seek(to: rawTime)
 
         #expect(state.currentTime.value == 1)
-        #expect(state.currentTime.timescale == 30)
+        #expect(state.currentTime.timescale == 60)
         #expect(notifiedTime?.value == 1)
         #expect(state.timecodeString == "00:00:00:01")
     }
@@ -40,21 +40,40 @@ struct TimelinePlayheadStateTests {
         // Step forward 1 frame
         state.stepFrame(by: 1)
         #expect(state.currentTime.value == 1)
-        #expect(state.currentTime.timescale == 30)
+        #expect(state.currentTime.timescale == 60)
 
-        // Step forward 29 frames -> 30 frames = 1 second
-        state.stepFrame(by: 29)
-        #expect(state.currentTime.value == 30)
+        // Step forward 59 frames -> 60 frames = 1 second at 60fps
+        state.stepFrame(by: 59)
+        #expect(state.currentTime.value == 60)
         #expect(state.timecodeString == "00:00:01:00")
 
         // Step backward 10 frames
         state.stepFrame(by: -10)
-        #expect(state.currentTime.value == 20)
+        #expect(state.currentTime.value == 50)
 
         // Step backward 100 frames -> clamps to 0
         state.stepFrame(by: -100)
         #expect(state.currentTime.value == 0)
         #expect(state.timecodeString == "00:00:00:00")
+    }
+
+    @Test func testPlayheadStateStepFramePausesPlaybackAndNotifiesSeek() {
+        let state = TimelinePlayheadState(initialTime: .zero, pixelsPerSecond: 60)
+        var soughtTimes: [CMTime] = []
+        state.onSeek = { soughtTimes.append($0) }
+        state.setPlaying(true)
+        #expect(state.isPlaying == true)
+
+        state.stepFrame(by: 1)
+        #expect(state.isPlaying == false)
+        #expect(state.currentTime.value == 1)
+        #expect(soughtTimes.count == 1)
+        #expect(soughtTimes.first?.value == 1)
+
+        state.stepFrame(by: -1)
+        #expect(state.currentTime.value == 0)
+        #expect(soughtTimes.count == 2)
+        #expect(soughtTimes.last?.value == 0)
     }
 
     @Test func testPlayheadStatePlayPause() {

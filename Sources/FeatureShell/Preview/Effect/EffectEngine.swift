@@ -19,6 +19,15 @@ public final class EffectEngine: Sendable {
     ) -> CIImage {
         guard duration > 0, canvasSize.width > 0, canvasSize.height > 0 else { return image }
         let progress = min(1.0, max(0.0, localTime / duration))
+        if !config.filterPipeline.isEmpty {
+            return DynamicShaderRuntimeEngine.shared.executePipeline(
+                on: image,
+                config: config,
+                progress: progress,
+                localTime: localTime,
+                canvasSize: canvasSize
+            )
+        }
         let canvasRect = CGRect(origin: .zero, size: canvasSize)
 
         switch config.type {
@@ -35,10 +44,26 @@ public final class EffectEngine: Sendable {
         }
     }
 
-    private func applyFadeIn(to image: CIImage, progress: Double, intensity: Double, canvasRect: CGRect) -> CIImage {
+    /// Tính toán độ mờ (alpha) của lớp phủ đen cho hiệu ứng Fade In:
+    /// Bắt đầu màn hình đen hoàn toàn (alpha = 1), gia tốc tăng dần, sáng bừng ở cuối (alpha = 0).
+    public static func calculateFadeInBlackAlpha(progress: Double, intensity: Double = 1.0) -> Double {
         let norm = intensity > 1.0 ? (intensity / 100.0) : intensity
-        let smoothT = sin(progress * .pi * 0.5)
-        let blackAlpha = (1.0 - smoothT) * norm
+        let p = min(1.0, max(0.0, progress))
+        let blackAlpha = (1.0 - (p * p)) * norm
+        return max(0.0, min(1.0, blackAlpha))
+    }
+
+    /// Tính toán độ mờ (alpha) của lớp phủ đen cho hiệu ứng Fade Out:
+    /// Bắt đầu sáng (alpha = 0), gia tốc giảm dần khi tối và đạt đen hoàn toàn ở cuối (alpha = 1).
+    public static func calculateFadeOutBlackAlpha(progress: Double, intensity: Double = 1.0) -> Double {
+        let norm = intensity > 1.0 ? (intensity / 100.0) : intensity
+        let p = min(1.0, max(0.0, progress))
+        let blackAlpha = (p * (2.0 - p)) * norm
+        return max(0.0, min(1.0, blackAlpha))
+    }
+
+    private func applyFadeIn(to image: CIImage, progress: Double, intensity: Double, canvasRect: CGRect) -> CIImage {
+        let blackAlpha = Self.calculateFadeInBlackAlpha(progress: progress, intensity: intensity)
         guard blackAlpha > 0.005 else { return image }
 
         let blackColor = CIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: CGFloat(blackAlpha))
@@ -47,9 +72,7 @@ public final class EffectEngine: Sendable {
     }
 
     private func applyFadeOut(to image: CIImage, progress: Double, intensity: Double, canvasRect: CGRect) -> CIImage {
-        let norm = intensity > 1.0 ? (intensity / 100.0) : intensity
-        let smoothT = progress * progress
-        let blackAlpha = smoothT * norm
+        let blackAlpha = Self.calculateFadeOutBlackAlpha(progress: progress, intensity: intensity)
         guard blackAlpha > 0.005 else { return image }
 
         let blackColor = CIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: CGFloat(blackAlpha))

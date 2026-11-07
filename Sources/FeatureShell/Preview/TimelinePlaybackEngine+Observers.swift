@@ -5,7 +5,7 @@ import Domain
 
 extension TimelinePlaybackEngine {
     func setupTimeObserver() {
-        let interval = CMTime(value: 1, timescale: 30)
+        let interval = CMTime(value: 1, timescale: TimeRational.defaultFPS)
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             Task { @MainActor [weak self] in
                 guard let self, !self.isResyncingComposition, !self.isSeeking else { return }

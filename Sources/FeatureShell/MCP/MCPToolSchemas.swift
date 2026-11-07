@@ -84,6 +84,15 @@ public enum MCPToolSchemas {
                 "position": { "type": "string", "description": "Safe visual placement preset: 'top' (safe header above subject's head in open sky/headroom, avoids covering faces), 'bottom' (safe subtitle below feet), or 'center' (screen center)" },
                 "positionX": { "type": "number", "description": "Horizontal offset in pixels (-400 to 400, 0 is center)" },
                 "positionY": { "type": "number", "description": "Vertical offset in pixels (-400 to 400, negative is higher up/towards top)" },
+                "colorFillMode": { "type": "string", "description": "Text fill mode: 'solid' or 'linearGradient'" },
+                "gradientColors": { "type": "array", "items": { "type": "string" }, "description": "2-color hex array for linearGradient text fill" },
+                "outerStrokeColorHex": { "type": "string", "description": "Outer stroke (Stroke 2) hex color" },
+                "outerStrokeWidth": { "type": "number", "description": "Outer stroke (Stroke 2) width in pixels" },
+                "curveShape": { "type": "string", "description": "Curved path shape: 'none', 'arc', or 'wave'" },
+                "curveAngle": { "type": "number", "description": "Arc curve angle in degrees (-360 to 360)" },
+                "backgroundSVG": { "type": "string", "description": "Custom inline SVG XML string for the Text Background" },
+                "backgroundAssetURL": { "type": "string", "description": "Local path or Supabase HTTPS URL for GIF/APNG/PNG text background" },
+                "backgroundFeather": { "type": "number", "description": "GPU Gaussian feather radius for text background edges (0 to 50)" },
                 "exposure": { "type": "number", "description": "Adjustment exposure (-100 to 100)" },
                 "contrast": { "type": "number", "description": "Adjustment contrast (-100 to 100)" },
                 "highlight": { "type": "number", "description": "Adjustment highlights (-100 to 100)" },
@@ -191,6 +200,20 @@ public enum MCPToolSchemas {
                 "scale": { "type": "number", "description": "Optional explicit video scale multiplier (1.0 to 2.5)" },
                 "centerSubject": { "type": "boolean", "description": "Center the character in the frame horizontally and vertically without black borders (default true)" }
               }
+            }
+            """
+        ),
+        MCPToolDescriptor(
+            name: "template_register_package",
+            description: "Allows Designers, Developers, and AI Agents to register new template packages (text, adjustment, effect, transition, sticker) dynamically into the catalog via JSON manifest.",
+            inputSchema: """
+            {
+              "type": "object",
+              "properties": {
+                "kind": { "type": "string", "enum": ["text", "adjustment", "effect", "transition", "sticker"], "description": "Template kind to register" },
+                "payload": { "type": "string", "description": "Serialized JSON string of the template preset conforming to the manifest schema" }
+              },
+              "required": ["kind", "payload"]
             }
             """
         )

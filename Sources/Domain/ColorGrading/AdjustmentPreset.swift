@@ -26,6 +26,7 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
     public var previewColorsHex: [String]
     public var config: AdjustmentConfiguration
     public var isSystem: Bool
+    public var community: CommunityMetadata
 
     public init(
         id: String,
@@ -37,7 +38,8 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
         previewBadge: String? = nil,
         previewColorsHex: [String] = ["#1A8099", "#D97326"],
         config: AdjustmentConfiguration,
-        isSystem: Bool = false
+        isSystem: Bool = false,
+        community: CommunityMetadata? = nil
     ) {
         self.id = id
         self.schemaVersion = schemaVersion
@@ -49,6 +51,7 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
         self.previewColorsHex = previewColorsHex.isEmpty ? ["#27272A", "#52525B"] : previewColorsHex
         self.config = config
         self.isSystem = isSystem
+        self.community = community ?? (isSystem ? .systemDefault : CommunityMetadata())
     }
 
     public init(from decoder: Decoder) throws {
@@ -63,7 +66,15 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
         let decodedColors = (try? c.decodeIfPresent([String].self, forKey: .previewColorsHex)) ?? []
         self.previewColorsHex = decodedColors.isEmpty ? ["#27272A", "#52525B"] : decodedColors
         self.config = (try? c.decodeIfPresent(AdjustmentConfiguration.self, forKey: .config)) ?? AdjustmentConfiguration()
-        self.isSystem = (try? c.decodeIfPresent(Bool.self, forKey: .isSystem)) ?? false
+        let sys = (try? c.decodeIfPresent(Bool.self, forKey: .isSystem)) ?? false
+        self.isSystem = sys
+        self.community = (try? c.decodeIfPresent(CommunityMetadata.self, forKey: .community))
+            ?? (sys ? .systemDefault : CommunityMetadata())
+    }
+
+    public func canBeModified(by userID: String) -> Bool {
+        guard !isSystem else { return false }
+        return community.authorID.isEmpty || community.authorID == userID
     }
 
     public func encodeToJSON(prettyPrinted: Bool = true) -> String? {
@@ -106,6 +117,6 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
 
     /// Danh sách mẫu chỉnh màu mặc định chuẩn (bất biến, không phụ thuộc singleton — R3.3)
     public static var templates: [AdjustmentPreset] {
-        [Self.default]
+        [Self.default] + Self.creativeCatalog
     }
 }

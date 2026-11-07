@@ -35,10 +35,17 @@ public struct TimelineView: View {
                     pixelsPerSecond: Binding(get: { viewModel.pixelsPerSecond }, set: { viewModel.setZoomPixelsPerSecond($0) }),
                     minPixelsPerSecond: viewModel.minPixelsPerSecond, maxPixelsPerSecond: viewModel.maxPixelsPerSecond,
                     zoomPercentageText: viewModel.zoomPercentageText, canSplit: viewModel.canSplit,
+                    canExtractAudio: viewModel.canExtractAudio,
                     canSyncAudio: viewModel.canSyncAudio, isSyncingAudio: viewModel.isSyncingAudio,
+                    canMarkBeats: viewModel.canMarkBeats, isDetectingBeats: viewModel.isDetectingBeats,
+                    hasBeats: viewModel.selectedClipHasBeats, activeBeatMode: viewModel.selectedClipBeatMode,
                     onZoomIn: { viewModel.zoomIn() }, onZoomOut: { viewModel.zoomOut() },
                     onResetZoom: { viewModel.resetZoom() }, onSplit: { viewModel.splitClips(at: playheadState.currentTime) },
-                    onSyncAudio: { viewModel.syncSelectedAudio() }
+                    onExtractAudio: { viewModel.extractAudio() },
+                    onSyncAudio: { viewModel.syncSelectedAudio() },
+                    onAutoMarkBeats: { mode in viewModel.autoMarkBeats(mode: mode) },
+                    onToggleBeatAtPlayhead: { viewModel.toggleBeatMarkerAtPlayhead(at: playheadState.currentTime) },
+                    onClearBeats: { viewModel.clearSelectedBeatMarkers() }
                 )
                 timelineBody
             }
@@ -53,8 +60,23 @@ public struct TimelineView: View {
             if press.key == KeyEquivalent("s") || (press.key == KeyEquivalent("b") && press.modifiers.contains(.command)) {
                 viewModel.splitClips(at: playheadState.currentTime); return .handled
             }
+            if press.key == KeyEquivalent("e") && press.modifiers.contains(.command) {
+                viewModel.extractAudio(); return .handled
+            }
+            if press.key == KeyEquivalent("m") && press.modifiers.isEmpty {
+                _ = viewModel.toggleBeatMarkerAtPlayhead(at: playheadState.currentTime)
+                return .handled
+            }
             if press.key == KeyEquivalent("z") && press.modifiers == .command { _ = viewModel.undo(); return .handled }
             if press.key == KeyEquivalent("z") && press.modifiers == [.command, .shift] { _ = viewModel.redo(); return .handled }
+            if press.key == .leftArrow && press.modifiers.isEmpty {
+                playheadState.stepFrame(by: -1)
+                return .handled
+            }
+            if press.key == .rightArrow && press.modifiers.isEmpty {
+                playheadState.stepFrame(by: 1)
+                return .handled
+            }
             return .ignored
         }
     }
@@ -92,6 +114,13 @@ public struct TimelineView: View {
             }
             .onAppear { viewModel.updateViewportWidth(viewportWidth) }
             .onChange(of: viewportWidth) { _, newWidth in viewModel.updateViewportWidth(newWidth) }
+            .onChange(of: canvasWidth) { _, newCanvasWidth in
+                let maxScroll = max(0, newCanvasWidth - viewportWidth)
+                if scrollOffset > maxScroll {
+                    scrollOffset = maxScroll
+                    scrollEnclosing(to: maxScroll, maxDimension: newCanvasWidth, isVertical: false)
+                }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .simultaneousGesture(TapGesture().onEnded { isTimelineFocused = true; onTimelineActivated?() })
@@ -104,7 +133,8 @@ public struct TimelineView: View {
             onResetZoom: { viewModel.resetZoom() },
             onZoomIn: { viewModel.zoomIn() }, onZoomOut: { viewModel.zoomOut() },
             onTogglePlayPause: { playheadState.togglePlayPause() },
-            onUndo: { _ = viewModel.undo() }, onRedo: { _ = viewModel.redo() }
+            onUndo: { _ = viewModel.undo() }, onRedo: { _ = viewModel.redo() },
+            onStepFrame: { playheadState.stepFrame(by: $0) }
         )
     }
 
@@ -164,26 +194,31 @@ public struct TimelineView: View {
         totalContentHeight: CGFloat,
         pps: CGFloat
     ) -> some View {
-        VStack(spacing: DSSpacing.none) {
+        ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001)
-                .frame(height: topSpacerHeight)
+                .frame(width: canvasWidth, height: totalContentHeight)
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0, coordinateSpace: .named("tracksContentCanvas"))
                         .onChanged { handleMarqueeDrag(value: $0, topSpacerHeight: topSpacerHeight) }
                         .onEnded { handleMarqueeEnd(value: $0, topSpacerHeight: topSpacerHeight, pps: pps) }
                 )
-            ForEach(Array(viewModel.layers.enumerated()), id: \.element.id) { index, layer in
-                trackRowView(layer: layer, index: index, canvasWidth: canvasWidth, pps: pps)
+
+            VStack(spacing: DSSpacing.none) {
+                Color.clear
+                    .frame(height: topSpacerHeight)
+                ForEach(Array(viewModel.layers.enumerated()), id: \.element.id) { index, layer in
+                    trackRowView(layer: layer, index: index, canvasWidth: canvasWidth, pps: pps)
+                        .zIndex(isLayerActiveForDrag(layer) ? 100 : 0)
+                }
             }
-        }
-        .frame(width: canvasWidth, height: totalContentHeight)
-        .coordinateSpace(name: "tracksContentCanvas")
-        .overlay(alignment: .topLeading) {
+
             if let rect = marqueeRect {
                 TimelineMarqueeSelectionView(rect: rect)
             }
         }
+        .frame(width: canvasWidth, height: totalContentHeight)
+        .coordinateSpace(name: "tracksContentCanvas")
     }
 
     private func trackRowView(layer: TimelineLayer, index: Int, canvasWidth: CGFloat, pps: CGFloat) -> some View {
@@ -194,7 +229,10 @@ public struct TimelineView: View {
             isDropTargetBottom: viewModel.dropBetweenIndex == viewModel.layers.count && index == viewModel.layers.count - 1,
             selectedClipIDs: viewModel.selectedClipIDs,
             groupDragOffset: viewModel.groupMoveOffset,
+            groupTrimLeftOffset: viewModel.groupTrimLeftOffset,
+            groupTrimRightOffset: viewModel.groupTrimRightOffset,
             snapCandidatesProvider: { viewModel.snapCandidateTimes(excludingClipID: $0, playheadTime: playheadState.currentTime) },
+            beatTimes: viewModel.timelineBeatTimes,
             thumbnailService: viewModel.thumbnailService, waveformService: viewModel.waveformService,
             onSelectClip: { isTimelineFocused = true; viewModel.selectClip($0, isCmdPressed: $1) },
             onSeek: { isTimelineFocused = true; playheadState.seek(to: $0, force: true) },
@@ -202,12 +240,29 @@ public struct TimelineView: View {
                 viewModel.trimClip(clipID: clipID, in: layer.id, newStart: start, newDuration: dur, newSourceStart: src)
                 playheadState.seek(to: playheadState.currentTime, force: true)
             },
+            onTrimGroupChanged: { handleClipTrimGroupChanged(clipID: $0, isLeft: $1, dx: $2) },
+            onTrimGroupEnded: { handleClipTrimGroupEnded(clipID: $0, isLeft: $1) },
             onMoveClip: { handleClipMoving(clipID: $0, clipKind: $1, from: layer.id, at: index, newStart: $2, dragY: $3) },
             onMoveClipEnd: { handleClipMoveEnd(clipID: $0) },
+            onExtractAudio: { viewModel.extractAudio(clipID: $0) },
             onUpdateClipProperties: { id, props, done in
                 done ? viewModel.commitClipProperties(clipID: id, properties: props) : viewModel.updateClipLiveProperties(clipID: id, properties: props)
+            },
+            onSelectTransition: { transitionID in
+                viewModel.selectedTransitionID = transitionID
+                viewModel.selectedClipIDs.removeAll()
             }
         )
+    }
+
+    private func isLayerActiveForDrag(_ layer: TimelineLayer) -> Bool {
+        if let movingClipID, layer.clips.contains(where: { $0.id == movingClipID }) {
+            return true
+        }
+        if viewModel.groupMoveOffset != 0, layer.clips.contains(where: { viewModel.selectedClipIDs.contains($0.id) }) {
+            return true
+        }
+        return false
     }
 }
 

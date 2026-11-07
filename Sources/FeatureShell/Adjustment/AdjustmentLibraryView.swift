@@ -66,7 +66,7 @@ public struct AdjustmentLibraryView: View {
                             preset: preset,
                             thumbnailRenderer: viewModel.thumbnailRenderer,
                             onAdd: { viewModel.addPresetToTimeline(preset) },
-                            onDelete: preset.isSystem ? nil : { viewModel.deletePreset(preset) }
+                            onDelete: preset.canBeModified(by: CommunityIdentity.currentAuthorID) ? { viewModel.deletePreset(preset) } : nil
                         )
                     }
                 }
@@ -83,7 +83,7 @@ public struct AdjustmentLibraryView: View {
             Text(String(localized: "Chưa có Preset nào"))
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
-            Text(String(localized: "Tùy chỉnh màu sắc trong Inspector và bấm\n\"Lưu thành Preset\" để lưu lên Supabase."))
+            Text(String(localized: "Đồng bộ các gói màu sáng tạo từ Kho Thư viện Cộng đồng Supabase."))
                 .font(.system(size: 10))
                 .foregroundStyle(DSColors.textSecondary.opacity(0.7))
                 .multilineTextAlignment(.center)

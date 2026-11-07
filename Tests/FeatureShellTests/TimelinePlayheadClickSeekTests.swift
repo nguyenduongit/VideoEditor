@@ -17,7 +17,7 @@ struct TimelinePlayheadClickSeekTests {
         let time = TimeRational.snapToFrame(time: CMTime(seconds: seconds, preferredTimescale: 600))
         playhead.seek(to: time, force: true)
 
-        let expectedSeconds = Double(round(2.54 * 30.0) / 30.0)
+        let expectedSeconds = Double(round(2.54 * Double(TimeRational.defaultFPS)) / Double(TimeRational.defaultFPS))
         #expect(abs(CMTimeGetSeconds(playhead.currentTime) - expectedSeconds) < 0.001)
     }
 

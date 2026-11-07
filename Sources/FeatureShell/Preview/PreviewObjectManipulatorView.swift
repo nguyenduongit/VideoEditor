@@ -69,16 +69,43 @@ public struct PreviewObjectManipulatorView: View {
         let screenW = max(4.0, geom.size.width * scale)
         let screenH = max(4.0, geom.size.height * scale)
 
-        return ZStack {
-            RoundedRectangle(cornerRadius: 1.0)
-                .stroke(DSColors.accent, lineWidth: 1.5)
-                .frame(width: screenW, height: screenH)
+        return AnyView(
+            ZStack {
+                RoundedRectangle(cornerRadius: 1.0)
+                    .stroke(DSColors.accent, lineWidth: 1.5)
+                    .frame(width: screenW, height: screenH)
 
-            cornerHandles(width: screenW, height: screenH)
+                cornerHandles(width: screenW, height: screenH)
+                rotateAndCloseHandles(width: screenW, height: screenH)
+            }
+            .rotationEffect(.degrees(-geom.rotationDegrees))
+            .position(center)
+            .allowsHitTesting(false)
+        )
+    }
+
+    private func rotateAndCloseHandles(width: CGFloat, height: CGFloat) -> some View {
+        let halfW = width / 2.0
+        let halfH = height / 2.0
+
+        return ZStack {
+            ZStack {
+                Circle().fill(Color.black.opacity(0.75)).frame(width: 14, height: 14)
+                Image(systemName: "xmark")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Color.white)
+            }
+            .offset(x: -halfW, y: -halfH)
+
+            ZStack {
+                Circle().fill(DSColors.windowBackground).frame(width: 16, height: 16)
+                Circle().stroke(DSColors.accent, lineWidth: 1.2).frame(width: 16, height: 16)
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(DSColors.accent)
+            }
+            .offset(x: 0, y: halfH + 12)
         }
-        .rotationEffect(.degrees(-geom.rotationDegrees))
-        .position(center)
-        .allowsHitTesting(false)
     }
 
     private func cornerHandles(width: CGFloat, height: CGFloat) -> some View {

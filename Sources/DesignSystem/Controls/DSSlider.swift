@@ -9,6 +9,7 @@ public struct DSSlider: View {
     private let step: Double
     private let defaultValue: Double?
     private let unit: String?
+    private let trailingAccessory: AnyView?
     private let onEditingChanged: ((Bool) -> Void)?
 
     public init(
@@ -18,6 +19,7 @@ public struct DSSlider: View {
         step: Double = 0.01,
         defaultValue: Double? = nil,
         unit: String? = nil,
+        trailingAccessory: AnyView? = nil,
         onEditingChanged: ((Bool) -> Void)? = nil
     ) {
         self.title = title
@@ -26,12 +28,13 @@ public struct DSSlider: View {
         self.step = step
         self.defaultValue = defaultValue
         self.unit = unit
+        self.trailingAccessory = trailingAccessory
         self.onEditingChanged = onEditingChanged
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            HStack {
+            HStack(spacing: DSSpacing.xs) {
                 Text(title)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
@@ -39,6 +42,9 @@ public struct DSSlider: View {
                 Text(formattedValue)
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
                     .foregroundStyle(DSColors.textPrimary)
+                if let trailingAccessory {
+                    trailingAccessory
+                }
             }
             DSCustomSlider(
                 value: $value,

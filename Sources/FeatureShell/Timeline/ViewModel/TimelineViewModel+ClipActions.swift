@@ -4,6 +4,7 @@ import Domain
 
 extension TimelineViewModel {
     public func selectClip(_ id: UUID?, isCmdPressed: Bool = false) {
+        selectedTransitionID = nil
         guard let id else {
             selectedClipIDs.removeAll()
             return
@@ -21,6 +22,7 @@ extension TimelineViewModel {
 
     public func clearSelection() {
         selectedClipIDs.removeAll()
+        selectedTransitionID = nil
     }
 
     public func deleteSelectedClips() {

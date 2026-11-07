@@ -1,79 +1,49 @@
 import Foundation
 
-/// Căn lề cho khối văn bản
-public enum TextAlignmentType: String, Codable, Sendable, CaseIterable {
-    case left
-    case center
-    case right
-}
-
-/// Toàn bộ cấu hình kiểu chữ, định dạng, hiệu ứng viền/bóng/nền và biến đổi cho Text Clip
+/// Cấu hình lõi đơn dòng duy nhất dùng chung cho cả Người dùng và Mẫu chữ (Text Template).
+/// Cấu trúc 3 trụ cột chính: Text (Basic / Dual Stroke / Style / Curved) · Background · Animation.
+/// Tuân thủ AGENTS.md R2.3 (thuần Domain) và R3.1 (File <= 300 dòng, Hàm <= 50 dòng).
 public struct TextConfiguration: Codable, Equatable, Sendable {
-    // MARK: - Nội dung & Kiểu chữ cơ bản
-    public var content: String
+    // MARK: - Nội dung đơn dòng & Typography (Subtab Basic)
+    private var rawContent: String
+    public var content: String {
+        get { rawContent }
+        set { rawContent = Self.sanitizeSingleLine(newValue) }
+    }
     public var fontName: String
     public var fontSize: Double
-    public var textColorHex: String
     public var isBold: Bool
     public var isItalic: Bool
-    public var isUnderline: Bool
-    public var isStrikethrough: Bool
-    public var isAllCaps: Bool
     public var alignment: TextAlignmentType
     public var characterSpacing: Double
-    public var lineSpacing: Double
 
-    // MARK: - Màu chuyển sắc (Gradient Fill)
-    public var isGradient: Bool
+    // MARK: - Tô màu mặt chữ (Solid & Linear Gradient)
+    public var colorFillMode: TextColorFillMode
+    public var textColorHex: String
     public var gradientColors: [String]
     public var gradientAngle: Double
 
-    // MARK: - Hiệu ứng viền (Stroke / Outline)
-    public var hasStroke: Bool
-    public var strokeColorHex: String
-    public var strokeWidth: Double
+    // MARK: - 3 Subtab Chuyên Sâu (Dual Stroke · Style [Glow + Shadow] · Curved)
+    public var innerStroke: TextStrokeStyle
+    public var outerStroke: TextStrokeStyle
+    public var glow: TextGlowStyle
+    public var shadow: TextShadowStyle
+    public var curve: TextCurveStyle
 
-    // MARK: - Viền ngoài / Nhãn dán (Outer Stroke / Sticker Effect)
-    public var hasOuterStroke: Bool
-    public var outerStrokeColorHex: String
-    public var outerStrokeWidth: Double
-
-    // MARK: - Khối đổ bóng 3D (3D Extrusion / Block Shadow)
-    public var hasExtrusion: Bool
-    public var extrusionDepth: Double
-    public var extrusionAngle: Double
-    public var extrusionColorHex: String
-
-    // MARK: - Hiệu ứng đổ bóng (Shadow)
-    public var hasShadow: Bool
-    public var shadowColorHex: String
-    public var shadowRadius: Double
-    public var shadowOffsetX: Double
-    public var shadowOffsetY: Double
-
-    // MARK: - Hiệu ứng phát sáng (Outer Glow)
-    public var hasGlow: Bool
-    public var glowColorHex: String
-    public var glowRadius: Double
-
-    // MARK: - Kiểu rỗng ruột (Hollow / Neon Tube)
-    public var isHollow: Bool
-
-    // MARK: - Hộp nền (Background Box / Badge)
-    public var hasBackground: Bool
-    public var backgroundColorHex: String
-    public var backgroundCornerRadius: Double
-    public var backgroundPadding: Double
-
-    // MARK: - Biến đổi (Transform)
+    // MARK: - Tab Background & Tab Animation & Transform
+    public var background: TextBackgroundStyle
     public var positionX: Double
     public var positionY: Double
     public var scale: Double
     public var rotation: Double
     public var opacity: Double
-
-    // MARK: - Hoạt ảnh chuyển động (Animation)
     public var animation: TextAnimationConfiguration
+
+    public static func sanitizeSingleLine(_ text: String) -> String {
+        text.replacingOccurrences(of: "\r\n", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+    }
 
     public init(
         content: String = "Văn bản",
@@ -82,38 +52,17 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
         textColorHex: String = "#FFFFFF",
         isBold: Bool = false,
         isItalic: Bool = false,
-        isUnderline: Bool = false,
-        isStrikethrough: Bool = false,
-        isAllCaps: Bool = false,
         alignment: TextAlignmentType = .center,
         characterSpacing: Double = 0.0,
-        lineSpacing: Double = 4.0,
-        isGradient: Bool = false,
-        gradientColors: [String] = [],
+        colorFillMode: TextColorFillMode = .solid,
+        gradientColors: [String] = ["#FF2A85", "#FDE047"],
         gradientAngle: Double = 90.0,
-        hasStroke: Bool = false,
-        strokeColorHex: String = "#000000",
-        strokeWidth: Double = 2.0,
-        hasOuterStroke: Bool = false,
-        outerStrokeColorHex: String = "#FFFFFF",
-        outerStrokeWidth: Double = 6.0,
-        hasExtrusion: Bool = false,
-        extrusionDepth: Double = 8.0,
-        extrusionAngle: Double = -45.0,
-        extrusionColorHex: String = "#000000",
-        hasShadow: Bool = false,
-        shadowColorHex: String = "#000000",
-        shadowRadius: Double = 6.0,
-        shadowOffsetX: Double = 2.0,
-        shadowOffsetY: Double = 2.0,
-        hasGlow: Bool = false,
-        glowColorHex: String = "#FFD700",
-        glowRadius: Double = 8.0,
-        isHollow: Bool = false,
-        hasBackground: Bool = false,
-        backgroundColorHex: String = "#000000B2",
-        backgroundCornerRadius: Double = 8.0,
-        backgroundPadding: Double = 12.0,
+        innerStroke: TextStrokeStyle = TextStrokeStyle(),
+        outerStroke: TextStrokeStyle = TextStrokeStyle(isEnabled: false, width: 6.0, colorHex: "#FFFFFF"),
+        glow: TextGlowStyle = TextGlowStyle(),
+        shadow: TextShadowStyle = TextShadowStyle(),
+        curve: TextCurveStyle = TextCurveStyle(),
+        background: TextBackgroundStyle = TextBackgroundStyle(),
         positionX: Double = 0.0,
         positionY: Double = 0.0,
         scale: Double = 1.0,
@@ -121,98 +70,99 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
         opacity: Double = 1.0,
         animation: TextAnimationConfiguration = TextAnimationConfiguration()
     ) {
-        self.content = content
+        self.rawContent = Self.sanitizeSingleLine(content)
         self.fontName = fontName
-        self.fontSize = fontSize
-        self.textColorHex = textColorHex
+        self.fontSize = max(8.0, fontSize)
         self.isBold = isBold
         self.isItalic = isItalic
-        self.isUnderline = isUnderline
-        self.isStrikethrough = isStrikethrough
-        self.isAllCaps = isAllCaps
         self.alignment = alignment
         self.characterSpacing = characterSpacing
-        self.lineSpacing = lineSpacing
-        self.isGradient = isGradient
-        self.gradientColors = gradientColors
+        self.colorFillMode = colorFillMode
+        self.textColorHex = textColorHex
+        self.gradientColors = gradientColors.count >= 2 ? gradientColors : ["#FF2A85", "#FDE047"]
         self.gradientAngle = gradientAngle
-        self.hasStroke = hasStroke
-        self.strokeColorHex = strokeColorHex
-        self.strokeWidth = strokeWidth
-        self.hasOuterStroke = hasOuterStroke
-        self.outerStrokeColorHex = outerStrokeColorHex
-        self.outerStrokeWidth = outerStrokeWidth
-        self.hasExtrusion = hasExtrusion
-        self.extrusionDepth = extrusionDepth
-        self.extrusionAngle = extrusionAngle
-        self.extrusionColorHex = extrusionColorHex
-        self.hasShadow = hasShadow
-        self.shadowColorHex = shadowColorHex
-        self.shadowRadius = shadowRadius
-        self.shadowOffsetX = shadowOffsetX
-        self.shadowOffsetY = shadowOffsetY
-        self.hasGlow = hasGlow
-        self.glowColorHex = glowColorHex
-        self.glowRadius = glowRadius
-        self.isHollow = isHollow
-        self.hasBackground = hasBackground
-        self.backgroundColorHex = backgroundColorHex
-        self.backgroundCornerRadius = backgroundCornerRadius
-        self.backgroundPadding = backgroundPadding
+        self.innerStroke = innerStroke
+        self.outerStroke = outerStroke
+        self.glow = glow
+        self.shadow = shadow
+        self.curve = curve
+        self.background = background
         self.positionX = positionX
         self.positionY = positionY
-        self.scale = scale
+        self.scale = max(0.05, scale)
         self.rotation = rotation
-        self.opacity = opacity
+        self.opacity = max(0.0, min(1.0, opacity))
         self.animation = animation
     }
 
+    enum CodingKeys: String, CodingKey {
+        case content
+        case fontName, fontSize, isBold, isItalic, alignment, characterSpacing
+        case colorFillMode, textColorHex, gradientColors, gradientAngle
+        case innerStroke, outerStroke, glow, shadow, curve, background
+        case positionX, positionY, scale, rotation, opacity, animation
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(rawContent, forKey: .content)
+        try c.encode(fontName, forKey: .fontName)
+        try c.encode(fontSize, forKey: .fontSize)
+        try c.encode(isBold, forKey: .isBold)
+        try c.encode(isItalic, forKey: .isItalic)
+        try c.encode(alignment, forKey: .alignment)
+        try c.encode(characterSpacing, forKey: .characterSpacing)
+        try c.encode(colorFillMode, forKey: .colorFillMode)
+        try c.encode(textColorHex, forKey: .textColorHex)
+        try c.encode(gradientColors, forKey: .gradientColors)
+        try c.encode(gradientAngle, forKey: .gradientAngle)
+        try c.encode(innerStroke, forKey: .innerStroke)
+        try c.encode(outerStroke, forKey: .outerStroke)
+        try c.encode(glow, forKey: .glow)
+        try c.encode(shadow, forKey: .shadow)
+        try c.encode(curve, forKey: .curve)
+        try c.encode(background, forKey: .background)
+        try c.encode(positionX, forKey: .positionX)
+        try c.encode(positionY, forKey: .positionY)
+        try c.encode(scale, forKey: .scale)
+        try c.encode(rotation, forKey: .rotation)
+        try c.encode(opacity, forKey: .opacity)
+        try c.encode(animation, forKey: .animation)
+    }
+
     public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.content = (try? container.decode(String.self, forKey: .content)) ?? "Văn bản"
-        self.fontName = (try? container.decode(String.self, forKey: .fontName)) ?? "Helvetica"
-        self.fontSize = (try? container.decode(Double.self, forKey: .fontSize)) ?? 48.0
-        self.textColorHex = (try? container.decode(String.self, forKey: .textColorHex)) ?? "#FFFFFF"
-        self.isBold = (try? container.decode(Bool.self, forKey: .isBold)) ?? false
-        self.isItalic = (try? container.decode(Bool.self, forKey: .isItalic)) ?? false
-        self.isUnderline = (try? container.decode(Bool.self, forKey: .isUnderline)) ?? false
-        self.isStrikethrough = (try? container.decode(Bool.self, forKey: .isStrikethrough)) ?? false
-        self.isAllCaps = (try? container.decode(Bool.self, forKey: .isAllCaps)) ?? false
-        self.alignment = (try? container.decode(TextAlignmentType.self, forKey: .alignment)) ?? .center
-        self.characterSpacing = (try? container.decode(Double.self, forKey: .characterSpacing)) ?? 0.0
-        self.lineSpacing = (try? container.decode(Double.self, forKey: .lineSpacing)) ?? 4.0
-        self.isGradient = (try? container.decodeIfPresent(Bool.self, forKey: .isGradient)) ?? false
-        self.gradientColors = (try? container.decodeIfPresent([String].self, forKey: .gradientColors)) ?? []
-        self.gradientAngle = (try? container.decodeIfPresent(Double.self, forKey: .gradientAngle)) ?? 90.0
-        self.hasStroke = (try? container.decode(Bool.self, forKey: .hasStroke)) ?? false
-        self.strokeColorHex = (try? container.decode(String.self, forKey: .strokeColorHex)) ?? "#000000"
-        self.strokeWidth = (try? container.decode(Double.self, forKey: .strokeWidth)) ?? 2.0
-        self.hasOuterStroke = (try? container.decodeIfPresent(Bool.self, forKey: .hasOuterStroke)) ?? false
-        self.outerStrokeColorHex = (try? container.decodeIfPresent(String.self, forKey: .outerStrokeColorHex)) ?? "#FFFFFF"
-        self.outerStrokeWidth = (try? container.decodeIfPresent(Double.self, forKey: .outerStrokeWidth)) ?? 6.0
-        self.hasExtrusion = (try? container.decodeIfPresent(Bool.self, forKey: .hasExtrusion)) ?? false
-        self.extrusionDepth = (try? container.decodeIfPresent(Double.self, forKey: .extrusionDepth)) ?? 8.0
-        self.extrusionAngle = (try? container.decodeIfPresent(Double.self, forKey: .extrusionAngle)) ?? -45.0
-        self.extrusionColorHex = (try? container.decodeIfPresent(String.self, forKey: .extrusionColorHex)) ?? "#000000"
-        self.hasShadow = (try? container.decode(Bool.self, forKey: .hasShadow)) ?? false
-        self.shadowColorHex = (try? container.decode(String.self, forKey: .shadowColorHex)) ?? "#000000"
-        self.shadowRadius = (try? container.decode(Double.self, forKey: .shadowRadius)) ?? 6.0
-        self.shadowOffsetX = (try? container.decode(Double.self, forKey: .shadowOffsetX)) ?? 2.0
-        self.shadowOffsetY = (try? container.decode(Double.self, forKey: .shadowOffsetY)) ?? 2.0
-        self.hasGlow = (try? container.decode(Bool.self, forKey: .hasGlow)) ?? false
-        self.glowColorHex = (try? container.decode(String.self, forKey: .glowColorHex)) ?? "#FFD700"
-        self.glowRadius = (try? container.decode(Double.self, forKey: .glowRadius)) ?? 8.0
-        self.isHollow = (try? container.decodeIfPresent(Bool.self, forKey: .isHollow)) ?? false
-        self.hasBackground = (try? container.decode(Bool.self, forKey: .hasBackground)) ?? false
-        self.backgroundColorHex = (try? container.decode(String.self, forKey: .backgroundColorHex)) ?? "#000000B2"
-        self.backgroundCornerRadius = (try? container.decode(Double.self, forKey: .backgroundCornerRadius)) ?? 8.0
-        self.backgroundPadding = (try? container.decode(Double.self, forKey: .backgroundPadding)) ?? 12.0
-        self.positionX = (try? container.decode(Double.self, forKey: .positionX)) ?? 0.0
-        self.positionY = (try? container.decode(Double.self, forKey: .positionY)) ?? 0.0
-        self.scale = (try? container.decode(Double.self, forKey: .scale)) ?? 1.0
-        self.rotation = (try? container.decode(Double.self, forKey: .rotation)) ?? 0.0
-        self.opacity = (try? container.decode(Double.self, forKey: .opacity)) ?? 1.0
-        self.animation = (try? container.decode(TextAnimationConfiguration.self, forKey: .animation)) ?? TextAnimationConfiguration()
+        let c = try decoder.container(keyedBy: DynamicCodingKey.self)
+        let decodedText = (try? c.decodeIfPresent(String.self, forKey: .init("content"))) ?? "Văn bản"
+        self.rawContent = Self.sanitizeSingleLine(decodedText)
+        self.fontName = (try? c.decodeIfPresent(String.self, forKey: .init("fontName"))) ?? "Helvetica"
+        self.fontSize = max(8.0, (try? c.decodeIfPresent(Double.self, forKey: .init("fontSize"))) ?? 48.0)
+        self.isBold = (try? c.decodeIfPresent(Bool.self, forKey: .init("isBold"))) ?? false
+        self.isItalic = (try? c.decodeIfPresent(Bool.self, forKey: .init("isItalic"))) ?? false
+        self.alignment = (try? c.decodeIfPresent(TextAlignmentType.self, forKey: .init("alignment"))) ?? .center
+        self.characterSpacing = (try? c.decodeIfPresent(Double.self, forKey: .init("characterSpacing"))) ?? 0.0
+        self.textColorHex = (try? c.decodeIfPresent(String.self, forKey: .init("textColorHex"))) ?? "#FFFFFF"
+
+        let legacyIsGrad = (try? c.decodeIfPresent(Bool.self, forKey: .init("isGradient"))) ?? false
+        self.colorFillMode = (try? c.decodeIfPresent(TextColorFillMode.self, forKey: .init("colorFillMode")))
+            ?? (legacyIsGrad ? .linearGradient : .solid)
+        let cols = (try? c.decodeIfPresent([String].self, forKey: .init("gradientColors"))) ?? ["#FF2A85", "#FDE047"]
+        self.gradientColors = cols.count >= 2 ? cols : ["#FF2A85", "#FDE047"]
+        self.gradientAngle = (try? c.decodeIfPresent(Double.self, forKey: .init("gradientAngle"))) ?? 90.0
+
+        self.innerStroke = Self.decodeInnerStroke(from: c)
+        self.outerStroke = Self.decodeOuterStroke(from: c)
+        self.glow = Self.decodeGlow(from: c)
+        self.shadow = Self.decodeShadow(from: c)
+        self.curve = Self.decodeCurve(from: c)
+        self.background = Self.decodeBackground(from: c)
+
+        self.positionX = (try? c.decodeIfPresent(Double.self, forKey: .init("positionX"))) ?? 0.0
+        self.positionY = (try? c.decodeIfPresent(Double.self, forKey: .init("positionY"))) ?? 0.0
+        self.scale = max(0.05, (try? c.decodeIfPresent(Double.self, forKey: .init("scale"))) ?? 1.0)
+        self.rotation = (try? c.decodeIfPresent(Double.self, forKey: .init("rotation"))) ?? 0.0
+        self.opacity = max(0.0, min(1.0, (try? c.decodeIfPresent(Double.self, forKey: .init("opacity"))) ?? 1.0))
+        self.animation = (try? c.decodeIfPresent(TextAnimationConfiguration.self, forKey: .init("animation")))
+            ?? TextAnimationConfiguration()
     }
 
     public func encodeToJSON() -> String? {

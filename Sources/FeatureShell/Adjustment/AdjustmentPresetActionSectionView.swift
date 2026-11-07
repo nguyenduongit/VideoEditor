@@ -28,9 +28,17 @@ public struct AdjustmentPresetActionSectionView: View {
             ?? viewModel.selectedClip?.properties["originPresetName"]?.asString
     }
 
+    private var canOverwriteOrigin: Bool {
+        guard let originID = originPresetID else { return false }
+        guard let existing = viewModel.dependencies.adjustmentTemplates.loadAllTemplates().first(where: { $0.id == originID }) else {
+            return true
+        }
+        return existing.canBeModified(by: CommunityIdentity.currentAuthorID)
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            if let originID = originPresetID, let originName = originPresetName {
+            if let originID = originPresetID, let originName = originPresetName, canOverwriteOrigin {
                 existingPresetButtons(originID: originID, originName: originName)
             } else {
                 newPresetButton
@@ -135,7 +143,8 @@ public struct AdjustmentPresetActionSectionView: View {
             previewBadge: existing?.previewBadge,
             previewColorsHex: existing?.previewColorsHex ?? ["#27272A", "#52525B"],
             config: currentConfig,
-            isSystem: false
+            isSystem: false,
+            community: existing?.community
         )
         Task {
             _ = viewModel.dependencies.adjustmentTemplates.saveTemplateToUserCache(updatedPreset)

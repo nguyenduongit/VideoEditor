@@ -64,6 +64,10 @@ public final class TimelineCommandExecutor {
             return applySetLayerStatus(layerID: layerID, isLocked: isLocked, isHidden: isHidden, isMuted: isMuted, on: vm)
         case .setAspectRatio(let ratio):
             return applySetAspectRatio(ratio: ratio, on: vm)
+        case .setCutTransition(let layerID, let transition):
+            return applySetCutTransition(layerID: layerID, transition: transition, on: vm)
+        case .removeCutTransition(let layerID, let transitionID):
+            return applyRemoveCutTransition(layerID: layerID, transitionID: transitionID, on: vm)
         case .batch(let commands):
             return applyBatch(commands: commands, on: vm)
         }
@@ -92,8 +96,19 @@ public final class TimelineCommandExecutor {
         for index in 0..<vm.layers.count {
             if let clipIndex = vm.layers[index].clips.firstIndex(where: { $0.id == clipID }) {
                 let layerID = vm.layers[index].id
+                let attachedTransitions = vm.layers[index].transitions.filter {
+                    $0.leadingClipID == clipID || $0.trailingClipID == clipID
+                }
                 let removedClip = vm.layers[index].clips.remove(at: clipIndex)
-                return .addClip(layerID: layerID, clip: ClipScript(from: removedClip))
+                vm.layers[index].pruneInvalidTransitions()
+                let restoreClip = TimelineCommand.addClip(layerID: layerID, clip: ClipScript(from: removedClip))
+                if attachedTransitions.isEmpty {
+                    return restoreClip
+                }
+                let restoreTransitions = attachedTransitions.map {
+                    TimelineCommand.setCutTransition(layerID: layerID, transition: $0)
+                }
+                return .batch(commands: [restoreClip] + restoreTransitions)
             }
         }
         return nil

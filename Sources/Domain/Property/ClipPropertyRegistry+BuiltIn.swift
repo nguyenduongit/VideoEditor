@@ -5,9 +5,21 @@ extension ClipPropertyRegistry {
         register(descriptors: videoDescriptors, for: .video, tabs: ["Video", "Mask", "Adjustment", "AI"])
         register(descriptors: imageDescriptors, for: .image)
         register(descriptors: audioDescriptors, for: .audio)
-        register(descriptors: textDescriptors, for: .text, tabs: ["Text", "Style", "Animation"])
+        register(descriptors: textDescriptors, for: .text, tabs: ["Text", "Background", "Animation"])
         register(descriptors: effectDescriptors(), for: .effect, tabs: ["Effect"])
         register(descriptors: adjustmentDescriptors, for: .adjustment, tabs: ["Basic", "HSL", "Wheels", "Curves", "Effects"])
+        register(descriptors: stickerDescriptors, for: .sticker, tabs: ["Sticker", "Animation"])
+    }
+
+    var stickerDescriptors: [PropertyDescriptor] {
+        transformDescriptors(tab: "Sticker", includeUniform: true) + [
+            PropertyDescriptor(id: "flipHorizontal", title: "Lật ngang", tab: "Sticker", group: "Sticker",
+                               control: .toggle, defaultValue: .bool(false)),
+            PropertyDescriptor(id: "flipVertical", title: "Lật dọc", tab: "Sticker", group: "Sticker",
+                               control: .toggle, defaultValue: .bool(false)),
+            PropertyDescriptor(id: "speed", title: "Tốc độ", tab: "Sticker", group: "Sticker",
+                               control: .slider(min: 0.25, max: 4.0, step: 0.05, unit: "x"), defaultValue: .number(1.0))
+        ]
     }
 
     var videoDescriptors: [PropertyDescriptor] {
@@ -41,6 +53,14 @@ extension ClipPropertyRegistry {
                 group: "Audio",
                 control: .slider(min: -1.0, max: 1.0, step: 0.01, unit: "%"),
                 defaultValue: .number(0.0)
+            ),
+            PropertyDescriptor(
+                id: "isBeatCounter",
+                title: "Beat Counter",
+                tab: "Audio",
+                group: "Audio",
+                control: .toggle,
+                defaultValue: .bool(false)
             )
         ] + speedGroupDescriptors()
     }
@@ -71,7 +91,7 @@ extension ClipPropertyRegistry {
                 control: .slider(min: 12.0, max: 160.0, step: 1.0, unit: "pt"),
                 defaultValue: .number(48.0)
             )
-        ] + transformDescriptors(tab: "Style", includeUniform: false)
+        ] + transformDescriptors(tab: "Text", includeUniform: false)
     }
 
     private func audioGroupDescriptors(tab: String = "Audio") -> [PropertyDescriptor] {

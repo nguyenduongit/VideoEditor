@@ -14,6 +14,7 @@ public struct TimelineClipView: View {
     let previousClipEnd: CMTime?
     let nextClipStart: CMTime?
     let snapCandidates: [CMTime]
+    let beatTimes: [CMTime]
     let thumbnailService: (any TimelineThumbnailServiceProtocol)?
     let waveformService: (any AudioWaveformServiceProtocol)?
     let onSelect: (Bool) -> Void
@@ -21,6 +22,13 @@ public struct TimelineClipView: View {
     let onMove: (CMTime, CGFloat) -> Void
     let onMoveEnd: () -> Void
     let groupDragOffset: CGFloat
+    let groupTrimLeftOffset: CGFloat
+    let groupTrimRightOffset: CGFloat
+    let isMultiSelected: Bool
+    let onTrimChange: ((Bool, CGFloat) -> Void)?
+    let onTrimEnd: ((Bool) -> Void)?
+    let onExtractAudio: (() -> Void)?
+    let onSeek: ((CMTime) -> Void)?
     let onUpdateProperties: ((UUID, [String: PropertyValue], Bool) -> Void)?
 
     @State var dragOffset: CGFloat = 0
@@ -29,15 +37,22 @@ public struct TimelineClipView: View {
     @State var trimRightOffset: CGFloat = 0
     @State var isHoveringLeftTrim: Bool = false
     @State var isHoveringRightTrim: Bool = false
+    @State var isTrimming: Bool = false
 
     public init(
         clip: TimelineClip, height: CGFloat, pixelsPerSecond: CGFloat, isLocked: Bool,
         isMuted: Bool = false, isSelected: Bool = false, groupDragOffset: CGFloat = 0,
+        groupTrimLeftOffset: CGFloat = 0, groupTrimRightOffset: CGFloat = 0, isMultiSelected: Bool = false,
         previousClipEnd: CMTime? = nil, nextClipStart: CMTime? = nil, snapCandidates: [CMTime] = [],
+        beatTimes: [CMTime] = [],
         thumbnailService: (any TimelineThumbnailServiceProtocol)? = nil,
         waveformService: (any AudioWaveformServiceProtocol)? = nil,
         onSelect: @escaping (Bool) -> Void = { _ in },
+        onSeek: ((CMTime) -> Void)? = nil,
         onTrim: @escaping (CMTime, CMTime, CMTime?) -> Void,
+        onTrimChange: ((Bool, CGFloat) -> Void)? = nil,
+        onTrimEnd: ((Bool) -> Void)? = nil,
+        onExtractAudio: (() -> Void)? = nil,
         onMove: @escaping (CMTime, CGFloat) -> Void,
         onMoveEnd: @escaping () -> Void,
         onUpdateProperties: ((UUID, [String: PropertyValue], Bool) -> Void)? = nil
@@ -45,17 +60,22 @@ public struct TimelineClipView: View {
         self.clip = clip; self.height = height; self.pixelsPerSecond = pixelsPerSecond
         self.isLocked = isLocked; self.isMuted = isMuted; self.isSelected = isSelected
         self.groupDragOffset = groupDragOffset
+        self.groupTrimLeftOffset = groupTrimLeftOffset; self.groupTrimRightOffset = groupTrimRightOffset
+        self.isMultiSelected = isMultiSelected
         self.previousClipEnd = previousClipEnd; self.nextClipStart = nextClipStart
-        self.snapCandidates = snapCandidates; self.thumbnailService = thumbnailService
-        self.waveformService = waveformService; self.onSelect = onSelect
-        self.onTrim = onTrim; self.onMove = onMove; self.onMoveEnd = onMoveEnd
+        self.snapCandidates = snapCandidates; self.beatTimes = beatTimes
+        self.thumbnailService = thumbnailService
+        self.waveformService = waveformService; self.onSelect = onSelect; self.onSeek = onSeek
+        self.onTrim = onTrim; self.onTrimChange = onTrimChange; self.onTrimEnd = onTrimEnd
+        self.onExtractAudio = onExtractAudio
+        self.onMove = onMove; self.onMoveEnd = onMoveEnd
         self.onUpdateProperties = onUpdateProperties
     }
 
     public var body: some View {
-        let clipWidth = max(28, baseWidth + trimRightOffset - trimLeftOffset)
+        let clipWidth = max(28, baseWidth + effectiveTrimRight - effectiveTrimLeft)
         let effectiveDragOffset = isSelected && groupDragOffset != 0 ? groupDragOffset : dragOffset
-        let clipX = max(0, baseX + effectiveDragOffset + trimLeftOffset)
+        let clipX = max(0, baseX + effectiveDragOffset + effectiveTrimLeft)
 
         ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: DSRadius.small)
@@ -78,6 +98,9 @@ public struct TimelineClipView: View {
                 onSelect(isCmd)
             }
         )
+        .contextMenu {
+            clipContextMenu
+        }
         .gesture(isLocked ? nil : moveGesture)
         .position(x: clipX + clipWidth / 2, y: (height / 2) + dragY)
         .zIndex(isDragging ? 100 : 1)
@@ -90,13 +113,35 @@ public struct TimelineClipView: View {
         )
     }
 
-    private var isDragging: Bool { dragOffset != 0 || dragY != 0 || (isSelected && groupDragOffset != 0) }
+    private var isDragging: Bool {
+        dragOffset != 0 || dragY != 0 || (isSelected && (groupDragOffset != 0 || groupTrimLeftOffset != 0 || groupTrimRightOffset != 0))
+    }
+    private var effectiveTrimLeft: CGFloat { isSelected && groupTrimLeftOffset != 0 ? groupTrimLeftOffset : trimLeftOffset }
+    private var effectiveTrimRight: CGFloat { isSelected && groupTrimRightOffset != 0 ? groupTrimRightOffset : trimRightOffset }
     private var baseX: CGFloat { CGFloat(CMTimeGetSeconds(clip.timeRange.start)) * pixelsPerSecond }
     private var baseWidth: CGFloat { CGFloat(CMTimeGetSeconds(clip.timeRange.duration)) * pixelsPerSecond }
 
     private func clipContent(width: CGFloat) -> some View {
         ZStack(alignment: .leading) {
             centerBody(width: width)
+
+            if let beatConfig = AudioBeatConfiguration.from(clip: clip), beatConfig.isVisible, !beatConfig.markers.isEmpty {
+                ClipBeatMarkersOverlayView(
+                    markers: beatConfig.markers,
+                    activeSourceStartTime: activeSourceStartTime,
+                    pixelsPerSecond: pixelsPerSecond,
+                    speed: clip.properties["speed"]?.asNumber ?? 1.0
+                )
+            }
+
+            if let kfMap = ClipKeyframeMap.from(clip: clip), !kfMap.isEmpty {
+                ClipKeyframeOverlayView(
+                    keyframeMap: kfMap,
+                    clipStart: clip.timeRange.start,
+                    pixelsPerSecond: pixelsPerSecond,
+                    onSeek: onSeek
+                )
+            }
 
             if !isLocked && clip.kind.presentation.hasAudioFadeHandles {
                 ClipFadeHandleOverlayView(
@@ -135,8 +180,8 @@ public struct TimelineClipView: View {
         .frame(width: width, height: height - 6)
     }
 
-    private var activeSourceStartTime: CMTime {
-        let deltaSec = Double(trimLeftOffset / pixelsPerSecond)
+    var activeSourceStartTime: CMTime {
+        let deltaSec = Double(effectiveTrimLeft / pixelsPerSecond)
         let speed = max(0.01, clip.properties["speed"]?.asNumber ?? 1.0)
         let newSrc = max(0.0, CMTimeGetSeconds(clip.sourceStartTime) + (deltaSec * speed))
         return CMTime(seconds: newSrc, preferredTimescale: 600)
@@ -198,47 +243,8 @@ public struct TimelineClipView: View {
         )
     }
 
-    private var isAudioMuted: Bool {
+    var isAudioMuted: Bool {
         isMuted || (clip.properties["volume"]?.asNumber ?? 1.0) <= 0.001
-    }
-
-    @ViewBuilder
-    private func clipMediaBody(width: CGFloat) -> some View {
-        let bodyH = max(10, height - 22)
-        let activeSrc = activeSourceStartTime
-        if clip.kind.presentation.hasFilmstrip {
-            VideoThumbnailFilmstripView(
-                clip: clip,
-                activeSourceStartTime: activeSrc,
-                thumbnailService: thumbnailService,
-                waveformService: waveformService,
-                pixelsPerSecond: pixelsPerSecond,
-                width: width,
-                height: bodyH,
-                isMuted: isMuted
-            )
-        } else if clip.kind.presentation.hasWaveform {
-            let inSec = clip.properties["fadeIn"]?.asNumber ?? 0.0
-            let outSec = clip.properties["fadeOut"]?.asNumber ?? 0.0
-            let speed = clip.properties["speed"]?.asNumber ?? 1.0
-            AudioWaveformView(
-                url: clip.mediaURL,
-                service: waveformService,
-                sourceStartTime: activeSrc,
-                sourceDuration: clip.maxDuration,
-                pixelsPerSecond: pixelsPerSecond,
-                fadeIn: inSec,
-                fadeOut: outSec,
-                clipDuration: clip.timeRange.duration,
-                speed: speed
-            )
-            .opacity(isAudioMuted ? 0.35 : 1.0)
-            .animation(.easeInOut(duration: 0.2), value: isAudioMuted)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(DSColors.waveformAudioBackground)
-        } else {
-            Spacer(minLength: 0)
-        }
     }
 
     private func updateFade(fadeIn: Double, fadeOut: Double, isCommitted: Bool) {

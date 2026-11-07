@@ -39,8 +39,17 @@ public struct InspectorView: View {
 
     @ViewBuilder
     private var contentArea: some View {
-        if viewModel.selectedClip != nil {
-            if viewModel.effectiveTab == "Animation" {
+        if viewModel.selectedTransition != nil {
+            DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
+                TransitionInspectorView(viewModel: viewModel)
+                    .padding(.leading, DSSize.inspectorContentPadding)
+                    .padding(.trailing, DSSpacing.md)
+                    .padding(.vertical, DSSpacing.md)
+            }
+        } else if viewModel.selectedClip != nil {
+            if viewModel.selectedClip?.kind == .text {
+                TextInspectorView(viewModel: viewModel)
+            } else if viewModel.effectiveTab == "Animation" && viewModel.selectedClip?.kind == .sticker {
                 TextAnimationTabContent(viewModel: viewModel)
             } else {
                 DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
@@ -54,13 +63,13 @@ public struct InspectorView: View {
                             .padding(.leading, DSSize.inspectorContentPadding)
                             .padding(.trailing, DSSpacing.md)
                             .padding(.vertical, DSSpacing.md)
-                    } else if viewModel.effectiveTab == "Adjustment" {
-                        UnifiedColorInspectorView(viewModel: viewModel)
+                    } else if viewModel.selectedClip?.kind == .sticker {
+                        StickerInspectorView(viewModel: viewModel)
                             .padding(.leading, DSSize.inspectorContentPadding)
                             .padding(.trailing, DSSpacing.md)
                             .padding(.vertical, DSSpacing.md)
-                    } else if viewModel.selectedClip?.kind == .text || viewModel.effectiveTab == "Văn bản" || viewModel.effectiveTab == "Hiệu ứng" {
-                        TextInspectorView(viewModel: viewModel)
+                    } else if viewModel.effectiveTab == "Adjustment" {
+                        UnifiedColorInspectorView(viewModel: viewModel)
                             .padding(.leading, DSSize.inspectorContentPadding)
                             .padding(.trailing, DSSpacing.md)
                             .padding(.vertical, DSSpacing.md)
@@ -86,39 +95,31 @@ public struct InspectorView: View {
         VStack(alignment: .leading, spacing: DSSpacing.lg) {
             if viewModel.groupedDescriptors.isEmpty {
                 VStack(spacing: DSSpacing.sm) {
-                    Spacer(minLength: 40)
                     Image(systemName: "square.dashed")
                         .font(.system(size: 26))
                         .foregroundStyle(DSColors.textSecondary.opacity(0.45))
                     Text(String(localized: "Tính năng \(viewModel.selectedTab) đang được phát triển"))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(DSColors.textSecondary)
-                    Spacer(minLength: 40)
                 }
                 .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
             } else {
                 ForEach(viewModel.groupedDescriptors, id: \.group) { group in
+                    let groupKeys = viewModel.keyframeKeys(forGroup: group.descriptors)
                     DSCollapsibleSection(
                         title: group.group,
-                        defaultExpanded: isGroupDefaultExpanded(group.group),
+                        defaultExpanded: !(group.group == "Audio" && viewModel.selectedClip?.kind == .video),
+                        trailingAccessory: keyframeAccessory(for: groupKeys),
                         onReset: { viewModel.resetGroup(name: group.group) }
                     ) {
                         VStack(alignment: .leading, spacing: DSSpacing.md) {
-                            ForEach(group.descriptors) { desc in
-                                descriptorControl(for: desc)
-                            }
+                            ForEach(group.descriptors) { desc in descriptorControl(for: desc) }
                         }
                     }
                 }
             }
         }
-    }
-
-    private func isGroupDefaultExpanded(_ groupName: String) -> Bool {
-        if groupName == "Audio" && viewModel.selectedClip?.kind == .video {
-            return false
-        }
-        return true
     }
 
     @ViewBuilder
@@ -146,6 +147,8 @@ public struct InspectorView: View {
             get: { viewModel.liveNumber(for: desc.id, default: desc.defaultValue.asNumber ?? min) },
             set: { viewModel.updateLiveValue(key: desc.id, value: $0) }
         )
+        let isVolume = desc.id == "volume"
+        let kfKeys = viewModel.keyframeKeys(for: desc)
         return DSSliderWithInput(
             title: desc.title,
             value: valueBinding,
@@ -153,6 +156,12 @@ public struct InspectorView: View {
             step: step,
             defaultValue: desc.defaultValue.asNumber,
             unit: unit,
+            leadingIcon: isVolume ? viewModel.volumeLeadingIcon : nil,
+            isLeadingIconActive: isVolume && viewModel.isVolumeMuted,
+            leadingIconHelp: isVolume ? viewModel.volumeLeadingIconHelp : nil,
+            isDimmed: isVolume && viewModel.isSelectedClipLayerMuted,
+            trailingAccessory: keyframeAccessory(for: kfKeys, defaultVal: desc.defaultValue.asNumber),
+            onLeadingIconTap: isVolume ? { viewModel.toggleVolumeMute() } : nil,
             onEditingChanged: { isEditing in
                 viewModel.onSliderEditingChanged(key: desc.id, isEditing: isEditing)
             }
@@ -180,12 +189,14 @@ public struct InspectorView: View {
             get: { viewModel.liveNumber(for: yID, default: 0.0) },
             set: { viewModel.updateLiveValue(key: yID, value: $0) }
         )
+        let kfKeys = viewModel.keyframeKeys(for: desc)
         return DSPositionControl(
             title: desc.title,
             xValue: xBinding,
             yValue: yBinding,
             step: step,
             isXDisabled: isAutoPanActive,
+            trailingAccessory: keyframeAccessory(for: kfKeys),
             onEditingChanged: { isEditing in
                 viewModel.onSliderEditingChanged(key: desc.id, isEditing: isEditing)
             }
@@ -197,13 +208,42 @@ public struct InspectorView: View {
             get: { viewModel.liveNumber(for: desc.id, default: desc.defaultValue.asNumber ?? 0.0) },
             set: { viewModel.updateLiveValue(key: desc.id, value: $0) }
         )
+        let kfKeys = viewModel.keyframeKeys(for: desc)
         return DSRotationControl(
             title: desc.title,
             angle: rotBinding,
             step: step,
+            trailingAccessory: keyframeAccessory(for: kfKeys, defaultVal: desc.defaultValue.asNumber),
             onEditingChanged: { isEditing in
                 viewModel.onSliderEditingChanged(key: desc.id, isEditing: isEditing)
             }
+        )
+    }
+
+    private func keyframeAccessory(for keys: [String], defaultVal: Double? = nil) -> AnyView? {
+        guard !keys.isEmpty else { return nil }
+        var defaults: [String: Double] = [:]
+        if let defaultVal, keys.count == 1 {
+            defaults[keys[0]] = defaultVal
+        }
+        return AnyView(
+            DSKeyframeControl(
+                hasKeyframesOnTrack: viewModel.hasKeyframes(for: keys),
+                isAtKeyframe: viewModel.hasKeyframeAtPlayhead(for: keys),
+                canGoPrevious: viewModel.canJumpToPreviousKeyframe(for: keys),
+                canGoNext: viewModel.canJumpToNextKeyframe(for: keys),
+                selectedCurveID: viewModel.activeInterpolation(for: keys).rawValue,
+                curveOptions: viewModel.keyframeCurveOptions,
+                onToggleKeyframe: { viewModel.toggleKeyframe(for: keys, defaultValues: defaults) },
+                onPreviousKeyframe: { viewModel.jumpToPreviousKeyframe(for: keys) },
+                onNextKeyframe: { viewModel.jumpToNextKeyframe(for: keys) },
+                onSelectCurve: { curveID in
+                    if let interp = KeyframeInterpolation(rawValue: curveID) {
+                        viewModel.setInterpolation(interp, for: keys)
+                    }
+                },
+                onClearAllKeyframes: { viewModel.clearAllKeyframes(for: keys) }
+            )
         )
     }
 

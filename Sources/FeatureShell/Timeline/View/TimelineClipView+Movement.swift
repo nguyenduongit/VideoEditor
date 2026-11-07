@@ -10,7 +10,10 @@ extension TimelineClipView {
     }
 
     func handleMoveChanged(value: DragGesture.Value) {
-        guard !isHoveringLeftTrim && !isHoveringRightTrim else { return }
+        guard !isTrimming else { return }
+        guard trimLeftOffset == 0 && trimRightOffset == 0 else { return }
+        guard groupTrimLeftOffset == 0 && groupTrimRightOffset == 0 else { return }
+        guard dragOffset != 0 || dragY != 0 || (!isHoveringLeftTrim && !isHoveringRightTrim) else { return }
         guard !isLocked else { return }
 
         if !isSelected { onSelect(false) }
@@ -50,11 +53,12 @@ extension TimelineClipView {
     }
 
     func handleMoveEnded(value: DragGesture.Value) {
-        guard !isHoveringLeftTrim && !isHoveringRightTrim else { return }
         guard !isLocked else { return }
-        dragOffset = 0
-        dragY = 0
+        defer {
+            dragOffset = 0
+            dragY = 0
+            onMoveEnd()
+        }
         if !isSelected { onSelect(false) }
-        onMoveEnd()
     }
 }

@@ -10,18 +10,16 @@ import Domain
 struct TextAdvancedStyleTests {
     @Test func testTextConfigurationAdvancedPropertiesSerialization() {
         var config = TextConfiguration()
-        config.content = "CLASSIC 3D"
+        config.content = "CLASSIC GRADIENT"
         config.isGradient = true
-        config.gradientColors = ["#FFFBEB", "#FDE047", "#D97706"]
+        config.gradientColors = ["#FFFBEB", "#FDE047"]
         config.gradientAngle = 45.0
-        config.hasExtrusion = true
-        config.extrusionDepth = 12.0
-        config.extrusionAngle = -60.0
-        config.extrusionColorHex = "#581C87"
         config.hasOuterStroke = true
         config.outerStrokeColorHex = "#DC2626"
         config.outerStrokeWidth = 8.0
-        config.isHollow = true
+        config.glow = TextGlowStyle(isEnabled: true, colorHex: "#F59E0B", intensity: 90.0, range: 16.0)
+        config.shadow = TextShadowStyle(isEnabled: true, colorHex: "#000000", opacity: 80.0, blur: 10.0, distance: 6.0, angleDegrees: -60.0)
+        config.textColorHex = "NONE"
 
         guard let json = config.encodeToJSON(),
               let decoded = TextConfiguration.decode(from: json) else {
@@ -30,25 +28,22 @@ struct TextAdvancedStyleTests {
         }
 
         #expect(decoded.isGradient == true)
-        #expect(decoded.gradientColors == ["#FFFBEB", "#FDE047", "#D97706"])
+        #expect(decoded.gradientColors == ["#FFFBEB", "#FDE047"])
         #expect(decoded.gradientAngle == 45.0)
-        #expect(decoded.hasExtrusion == true)
-        #expect(decoded.extrusionDepth == 12.0)
-        #expect(decoded.extrusionAngle == -60.0)
-        #expect(decoded.extrusionColorHex == "#581C87")
         #expect(decoded.hasOuterStroke == true)
         #expect(decoded.outerStrokeColorHex == "#DC2626")
         #expect(decoded.outerStrokeWidth == 8.0)
-        #expect(decoded.isHollow == true)
+        #expect(decoded.glow.isEnabled == true)
+        #expect(decoded.glow.intensity == 90.0)
+        #expect(decoded.shadow.distance == 6.0)
+        #expect(decoded.textColorHex == "NONE")
     }
 
-    @Test func testRenderImageWithExtrusionAndGradientProducesValidCIImage() {
-        var config = TextConfiguration(content: "GOLD 3D", fontSize: 60.0)
+    @Test func testRenderImageWithGradientAndShadowProducesValidCIImage() {
+        var config = TextConfiguration(content: "GOLD CINEMA", fontSize: 60.0)
         config.isGradient = true
-        config.gradientColors = ["#FFFBEB", "#FDE047", "#D97706", "#78350F"]
-        config.hasExtrusion = true
-        config.extrusionDepth = 10.0
-        config.extrusionColorHex = "#3B1E04"
+        config.gradientColors = ["#FFFBEB", "#D97706"]
+        config.shadow = TextShadowStyle(isEnabled: true, colorHex: "#3B1E04", opacity: 85.0, blur: 6.0, distance: 8.0, angleDegrees: -45.0)
 
         let canvasSize = CGSize(width: 1920, height: 1080)
         let image = TextRendererEngine().renderImage(for: config, canvasSize: canvasSize)
@@ -77,7 +72,7 @@ struct TextAdvancedStyleTests {
 
     @Test func testHollowNeonTextRendering() {
         var config = TextConfiguration(content: "DJ NIGHT", fontSize: 54.0)
-        config.isHollow = true
+        config.textColorHex = "NONE"
         config.hasStroke = true
         config.strokeColorHex = "#38BDF8"
         config.strokeWidth = 2.0
@@ -91,12 +86,10 @@ struct TextAdvancedStyleTests {
     }
 
     @Test func testOnlinePresetsViaRemoteSyncAreDiscoverableAndValid() {
-        var remoteConfig = TextConfiguration(content: "ONLINE 3D", fontSize: 52.0)
+        var remoteConfig = TextConfiguration(content: "ONLINE GOLD", fontSize: 52.0)
         remoteConfig.isGradient = true
         remoteConfig.gradientColors = ["#FFFBEB", "#F59E0B"]
-        remoteConfig.hasExtrusion = true
-        remoteConfig.extrusionDepth = 8.0
-        remoteConfig.extrusionColorHex = "#78350F"
+        remoteConfig.glow = TextGlowStyle(isEnabled: true, colorHex: "#F59E0B", intensity: 75.0, range: 12.0)
 
         let onlinePreset = TextPreset(
             id: "online_gold_master",

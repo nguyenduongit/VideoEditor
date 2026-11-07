@@ -5,7 +5,7 @@ import Domain
 enum TimelineClipTrimBounds {
     static func minStart(clip: TimelineClip, previousClipEnd: CMTime?) -> Double {
         var minSec = max(0.0, previousClipEnd.map { CMTimeGetSeconds($0) } ?? 0.0)
-        let isProcedural = clip.properties["isProcedural"]?.asBool ?? false
+        let isProcedural = (clip.properties["isProcedural"]?.asBool ?? false) || (clip.properties["isBeatCounter"]?.asBool ?? false)
         if clip.kind.hasFixedSourceDuration && !isProcedural {
             let speed = max(0.01, clip.properties["speed"]?.asNumber ?? 1.0)
             let sourceStartTimelineSec = CMTimeGetSeconds(clip.sourceStartTime) / speed
@@ -16,7 +16,7 @@ enum TimelineClipTrimBounds {
 
     static func maxEnd(clip: TimelineClip, nextClipStart: CMTime?) -> Double {
         var maxSec = nextClipStart.map { CMTimeGetSeconds($0) } ?? Double.infinity
-        let isProcedural = clip.properties["isProcedural"]?.asBool ?? false
+        let isProcedural = (clip.properties["isProcedural"]?.asBool ?? false) || (clip.properties["isBeatCounter"]?.asBool ?? false)
         if clip.kind.hasFixedSourceDuration && !isProcedural, let maxDuration = clip.maxDuration {
             let speed = max(0.01, clip.properties["speed"]?.asNumber ?? 1.0)
             let remainingSource = max(0.0, CMTimeGetSeconds(maxDuration) - CMTimeGetSeconds(clip.sourceStartTime))

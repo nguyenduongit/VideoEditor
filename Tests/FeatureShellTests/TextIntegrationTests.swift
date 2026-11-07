@@ -130,7 +130,7 @@ struct TextIntegrationTests {
     @Test func testInspectorTabsForTextClip() {
         let registry = ClipPropertyRegistry()
         let tabs = registry.tabs(for: .text)
-        #expect(tabs == ["Text", "Style", "Animation"])
+        #expect(tabs == ["Text", "Background", "Animation"])
 
         let timelineVM = TimelineViewModel(initialLayers: [])
         timelineVM.addTextClip(named: "Tiêu đề", config: TextConfiguration(content: "Tiêu đề"))
@@ -144,7 +144,7 @@ struct TextIntegrationTests {
         inspectorVM.syncWithSelection()
 
         #expect(inspectorVM.selectedClip?.id == clip.id)
-        #expect(inspectorVM.availableTabs == ["Text", "Style", "Animation"])
+        #expect(inspectorVM.availableTabs == ["Text", "Background", "Animation"])
         #expect(inspectorVM.effectiveTab == "Text")
     }
 
@@ -236,7 +236,7 @@ struct TextIntegrationTests {
 
     @Test func testTextColorSwatchesAndPresetColorMatching() {
         let swatches = TextColorSwatchesRow.defaultSwatches
-        #expect(swatches.count == 9)
+        #expect(swatches.count == 14)
         #expect(swatches.contains("#FDE047"))
         #expect(swatches.contains("#F97316"))
         #expect(swatches.contains("#06B6D4"))

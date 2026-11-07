@@ -17,7 +17,11 @@ extension TimelineViewModel {
         let targetStart = TimeRational.snapToFrame(time: proposedStart)
         let resolvedDuration = resolveTextClipDuration(preferredSeconds: durationSeconds, at: targetStart)
         var finalConfig = config
-        TextAutoFitter.autoScaleFontSize(config: &finalConfig, canvasSize: aspectRatio.renderSize)
+        TextAutoFitter.autoFitScaleToCanvasWidth(
+            config: &finalConfig,
+            canvasSize: aspectRatio.renderSize,
+            targetWidthRatio: 0.80
+        )
         let clip = makeTextTimelineClip(
             named: name,
             config: finalConfig,
@@ -32,7 +36,7 @@ extension TimelineViewModel {
         selectedClipIDs = [clip.id]
     }
 
-    /// Thêm một mẫu `TextPreset` (hỗ trợ cả mẫu đơn lớp và mẫu đa lớp `subLayers`) vào timeline trong 1 transaction duy nhất.
+    /// Thêm một mẫu `TextPreset` đơn dòng hợp nhất vào Timeline.
     public func addTextPreset(_ preset: TextPreset, at time: CMTime? = nil) {
         if preset.id == "default" {
             addTextClip(named: preset.name, config: preset.config, at: time)
@@ -42,40 +46,24 @@ extension TimelineViewModel {
         let baseStart = TimeRational.snapToFrame(time: proposedStart)
         let baseDuration = resolveTextClipDuration(preferredSeconds: preset.defaultDuration, at: baseStart)
 
-        var simulatedLayers = layers
-        var placements: [(TimelineClip, UUID)] = []
-
-        let mainClip = makeTextTimelineClip(
+        var presetConfig = preset.config
+        TextAutoFitter.autoFitScaleToCanvasWidth(
+            config: &presetConfig,
+            canvasSize: aspectRatio.renderSize,
+            targetWidthRatio: 0.80
+        )
+        let unifiedClip = makeTextTimelineClip(
             named: preset.name,
-            config: preset.config,
+            config: presetConfig,
             timeRange: CMTimeRange(start: baseStart, duration: baseDuration),
             originPresetID: preset.id,
             originPresetName: preset.name
         )
-        let mainLayerID = allocateLayerID(for: mainClip, in: &simulatedLayers)
-        placements.append((mainClip, mainLayerID))
+        var simulatedLayers = layers
+        let layerID = allocateLayerID(for: unifiedClip, in: &simulatedLayers)
 
-        for sub in preset.subLayers {
-            let offsetTime = sub.startOffset.cmTime
-            let subStart = CMTimeAdd(baseStart, offsetTime)
-            let remaining = CMTimeSubtract(CMTimeAdd(baseStart, baseDuration), subStart)
-            guard remaining > .zero else { continue }
-            let scaledSeconds = max(0.5, CMTimeGetSeconds(remaining) * sub.durationRatio)
-            let subFrames = max(1, Int64(round(scaledSeconds * Double(TimeRational.defaultFPS))))
-            let subDuration = min(remaining, CMTime(value: subFrames, timescale: TimeRational.defaultFPS))
-            let subClip = makeTextTimelineClip(
-                named: sub.name,
-                config: sub.config,
-                timeRange: CMTimeRange(start: subStart, duration: subDuration),
-                originPresetID: preset.id,
-                originPresetName: preset.name
-            )
-            let subLayerID = allocateLayerID(for: subClip, in: &simulatedLayers)
-            placements.append((subClip, subLayerID))
-        }
-
-        applyAddedClips(placements)
-        selectedClipIDs = Set(placements.map { $0.0.id })
+        applyAddedClips([(unifiedClip, layerID)])
+        selectedClipIDs = [unifiedClip.id]
     }
 
     private func resolveTextClipDuration(preferredSeconds: Double, at targetStart: CMTime) -> CMTime {

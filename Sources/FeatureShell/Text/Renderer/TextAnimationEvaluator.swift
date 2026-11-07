@@ -2,7 +2,46 @@ import Foundation
 import CoreGraphics
 import Domain
 
+/// Tham số biến dạng hình học & VFX tức thời của hoạt ảnh (Scale X/Y, Skew, 3D Perspective, Motion Blur, Light Sweep).
+public struct TextTransformOverlay: Sendable, Equatable {
+    public var scaleX: Double
+    public var scaleY: Double
+    public var skewX: Double
+    public var perspectiveX: Double
+    public var perspectiveY: Double
+    public var motionBlurRadius: Double
+    public var motionBlurAngle: Double
+    public var lightSweepPhase: Double
+    public var glitchSliceIntensity: Double
+    public var liquidWavePhase: Double
+
+    public init(
+        scaleX: Double = 1.0,
+        scaleY: Double = 1.0,
+        skewX: Double = 0.0,
+        perspectiveX: Double = 0.0,
+        perspectiveY: Double = 0.0,
+        motionBlurRadius: Double = 0.0,
+        motionBlurAngle: Double = 0.0,
+        lightSweepPhase: Double = -1.0,
+        glitchSliceIntensity: Double = 0.0,
+        liquidWavePhase: Double = -1.0
+    ) {
+        self.scaleX = scaleX
+        self.scaleY = scaleY
+        self.skewX = skewX
+        self.perspectiveX = perspectiveX
+        self.perspectiveY = perspectiveY
+        self.motionBlurRadius = motionBlurRadius
+        self.motionBlurAngle = motionBlurAngle
+        self.lightSweepPhase = lightSweepPhase
+        self.glitchSliceIntensity = glitchSliceIntensity
+        self.liquidWavePhase = liquidWavePhase
+    }
+}
+
 /// Lõi điều phối tính toán hoạt ảnh Text thời gian thực (Real-time Text Animation Engine)
+/// Hỗ trợ cả gói hoạt ảnh sáng tạo mở (`CreativeAnimationManifest`) và hoạt ảnh tương thích ngược.
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng) và R4.3 (đơn nhiệm) của AGENTS.md.
 public enum TextAnimationEvaluator {
 
@@ -55,42 +94,67 @@ public enum TextAnimationEvaluator {
         }
 
         // 1. Hiệu ứng Vào (In Animation)
-        let inDuration = anim.inType != .none ? anim.inDuration : 0.0
-        if anim.inType != .none, t < inDuration {
+        let inDuration = anim.hasInAnimation ? anim.inDuration : 0.0
+        if anim.hasInAnimation, t < inDuration {
             let progress = min(1.0, max(0.0, t / max(0.05, inDuration)))
-            let eased = TextAnimationCurves.apply(progress: progress, easing: anim.motionEasing)
-            TextInAnimationEvaluator.apply(
-                config: &evaluated, overlay: &overlay, inType: anim.inType,
-                progress: progress, eased: eased, canvasSize: canvasSize,
-                blur: &blur, pixelate: &pixelate, rgbSplit: &rgbSplit,
-                isCursorVisible: anim.isTypewriterCursorVisible
-            )
+            if let manifest = anim.inManifest {
+                let vars = OpenAnimationRuntimeEngine.Variables(progress: progress, anim: anim, manifest: manifest)
+                OpenAnimationRuntimeEngine.applyManifest(
+                    manifest, variables: vars, config: &evaluated, overlay: &overlay,
+                    blur: &blur, pixelate: &pixelate, rgbSplit: &rgbSplit
+                )
+            } else {
+                let eased = TextAnimationCurves.apply(progress: progress, easing: anim.motionEasing)
+                TextInAnimationEvaluator.apply(
+                    config: &evaluated, overlay: &overlay, inType: anim.inType,
+                    progress: progress, eased: eased, canvasSize: canvasSize,
+                    blur: &blur, pixelate: &pixelate, rgbSplit: &rgbSplit,
+                    isCursorVisible: anim.isTypewriterCursorVisible
+                )
+            }
         }
 
         // 2. Hiệu ứng Ra (Out Animation)
-        let outDuration = anim.outType != .none ? anim.outDuration : 0.0
+        let outDuration = anim.hasOutAnimation ? anim.outDuration : 0.0
         let outStart = max(inDuration, safeDur - outDuration)
-        if anim.outType != .none, t > outStart {
+        if anim.hasOutAnimation, t > outStart {
             let progress = min(1.0, max(0.0, (safeDur - t) / max(0.05, outDuration)))
-            let easedExit = TextAnimationCurves.apply(progress: 1.0 - progress, easing: anim.motionEasing)
-            TextOutAnimationEvaluator.apply(
-                config: &evaluated, overlay: &overlay, outType: anim.outType,
-                progress: progress, easedExit: easedExit, canvasSize: canvasSize,
-                blur: &blur, rgbSplit: &rgbSplit
-            )
+            if let manifest = anim.outManifest {
+                let vars = OpenAnimationRuntimeEngine.Variables(progress: progress, anim: anim, manifest: manifest)
+                OpenAnimationRuntimeEngine.applyManifest(
+                    manifest, variables: vars, config: &evaluated, overlay: &overlay,
+                    blur: &blur, pixelate: &pixelate, rgbSplit: &rgbSplit
+                )
+            } else {
+                let easedExit = TextAnimationCurves.apply(progress: 1.0 - progress, easing: anim.motionEasing)
+                TextOutAnimationEvaluator.apply(
+                    config: &evaluated, overlay: &overlay, outType: anim.outType,
+                    progress: progress, easedExit: easedExit, canvasSize: canvasSize,
+                    blur: &blur, rgbSplit: &rgbSplit
+                )
+            }
         }
 
         // 3. Hiệu ứng Vòng lặp (Loop Animation)
-        // Chạy trong khoảng thời gian giữa điểm kết thúc của In và điểm bắt đầu của Out
-        if anim.loopType != .none {
+        if anim.hasLoopAnimation {
             let blend = calculateLoopBlend(t: t, inEnd: inDuration, outStart: outStart)
             if blend > 0.001 {
                 let loopTime = max(0.0, t - inDuration)
                 let phase = loopTime * anim.loopSpeed * 2.0 * .pi
-                TextLoopAnimationEvaluator.apply(
-                    config: &evaluated, overlay: &overlay, loopType: anim.loopType,
-                    phase: phase, t: t, loopSpeed: anim.loopSpeed, blend: blend, hue: &hue
-                )
+                if let manifest = anim.loopManifest {
+                    let vars = OpenAnimationRuntimeEngine.Variables(
+                        progress: 1.0, phase: phase, blend: blend, anim: anim, manifest: manifest
+                    )
+                    OpenAnimationRuntimeEngine.applyManifest(
+                        manifest, variables: vars, config: &evaluated, overlay: &overlay,
+                        blur: &blur, pixelate: &pixelate, rgbSplit: &rgbSplit
+                    )
+                } else {
+                    TextLoopAnimationEvaluator.apply(
+                        config: &evaluated, overlay: &overlay, loopType: anim.loopType,
+                        phase: phase, t: t, loopSpeed: anim.loopSpeed, blend: blend, hue: &hue
+                    )
+                }
             }
         }
 
@@ -101,8 +165,6 @@ public enum TextAnimationEvaluator {
         )
     }
 
-    /// Tính hệ số hòa quyện (Blend) cho Loop Animation
-    /// Loop chỉ chạy toàn phần giữa [inEnd, outStart], có fade êm dịu 0.1s ở ranh giới
     private static func calculateLoopBlend(t: Double, inEnd: Double, outStart: Double) -> Double {
         if t < inEnd || t > outStart {
             return 0.0

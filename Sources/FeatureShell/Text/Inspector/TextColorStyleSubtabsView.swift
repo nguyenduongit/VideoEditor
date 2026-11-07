@@ -2,7 +2,7 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// 5 danh mục thuộc tính màu & hiệu ứng của Text Layer.
+/// 5 danh mục thuộc tính màu & hiệu ứng của Text Layer (Text, Stroke, Glow, Shadow, Background).
 public enum TextColorSubtab: String, CaseIterable, Identifiable {
     case text = "Text"
     case stroke = "Stroke"
@@ -30,14 +30,16 @@ public struct TextColorStyleSubtabsView: View {
             headerRow
             subtabsBar
             sharedColorRow
-            Divider().opacity(0.15)
-            TextColorEffectSliders(
-                subtab: activeSubtab,
-                config: currentConfig,
-                onUpdate: { cfg, commit in
-                    updateConfig(cfg, commit: commit)
-                }
-            )
+            if activeSubtab != .text {
+                Divider().opacity(0.15)
+                TextColorEffectSliders(
+                    subtab: activeSubtab,
+                    config: currentConfig,
+                    onUpdate: { cfg, commit in
+                        updateConfig(cfg, commit: commit)
+                    }
+                )
+            }
         }
         .padding(DSSpacing.md)
         .background(DSColors.blockBackground)
@@ -124,7 +126,8 @@ public struct TextColorStyleSubtabsView: View {
         case .text:
             return currentConfig.textColorHex.uppercased() == "NONE"
         case .stroke:
-            return !currentConfig.hasStroke || currentConfig.strokeColorHex.uppercased() == "NONE"
+            return (!currentConfig.hasStroke || currentConfig.strokeColorHex.uppercased() == "NONE")
+                && (!currentConfig.hasOuterStroke || currentConfig.outerStrokeColorHex.uppercased() == "NONE")
         case .glow:
             return !currentConfig.hasGlow || currentConfig.glowColorHex.uppercased() == "NONE"
         case .shadow:
@@ -139,7 +142,7 @@ public struct TextColorStyleSubtabsView: View {
         case .text:
             return currentConfig.textColorHex
         case .stroke:
-            return currentConfig.hasStroke ? currentConfig.strokeColorHex : "NONE"
+            return currentConfig.hasStroke ? currentConfig.strokeColorHex : (currentConfig.hasOuterStroke ? currentConfig.outerStrokeColorHex : "NONE")
         case .glow:
             return currentConfig.hasGlow ? currentConfig.glowColorHex : "NONE"
         case .shadow:
@@ -155,6 +158,8 @@ public struct TextColorStyleSubtabsView: View {
         switch tab {
         case .text:
             cfg.textColorHex = hex
+            cfg.colorFillMode = .solid
+            cfg.isGradient = false
         case .stroke:
             cfg.hasStroke = !isNone
             if !isNone { cfg.strokeColorHex = hex }
@@ -173,33 +178,26 @@ public struct TextColorStyleSubtabsView: View {
                 cfg.shadowOffsetY = 2.0
             }
         case .background:
+            cfg.backgroundColorHex = hex
             cfg.hasBackground = !isNone
+            cfg.backgroundLayer.isEnabled = !isNone
+            cfg.backgroundLayer.sourceKind = .solid
+            cfg.backgroundLayer.solidColorHex = hex
             if !isNone {
-                let cleanCurrent = currentConfig.backgroundColorHex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
-                let currentAlpha = (cleanCurrent.count == 8 && cleanCurrent.suffix(2) != "00") ? String(cleanCurrent.suffix(2)) : "B2"
-                let cleanNew = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
-                let rgb = String(cleanNew.prefix(6))
-                cfg.backgroundColorHex = "#" + rgb + currentAlpha
-                if cfg.backgroundPadding <= 0 { cfg.backgroundPadding = 12.0 }
+                if cfg.backgroundPaddingX <= 0 { cfg.backgroundPaddingX = 16.0; cfg.backgroundLayer.paddingX = 16.0 }
+                if cfg.backgroundPaddingY <= 0 { cfg.backgroundPaddingY = 10.0; cfg.backgroundLayer.paddingY = 10.0 }
+                if cfg.backgroundCornerRadius <= 0 { cfg.backgroundCornerRadius = 8.0; cfg.backgroundLayer.cornerRadius = 8.0 }
             }
         }
         commitConfig(cfg)
     }
 
     private var currentConfig: TextConfiguration {
-        let str = viewModel.liveProperties["textConfig"]?.asString
-            ?? viewModel.selectedClip?.properties["textConfig"]?.asString ?? ""
-        return TextConfiguration.decode(from: str) ?? TextConfiguration()
+        viewModel.activeTextLayerConfiguration
     }
 
     private func updateConfig(_ config: TextConfiguration, commit: Bool) {
-        if let json = config.encodeToJSON() {
-            if commit {
-                viewModel.commitTextProperty(key: "textConfig", text: json)
-            } else {
-                viewModel.updateLiveText(key: "textConfig", text: json)
-            }
-        }
+        viewModel.updateActiveTextLayer(config, commit: commit)
     }
 
     private func commitConfig(_ config: TextConfiguration) {

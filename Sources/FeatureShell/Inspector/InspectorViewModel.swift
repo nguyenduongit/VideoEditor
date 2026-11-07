@@ -12,11 +12,36 @@ public final class InspectorViewModel {
     public weak var timelineViewModel: TimelineViewModel?
     public let actionsPanelViewModel: ActionsPanelViewModel
     public var liveProperties: [String: PropertyValue] = [:]
+    public var preMuteVolumeByClipID: [UUID: Double] = [:]
     public var selectedTab: String = "Video"
+    public var selectedTransitionID: UUID? {
+        get { timelineViewModel?.selectedTransitionID }
+        set {
+            timelineViewModel?.selectedTransitionID = newValue
+            if newValue != nil {
+                selectedTab = "Transition"
+            }
+        }
+    }
+
+    public var selectedTransition: CutTransition? {
+        guard let selectedTransitionID, let timelineViewModel else { return nil }
+        for layer in timelineViewModel.layers {
+            if let t = layer.transition(by: selectedTransitionID) {
+                return t
+            }
+        }
+        return nil
+    }
+
+    public var isSelectedClipLockedTemplate: Bool {
+        false
+    }
 
     private var currentLoadedClipID: UUID?
     private var lastClipKind: ClipKind?
-    private var dragInitialProperties: [String: PropertyValue]?
+    var dragInitialProperties: [String: PropertyValue]?
+    var dragInitialTransition: CutTransition?
 
     public let propertyRegistry: ClipPropertyRegistry
     public var dependencies: EditorDependencies {
@@ -51,13 +76,19 @@ public final class InspectorViewModel {
     }
 
     public var availableTabs: [String] {
+        if selectedTransition != nil {
+            return ["Transition"]
+        }
         guard let clip = selectedClip else { return [] }
         return propertyRegistry.tabs(for: clip.kind)
     }
 
     public var effectiveTab: String {
-        guard let clip = selectedClip else { return selectedTab }
-        let tabs = propertyRegistry.tabs(for: clip.kind)
+        if selectedTransition != nil {
+            return "Transition"
+        }
+        guard selectedClip != nil else { return selectedTab }
+        let tabs = availableTabs
         if tabs.contains(where: { $0.caseInsensitiveCompare(selectedTab) == .orderedSame }) {
             return selectedTab
         }
@@ -99,10 +130,11 @@ public final class InspectorViewModel {
 
     public func syncWithSelection() {
         if let clip = selectedClip {
+            selectedTransitionID = nil
             if currentLoadedClipID != clip.id {
                 currentLoadedClipID = clip.id
                 liveProperties = clip.properties
-                let tabs = propertyRegistry.tabs(for: clip.kind)
+                let tabs = availableTabs
                 if lastClipKind != clip.kind || !tabs.contains(where: { $0.caseInsensitiveCompare(selectedTab) == .orderedSame }) {
                     selectedTab = tabs.first ?? "General"
                 }
@@ -110,24 +142,31 @@ public final class InspectorViewModel {
             } else if dragInitialProperties == nil {
                 liveProperties = clip.properties
             }
+        } else if selectedTransition != nil {
+            currentLoadedClipID = nil
+            lastClipKind = nil
+            liveProperties = [:]
+            dragInitialProperties = nil
+            selectedTab = "Transition"
         } else {
             currentLoadedClipID = nil
             lastClipKind = nil
             liveProperties = [:]
             dragInitialProperties = nil
+            dragInitialTransition = nil
         }
     }
 
     public func onSliderEditingChanged(key: String, isEditing: Bool) {
         guard let clip = selectedClip, let timelineViewModel else { return }
-
         if isEditing {
             if dragInitialProperties == nil {
                 dragInitialProperties = clip.properties
             }
         } else {
             if let initial = dragInitialProperties, initial != liveProperties {
-                if key == "speed" || key == "duration" {
+                let retimeable = clip.kind == .video || clip.kind == .audio || clip.kind == .image
+                if (key == "speed" || key == "duration") && retimeable {
                     timelineViewModel.applySpeedChange(clipID: clip.id, newProperties: liveProperties, oldProperties: initial)
                 } else {
                     timelineViewModel.updateClipLiveProperties(clipID: clip.id, properties: initial)
@@ -142,16 +181,10 @@ public final class InspectorViewModel {
 
     public func commitTextProperty(key: String, text: String) {
         guard let clip = selectedClip, let timelineViewModel else { return }
+        dragInitialProperties = nil
         liveProperties[key] = .string(text)
         if key == "textConfig", let cfg = TextConfiguration.decode(from: text) {
-            liveProperties["positionX"] = .number(cfg.positionX)
-            liveProperties["positionY"] = .number(cfg.positionY)
-            liveProperties["scale"] = .number(cfg.scale)
-            liveProperties["rotation"] = .number(cfg.rotation)
-            liveProperties["opacity"] = .number(cfg.opacity)
-            liveProperties["fontSize"] = .number(cfg.fontSize)
-            liveProperties["textContent"] = .string(cfg.content)
-            liveProperties["fontName"] = .string(cfg.fontName)
+            syncTextFlatProperties(from: cfg)
         }
         let cmd = TimelineCommand.updateClipProperties(clipID: clip.id, properties: liveProperties)
         timelineViewModel.commandExecutor?.execute(cmd)
@@ -165,30 +198,17 @@ public final class InspectorViewModel {
             dragInitialProperties = clip.properties
         }
         liveProperties[key] = .number(value)
-        if clip.kind == .text {
-            var cfg = liveProperties["textConfig"]?.asString.flatMap { TextConfiguration.decode(from: $0) }
-                ?? clip.properties["textConfig"]?.asString.flatMap { TextConfiguration.decode(from: $0) }
-                ?? TextConfiguration()
-            if key == "positionX" { cfg.positionX = value }
-            else if key == "positionY" { cfg.positionY = value }
-            else if key == "scale" { cfg.scale = value }
-            else if key == "rotation" { cfg.rotation = value }
-            else if key == "opacity" { cfg.opacity = value }
-            else if key == "fontSize" { cfg.fontSize = value }
-            if let json = cfg.encodeToJSON() {
-                liveProperties["textConfig"] = .string(json)
-            }
-        }
-        if key == "speed" {
+        applyAutoKeyframeIfNeeded(key: key, value: value)
+        syncTextConfigFromLiveNumber(key: key, value: value, clip: clip)
+        let retimeable = clip.kind == .video || clip.kind == .audio || clip.kind == .image
+        if key == "speed" && retimeable {
             let oldSpeed = max(0.01, dragInitialProperties?["speed"]?.asNumber ?? clip.properties["speed"]?.asNumber ?? 1.0)
-            let currentDur = CMTimeGetSeconds(clip.timeRange.duration)
-            let sourceDur = currentDur * oldSpeed
+            let sourceDur = CMTimeGetSeconds(clip.timeRange.duration) * oldSpeed
             let newDur = max(0.1, sourceDur / max(0.01, value))
             liveProperties["duration"] = .number(Double(round(100.0 * newDur) / 100.0))
-        } else if key == "duration" {
+        } else if key == "duration" && retimeable {
             let oldSpeed = max(0.01, dragInitialProperties?["speed"]?.asNumber ?? clip.properties["speed"]?.asNumber ?? 1.0)
-            let currentDur = CMTimeGetSeconds(clip.timeRange.duration)
-            let sourceDur = currentDur * oldSpeed
+            let sourceDur = CMTimeGetSeconds(clip.timeRange.duration) * oldSpeed
             let newSpeed = max(0.1, min(10.0, sourceDur / max(0.1, value)))
             liveProperties["speed"] = .number(Double(round(100.0 * newSpeed) / 100.0))
         }
@@ -201,14 +221,7 @@ public final class InspectorViewModel {
         }
         liveProperties[key] = .string(text)
         if key == "textConfig", let cfg = TextConfiguration.decode(from: text) {
-            liveProperties["positionX"] = .number(cfg.positionX)
-            liveProperties["positionY"] = .number(cfg.positionY)
-            liveProperties["scale"] = .number(cfg.scale)
-            liveProperties["rotation"] = .number(cfg.rotation)
-            liveProperties["opacity"] = .number(cfg.opacity)
-            liveProperties["fontSize"] = .number(cfg.fontSize)
-            liveProperties["textContent"] = .string(cfg.content)
-            liveProperties["fontName"] = .string(cfg.fontName)
+            syncTextFlatProperties(from: cfg)
         }
         guard let clip = selectedClip, let timelineViewModel else { return }
         timelineViewModel.updateClipLiveProperties(clipID: clip.id, properties: liveProperties)
@@ -245,9 +258,7 @@ public final class InspectorViewModel {
 
     public func resetGroup(name: String) {
         guard let clip = selectedClip, let timelineViewModel else { return }
-        let allDesc = propertyRegistry.descriptors(for: clip.kind)
-        let groupDesc = allDesc.filter { $0.group == name }
-
+        let groupDesc = propertyRegistry.descriptors(for: clip.kind).filter { $0.group == name }
         for desc in groupDesc {
             liveProperties[desc.id] = desc.defaultValue
             if case .position2D(let xID, let yID, _) = desc.control {
@@ -255,7 +266,11 @@ public final class InspectorViewModel {
                 liveProperties[yID] = .number(0.0)
             }
         }
-
+        var kfMap = currentKeyframeMap
+        for key in keyframeKeys(forGroup: groupDesc) {
+            kfMap.removeAllKeyframes(for: key)
+        }
+        liveProperties[ClipKeyframeMap.propertyKey] = kfMap.encodeToJSON().map(PropertyValue.string)
         let cmd = TimelineCommand.updateClipProperties(clipID: clip.id, properties: liveProperties)
         timelineViewModel.commandExecutor?.execute(cmd)
         syncWithSelection()

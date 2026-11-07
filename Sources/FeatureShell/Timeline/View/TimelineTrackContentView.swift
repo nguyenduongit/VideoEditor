@@ -13,15 +13,22 @@ public struct TimelineTrackContentView: View {
     private let isDropTargetBottom: Bool
     private let selectedClipIDs: Set<UUID>
     private let groupDragOffset: CGFloat
+    private let groupTrimLeftOffset: CGFloat
+    private let groupTrimRightOffset: CGFloat
     private let thumbnailService: (any TimelineThumbnailServiceProtocol)?
     private let waveformService: (any AudioWaveformServiceProtocol)?
     private let snapCandidatesProvider: ((UUID?) -> [CMTime])?
+    private let beatTimes: [CMTime]
     private let onSelectClip: (UUID?, Bool) -> Void
     private let onSeek: ((CMTime) -> Void)?
     private let onTrimClip: (UUID, CMTime, CMTime, CMTime?) -> Void
+    private let onTrimGroupChanged: ((UUID, Bool, CGFloat) -> Void)?
+    private let onTrimGroupEnded: ((UUID, Bool) -> Void)?
     private let onMoveClip: (UUID, ClipKind, CMTime, CGFloat) -> Void
     private let onMoveEnd: (UUID) -> Void
+    private let onExtractAudio: ((UUID) -> Void)?
     private let onUpdateClipProperties: ((UUID, [String: PropertyValue], Bool) -> Void)?
+    private let onSelectTransition: ((UUID) -> Void)?
 
     public init(
         layer: TimelineLayer,
@@ -34,15 +41,22 @@ public struct TimelineTrackContentView: View {
         selectedClipIDs: Set<UUID> = [],
         selectedClipID: UUID? = nil,
         groupDragOffset: CGFloat = 0,
+        groupTrimLeftOffset: CGFloat = 0,
+        groupTrimRightOffset: CGFloat = 0,
         snapCandidatesProvider: ((UUID?) -> [CMTime])? = nil,
+        beatTimes: [CMTime] = [],
         thumbnailService: (any TimelineThumbnailServiceProtocol)? = nil,
         waveformService: (any AudioWaveformServiceProtocol)? = nil,
         onSelectClip: @escaping (UUID?, Bool) -> Void = { _, _ in },
         onSeek: ((CMTime) -> Void)? = nil,
         onTrimClip: @escaping (UUID, CMTime, CMTime, CMTime?) -> Void,
+        onTrimGroupChanged: ((UUID, Bool, CGFloat) -> Void)? = nil,
+        onTrimGroupEnded: ((UUID, Bool) -> Void)? = nil,
         onMoveClip: @escaping (UUID, ClipKind, CMTime, CGFloat) -> Void,
         onMoveClipEnd: @escaping (UUID) -> Void,
-        onUpdateClipProperties: ((UUID, [String: PropertyValue], Bool) -> Void)? = nil
+        onExtractAudio: ((UUID) -> Void)? = nil,
+        onUpdateClipProperties: ((UUID, [String: PropertyValue], Bool) -> Void)? = nil,
+        onSelectTransition: ((UUID) -> Void)? = nil
     ) {
         self.layer = layer
         self.height = height
@@ -52,7 +66,11 @@ public struct TimelineTrackContentView: View {
         self.isDropTargetTop = isDropTargetTop
         self.isDropTargetBottom = isDropTargetBottom
         self.groupDragOffset = groupDragOffset
+        self.groupTrimLeftOffset = groupTrimLeftOffset
+        self.groupTrimRightOffset = groupTrimRightOffset
         self.snapCandidatesProvider = snapCandidatesProvider
+        self.beatTimes = beatTimes
+        self.onExtractAudio = onExtractAudio
         if !selectedClipIDs.isEmpty {
             self.selectedClipIDs = selectedClipIDs
         } else if let selectedClipID {
@@ -65,9 +83,12 @@ public struct TimelineTrackContentView: View {
         self.onSelectClip = onSelectClip
         self.onSeek = onSeek
         self.onTrimClip = onTrimClip
+        self.onTrimGroupChanged = onTrimGroupChanged
+        self.onTrimGroupEnded = onTrimGroupEnded
         self.onMoveClip = onMoveClip
         self.onMoveEnd = onMoveClipEnd
         self.onUpdateClipProperties = onUpdateClipProperties
+        self.onSelectTransition = onSelectTransition
     }
 
     public var body: some View {
@@ -108,23 +129,10 @@ public struct TimelineTrackContentView: View {
 
     private var trackBackground: some View {
         Rectangle()
-            .fill(isHovered ? DSColors.accent.opacity(0.12) : DSColors.layerTrackBackground)
+            .fill(isHovered ? DSColors.accent.opacity(0.12) : Color.clear)
             .overlay(
                 Rectangle()
                     .stroke(isHovered ? DSColors.dropIndicator : Color.clear, lineWidth: 1.5)
-            )
-            .contentShape(Rectangle())
-            .gesture(
-                SpatialTapGesture().onEnded { value in
-                    onSelectClip(nil, false)
-                    let seconds = max(0, Double(value.location.x / pixelsPerSecond))
-                    let rawTime = CMTime(seconds: seconds, preferredTimescale: 600)
-                    let candidates = snapCandidatesProvider?(nil) ?? []
-                    let threshold = TimelineSnapEngine.thresholdTime(pixelsPerSecond: pixelsPerSecond)
-                    let (snapped, didSnap) = TimelineSnapEngine.snapPoint(time: rawTime, candidates: candidates, threshold: threshold)
-                    let finalTime = didSnap ? snapped : TimeRational.snapToFrame(time: rawTime)
-                    onSeek?(finalTime)
-                }
             )
     }
 
@@ -140,16 +148,30 @@ public struct TimelineTrackContentView: View {
                     isMuted: layer.isMuted,
                     isSelected: selectedClipIDs.contains(clip.id),
                     groupDragOffset: groupDragOffset,
+                    groupTrimLeftOffset: groupTrimLeftOffset,
+                    groupTrimRightOffset: groupTrimRightOffset,
+                    isMultiSelected: selectedClipIDs.count > 1,
                     previousClipEnd: prev?.timeRange.end,
                     nextClipStart: next?.timeRange.start,
                     snapCandidates: snapCandidatesProvider?(clip.id) ?? [],
+                    beatTimes: beatTimes,
                     thumbnailService: thumbnailService,
                     waveformService: waveformService,
                     onSelect: { isCmd in
                         onSelectClip(clip.id, isCmd)
                     },
+                    onSeek: onSeek,
                     onTrim: { newStart, newDuration, newSourceStart in
                         onTrimClip(clip.id, newStart, newDuration, newSourceStart)
+                    },
+                    onTrimChange: { isLeft, dx in
+                        onTrimGroupChanged?(clip.id, isLeft, dx)
+                    },
+                    onTrimEnd: { isLeft in
+                        onTrimGroupEnded?(clip.id, isLeft)
+                    },
+                    onExtractAudio: {
+                        onExtractAudio?(clip.id)
                     },
                     onMove: { newStart, dragY in
                         onMoveClip(clip.id, clip.kind, newStart, dragY)
@@ -159,6 +181,28 @@ public struct TimelineTrackContentView: View {
                     },
                     onUpdateProperties: onUpdateClipProperties
                 )
+            }
+
+            ForEach(layer.transitions) { transition in
+                if let lead = layer.clips.first(where: { $0.id == transition.leadingClipID }) {
+                    let cutX = lead.timeRange.end.seconds * pixelsPerSecond
+                    Button(action: {
+                        onSelectTransition?(transition.id)
+                    }) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(DSColors.accent)
+                                .frame(width: 18, height: 22)
+                            Image(systemName: "hourglass")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(Color.white)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .offset(x: cutX - 9, y: 0)
+                    .zIndex(50)
+                }
             }
         }
         .frame(width: canvasWidth, height: height, alignment: .leading)

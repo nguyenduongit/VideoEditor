@@ -23,8 +23,11 @@ public final class TimelineViewModel {
     public var hoverLayerID: UUID?
     public var dropBetweenIndex: Int?
     public var selectedClipIDs: Set<UUID> = []
+    public var selectedTransitionID: UUID?
     public var canSplit: Bool { !selectedClipIDs.isEmpty }
     public var groupMoveOffset: CGFloat = 0
+    public var groupTrimLeftOffset: CGFloat = 0
+    public var groupTrimRightOffset: CGFloat = 0
     public var onClipsDeleted: (([UUID]) -> Void)?
     public var onClipsSplit: (([UUID]) -> Void)?
     public var onClipsTrimmed: (() -> Void)?
@@ -35,6 +38,7 @@ public final class TimelineViewModel {
     public var aspectRatio: CanvasAspectRatio = .ratio16x9
     public var onAspectRatioChanged: ((CanvasAspectRatio) -> Void)?
     public var onSeekRequested: ((CMTime) -> Void)?
+    public var currentProjectURL: URL?
 
     public var hasClips: Bool {
         layers.contains(where: { !$0.clips.isEmpty })
@@ -54,6 +58,7 @@ public final class TimelineViewModel {
     public let thumbnailService: (any TimelineThumbnailServiceProtocol)?
     public let waveformService: (any AudioWaveformServiceProtocol)?
     public let audioAlignmentService: (any AudioAlignmentServiceProtocol)?
+    public var audioBeatDetectionService: (any AudioBeatDetectionServiceProtocol)?
     public let subjectTrackingService: (any SubjectTrackingServiceProtocol)?
     public let dependencies: EditorDependencies
     public let fontManager: CustomFontManager
@@ -62,6 +67,8 @@ public final class TimelineViewModel {
     var trackingTasks: [UUID: Task<Void, Never>] = [:]
     public var isSyncingAudio: Bool = false
     public var onAudioSyncResult: ((Bool, String) -> Void)?
+    public var isDetectingBeats: Bool = false
+    public var onBeatDetectionResult: ((Bool, String) -> Void)?
     public var commandExecutor: TimelineCommandExecutor? {
         didSet { updateUndoRedoState() }
     }
@@ -117,6 +124,7 @@ public final class TimelineViewModel {
         thumbnailService: (any TimelineThumbnailServiceProtocol)? = nil,
         waveformService: (any AudioWaveformServiceProtocol)? = nil,
         audioAlignmentService: (any AudioAlignmentServiceProtocol)? = nil,
+        audioBeatDetectionService: (any AudioBeatDetectionServiceProtocol)? = nil,
         subjectTrackingService: (any SubjectTrackingServiceProtocol)? = nil,
         dependencies: EditorDependencies = EditorDependencies(),
         fontManager: CustomFontManager = CustomFontManager(),
@@ -125,6 +133,7 @@ public final class TimelineViewModel {
         self.thumbnailService = thumbnailService
         self.waveformService = waveformService
         self.audioAlignmentService = audioAlignmentService
+        self.audioBeatDetectionService = audioBeatDetectionService
         self.subjectTrackingService = subjectTrackingService
         self.dependencies = dependencies
         self.fontManager = fontManager

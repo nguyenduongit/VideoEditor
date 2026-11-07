@@ -3,9 +3,8 @@ import Domain
 import Supabase
 
 /// Hiện thực kho lưu trữ mẫu chữ (Text Presets) qua Supabase Database và Cache cục bộ.
-/// Áp dụng cơ chế Offline-First / Stale-While-Revalidate (SWR) để đảm bảo độ mượt 0ms.
+/// Áp dụng cơ chế Offline-First / Stale-While-Revalidate (SWR) với Upsert an toàn (không xóa dữ liệu cộng đồng).
 /// Tuân thủ AGENTS.md R2.1 (Infrastructure hiện thực hóa Domain Protocol) và R3.1 (File <= 300 dòng).
-/// Bọc SupabaseClient bên thứ ba; toàn bộ thuộc tính đều là immutable 'let' và templateLoader thread-safe (Tuân thủ R8.3 của AGENTS.md).
 public final class SupabaseTextPresetRepository: TextPresetRepositoryProtocol, @unchecked Sendable {
     private let client: SupabaseClient?
     private let tableName = "text_presets"
@@ -32,20 +31,25 @@ public final class SupabaseTextPresetRepository: TextPresetRepositoryProtocol, @
                 .value
 
             let fetched = rows.map { $0.toPreset() }
-            // Supabase là Nguồn Chân Lý Duy Nhất (Single Source of Truth)
+            let systemIDs = Set(TextPreset.creativeCatalog.map(\.id))
+            let fetchedSystemIDs = Set(fetched.filter(\.isSystem).map(\.id))
+
+            // Nếu Supabase chưa có đủ các mẫu hệ thống mới, thực hiện Upsert an toàn (không xóa dữ liệu user)
+            if !systemIDs.isSubset(of: fetchedSystemIDs) {
+                try? await seedSystemCatalogSafely(preserving: fetched)
+                return templateLoader.loadAllTemplates()
+            }
+
             templateLoader.setInMemoryTemplates(fetched)
-            return fetched
+            return templateLoader.loadAllTemplates()
         } catch {
-            // Mạng lỗi hoặc timeout: An toàn fallback về cache RAM hoặc mẫu mặc định
             return templateLoader.loadAllTemplates()
         }
     }
 
     public func savePreset(_ preset: TextPreset) async throws {
-        // 1. Lưu ngay vào RAM cache để giao diện phản hồi tức thì
         templateLoader.updateInMemoryPreset(preset)
 
-        // 2. Đồng bộ lên Supabase DB
         guard let client else { return }
         let row = TextPresetRow(from: preset)
         do {
@@ -70,16 +74,31 @@ public final class SupabaseTextPresetRepository: TextPresetRepositoryProtocol, @
     }
 
     public func deletePreset(id: String) async throws {
-        // 1. Xóa khỏi RAM cache
         templateLoader.removeInMemoryPreset(id: id)
 
-        // 2. Xóa trên Supabase DB
         guard let client else { return }
         try await client
             .from(tableName)
             .delete()
             .eq("id", value: id)
             .execute()
+
+        NotificationCenter.default.post(name: .presetStoreDidUpdate, object: nil)
+    }
+
+    /// Khởi tạo/cập nhật các mẫu hệ thống mặc định bằng Upsert không phá hủy (bảo toàn 100% mẫu của người dùng).
+    public func seedSystemCatalogSafely(preserving existingUserPresets: [TextPreset] = []) async throws {
+        let systemCatalog = [TextPreset.default] + TextPreset.creativeCatalog
+        let userOnly = existingUserPresets.filter { !$0.isSystem }
+        templateLoader.setInMemoryTemplates(systemCatalog + userOnly)
+
+        if let client {
+            let rows = systemCatalog.map { TextPresetRow(from: $0) }
+            try await client
+                .from(tableName)
+                .upsert(rows)
+                .execute()
+        }
 
         NotificationCenter.default.post(name: .presetStoreDidUpdate, object: nil)
     }
@@ -102,7 +121,11 @@ private struct TextPresetRow: Codable, Sendable {
         self.name = preset.name
         self.description = preset.description
         self.category = preset.category.rawValue
-        self.tags = preset.tags
+        var mergedTags = preset.tags
+        if let metaTag = preset.community.encodeToTag() {
+            mergedTags.append(metaTag)
+        }
+        self.tags = mergedTags
         self.preview_badge = preset.previewBadge
         self.config = preset.config
         self.is_system = preset.isSystem
@@ -110,15 +133,21 @@ private struct TextPresetRow: Codable, Sendable {
 
     func toPreset() -> TextPreset {
         let cat = TextTemplateCategory(rawValue: category) ?? .trending
+        let sys = is_system ?? false
+        let (cleanTags, communityMeta) = CommunityMetadata.extract(from: tags, isSystem: sys)
+        let builtIn = TextPreset.templates.first(where: { $0.id == id })
         return TextPreset(
             id: id,
             name: name,
             description: description ?? "",
             category: cat,
-            tags: tags ?? [],
-            previewBadge: preview_badge,
+            tags: cleanTags,
+            defaultDuration: builtIn?.defaultDuration ?? 4.0,
+            previewBadge: preview_badge ?? builtIn?.previewBadge,
+            previewBackgroundHex: builtIn?.previewBackgroundHex ?? "#18181B",
             config: config,
-            isSystem: is_system ?? false
+            isSystem: sys,
+            community: communityMeta
         )
     }
 }

@@ -6,70 +6,144 @@ import AppKit
 #endif
 import Domain
 
-/// Engine kết xuất văn bản (Typography) với định dạng font chữ, viền, bóng, nền và transform vật lý Pro.
+/// Engine kết xuất văn bản 1-Layer thống nhất (Text [Basic/Stroke/Style/Curved] · Background · Animation) ở 60fps.
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng) của AGENTS.md.
 public final class TextRendererEngine: Sendable {
     public init() {}
 
-    /// Đo kích thước bounding box của văn bản dựa trên cấu hình và kích thước canvas.
-    public func measureSize(for config: TextConfiguration, canvasSize: CGSize) -> CGSize {
-        guard !config.content.isEmpty else { return .zero }
-        #if os(macOS)
-        let attributed = makeAttributedString(for: config)
-        let maxTextSize = CGSize(width: max(100.0, canvasSize.width), height: max(100.0, canvasSize.height))
-        let bounds = attributed.boundingRect(with: maxTextSize, options: [.usesLineFragmentOrigin, .usesFontLeading])
-        var w = ceil(bounds.width)
-        var h = ceil(bounds.height)
-        if config.hasOuterStroke && config.outerStrokeWidth > 0 {
-            let ow = CGFloat(config.outerStrokeWidth * 2.0); w += ow; h += ow
-        }
-        if config.hasExtrusion && config.extrusionDepth > 0 {
-            let ed = CGFloat(config.extrusionDepth); w += ed; h += ed
-        }
-        if config.hasBackground {
-            let pad = CGFloat(config.backgroundPadding * 2.0); w += pad; h += pad
-        }
-        return CGSize(width: max(20.0, w), height: max(20.0, h))
-        #else
-        return CGSize(width: 200, height: 60)
-        #endif
-    }
-
-    /// Kết xuất văn bản với hoạt ảnh chuyển động tại thời điểm `localTime`.
+    /// Kết xuất văn bản tại thời điểm `localTime`, tự động dùng Static Bitmap Cache nếu khung hình đứng yên.
     public func renderAnimatedImage(
         for config: TextConfiguration,
         localTime: Double,
         duration: Double,
         canvasSize: CGSize
     ) -> CIImage? {
-        #if os(macOS)
-        if shouldRenderSegmented(for: config) {
-            return renderSegmentedAnimatedImage(
-                for: config, localTime: localTime,
-                duration: duration, canvasSize: canvasSize
-            )
-        }
-        #endif
+        guard !config.content.isEmpty, canvasSize.width > 0, canvasSize.height > 0 else { return nil }
 
-        let evaluated = TextAnimationEvaluator.evaluate(
-            config: config, localTime: localTime, duration: duration, canvasSize: canvasSize
-        )
-        guard let image = renderImage(for: evaluated.config, canvasSize: canvasSize, overlay: evaluated.overlay) else {
+        let isStaticFrame = isFrameStatic(config: config, localTime: localTime, duration: duration)
+        if isStaticFrame {
+            var hasher = Hasher()
+            hasher.combine(config.encodeToJSON() ?? config.content)
+            hasher.combine(Int(canvasSize.width))
+            hasher.combine(Int(canvasSize.height))
+            let cacheKey = hasher.finalize()
+            if let cached = TextSVGAndAssetCache.shared.cachedTextImage(forKey: cacheKey) {
+                return cached
+            }
+            if let rendered = renderDynamicComposite(for: config, localTime: localTime, duration: duration, canvasSize: canvasSize) {
+                TextSVGAndAssetCache.shared.storeTextImage(rendered, forKey: cacheKey)
+                return rendered
+            }
             return nil
         }
-        return TextShaderFilterEngine.applyFilters(
-            to: image, blurRadius: evaluated.blurRadius, hueAngle: evaluated.hueAngle,
-            pixelateScale: evaluated.pixelateScale, rgbSplitIntensity: evaluated.rgbSplitIntensity,
-            overlay: evaluated.overlay, lightSweepIntensity: config.animation.lightSweepIntensity
-        )
+
+        return renderDynamicComposite(for: config, localTime: localTime, duration: duration, canvasSize: canvasSize)
     }
 
+    private func isFrameStatic(config: TextConfiguration, localTime: Double, duration: Double) -> Bool {
+        if config.background.isEnabled && config.background.sourceKind == .animatedAsset {
+            return false
+        }
+        let anim = config.animation
+        if anim.isDefault { return true }
+        if anim.hasLoopAnimation || anim.comboType != .none || anim.lightSweepIntensity > 0.01 || anim.rgbSplitIntensity > 0.01 {
+            return false
+        }
+        let inEnd = anim.hasInAnimation ? anim.inDuration : 0.0
+        let outStart = anim.hasOutAnimation ? max(inEnd, max(0.1, duration) - anim.outDuration) : .greatestFiniteMagnitude
+        return localTime >= inEnd && localTime <= outStart
+    }
 
-    /// Kết xuất văn bản tĩnh hoặc biến đổi khối thành CIImage
+    private func renderDynamicComposite(
+        for config: TextConfiguration,
+        localTime: Double,
+        duration: Double,
+        canvasSize: CGSize
+    ) -> CIImage? {
+        let evaluated = TextAnimationEvaluator.evaluate(
+            config: config,
+            localTime: localTime,
+            duration: duration,
+            canvasSize: canvasSize
+        )
+
+        let textImage: CIImage?
+        if shouldRenderSegmented(for: config) && !config.curve.isActive {
+            textImage = renderSegmentedAnimatedImage(
+                for: config,
+                localTime: localTime,
+                duration: duration,
+                canvasSize: canvasSize
+            )
+        } else if let rawText = renderImage(
+            for: evaluated.config,
+            canvasSize: canvasSize,
+            overlay: evaluated.overlay,
+            localTime: localTime,
+            duration: duration
+        ) {
+            textImage = TextShaderFilterEngine.applyFilters(
+                to: rawText,
+                blurRadius: evaluated.blurRadius,
+                hueAngle: evaluated.hueAngle,
+                pixelateScale: evaluated.pixelateScale,
+                rgbSplitIntensity: evaluated.rgbSplitIntensity,
+                overlay: evaluated.overlay,
+                lightSweepIntensity: config.animation.lightSweepIntensity
+            )
+        } else {
+            textImage = nil
+        }
+
+        #if os(macOS)
+        guard config.background.isEnabled else { return textImage }
+        let rawGlyphBounds = measureCoreGlyphBounds(for: config)
+        let maxSafeW = CGFloat(TextAutoFitter.maxSafeWidth(for: canvasSize))
+        let safeguard: CGFloat = (rawGlyphBounds.width > maxSafeW && rawGlyphBounds.width > 0)
+            ? (maxSafeW / rawGlyphBounds.width)
+            : 1.0
+
+        let bgAnchor = config.background.animateWithText ? evaluated.config : config
+        let bgOverlay = config.background.animateWithText ? evaluated.overlay : TextTransformOverlay()
+
+        guard var bgImg = TextCompositeLayerRenderer.renderBackground(
+            background: config.background,
+            anchorConfig: bgAnchor,
+            overlay: bgOverlay,
+            textRawSize: rawGlyphBounds,
+            safeguardScale: safeguard,
+            canvasSize: canvasSize,
+            localTime: localTime
+        ) else {
+            return textImage
+        }
+
+        if config.background.animateWithText {
+            bgImg = TextShaderFilterEngine.applyFilters(
+                to: bgImg,
+                blurRadius: evaluated.blurRadius,
+                hueAngle: evaluated.hueAngle,
+                pixelateScale: evaluated.pixelateScale,
+                rgbSplitIntensity: evaluated.rgbSplitIntensity,
+                overlay: evaluated.overlay,
+                lightSweepIntensity: 0.0
+            )
+        }
+
+        guard let fgText = textImage else { return bgImg }
+        return fgText.composited(over: bgImg)
+        #else
+        return textImage
+        #endif
+    }
+
+    /// Kết xuất lớp chữ (thẳng hoặc cong Arc / Sine Wave) thành CIImage
     public func renderImage(
         for config: TextConfiguration,
         canvasSize: CGSize,
-        overlay: TextTransformOverlay = TextTransformOverlay()
+        overlay: TextTransformOverlay = TextTransformOverlay(),
+        localTime: Double = 0.0,
+        duration: Double = 4.0
     ) -> CIImage? {
         guard !config.content.isEmpty, canvasSize.width > 0, canvasSize.height > 0 else { return nil }
         let width = Int(canvasSize.width)
@@ -77,23 +151,12 @@ public final class TextRendererEngine: Sendable {
         guard let context = createBitmapContext(width: width, height: height) else { return nil }
 
         #if os(macOS)
-        let nsGraphicsContext = NSGraphicsContext(cgContext: context, flipped: false)
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = nsGraphicsContext
-        defer { NSGraphicsContext.restoreGraphicsState() }
-
         drawText(config: config, overlay: overlay, canvasSize: canvasSize, in: context)
         #endif
 
         guard let cgImage = context.makeImage() else { return nil }
-        var ciImage = CIImage(cgImage: cgImage)
-        if config.opacity < 1.0 {
-            let vec = CIVector(x: 0, y: 0, z: 0, w: CGFloat(max(0.0, config.opacity)))
-            if let f = CIFilter(name: "CIColorMatrix", parameters: ["inputAVector": vec, kCIInputImageKey: ciImage]) {
-                ciImage = f.outputImage ?? ciImage
-            }
-        }
-        return ciImage
+        let ciImage = CIImage(cgImage: cgImage)
+        return TextSVGAndAssetCache.applyPremultipliedOpacity(config.opacity, to: ciImage)
     }
 
     internal func createBitmapContext(width: Int, height: Int) -> CGContext? {
@@ -112,14 +175,19 @@ public final class TextRendererEngine: Sendable {
         canvasSize: CGSize,
         in context: CGContext
     ) {
-        let attributed = makeAttributedString(for: config)
-        let maxTextSize = CGSize(width: max(100.0, canvasSize.width), height: max(100.0, canvasSize.height))
-        let bounds = attributed.boundingRect(with: maxTextSize, options: [.usesLineFragmentOrigin, .usesFontLeading])
-        let textWidth = ceil(bounds.width)
-        let textHeight = ceil(bounds.height)
+        let font = resolveFont(name: config.fontName, size: CGFloat(config.fontSize), isBold: config.isBold, isItalic: config.isItalic)
+        let layout = TextCurvedPathBuilder.buildShapedLayout(
+            text: config.content,
+            font: font,
+            characterSpacing: config.characterSpacing,
+            curve: config.curve
+        )
 
+        let textWidth = max(1.0, layout.bounds.width)
+        let textHeight = max(1.0, layout.bounds.height)
         let cx = canvasSize.width / 2.0 + CGFloat(config.positionX)
         let cy = canvasSize.height / 2.0 - CGFloat(config.positionY)
+
         let pivotY: CGFloat
         switch config.animation.anchorPoint {
         case .center: pivotY = 0.0
@@ -136,115 +204,32 @@ public final class TextRendererEngine: Sendable {
             context.scaleBy(x: safeguardScale, y: safeguardScale)
         }
 
-        if abs(config.rotation) > 0.001 { context.rotate(by: CGFloat(-config.rotation * .pi / 180.0)) }
-        if abs(overlay.skewX) > 0.001 { context.concatenate(CGAffineTransform(a: 1, b: 0, c: CGFloat(overlay.skewX), d: 1, tx: 0, ty: 0)) }
+        if abs(config.rotation) > 0.001 {
+            context.rotate(by: CGFloat(-config.rotation * .pi / 180.0))
+        }
+        if abs(overlay.skewX) > 0.001 {
+            context.concatenate(CGAffineTransform(a: 1, b: 0, c: CGFloat(overlay.skewX), d: 1, tx: 0, ty: 0))
+        }
         let sx = CGFloat(max(0.01, config.scale * overlay.scaleX))
         let sy = CGFloat(max(0.01, config.scale * overlay.scaleY))
-        if abs(sx - 1.0) > 0.001 || abs(sy - 1.0) > 0.001 { context.scaleBy(x: sx, y: sy) }
+        if abs(sx - 1.0) > 0.001 || abs(sy - 1.0) > 0.001 {
+            context.scaleBy(x: sx, y: sy)
+        }
         context.translateBy(x: 0, y: -pivotY)
 
-        if config.hasBackground {
-            let padY = CGFloat(config.backgroundPadding)
-            let extraPadX = max(10.0, ceil(CGFloat(config.fontSize) * 0.22))
-            let padX = padY + extraPadX
-            let bgRect = CGRect(x: -textWidth / 2.0 - padX, y: -textHeight / 2.0 - padY, width: textWidth + padX * 2.0, height: textHeight + padY * 2.0)
-            let corner = CGFloat(config.backgroundCornerRadius)
-            let path = CGPath(roundedRect: bgRect, cornerWidth: corner, cornerHeight: corner, transform: nil)
-            context.saveGState()
-            context.addPath(path)
-            context.setFillColor(parseHexColor(config.backgroundColorHex).cgColor)
-            context.fillPath()
-            context.restoreGState()
-        }
-
         if config.animation.isMaskEnabled {
-            let maskRect = CGRect(x: -textWidth / 2.0 - 10, y: -textHeight / 2.0 - 4, width: textWidth + 20, height: textHeight + 8)
+            let maskRect = layout.bounds.insetBy(dx: -20.0, dy: -12.0)
             context.clip(to: maskRect)
         }
 
-        let drawW = textWidth + 12.0
-        let drawH = textHeight + 8.0
-        let textRect = CGRect(x: -drawW / 2.0, y: -drawH / 2.0, width: drawW, height: drawH)
-
-        let safeContent = config.content.precomposedStringWithCanonicalMapping
-        let textString = config.isAllCaps ? safeContent.uppercased() : safeContent
-        let font = resolveFont(name: config.fontName, size: CGFloat(config.fontSize), isBold: config.isBold, isItalic: config.isItalic)
-        let paragraph = TextAdvancedStyleRenderer.makeParagraphStyle(for: config)
-
-        // 1. Tỏa Outer Glow và Drop Shadow ở lớp đáy (không bao giờ đè hay ám màu lên ruột chữ)
-        TextAdvancedStyleRenderer.drawGlowAndShadow(
-            config: config, font: font, textString: textString,
-            paragraph: paragraph, textRect: textRect, in: context
+        TextAdvancedStyleRenderer.drawStyledVectorGlyphPath(
+            layout.combinedPath,
+            pathBounds: layout.bounds,
+            config: config,
+            in: context
         )
-        // 2. Khối 3D Extrusion
-        TextAdvancedStyleRenderer.drawExtrusion(
-            config: config, font: font, textString: textString,
-            paragraph: paragraph, textRect: textRect, in: context
-        )
-        // 3. Viền kép ngoài (Sticker)
-        TextAdvancedStyleRenderer.drawOuterStroke(
-            config: config, font: font, textString: textString,
-            paragraph: paragraph, textRect: textRect, in: context
-        )
-        // 4. Gradient Fill (nếu có)
-        TextAdvancedStyleRenderer.drawGradientFill(
-            config: config, font: font, textString: textString,
-            paragraph: paragraph, textRect: textRect, in: context
-        )
-        // 5. Chữ sắc nét trên cùng (ruột chữ & viền trong sạch hoàn toàn)
-        attributed.draw(in: textRect)
-
+        TextCurvedPathBuilder.drawEmojiFallbacks(layout.emojiGlyphs, in: context)
         context.restoreGState()
-    }
-
-    public func makeAttributedString(for config: TextConfiguration) -> NSAttributedString {
-        let font = resolveFont(name: config.fontName, size: CGFloat(config.fontSize), isBold: config.isBold, isItalic: config.isItalic)
-        let paragraph = TextAdvancedStyleRenderer.makeParagraphStyle(for: config)
-
-        let isHollowOrGradient = config.isHollow || config.textColorHex.uppercased() == "NONE" || (config.isGradient && config.gradientColors.count >= 2)
-        let fgColor = isHollowOrGradient ? NSColor.clear : parseHexColor(config.textColorHex)
-
-        var attrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: fgColor,
-            .paragraphStyle: paragraph,
-            .kern: CGFloat(config.characterSpacing)
-        ]
-
-        if config.isUnderline { attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue }
-        if config.isStrikethrough { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
-
-        if config.hasStroke && config.strokeWidth > 0 {
-            attrs[.strokeColor] = parseHexColor(config.strokeColorHex)
-            attrs[.strokeWidth] = isHollowOrGradient ? abs(config.strokeWidth) : -abs(config.strokeWidth)
-        }
-
-        let safeContent = config.content.precomposedStringWithCanonicalMapping
-        let textString = config.isAllCaps ? safeContent.uppercased() : safeContent
-        return NSAttributedString(string: textString, attributes: attrs)
-    }
-
-    internal func resolveFont(name: String, size: CGFloat, isBold: Bool, isItalic: Bool) -> NSFont {
-        let safeSize = max(6.0, size)
-        if name.lowercased() == "system" {
-            return isBold ? NSFont.boldSystemFont(ofSize: safeSize) : NSFont.systemFont(ofSize: safeSize)
-        }
-        var font = NSFont(name: name, size: safeSize) ?? NSFont.systemFont(ofSize: safeSize)
-        var traits: NSFontTraitMask = []
-        if isBold { traits.insert(.boldFontMask) }
-        if isItalic { traits.insert(.italicFontMask) }
-        if !traits.isEmpty {
-            font = NSFontManager.shared.convert(font, toHaveTrait: traits)
-        }
-        return font
-    }
-
-    public static func parseHexColor(_ hex: String) -> NSColor {
-        TextAdvancedStyleRenderer.parseHexColor(hex)
-    }
-
-    public func parseHexColor(_ hex: String) -> NSColor {
-        Self.parseHexColor(hex)
     }
     #endif
 }

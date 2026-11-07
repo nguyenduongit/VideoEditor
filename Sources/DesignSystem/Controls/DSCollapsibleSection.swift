@@ -4,6 +4,7 @@ import SwiftUI
 /// Complies with R8.1 and R8.2 of AGENTS.md.
 public struct DSCollapsibleSection<Content: View>: View {
     private let title: String
+    private let trailingAccessory: AnyView?
     private let onReset: (() -> Void)?
     private let content: () -> Content
 
@@ -13,11 +14,13 @@ public struct DSCollapsibleSection<Content: View>: View {
     public init(
         title: String,
         defaultExpanded: Bool = true,
+        trailingAccessory: AnyView? = nil,
         onReset: (() -> Void)? = nil,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.title = title
         self._isExpanded = State(initialValue: defaultExpanded)
+        self.trailingAccessory = trailingAccessory
         self.onReset = onReset
         self.content = content
     }
@@ -41,8 +44,14 @@ public struct DSCollapsibleSection<Content: View>: View {
 
             Spacer()
 
-            if let onReset {
-                resetButton(action: onReset)
+            if isExpanded {
+                if let onReset {
+                    resetButton(action: onReset)
+                }
+
+                if let trailingAccessory {
+                    trailingAccessory
+                }
             }
         }
         .frame(height: 24)

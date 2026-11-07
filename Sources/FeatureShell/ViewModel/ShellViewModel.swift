@@ -196,13 +196,13 @@ public final class ShellViewModel {
         refreshActiveVisualKind()
     }
 
+    public var hasActiveTimelineVisual: Bool {
+        timelineViewModel.activeVisualClip(at: playheadState.currentTime) != nil
+    }
+
     func refreshActiveVisualKind() {
         let currentTime = playheadState.currentTime
         isTimelineVideoActive = timelineViewModel.hasActiveVideoClip(at: currentTime)
-        if let imageClip = timelineViewModel.activeImageClip(at: currentTime), let url = imageClip.mediaURL {
-            timelinePreviewImage = playbackEngine.image(for: url)
-        } else {
-            timelinePreviewImage = nil
-        }
+        timelinePreviewImage = nil
     }
 }

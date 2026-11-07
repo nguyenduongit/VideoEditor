@@ -7,6 +7,7 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
     case text
     case effect
     case adjustment
+    case sticker
 
     public var id: String {
         rawValue
@@ -26,6 +27,8 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
             return "Effect"
         case .adjustment:
             return "Adjustment"
+        case .sticker:
+            return "Sticker"
         }
     }
 
@@ -33,7 +36,7 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
         switch self {
         case .video, .audio:
             return true
-        case .image, .text, .adjustment, .effect:
+        case .image, .text, .adjustment, .effect, .sticker:
             return false
         }
     }
@@ -42,7 +45,7 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
         switch self {
         case .video, .audio:
             return true
-        case .image, .text, .adjustment, .effect:
+        case .image, .text, .adjustment, .effect, .sticker:
             return false
         }
     }
@@ -51,13 +54,15 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
         switch self {
         case .video, .audio, .image:
             return true
-        case .text, .adjustment, .effect:
+        case .text, .adjustment, .effect, .sticker:
             return false
         }
     }
 
     public var defaultTier: Int {
         switch self {
+        case .sticker:
+            return 0
         case .text:
             return 0
         case .effect:
@@ -77,7 +82,7 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
         switch self {
         case .video, .audio:
             return false
-        case .image, .text, .adjustment, .effect:
+        case .image, .text, .adjustment, .effect, .sticker:
             return true
         }
     }
@@ -96,6 +101,8 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
             return "wand.and.stars"
         case .adjustment:
             return "slider.horizontal.3"
+        case .sticker:
+            return "face.smiling"
         }
     }
 }

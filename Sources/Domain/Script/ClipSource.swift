@@ -26,6 +26,7 @@ public enum ClipSource: Codable, Sendable, Hashable, Equatable {
     case text(content: String, style: TextStyleDescriptor)
     case color(hex: String)
     case adjustment
+    case generated
 
     private enum CodingKeys: String, CodingKey {
         case type
@@ -37,6 +38,7 @@ public enum ClipSource: Codable, Sendable, Hashable, Equatable {
         case text
         case color
         case adjustment
+        case generated
     }
 
     private struct FilePayload: Codable {
@@ -58,7 +60,11 @@ public enum ClipSource: Codable, Sendable, Hashable, Equatable {
         switch type {
         case .file:
             let payload = try container.decode(FilePayload.self, forKey: .payload)
-            self = .file(url: payload.url)
+            if payload.url.path == "/" || payload.url.path.isEmpty {
+                self = .generated
+            } else {
+                self = .file(url: payload.url)
+            }
         case .text:
             let payload = try container.decode(TextPayload.self, forKey: .payload)
             self = .text(content: payload.content, style: payload.style)
@@ -67,6 +73,8 @@ public enum ClipSource: Codable, Sendable, Hashable, Equatable {
             self = .color(hex: payload.hex)
         case .adjustment:
             self = .adjustment
+        case .generated:
+            self = .generated
         }
     }
 
@@ -74,8 +82,12 @@ public enum ClipSource: Codable, Sendable, Hashable, Equatable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case .file(let url):
-            try container.encode(SourceType.file, forKey: .type)
-            try container.encode(FilePayload(url: url), forKey: .payload)
+            if url.path == "/" || url.path.isEmpty {
+                try container.encode(SourceType.generated, forKey: .type)
+            } else {
+                try container.encode(SourceType.file, forKey: .type)
+                try container.encode(FilePayload(url: url), forKey: .payload)
+            }
         case .text(let content, let style):
             try container.encode(SourceType.text, forKey: .type)
             try container.encode(TextPayload(content: content, style: style), forKey: .payload)
@@ -84,6 +96,8 @@ public enum ClipSource: Codable, Sendable, Hashable, Equatable {
             try container.encode(ColorPayload(hex: hex), forKey: .payload)
         case .adjustment:
             try container.encode(SourceType.adjustment, forKey: .type)
+        case .generated:
+            try container.encode(SourceType.generated, forKey: .type)
         }
     }
 }

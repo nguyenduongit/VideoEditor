@@ -56,4 +56,11 @@ extension TimelineViewModel {
         currentTime = snapped
         onSeekRequested?(snapped)
     }
+
+    /// Di chuyển con trỏ phát (Playhead) tiến/lùi theo số lượng frame (mặc định 1 frame tại 60fps)
+    public func stepFrame(by count: Int64 = 1) {
+        let currentFrame = TimeRational.frameIndex(for: currentTime)
+        let targetFrame = max(0, currentFrame + count)
+        seek(to: TimeRational.time(forFrame: targetFrame))
+    }
 }

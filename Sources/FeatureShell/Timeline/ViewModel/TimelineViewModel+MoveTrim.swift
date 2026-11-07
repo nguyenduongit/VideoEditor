@@ -32,7 +32,10 @@ extension TimelineViewModel {
                 targetLayerID: resolvedTargetID,
                 newStartTime: RationalTime(cmTime: effectiveStart)
             )
-            if executor.execute(cmd) { return }
+            if executor.execute(cmd) {
+                cleanEmptyLayers()
+                return
+            }
         }
 
         guard var clip = layers[sourceIndex].removeClip(by: clipID) else { return }

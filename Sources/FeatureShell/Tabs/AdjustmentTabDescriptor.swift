@@ -5,7 +5,8 @@ import DesignSystem
 public struct AdjustmentTabDescriptor: TabDescriptor {
     public let id: TabID = .adjustment
     public let title: String = "Adjustment"
-    public let order: Int = 40
+    public let iconName: String = "slider.horizontal.3"
+    public let order: Int = 30
 
     private let timelineViewModel: TimelineViewModel?
 

@@ -43,6 +43,10 @@ extension TimelineCommand {
             return "Set Layer Status"
         case .setAspectRatio:
             return "Change Aspect Ratio"
+        case .setCutTransition:
+            return "Set Transition"
+        case .removeCutTransition:
+            return "Remove Transition"
         case .batch:
             return "Batch Action"
         }
