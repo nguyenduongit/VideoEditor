@@ -22,6 +22,15 @@ public enum TextSegmentRenderer: Sendable {
         font: NSFont,
         spacing: Double
     ) -> (tokens: [TextToken], totalWidth: CGFloat) {
+        computeTokens(content: content, scope: scope, font: font, spacing: spacing)
+    }
+
+    public static func computeTokens(
+        content: String,
+        scope: TextAnimationScope,
+        font: NSFont,
+        spacing: Double
+    ) -> (tokens: [TextToken], totalWidth: CGFloat) {
         guard !content.isEmpty else { return ([], 0) }
 
         let rawUnits: [String]
@@ -93,6 +102,20 @@ public enum TextSegmentRenderer: Sendable {
                 height: totalHeight + 24
             )
             context.clip(to: clipRect)
+        }
+
+        let blockEval = TextAnimationEvaluator.evaluate(
+            config: baseConfig, localTime: localTime, duration: duration, canvasSize: canvasSize
+        )
+        if blockEval.overlay.revealProgress >= 0.0 {
+            let wipeW = (totalWidth + 48.0) * CGFloat(blockEval.overlay.revealProgress)
+            let wipeRect = CGRect(
+                x: -totalWidth / 2.0 - 24.0,
+                y: -totalHeight / 2.0 - 24.0,
+                width: wipeW,
+                height: totalHeight + 48.0
+            )
+            context.clip(to: wipeRect)
         }
 
         let visibleIndices = tokens.indices.filter { !tokens[$0].text.trimmingCharacters(in: .whitespaces).isEmpty }
@@ -173,7 +196,8 @@ public enum TextSegmentRenderer: Sendable {
 
             var evaluated = TextAnimationEvaluator.evaluate(
                 config: singleConfig, localTime: itemLocalTime,
-                duration: duration, canvasSize: canvasSize
+                duration: duration, canvasSize: canvasSize,
+                charIndex: orderIndex, charCount: visibleCount
             )
 
             if isKaraokeGlow || isKaraokeBox {

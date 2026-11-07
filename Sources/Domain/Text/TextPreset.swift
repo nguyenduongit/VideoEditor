@@ -11,6 +11,18 @@ public enum TextTemplateCategory: String, Codable, Sendable, CaseIterable, Ident
 
     public var id: String { rawValue }
 
+    /// Tên hiển thị tiếng Anh chuẩn trên giao diện UI
+    public var displayName: String {
+        switch self {
+        case .all: return "All"
+        case .karaoke: return "Subtitles"
+        case .trending: return "Trending"
+        case .cyber: return "Neon & Cyber"
+        case .cinema: return "3D & Cinema"
+        case .vlog: return "Vlog & News"
+        }
+    }
+
     /// Các danh mục thực tế gán cho từng mẫu (không tính tab lọc "Tất cả")
     public static var assignableCases: [TextTemplateCategory] {
         [.karaoke, .trending, .cyber, .cinema, .vlog]
@@ -110,11 +122,11 @@ public struct TextPreset: Identifiable, Codable, Sendable, Equatable {
     /// Mẫu văn bản chuẩn mặc định
     public static let `default` = TextPreset(
         id: "default",
-        name: "Văn bản mặc định",
-        description: "Kiểu chữ đơn dòng tiêu chuẩn cơ bản",
+        name: "Default Text",
+        description: "Standard single-line text title",
         category: .vlog,
         config: TextConfiguration(
-            content: "Văn bản",
+            content: "Text",
             fontName: "Helvetica",
             fontSize: 48.0,
             textColorHex: "#FFFFFF",

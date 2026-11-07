@@ -11,6 +11,22 @@ public struct TextStyleSubtabView: View {
         self.viewModel = viewModel
     }
 
+    public var body: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.md) {
+            TextGlowSectionView(viewModel: viewModel)
+            TextShadowSectionView(viewModel: viewModel)
+        }
+    }
+}
+
+/// Khối điều chỉnh hiệu ứng Hào quang (Glow) cho Module Text.
+public struct TextGlowSectionView: View {
+    @Bindable private var viewModel: InspectorViewModel
+
+    public init(viewModel: InspectorViewModel) {
+        self.viewModel = viewModel
+    }
+
     private var currentConfig: TextConfiguration {
         viewModel.textConfiguration
     }
@@ -20,53 +36,37 @@ public struct TextStyleSubtabView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.md) {
-            glowSection
-            shadowSection
-        }
-    }
-
-    // MARK: - Glow Block
-
-    private var glowSection: some View {
-        let glow = currentConfig.glow
-        return VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            HStack {
-                Text(String(localized: "Glow (Phát sáng hào quang)"))
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(DSColors.textSecondary)
-                Spacer()
-                Toggle("", isOn: Binding(
-                    get: { currentConfig.glow.isEnabled },
-                    set: { enabled in
-                        var u = currentConfig
-                        u.glow.isEnabled = enabled
-                        if enabled && u.glow.range <= 0.5 { u.glow.range = 14.0 }
-                        if enabled && u.glow.intensity <= 1.0 { u.glow.intensity = 80.0 }
-                        updateConfig(u, commit: true)
-                    }
-                ))
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-            }
+        let isGlowActive = currentConfig.glow.isEnabled && currentConfig.glow.colorHex.uppercased() != "NONE"
+        VStack(alignment: .leading, spacing: DSSpacing.sm) {
+            Text("Glow")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(DSColors.textSecondary)
 
             VStack(alignment: .leading, spacing: DSSpacing.sm) {
                 TextColorSwatchesRow(
-                    title: "Màu hào quang",
-                    selectedHex: glow.colorHex
+                    title: "Color",
+                    selectedHex: isGlowActive ? currentConfig.glow.colorHex : "NONE",
+                    allowNone: true
                 ) { hex in
                     var u = currentConfig
-                    u.glow.colorHex = hex
+                    u.glow.isEnabled = true
+                    if hex.uppercased() == "NONE" {
+                        u.glow.colorHex = "NONE"
+                    } else {
+                        u.glow.colorHex = hex
+                        if u.glow.range <= 0.5 { u.glow.range = 14.0 }
+                        if u.glow.intensity <= 1.0 { u.glow.intensity = 80.0 }
+                    }
                     updateConfig(u, commit: true)
                 }
 
                 DSSliderWithInput(
-                    title: "Cường độ (Intensity)",
+                    title: "Intensity",
                     value: Binding(
                         get: { currentConfig.glow.intensity },
                         set: { val in
                             var u = currentConfig
+                            u.glow.isEnabled = true
                             u.glow.intensity = val
                             updateConfig(u, commit: false)
                         }
@@ -79,11 +79,12 @@ public struct TextStyleSubtabView: View {
                 )
 
                 DSSliderWithInput(
-                    title: "Tầm lan (Range)",
+                    title: "Range",
                     value: Binding(
                         get: { currentConfig.glow.range },
                         set: { val in
                             var u = currentConfig
+                            u.glow.isEnabled = true
                             u.glow.range = val
                             updateConfig(u, commit: false)
                         }
@@ -95,7 +96,6 @@ public struct TextStyleSubtabView: View {
                     onEditingChanged: { if !$0 { updateConfig(currentConfig, commit: true) } }
                 )
             }
-            .opacity(glow.isEnabled ? 1.0 : 0.65)
         }
         .padding(DSSpacing.md)
         .background(DSColors.blockBackground)
@@ -105,47 +105,57 @@ public struct TextStyleSubtabView: View {
                 .stroke(DSColors.blockBorder, lineWidth: 1)
         )
     }
+}
 
-    // MARK: - Shadow Block
+/// Khối điều chỉnh hiệu ứng Đổ bóng chữ (Shadow) cho Module Text.
+public struct TextShadowSectionView: View {
+    @Bindable private var viewModel: InspectorViewModel
 
-    private var shadowSection: some View {
-        let shadow = currentConfig.shadow
-        return VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            HStack {
-                Text(String(localized: "Shadow (Đổ bóng chữ)"))
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(DSColors.textSecondary)
-                Spacer()
-                Toggle("", isOn: Binding(
-                    get: { currentConfig.shadow.isEnabled },
-                    set: { enabled in
-                        var u = currentConfig
-                        u.shadow.isEnabled = enabled
-                        if enabled && u.shadow.opacity <= 1.0 { u.shadow.opacity = 75.0 }
-                        updateConfig(u, commit: true)
-                    }
-                ))
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-            }
+    public init(viewModel: InspectorViewModel) {
+        self.viewModel = viewModel
+    }
+
+    private var currentConfig: TextConfiguration {
+        viewModel.textConfiguration
+    }
+
+    private func updateConfig(_ updated: TextConfiguration, commit: Bool) {
+        viewModel.updateTextConfiguration(updated, commit: commit)
+    }
+
+    public var body: some View {
+        let isShadowActive = currentConfig.shadow.isEnabled && currentConfig.shadow.colorHex.uppercased() != "NONE"
+        VStack(alignment: .leading, spacing: DSSpacing.sm) {
+            Text("Shadow")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(DSColors.textSecondary)
 
             VStack(alignment: .leading, spacing: DSSpacing.sm) {
                 TextColorSwatchesRow(
-                    title: "Màu bóng đổ",
-                    selectedHex: shadow.colorHex
+                    title: "Color",
+                    selectedHex: isShadowActive ? currentConfig.shadow.colorHex : "NONE",
+                    allowNone: true
                 ) { hex in
                     var u = currentConfig
-                    u.shadow.colorHex = hex
+                    u.shadow.isEnabled = true
+                    if hex.uppercased() == "NONE" {
+                        u.shadow.colorHex = "NONE"
+                    } else {
+                        u.shadow.colorHex = hex
+                        if u.shadow.opacity <= 1.0 { u.shadow.opacity = 75.0 }
+                        if u.shadow.blur <= 0.5 { u.shadow.blur = 8.0 }
+                        if u.shadow.distance <= 0.5 { u.shadow.distance = 5.0 }
+                    }
                     updateConfig(u, commit: true)
                 }
 
                 DSSliderWithInput(
-                    title: "Độ đậm (Opacity)",
+                    title: "Opacity",
                     value: Binding(
                         get: { currentConfig.shadow.opacity },
                         set: { val in
                             var u = currentConfig
+                            u.shadow.isEnabled = true
                             u.shadow.opacity = val
                             updateConfig(u, commit: false)
                         }
@@ -158,11 +168,12 @@ public struct TextStyleSubtabView: View {
                 )
 
                 DSSliderWithInput(
-                    title: "Độ nhòe (Blur)",
+                    title: "Blur",
                     value: Binding(
                         get: { currentConfig.shadow.blur },
                         set: { val in
                             var u = currentConfig
+                            u.shadow.isEnabled = true
                             u.shadow.blur = val
                             updateConfig(u, commit: false)
                         }
@@ -175,11 +186,12 @@ public struct TextStyleSubtabView: View {
                 )
 
                 DSSliderWithInput(
-                    title: "Khoảng cách (Distance)",
+                    title: "Distance",
                     value: Binding(
                         get: { currentConfig.shadow.distance },
                         set: { val in
                             var u = currentConfig
+                            u.shadow.isEnabled = true
                             u.shadow.distance = val
                             updateConfig(u, commit: false)
                         }
@@ -192,11 +204,12 @@ public struct TextStyleSubtabView: View {
                 )
 
                 DSSliderWithInput(
-                    title: "Góc đổ bóng (Angle)",
+                    title: "Angle",
                     value: Binding(
                         get: { currentConfig.shadow.angleDegrees },
                         set: { val in
                             var u = currentConfig
+                            u.shadow.isEnabled = true
                             u.shadow.angleDegrees = val
                             updateConfig(u, commit: false)
                         }
@@ -208,7 +221,6 @@ public struct TextStyleSubtabView: View {
                     onEditingChanged: { if !$0 { updateConfig(currentConfig, commit: true) } }
                 )
             }
-            .opacity(shadow.isEnabled ? 1.0 : 0.65)
         }
         .padding(DSSpacing.md)
         .background(DSColors.blockBackground)

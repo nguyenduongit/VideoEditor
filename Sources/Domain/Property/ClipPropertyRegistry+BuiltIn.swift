@@ -5,7 +5,7 @@ extension ClipPropertyRegistry {
         register(descriptors: videoDescriptors, for: .video, tabs: ["Video", "Mask", "Adjustment", "AI"])
         register(descriptors: imageDescriptors, for: .image)
         register(descriptors: audioDescriptors, for: .audio)
-        register(descriptors: textDescriptors, for: .text, tabs: ["Text", "Background", "Animation"])
+        register(descriptors: textDescriptors, for: .text, tabs: ["Text", "Color", "Background", "Animation"])
         register(descriptors: effectDescriptors(), for: .effect, tabs: ["Effect"])
         register(descriptors: adjustmentDescriptors, for: .adjustment, tabs: ["Basic", "HSL", "Wheels", "Curves", "Effects"])
         register(descriptors: stickerDescriptors, for: .sticker, tabs: ["Sticker", "Animation"])
@@ -81,7 +81,7 @@ extension ClipPropertyRegistry {
                 tab: "Text",
                 group: "Text",
                 control: .textField,
-                defaultValue: .string("Văn bản")
+                defaultValue: .string("Text")
             ),
             PropertyDescriptor(
                 id: "fontSize",

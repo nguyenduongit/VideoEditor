@@ -154,7 +154,7 @@ public struct DSColorSpectrumPicker: View {
                 .overlay(RoundedRectangle(cornerRadius: 3).stroke(DSColors.blockBorder, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .help("Hút màu từ màn hình")
+        .help("Sample color from screen")
     }
 
     private var beforeAfterPreview: some View {
@@ -165,7 +165,7 @@ public struct DSColorSpectrumPicker: View {
                     .frame(width: 18, height: 24)
             }
             .buttonStyle(.plain)
-            .help("Nhấn để hoàn tác về màu cũ")
+            .help("Click to revert to original color")
 
             Rectangle()
                 .fill(Color(hue: hue, saturation: saturation, brightness: brightness))

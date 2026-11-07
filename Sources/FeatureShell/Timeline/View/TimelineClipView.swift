@@ -241,6 +241,9 @@ public struct TimelineClipView: View {
             Rectangle().fill(Color.white.opacity(0.20)).frame(height: 0.5),
             alignment: .top
         )
+        .overlay(alignment: .bottom) {
+            clipAnimationDurationLine(width: width, duration: duration)
+        }
     }
 
     var isAudioMuted: Bool {

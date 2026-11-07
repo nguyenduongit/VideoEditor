@@ -71,9 +71,9 @@ extension TextRendererEngine {
 
         let font = resolveFont(name: config.fontName, size: CGFloat(config.fontSize), isBold: config.isBold, isItalic: config.isItalic)
         let displayContent = config.content.precomposedStringWithCanonicalMapping
-        let (tokens, totalWidth) = TextSegmentRenderer.tokenize(
+        let (tokens, totalWidth) = TextRenderPerformanceCache.shared.cachedTokenize(
             content: displayContent, scope: effectiveScope,
-            font: font, spacing: config.characterSpacing
+            font: font, config: config
         )
         let textSize = measureCoreGlyphBounds(for: config)
 
@@ -114,7 +114,9 @@ extension TextRendererEngine {
             pixelateScale: globalEval.pixelateScale,
             rgbSplitIntensity: globalEval.rgbSplitIntensity,
             overlay: globalEval.overlay,
-            lightSweepIntensity: config.animation.lightSweepIntensity
+            lightSweepIntensity: config.animation.lightSweepIntensity,
+            shadow: config.shadow,
+            glow: config.glow
         )
     }
     #endif

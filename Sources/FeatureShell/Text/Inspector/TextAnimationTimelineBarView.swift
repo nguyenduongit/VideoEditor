@@ -43,7 +43,7 @@ public struct TextAnimationTimelineBarView: View {
 
         return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                Text(String(localized: "Tiến trình hoạt ảnh"))
+                Text("Animation Timeline")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
                 Spacer()
@@ -59,7 +59,7 @@ public struct TextAnimationTimelineBarView: View {
                             .foregroundStyle(DSColors.textSecondary.opacity(0.8))
                     }
                     .buttonStyle(.plain)
-                    .help(String(localized: "Bỏ toàn bộ hoạt ảnh Text"))
+                    .help("Remove All Animations")
                 }
             }
 
@@ -114,7 +114,7 @@ public struct TextAnimationTimelineBarView: View {
         if config.animation.outType != .none {
             parts.append(String(format: "Out %.1fs", config.animation.outDuration))
         }
-        let defaultLabel = String(localized: "Mặc định")
+        let defaultLabel = "Default"
         return parts.isEmpty ? defaultLabel : parts.joined(separator: " • ")
     }
 
@@ -122,7 +122,7 @@ public struct TextAnimationTimelineBarView: View {
 
     private var staggerDirectionRow: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(String(localized: "Thứ tự xuất hiện"))
+            Text("Order")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(DSColors.textSecondary)
 
@@ -145,7 +145,7 @@ public struct TextAnimationTimelineBarView: View {
                                 .overlay(
                                     RoundedRectangle(cornerRadius: DSRadius.small)
                                         .stroke(selected ? DSColors.toggleCyan.opacity(0.7) : Color.clear, lineWidth: 0.8)
-                                )
+                                 )
                         }
                         .buttonStyle(.plain)
                     }
@@ -156,7 +156,7 @@ public struct TextAnimationTimelineBarView: View {
 
     private var anchorPointRow: some View {
         HStack(spacing: DSSpacing.xs) {
-            Text(String(localized: "Tâm biến đổi"))
+            Text("Anchor Point")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(DSColors.textSecondary)
             Spacer()

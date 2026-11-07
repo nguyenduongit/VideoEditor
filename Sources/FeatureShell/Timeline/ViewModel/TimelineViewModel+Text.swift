@@ -6,7 +6,7 @@ extension TimelineViewModel {
     /// Thêm một clip Text vào timeline tại thời điểm chỉ định hoặc playhead hiện tại.
     /// Tuân thủ quy tắc R3.1 (Hàm <= 50 dòng) và R7.1 (Transaction Command / Undo-Redo) của AGENTS.md.
     public func addTextClip(
-        named name: String = "Văn bản",
+        named name: String = "Text",
         config: TextConfiguration = TextConfiguration(),
         durationSeconds: Double = 5.0,
         at time: CMTime? = nil,
@@ -17,10 +17,9 @@ extension TimelineViewModel {
         let targetStart = TimeRational.snapToFrame(time: proposedStart)
         let resolvedDuration = resolveTextClipDuration(preferredSeconds: durationSeconds, at: targetStart)
         var finalConfig = config
-        TextAutoFitter.autoFitScaleToCanvasWidth(
+        TextAutoFitter.autoScaleFontSize(
             config: &finalConfig,
-            canvasSize: aspectRatio.renderSize,
-            targetWidthRatio: 0.80
+            canvasSize: aspectRatio.renderSize
         )
         let clip = makeTextTimelineClip(
             named: name,
@@ -47,10 +46,9 @@ extension TimelineViewModel {
         let baseDuration = resolveTextClipDuration(preferredSeconds: preset.defaultDuration, at: baseStart)
 
         var presetConfig = preset.config
-        TextAutoFitter.autoFitScaleToCanvasWidth(
+        TextAutoFitter.autoScaleFontSize(
             config: &presetConfig,
-            canvasSize: aspectRatio.renderSize,
-            targetWidthRatio: 0.80
+            canvasSize: aspectRatio.renderSize
         )
         let unifiedClip = makeTextTimelineClip(
             named: preset.name,

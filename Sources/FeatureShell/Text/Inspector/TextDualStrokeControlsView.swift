@@ -48,20 +48,20 @@ public struct TextDualStrokeControlsView: View {
         let cfg = currentConfig
         VStack(alignment: .leading, spacing: DSSpacing.md) {
             strokeCard(
-                title: "Viền 1 · Viền trong (Inner Stroke)",
+                title: "Stroke 1 (Inner Stroke)",
                 isInner: true,
                 stroke: cfg.innerStroke,
                 selectedFillMode: $innerFillMode,
-                defaultWidth: 3.0,
+                defaultWidth: 0.0,
                 maxWidth: 30.0
             )
 
             strokeCard(
-                title: "Viền 2 · Viền ngoài (Outer Stroke)",
+                title: "Stroke 2 (Outer Stroke)",
                 isInner: false,
                 stroke: cfg.outerStroke,
                 selectedFillMode: $outerFillMode,
-                defaultWidth: 6.0,
+                defaultWidth: 0.0,
                 maxWidth: 45.0
             )
         }
@@ -84,10 +84,12 @@ public struct TextDualStrokeControlsView: View {
 
     private func applyStroke(_ updated: TextStrokeStyle, isInner: Bool, commit: Bool) {
         var u = currentConfig
+        var s = updated
+        s.isEnabled = true
         if isInner {
-            u.innerStroke = updated
+            u.innerStroke = s
         } else {
-            u.outerStroke = updated
+            u.outerStroke = s
         }
         updateConfig(u, commit: commit)
     }
@@ -101,37 +103,23 @@ public struct TextDualStrokeControlsView: View {
         maxWidth: Double
     ) -> some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            HStack {
-                Text(title)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(DSColors.textSecondary)
-                Spacer()
-                Toggle("", isOn: Binding(
-                    get: { readStroke(isInner: isInner).isEnabled },
-                    set: { enabled in
-                        var s = readStroke(isInner: isInner)
-                        s.isEnabled = enabled
-                        if enabled && s.width <= 0.1 { s.width = defaultWidth }
-                        applyStroke(s, isInner: isInner, commit: true)
-                    }
-                ))
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-            }
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(DSColors.textSecondary)
 
             VStack(alignment: .leading, spacing: DSSpacing.sm) {
                 DSSliderWithInput(
-                    title: "Độ dày viền",
+                    title: "Width",
                     value: Binding(
                         get: { readStroke(isInner: isInner).width },
                         set: { val in
                             var s = readStroke(isInner: isInner)
+                            s.isEnabled = true
                             s.width = val
                             applyStroke(s, isInner: isInner, commit: false)
                         }
                     ),
-                    range: 0.5...maxWidth,
+                    range: 0.0...maxWidth,
                     step: 0.5,
                     defaultValue: defaultWidth,
                     unit: "pt",
@@ -145,11 +133,13 @@ public struct TextDualStrokeControlsView: View {
 
                 if selectedFillMode.wrappedValue == .solid {
                     TextColorSwatchesRow(
-                        title: "Màu đường viền",
-                        selectedHex: stroke.colorHex
+                        title: "Color",
+                        selectedHex: stroke.colorHex,
+                        allowNone: true
                     ) { hex in
                         var s = readStroke(isInner: isInner)
-                        s.colorHex = hex
+                        s.isEnabled = true
+                        s.colorHex = hex.uppercased() == "NONE" ? "NONE" : hex
                         s.fillMode = .solid
                         applyStroke(s, isInner: isInner, commit: true)
                     }
@@ -157,7 +147,6 @@ public struct TextDualStrokeControlsView: View {
                     gradientControls(isInner: isInner, stroke: stroke)
                 }
             }
-            .opacity(stroke.isEnabled ? 1.0 : 0.65)
         }
         .padding(DSSpacing.md)
         .background(DSColors.blockBackground)
@@ -226,14 +215,14 @@ public struct TextDualStrokeControlsView: View {
             let start = stroke.gradientColors.first ?? "#FFD700"
             let end = stroke.gradientColors.count > 1 ? stroke.gradientColors[1] : "#FF2A85"
 
-            TextColorSwatchesRow(title: "Màu đầu viền", selectedHex: start) { hex in
+            TextColorSwatchesRow(title: "Gradient Start", selectedHex: start, allowNone: true) { hex in
                 var s = readStroke(isInner: isInner)
                 let curEnd = s.gradientColors.count > 1 ? s.gradientColors[1] : "#FF2A85"
                 s.fillMode = .linearGradient
                 s.gradientColors = [hex, curEnd]
                 applyStroke(s, isInner: isInner, commit: true)
             }
-            TextColorSwatchesRow(title: "Màu cuối viền", selectedHex: end) { hex in
+            TextColorSwatchesRow(title: "Gradient End", selectedHex: end, allowNone: true) { hex in
                 var s = readStroke(isInner: isInner)
                 let curStart = s.gradientColors.first ?? "#FFD700"
                 s.fillMode = .linearGradient
@@ -241,7 +230,7 @@ public struct TextDualStrokeControlsView: View {
                 applyStroke(s, isInner: isInner, commit: true)
             }
             DSSliderWithInput(
-                title: "Góc Gradient viền",
+                title: "Gradient Angle",
                 value: Binding(
                     get: { readStroke(isInner: isInner).gradientAngle },
                     set: { val in

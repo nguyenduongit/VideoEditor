@@ -79,16 +79,14 @@ public struct TextFillModeControlsView: View {
 
     private func solidColorControls(cfg: TextConfiguration) -> some View {
         TextColorSwatchesRow(
-            title: cfg.textColorHex.uppercased() == "NONE"
-                ? "Chữ rỗng (chỉ hiện đường viền Stroke)"
-                : "Màu chữ",
+            title: "Color",
             selectedHex: cfg.textColorHex,
             allowNone: true,
             showCustomPicker: true
         ) { hex in
             var u = currentConfig
             u.colorFillMode = .solid
-            u.textColorHex = hex
+            u.textColorHex = hex.uppercased() == "NONE" ? "NONE" : hex
             updateConfig(u, commit: true)
         }
     }
@@ -98,7 +96,7 @@ public struct TextFillModeControlsView: View {
             let startColor = cfg.gradientColors.first ?? "#FF2A85"
             let endColor = cfg.gradientColors.count > 1 ? cfg.gradientColors[1] : "#FDE047"
 
-            TextColorSwatchesRow(title: "Màu đầu Gradient", selectedHex: startColor) { hex in
+            TextColorSwatchesRow(title: "Gradient Start", selectedHex: startColor, allowNone: true) { hex in
                 var u = currentConfig
                 let end = u.gradientColors.count > 1 ? u.gradientColors[1] : "#FDE047"
                 u.colorFillMode = .linearGradient
@@ -106,7 +104,7 @@ public struct TextFillModeControlsView: View {
                 updateConfig(u, commit: true)
             }
 
-            TextColorSwatchesRow(title: "Màu cuối Gradient", selectedHex: endColor) { hex in
+            TextColorSwatchesRow(title: "Gradient End", selectedHex: endColor, allowNone: true) { hex in
                 var u = currentConfig
                 let start = u.gradientColors.first ?? "#FF2A85"
                 u.colorFillMode = .linearGradient
@@ -115,7 +113,7 @@ public struct TextFillModeControlsView: View {
             }
 
             DSSliderWithInput(
-                title: "Góc nghiêng Gradient",
+                title: "Gradient Angle",
                 value: Binding(
                     get: { currentConfig.gradientAngle },
                     set: { val in

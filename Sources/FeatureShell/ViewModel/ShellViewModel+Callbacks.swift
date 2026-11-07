@@ -91,11 +91,16 @@ extension ShellViewModel {
         }
         timelineViewModel.onClipsTrimmed = { [weak self] in
             guard let self else { return }
+            self.activePreviewTextPreset = nil
             self.updateTimelinePreview()
         }
         timelineViewModel.onAspectRatioChanged = { [weak self] _ in
             guard let self else { return }
             self.updateTimelinePreview()
+        }
+        timelineViewModel.onPreviewTextPreset = { [weak self] preset in
+            guard let self else { return }
+            self.setPreviewTextPreset(preset)
         }
     }
 

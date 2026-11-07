@@ -21,8 +21,8 @@ public struct TextLibraryView: View {
     public var body: some View {
         LibraryScaffoldView(
             searchQuery: $viewModel.searchQuery,
-            searchPlaceholder: "Tìm kiếm mẫu chữ...",
-            categories: TextTemplateCategory.allCases.map(\.rawValue),
+            searchPlaceholder: "Search text templates...",
+            categories: TextTemplateCategory.allCases.map(\.displayName),
             selectedCategory: categoryBinding,
             trailingAction: AnyView(reloadButton)
         ) {
@@ -32,9 +32,9 @@ public struct TextLibraryView: View {
 
     private var categoryBinding: Binding<String> {
         Binding(
-            get: { viewModel.selectedCategory.rawValue },
+            get: { viewModel.selectedCategory.displayName },
             set: { val in
-                if let cat = TextTemplateCategory(rawValue: val) {
+                if let cat = TextTemplateCategory.allCases.first(where: { $0.displayName == val || $0.rawValue == val }) {
                     viewModel.selectedCategory = cat
                 }
             }
@@ -53,7 +53,7 @@ public struct TextLibraryView: View {
                 .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
         }
         .buttonStyle(.plain)
-        .help(String(localized: "Nạp lại kịch bản JSON Templates"))
+        .help("Reload JSON Templates")
     }
 
     private var contentScrollView: some View {
@@ -66,6 +66,8 @@ public struct TextLibraryView: View {
                     ForEach(presets) { preset in
                         TextCardItemView(
                             preset: preset,
+                            isSelected: viewModel.selectedPresetID == preset.id,
+                            onSelect: { viewModel.selectPresetForPreview(preset) },
                             onAdd: { viewModel.addPresetToTimeline(preset) },
                             onDelete: preset.canBeModified(by: CommunityIdentity.currentAuthorID) ? { viewModel.deletePreset(preset) } : nil
                         )
@@ -81,10 +83,10 @@ public struct TextLibraryView: View {
             Image(systemName: "icloud.slash")
                 .font(.system(size: 26))
                 .foregroundStyle(DSColors.textSecondary.opacity(0.6))
-            Text(String(localized: "Chưa có Preset nào"))
+            Text("No Presets Available")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
-            Text(String(localized: "Đồng bộ các gói kiểu chữ & hoạt ảnh từ Kho Thư viện Cộng đồng Supabase."))
+            Text("Sync text and animation presets from the Supabase Community Library.")
                 .font(.system(size: 10))
                 .foregroundStyle(DSColors.textSecondary.opacity(0.7))
                 .multilineTextAlignment(.center)

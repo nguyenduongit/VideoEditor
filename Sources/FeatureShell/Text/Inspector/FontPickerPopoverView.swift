@@ -44,7 +44,7 @@ public struct FontPickerPopoverView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(DSColors.textSecondary)
 
-            TextField(String(localized: "Tìm kiếm phông chữ..."), text: $searchText)
+            TextField("Search fonts...", text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .foregroundStyle(DSColors.textPrimary)
@@ -91,7 +91,7 @@ public struct FontPickerPopoverView: View {
         return ScrollView {
             LazyVStack(alignment: .leading, spacing: 2) {
                 if !favorites.isEmpty {
-                    sectionHeader(title: "Yêu thích", icon: "star.fill", count: favorites.count, iconColor: .yellow)
+                    sectionHeader(title: "Favorites", icon: "star.fill", count: favorites.count, iconColor: .yellow)
                     ForEach(favorites) { item in
                         fontRow(item: item, isFavorite: true)
                     }
@@ -99,7 +99,7 @@ public struct FontPickerPopoverView: View {
                 }
 
                 if !others.isEmpty {
-                    let sectionTitle = selectedCategory == .all ? "Tất cả phông chữ" : selectedCategory.rawValue
+                    let sectionTitle = selectedCategory == .all ? "All Fonts" : selectedCategory.rawValue
                     sectionHeader(title: sectionTitle, icon: "textformat", count: others.count, iconColor: DSColors.textSecondary)
                     ForEach(others) { item in
                         fontRow(item: item, isFavorite: false)
@@ -118,7 +118,7 @@ public struct FontPickerPopoverView: View {
             Image(systemName: icon)
                 .font(.system(size: 10))
                 .foregroundStyle(iconColor)
-            Text(String(localized: "\(title) (\(count))"))
+            Text("\(title) (\(count))")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
             Spacer()
@@ -130,7 +130,7 @@ public struct FontPickerPopoverView: View {
 
     private var emptySearchPlaceholder: some View {
         VStack(spacing: 4) {
-            Text(String(localized: "Không tìm thấy phông chữ phù hợp"))
+            Text("No matching fonts found")
                 .font(.system(size: 11))
                 .foregroundStyle(DSColors.textSecondary)
         }
@@ -141,7 +141,7 @@ public struct FontPickerPopoverView: View {
         let isSelected = item.id.caseInsensitiveCompare(selectedFont) == .orderedSame
 
         return HStack(spacing: 6) {
-            // Nút ngôi sao yêu thích bên trái
+            // Favorite star button
             Button(action: {
                 fontManager.toggleFavorite(fontID: item.id)
             }) {
@@ -151,7 +151,7 @@ public struct FontPickerPopoverView: View {
                     .frame(width: 20, height: 20)
             }
             .buttonStyle(.plain)
-            .help(isFavorite ? "Bỏ yêu thích" : "Thêm vào yêu thích")
+            .help(isFavorite ? "Remove from Favorites" : "Add to Favorites")
 
             // Nút chọn font
             Button(action: {

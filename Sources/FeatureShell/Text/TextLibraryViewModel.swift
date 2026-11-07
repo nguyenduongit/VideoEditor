@@ -9,13 +9,14 @@ import Domain
 @MainActor
 public final class TextLibraryViewModel {
     public enum SubTab: String, CaseIterable, Sendable {
-        case `default` = "Mặc định"
+        case `default` = "Default"
         case templates = "Presets"
     }
 
     public var selectedSubTab: SubTab = .default
     public var selectedCategory: TextTemplateCategory = .all
     public var searchQuery: String = ""
+    public var selectedPresetID: String?
     public private(set) var templatePresets: [TextPreset] = []
     public let dependencies: EditorDependencies
     public weak var timelineViewModel: TimelineViewModel?
@@ -117,7 +118,14 @@ public final class TextLibraryViewModel {
         templatePresets = dependencies.textTemplates.mergeSupabaseTemplateScripts(jsonPayloads)
     }
 
+    public func selectPresetForPreview(_ preset: TextPreset) {
+        selectedPresetID = preset.id
+        timelineViewModel?.onPreviewTextPreset?(preset)
+    }
+
     public func addPresetToTimeline(_ preset: TextPreset) {
+        selectedPresetID = nil
+        timelineViewModel?.onPreviewTextPreset?(nil)
         guard let timelineViewModel else { return }
         timelineViewModel.addTextPreset(preset)
     }

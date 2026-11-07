@@ -87,7 +87,7 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
             )
         }
 
-        ciContext.render(canvas, to: dstPixelBuffer)
+        ciContext.render(canvas, to: dstPixelBuffer, bounds: outputRect, colorSpace: CGColorSpaceCreateDeviceRGB())
         asyncVideoCompositionRequest.finish(withComposedVideoFrame: dstPixelBuffer)
     }
 

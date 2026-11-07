@@ -1,10 +1,35 @@
 import Foundation
 import CoreGraphics
 import CoreImage
+import Domain
 
 /// Bộ xử lý các hiệu ứng Shader & Visual FX (RGB Split, Motion Blur, Light Sweep, Glitch Slice, 3D Perspective, Wave) cho Text Image.
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, Hàm <= 50 dòng) và R4.3 (đơn nhiệm).
 public enum TextShaderFilterEngine: Sendable {
+    /// Kiểm tra nhanh xem có bất kỳ hiệu ứng Shader quang học nào đang hoạt động hay không
+    public static func hasActiveFilters(
+        blurRadius: Double,
+        hueAngle: Double,
+        pixelateScale: Double,
+        rgbSplitIntensity: Double,
+        overlay: TextTransformOverlay,
+        shadow: TextShadowStyle = TextShadowStyle(),
+        glow: TextGlowStyle = TextGlowStyle()
+    ) -> Bool {
+        abs(overlay.perspectiveX) > 0.01 ||
+        abs(overlay.perspectiveY) > 0.01 ||
+        overlay.liquidWavePhase >= 0.0 ||
+        overlay.glitchSliceIntensity > 0.02 ||
+        overlay.lightSweepPhase >= 0.0 ||
+        overlay.motionBlurRadius > 0.5 ||
+        blurRadius > 0.001 ||
+        abs(hueAngle) > 0.001 ||
+        pixelateScale > 1.0 ||
+        rgbSplitIntensity > 0.01 ||
+        (shadow.isEnabled && shadow.opacity > 0.5 && shadow.colorHex.uppercased() != "NONE") ||
+        (glow.isEnabled && glow.intensity > 0.5 && glow.range > 0.2 && glow.colorHex.uppercased() != "NONE")
+    }
+
     /// Áp dụng toàn bộ chuỗi hiệu ứng shader lên CIImage
     public static func applyFilters(
         to image: CIImage,
@@ -13,9 +38,24 @@ public enum TextShaderFilterEngine: Sendable {
         pixelateScale: Double,
         rgbSplitIntensity: Double,
         overlay: TextTransformOverlay = TextTransformOverlay(),
-        lightSweepIntensity: Double = 0.65
+        lightSweepIntensity: Double = 0.65,
+        shadow: TextShadowStyle = TextShadowStyle(),
+        glow: TextGlowStyle = TextGlowStyle()
     ) -> CIImage {
-        var result = image
+        guard hasActiveFilters(
+            blurRadius: blurRadius,
+            hueAngle: hueAngle,
+            pixelateScale: pixelateScale,
+            rgbSplitIntensity: rgbSplitIntensity,
+            overlay: overlay,
+            shadow: shadow,
+            glow: glow
+        ) else {
+            return image
+        }
+
+        let canvasExtent = image.extent
+        var result = applyStyleEffects(to: image, shadow: shadow, glow: glow, extent: canvasExtent)
 
         if abs(overlay.perspectiveX) > 0.01 || abs(overlay.perspectiveY) > 0.01 {
             result = applyPerspective3D(to: result, pitchX: overlay.perspectiveX, yawY: overlay.perspectiveY)
@@ -46,7 +86,7 @@ public enum TextShaderFilterEngine: Sendable {
             result = applyRGBSplit(to: result, offset: rgbSplitIntensity)
         }
 
-        return result
+        return result.cropped(to: canvasExtent)
     }
 
     private static func applyBlur(to image: CIImage, radius: Double) -> CIImage {

@@ -3,7 +3,7 @@ import Foundation
 /// Khai báo một thanh trượt tham số tùy chỉnh do tác giả gói sáng tạo (Creative Package) tự định nghĩa trong JSON.
 /// Khi gói được thêm vào Timeline, Inspector sẽ tự động sinh thanh trượt điều khiển tương ứng.
 /// Tuân thủ AGENTS.md R2.3 (thuần Domain) và R5.6 (Tương thích ngược & tiến).
-public struct CustomParameterDescriptor: Codable, Sendable, Equatable, Identifiable {
+public struct CustomParameterDescriptor: Codable, Sendable, Equatable, Hashable, Identifiable {
     public var id: String
     public var title: String
     public var minValue: Double

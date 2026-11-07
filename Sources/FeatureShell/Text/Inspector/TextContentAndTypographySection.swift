@@ -37,7 +37,7 @@ public struct TextContentAndTypographySection: View {
                     updateConfig(cfg, commit: false)
                 }
             )
-            TextField(String(localized: "Văn bản..."), text: contentBinding, onCommit: {
+            TextField(String(localized: "Text..."), text: contentBinding, onCommit: {
                 commitConfig(currentConfig)
             })
             .textFieldStyle(.plain)
@@ -64,15 +64,14 @@ public struct TextContentAndTypographySection: View {
     // MARK: - Typography Section
 
     private var typographySection: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.md) {
-            Text(String(localized: "Typography"))
+        VStack(alignment: .leading, spacing: DSSpacing.sm) {
+            Text("Typography")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
 
             fontAndFormatRow
-
+            caseAndAlignmentRow
             fontSizeSlider
-
             characterSpacingSlider
         }
         .padding(DSSpacing.md)
@@ -85,41 +84,25 @@ public struct TextContentAndTypographySection: View {
     }
 
     private var fontSizeSlider: some View {
-        let sizeBinding = Binding<Double>(
-            get: { currentConfig.fontSize },
-            set: { newSize in
-                var cfg = currentConfig
-                cfg.fontSize = newSize
-                updateConfig(cfg, commit: false)
-            }
-        )
-        return DSSliderWithInput(
+        DSSliderWithInput(
             title: "Font Size",
-            value: sizeBinding,
-            range: 12.0...160.0,
-            step: 1.0,
-            defaultValue: 48.0,
-            unit: "pt",
+            value: Binding(
+                get: { currentConfig.fontSize },
+                set: { var cfg = currentConfig; cfg.fontSize = $0; updateConfig(cfg, commit: false) }
+            ),
+            range: 12.0...160.0, step: 1.0, defaultValue: 48.0, unit: "pt",
             onEditingChanged: onSliderEditingEnded
         )
     }
 
     private var characterSpacingSlider: some View {
-        let spacingBinding = Binding<Double>(
-            get: { currentConfig.characterSpacing },
-            set: { newSpacing in
-                var cfg = currentConfig
-                cfg.characterSpacing = newSpacing
-                updateConfig(cfg, commit: false)
-            }
-        )
-        return DSSliderWithInput(
+        DSSliderWithInput(
             title: "Character Spacing",
-            value: spacingBinding,
-            range: -5.0...30.0,
-            step: 0.5,
-            defaultValue: 0.0,
-            unit: "pt",
+            value: Binding(
+                get: { currentConfig.characterSpacing },
+                set: { var cfg = currentConfig; cfg.characterSpacing = $0; updateConfig(cfg, commit: false) }
+            ),
+            range: -5.0...30.0, step: 0.5, defaultValue: 0.0, unit: "pt",
             onEditingChanged: onSliderEditingEnded
         )
     }
@@ -127,32 +110,78 @@ public struct TextContentAndTypographySection: View {
     private var fontAndFormatRow: some View {
         HStack(spacing: DSSpacing.sm) {
             HStack(spacing: 4) {
-                boldButton
-                italicButton
+                formatToggleButton(title: "B", isActive: currentConfig.isBold, isBold: true) {
+                    var cfg = currentConfig; cfg.isBold.toggle(); commitConfig(cfg)
+                }
+                formatToggleButton(title: "I", isActive: currentConfig.isItalic, isItalic: true) {
+                    var cfg = currentConfig; cfg.isItalic.toggle(); commitConfig(cfg)
+                }
+                formatToggleButton(title: "U", isActive: currentConfig.isUnderlined, isUnderlined: true) {
+                    var cfg = currentConfig; cfg.isUnderlined.toggle(); commitConfig(cfg)
+                }
             }
-
             Spacer(minLength: 4)
-
             fontPickerButton
         }
+    }
+
+    private var caseAndAlignmentRow: some View {
+        let text = currentConfig.content
+        let isUpper = !text.isEmpty && text == text.uppercased() && text != text.lowercased()
+        let isLower = !text.isEmpty && text == text.lowercased() && text != text.uppercased()
+        let isTitle = !text.isEmpty && !isUpper && !isLower && text == text.localizedCapitalized
+        return HStack(spacing: DSSpacing.sm) {
+            HStack(spacing: 4) {
+                formatToggleButton(title: "AA", isActive: isUpper) {
+                    var cfg = currentConfig; cfg.content = cfg.content.uppercased(); commitConfig(cfg)
+                }
+                formatToggleButton(title: "Aa", isActive: isTitle) {
+                    var cfg = currentConfig; cfg.content = cfg.content.localizedCapitalized; commitConfig(cfg)
+                }
+                formatToggleButton(title: "aa", isActive: isLower) {
+                    var cfg = currentConfig; cfg.content = cfg.content.lowercased(); commitConfig(cfg)
+                }
+            }
+            Spacer(minLength: 4)
+            HStack(spacing: 4) {
+                alignmentButton(icon: "text.alignleft", type: .left)
+                alignmentButton(icon: "text.aligncenter", type: .center)
+                alignmentButton(icon: "text.alignright", type: .right)
+            }
+        }
+    }
+
+    private func alignmentButton(icon: String, type: TextAlignmentType) -> some View {
+        let isActive = currentConfig.alignment == type
+        return Button {
+            var cfg = currentConfig
+            cfg.alignment = type
+            commitConfig(cfg)
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(isActive ? Color.white : DSColors.textSecondary)
+                .frame(width: 28, height: 24)
+                .background(isActive ? DSColors.accent : DSColors.windowBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(DSColors.blockBorder, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private var fontPickerButton: some View {
         HStack(spacing: 2) {
             Button(action: { isFontPickerPresented.toggle() }) {
                 HStack(spacing: 5) {
-                    let isFav = viewModel.fontManager.isFavorite(fontID: currentConfig.fontName)
-                    if isFav {
+                    if viewModel.fontManager.isFavorite(fontID: currentConfig.fontName) {
                         Image(systemName: "star.fill")
                             .font(.system(size: 10))
                             .foregroundStyle(Color.yellow)
                     }
-
                     Text(viewModel.fontManager.displayName(for: currentConfig.fontName))
                         .font(.system(size: 12))
                         .foregroundStyle(DSColors.textPrimary)
                         .lineLimit(1)
-
                     Spacer(minLength: 2)
                 }
                 .padding(.leading, 8)
@@ -169,21 +198,16 @@ public struct TextContentAndTypographySection: View {
             .padding(.trailing, 2)
         }
         .frame(height: 24)
-        .frame(maxWidth: 185)
+        .frame(maxWidth: 175)
         .background(DSColors.windowBackground)
         .clipShape(RoundedRectangle(cornerRadius: 4))
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(DSColors.blockBorder, lineWidth: 1)
-        )
+        .overlay(RoundedRectangle(cornerRadius: 4).stroke(DSColors.blockBorder, lineWidth: 1))
         .popover(isPresented: $isFontPickerPresented, arrowEdge: .bottom) {
             FontPickerPopoverView(
                 selectedFont: currentConfig.fontName,
                 fontManager: viewModel.fontManager,
                 onSelect: { chosenFont in
-                    var cfg = currentConfig
-                    cfg.fontName = chosenFont
-                    commitConfig(cfg)
+                    var cfg = currentConfig; cfg.fontName = chosenFont; commitConfig(cfg)
                 },
                 onDismiss: { isFontPickerPresented = false }
             )
@@ -193,36 +217,15 @@ public struct TextContentAndTypographySection: View {
     private func cycleFont(forward: Bool) {
         let allFonts = viewModel.fontManager.fonts
         guard !allFonts.isEmpty else { return }
-
         let currentName = currentConfig.fontName
         let currentIndex = allFonts.firstIndex(where: {
             $0.id.caseInsensitiveCompare(currentName) == .orderedSame ||
             $0.displayName.caseInsensitiveCompare(currentName) == .orderedSame
         }) ?? 0
-
-        let delta = forward ? 1 : -1
-        let newIndex = (currentIndex + delta + allFonts.count) % allFonts.count
-        let nextFont = allFonts[newIndex]
-
+        let newIndex = (currentIndex + (forward ? 1 : -1) + allFonts.count) % allFonts.count
         var cfg = currentConfig
-        cfg.fontName = nextFont.id
+        cfg.fontName = allFonts[newIndex].id
         commitConfig(cfg)
-    }
-
-    private var boldButton: some View {
-        formatToggleButton(title: "B", isActive: currentConfig.isBold, isBold: true) {
-            var cfg = currentConfig
-            cfg.isBold.toggle()
-            commitConfig(cfg)
-        }
-    }
-
-    private var italicButton: some View {
-        formatToggleButton(title: "I", isActive: currentConfig.isItalic, isItalic: true) {
-            var cfg = currentConfig
-            cfg.isItalic.toggle()
-            commitConfig(cfg)
-        }
     }
 
     private func formatToggleButton(
@@ -230,12 +233,14 @@ public struct TextContentAndTypographySection: View {
         isActive: Bool,
         isBold: Bool = false,
         isItalic: Bool = false,
+        isUnderlined: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 11, weight: isBold ? .bold : .medium))
                 .italic(isItalic)
+                .underline(isUnderlined)
                 .foregroundStyle(isActive ? Color.white : DSColors.textSecondary)
                 .frame(width: 26, height: 24)
                 .background(isActive ? DSColors.accent : DSColors.windowBackground)

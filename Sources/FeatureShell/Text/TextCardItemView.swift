@@ -1,17 +1,30 @@
 import SwiftUI
+import AppKit
 import Domain
 import DesignSystem
 
-/// Card hình vuông hiển thị mẫu chữ Text (có hỗ trợ Live Animated Preview khi Hover và huy hiệu JSON Script).
+/// Card hình vuông hiển thị mẫu chữ Text với hình thu nhỏ kết xuất điểm ảnh chuẩn xác từ `TextRendererEngine`
+/// kèm nền đặc tương phản tự động theo màu chủ đạo, hỗ trợ xem trước khi Hover (trên thẻ) và khi Click (trên Preview chính).
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, Hàm <= 50 dòng, View body <= 80 dòng) của AGENTS.md.
 public struct TextCardItemView: View {
     private let preset: TextPreset
+    private let isSelected: Bool
+    private let onSelect: (() -> Void)?
     private let onAdd: () -> Void
     private let onDelete: (() -> Void)?
     @State private var isHovered = false
+    @State private var thumbnailImage: NSImage?
 
-    public init(preset: TextPreset, onAdd: @escaping () -> Void, onDelete: (() -> Void)? = nil) {
+    public init(
+        preset: TextPreset,
+        isSelected: Bool = false,
+        onSelect: (() -> Void)? = nil,
+        onAdd: @escaping () -> Void,
+        onDelete: (() -> Void)? = nil
+    ) {
         self.preset = preset
+        self.isSelected = isSelected
+        self.onSelect = onSelect
         self.onAdd = onAdd
         self.onDelete = onDelete
     }
@@ -24,8 +37,39 @@ public struct TextCardItemView: View {
         .contentShape(Rectangle())
         .help(preset.description.isEmpty ? preset.name : preset.description)
         .onTapGesture {
-            onAdd()
+            if let onSelect {
+                onSelect()
+            } else {
+                onAdd()
+            }
         }
+        .contextMenu {
+            Button("Preview on Canvas") {
+                onSelect?()
+            }
+            Button("Add to Timeline") {
+                onAdd()
+            }
+            if !preset.isSystem, let onDelete {
+                Divider()
+                Button("Delete Preset", role: .destructive) {
+                    onDelete()
+                }
+            }
+        }
+        .task(id: "\(preset.id)_\(preset.config.hashValue)") {
+            loadThumbnail()
+        }
+    }
+
+    private func loadThumbnail() {
+        if preset.id != "default" {
+            thumbnailImage = TextThumbnailRenderer.renderThumbnail(for: preset)
+        }
+    }
+
+    private var theme: TextThumbnailRenderer.ThumbnailTheme {
+        TextThumbnailRenderer.computeTheme(for: preset.config)
     }
 
     private var squareThumbnailBox: some View {
@@ -37,48 +81,46 @@ public struct TextCardItemView: View {
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
         .overlay(
             RoundedRectangle(cornerRadius: DSRadius.block)
-                .stroke(isHovered ? DSColors.toggleCyan : DSColors.blockBorder, lineWidth: isHovered ? 1.5 : 1)
+                .stroke(borderStrokeColor, lineWidth: (isSelected || isHovered) ? 1.8 : 1.0)
         )
         .overlay(alignment: .bottomTrailing) {
-            if isHovered {
+            if isHovered || isSelected {
                 plusButton
                     .transition(.opacity.combined(with: .scale(scale: 0.85)))
             }
         }
         .overlay(alignment: .topTrailing) {
             if isHovered && !preset.isSystem, let onDelete {
-                Button(action: onDelete) {
-                    Image(systemName: "trash.fill")
-                        .font(.system(size: 9))
-                        .foregroundStyle(Color.white)
-                        .padding(4)
-                        .background(Color.black.opacity(0.65))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .padding(DSSpacing.xs)
-                .help("Xóa preset này khỏi thư viện và Supabase")
+                deleteButton(action: onDelete)
             }
         }
         .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
         .onHover { isHovered = $0 }
+    }
+
+    private var borderStrokeColor: Color {
+        if isSelected {
+            return DSColors.toggleCyan
+        }
+        if isHovered {
+            return DSColors.toggleCyan.opacity(0.85)
+        }
+        return theme.isLightDominant ? DSColors.blockBorder : Color.black.opacity(0.15)
     }
 
     private var presetBackground: some View {
         LinearGradient(
-            colors: [
-                Color(hex: preset.previewBackgroundHex),
-                DSColors.windowBackground
-            ],
+            colors: theme.backgroundColors,
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
     }
 
     private var nameLabel: some View {
-        Text(preset.name)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(DSColors.textPrimary)
+        Text(preset.id == "default" ? "Default Text" : preset.name)
+            .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
+            .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.textPrimary)
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .center)
     }
@@ -86,10 +128,8 @@ public struct TextCardItemView: View {
     private var plusButton: some View {
         Button(action: onAdd) {
             ZStack {
-                Circle()
-                    .fill(DSColors.trafficZoom)
-                Circle()
-                    .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                Circle().fill(DSColors.trafficZoom)
+                Circle().stroke(Color.white.opacity(0.25), lineWidth: 1)
                 Image(systemName: "plus")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Color.white)
@@ -100,7 +140,21 @@ public struct TextCardItemView: View {
         }
         .buttonStyle(.plain)
         .padding(DSSpacing.xs)
-        .help("Thêm vào Timeline")
+        .help("Add to Timeline")
+    }
+
+    private func deleteButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "trash.fill")
+                .font(.system(size: 9))
+                .foregroundStyle(Color.white)
+                .padding(4)
+                .background(Color.black.opacity(0.65))
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .padding(DSSpacing.xs)
+        .help("Delete preset from library and Supabase")
     }
 
     @ViewBuilder
@@ -109,14 +163,15 @@ public struct TextCardItemView: View {
             VStack(spacing: 4) {
                 Image(systemName: "character.textbox")
                     .font(.system(size: 26, weight: .medium))
-                    .foregroundStyle(DSColors.textSecondary)
-                Text(String(localized: "Văn bản"))
+                    .foregroundStyle(isHovered ? DSColors.toggleCyan : DSColors.textSecondary)
+                    .scaleEffect(isHovered ? 1.08 : 1.0)
+                Text("Text")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(DSColors.textPrimary)
             }
-        } else if isHovered && !preset.config.animation.isDefault {
+        } else if isHovered {
             SwiftUI.TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
-                let cycle = 1.8
+                let cycle = 2.0
                 let t = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycle)
                 animatedTemplateStage(localTime: t, duration: cycle)
             }
@@ -126,82 +181,35 @@ public struct TextCardItemView: View {
     }
 
     private var staticTemplateStage: some View {
-        VStack(spacing: 4) {
-            styledSampleText(preset.config.content)
+        Group {
+            if let thumbnailImage {
+                Image(nsImage: thumbnailImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .padding(6)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+            }
         }
-        .padding(.horizontal, DSSpacing.xs)
     }
 
     private func animatedTemplateStage(localTime: Double, duration: Double) -> some View {
-        let eval = TextAnimationEvaluator.evaluate(
-            config: preset.config,
+        let liveFrame = TextThumbnailRenderer.renderAnimatedFrame(
+            for: preset,
             localTime: localTime,
             duration: duration,
-            canvasSize: CGSize(width: 110, height: 80)
-        )
-        let cfg = eval.config
-        let ov = eval.overlay
-        let sx = CGFloat(max(0.2, min(1.8, cfg.scale * ov.scaleX)))
-        let sy = CGFloat(max(0.2, min(1.8, cfg.scale * ov.scaleY)))
-        let dx = CGFloat(max(-28.0, min(28.0, cfg.positionX * 0.25)))
-        let dy = CGFloat(max(-20.0, min(20.0, -(cfg.positionY - preset.config.positionY) * 0.25)))
+            targetSize: CGSize(width: 160, height: 160)
+        ) ?? thumbnailImage
 
-        return VStack(spacing: 4) {
-            ZStack {
-                styledSampleText(cfg.content)
-                    .scaleEffect(x: sx, y: sy)
-                    .rotationEffect(.degrees(cfg.rotation * 0.35))
-                    .rotation3DEffect(.degrees(ov.perspectiveX * 50.0), axis: (x: 1, y: 0, z: 0))
-                    .rotation3DEffect(.degrees(ov.perspectiveY * 50.0), axis: (x: 0, y: 1, z: 0))
-                    .offset(x: dx, y: dy)
-                    .opacity(max(0.15, min(1.0, cfg.opacity)))
+        return ZStack {
+            if let liveFrame {
+                Image(nsImage: liveFrame)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .padding(6)
             }
-            Text(preset.description)
-                .font(.system(size: 9))
-                .foregroundStyle(DSColors.toggleCyan)
-                .lineLimit(1)
         }
-        .padding(.horizontal, DSSpacing.xs)
-    }
-
-    private func styledSampleText(_ text: String) -> some View {
-        let isHollow = preset.config.textColorHex.uppercased() == "NONE"
-        return Text(text)
-            .font(previewFont)
-            .foregroundStyle(isHollow ? Color(hex: preset.config.strokeColorHex) : previewTextColor)
-            .multilineTextAlignment(.center)
-            .lineLimit(1)
-            .minimumScaleFactor(0.65)
-            .padding(.horizontal, preset.config.hasBackground ? 6 : 2)
-            .padding(.vertical, preset.config.hasBackground ? 3 : 0)
-            .background(preset.config.hasBackground ? previewBackgroundColor : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: preset.config.hasBackground ? 4 : 0))
-            .shadow(
-                color: preset.config.hasGlow
-                    ? Color(hex: preset.config.glowColorHex)
-                    : (preset.config.hasShadow ? previewShadowColor : Color.clear),
-                radius: CGFloat(min(preset.config.hasGlow ? preset.config.glowRadius : preset.config.shadowRadius, 8)),
-                x: CGFloat(preset.config.hasGlow ? 0 : preset.config.shadow.offsetX * 0.5),
-                y: CGFloat(preset.config.hasGlow ? 0 : preset.config.shadow.offsetY * 0.5)
-            )
-    }
-
-    private var previewFont: Font {
-        if preset.config.isItalic {
-            return .system(size: 13, weight: preset.config.isBold ? .heavy : .regular).italic()
-        }
-        return .system(size: 13, weight: preset.config.isBold ? .heavy : .regular)
-    }
-
-    private var previewTextColor: Color {
-        Color(hex: preset.config.textColorHex)
-    }
-
-    private var previewBackgroundColor: Color {
-        Color(hex: preset.config.backgroundColorHex)
-    }
-
-    private var previewShadowColor: Color {
-        Color(hex: preset.config.shadowColorHex)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

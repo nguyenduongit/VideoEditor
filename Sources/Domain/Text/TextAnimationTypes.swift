@@ -10,14 +10,14 @@ public enum TextAnimationScope: String, Codable, Sendable, CaseIterable, Identif
 
     public var title: String {
         switch self {
-        case .wholeBlock: return "Cả khối"
-        case .perWord: return "Từng từ"
-        case .perCharacter: return "Từng chữ"
+        case .wholeBlock: return "Whole Block"
+        case .perWord: return "Per Word"
+        case .perCharacter: return "Per Character"
         }
     }
 }
 
-/// Hướng lan truyền độ trễ (Stagger Direction) khi chạy hoạt ảnh Từng từ / Từng chữ
+/// Stagger direction for per-word / per-character animation
 public enum TextStaggerDirection: String, Codable, Sendable, CaseIterable, Identifiable {
     case forward = "Forward"
     case backward = "Backward"
@@ -29,16 +29,16 @@ public enum TextStaggerDirection: String, Codable, Sendable, CaseIterable, Ident
 
     public var title: String {
         switch self {
-        case .forward: return "Trái → Phải"
-        case .backward: return "Phải → Trái"
-        case .centerOut: return "Từ tâm"
-        case .edgesIn: return "Hai đầu"
-        case .random: return "Ngẫu nhiên"
+        case .forward: return "Left → Right"
+        case .backward: return "Right → Left"
+        case .centerOut: return "Center Out"
+        case .edgesIn: return "Edges In"
+        case .random: return "Random"
         }
     }
 }
 
-/// Điểm neo tâm biến đổi (Pivot / Anchor Point) của chữ khi xoay hoặc phóng to
+/// Transform pivot / anchor point
 public enum TextAnchorPoint: String, Codable, Sendable, CaseIterable, Identifiable {
     case center = "Center"
     case bottom = "Bottom"
@@ -48,9 +48,9 @@ public enum TextAnchorPoint: String, Codable, Sendable, CaseIterable, Identifiab
 
     public var title: String {
         switch self {
-        case .center: return "Tâm giữa"
-        case .bottom: return "Chân chữ"
-        case .top: return "Đỉnh chữ"
+        case .center: return "Center"
+        case .bottom: return "Bottom"
+        case .top: return "Top"
         }
     }
 }

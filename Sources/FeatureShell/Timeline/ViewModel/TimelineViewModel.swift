@@ -38,6 +38,7 @@ public final class TimelineViewModel {
     public var aspectRatio: CanvasAspectRatio = .ratio16x9
     public var onAspectRatioChanged: ((CanvasAspectRatio) -> Void)?
     public var onSeekRequested: ((CMTime) -> Void)?
+    public var onPreviewTextPreset: ((TextPreset?) -> Void)?
     public var currentProjectURL: URL?
 
     public var hasClips: Bool {

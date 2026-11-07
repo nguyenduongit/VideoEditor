@@ -14,19 +14,27 @@ public enum OpenAnimationRuntimeEngine: Sendable {
         public var blend: Double
         public var anim: TextAnimationConfiguration
         public var manifest: CreativeAnimationManifest
+        public var charIndex: Int
+        public var charCount: Int
+        public var normalizedIndex: Double
 
         public init(
             progress: Double,
             phase: Double = 0.0,
             blend: Double = 1.0,
             anim: TextAnimationConfiguration,
-            manifest: CreativeAnimationManifest
+            manifest: CreativeAnimationManifest,
+            charIndex: Int = 0,
+            charCount: Int = 1
         ) {
             self.progress = min(1.0, max(0.0, progress))
             self.phase = phase
             self.blend = min(1.0, max(0.0, blend))
             self.anim = anim
             self.manifest = manifest
+            self.charIndex = charIndex
+            self.charCount = max(1, charCount)
+            self.normalizedIndex = charCount > 1 ? Double(charIndex) / Double(charCount - 1) : 0.0
         }
     }
 
@@ -38,7 +46,8 @@ public enum OpenAnimationRuntimeEngine: Sendable {
         overlay: inout TextTransformOverlay,
         blur: inout Double,
         pixelate: inout Double,
-        rgbSplit: inout Double
+        rgbSplit: inout Double,
+        hue: inout Double
     ) {
         if let expr = manifest.offsetXExpr {
             config.positionX += evaluate(expr, vars: variables)
@@ -79,6 +88,23 @@ public enum OpenAnimationRuntimeEngine: Sendable {
         if let expr = manifest.pixelateExpr {
             pixelate = max(pixelate, max(0.0, evaluate(expr, vars: variables)))
         }
+        if let expr = manifest.trackingExpr {
+            config.characterSpacing += evaluate(expr, vars: variables)
+        }
+        if let expr = manifest.glowExpr {
+            let g = max(0.0, evaluate(expr, vars: variables))
+            if g > 0.01 {
+                config.glow.isEnabled = true
+                config.glow.intensity = max(config.glow.intensity, g)
+                config.glow.range = max(config.glow.range, g * 10.0)
+            }
+        }
+        if let expr = manifest.hueExpr {
+            hue = max(hue, evaluate(expr, vars: variables))
+        }
+        if let expr = manifest.revealExpr {
+            overlay.revealProgress = min(1.0, max(0.0, evaluate(expr, vars: variables)))
+        }
     }
 
     /// Giải mã biểu thức đại số dạng tổng các tích (`A * B + C * D - E * F`)
@@ -104,6 +130,20 @@ public enum OpenAnimationRuntimeEngine: Sendable {
         let p = vars.progress
         let inv = 1.0 - p
 
+        if let easingVal = resolveEasingToken(token, p: p, inv: inv) {
+            return easingVal
+        }
+        if let dynamicVal = resolveDynamicToken(token, vars: vars) {
+            return dynamicVal
+        }
+        if token.hasPrefix("$param.") {
+            let paramID = String(token.dropFirst("$param.".count))
+            return vars.anim.value(forParameter: paramID, in: vars.manifest)
+        }
+        return 0.0
+    }
+
+    private static func resolveEasingToken(_ token: String, p: Double, inv: Double) -> Double? {
         switch token {
         case "$p": return p
         case "$inv", "$exit": return inv
@@ -113,19 +153,38 @@ public enum OpenAnimationRuntimeEngine: Sendable {
         case "$springInv": return 1.0 - TextAnimationCurves.springOvershoot(p)
         case "$bounceInv": return 1.0 - TextAnimationCurves.bounceEaseOut(p)
         case "$jellyWave": return sin(p * .pi * 3.5) * exp(-p * 4.2)
+        case "$expoOut": return TextAnimationCurves.expoEaseOut(p)
+        case "$expoIn": return TextAnimationCurves.expoEaseIn(p)
+        case "$expoInv": return 1.0 - TextAnimationCurves.expoEaseOut(p)
+        case "$backOut": return TextAnimationCurves.backEaseOut(p)
+        case "$backIn": return TextAnimationCurves.backEaseIn(p)
+        case "$backInv": return 1.0 - TextAnimationCurves.backEaseOut(p)
+        case "$circOut": return TextAnimationCurves.circEaseOut(p)
+        case "$circInv": return 1.0 - TextAnimationCurves.circEaseOut(p)
+        case "$elasticOut": return TextAnimationCurves.elasticEaseOut(p)
+        case "$elasticInv": return 1.0 - TextAnimationCurves.elasticEaseOut(p)
+        case "$sineInOut": return TextAnimationCurves.sineEaseInOut(p)
+        default: return nil
+        }
+    }
+
+    private static func resolveDynamicToken(_ token: String, vars: Variables) -> Double? {
+        switch token {
         case "$glitchWave":
-            let seed = vars.phase != 0.0 ? vars.phase : p * 18.0
+            let seed = vars.phase != 0.0 ? vars.phase : vars.progress * 18.0
             return sin(seed * 7.0) * cos(seed * 3.5)
-        case "$wave": return sin(vars.phase)
+        case "$wave", "$floatWave": return sin(vars.phase)
         case "$cosWave": return cos(vars.phase)
         case "$pulse": return pow(sin(vars.phase), 4.0)
+        case "$breathe": return sin(vars.phase) * 0.5 + 0.5
         case "$blend": return vars.blend
-        default:
-            if token.hasPrefix("$param.") {
-                let paramID = String(token.dropFirst("$param.".count))
-                return vars.anim.value(forParameter: paramID, in: vars.manifest)
-            }
-            return 0.0
+        case "$i": return vars.normalizedIndex
+        case "$alt": return vars.charIndex % 2 == 0 ? 1.0 : -1.0
+        case "$rand":
+            let seed = UInt64((vars.charIndex + 1) * 2654435761)
+            let unit = Double(seed % 1000) / 1000.0
+            return unit * 2.0 - 1.0
+        default: return nil
         }
     }
 }

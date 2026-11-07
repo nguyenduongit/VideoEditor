@@ -136,6 +136,10 @@ private struct TextPresetRow: Codable, Sendable {
         let sys = is_system ?? false
         let (cleanTags, communityMeta) = CommunityMetadata.extract(from: tags, isSystem: sys)
         let builtIn = TextPreset.templates.first(where: { $0.id == id })
+        var resolvedConfig = config
+        if let builtIn, resolvedConfig.animation.isDefault, !builtIn.config.animation.isDefault {
+            resolvedConfig.animation = builtIn.config.animation
+        }
         return TextPreset(
             id: id,
             name: name,
@@ -145,7 +149,7 @@ private struct TextPresetRow: Codable, Sendable {
             defaultDuration: builtIn?.defaultDuration ?? 4.0,
             previewBadge: preview_badge ?? builtIn?.previewBadge,
             previewBackgroundHex: builtIn?.previewBackgroundHex ?? "#18181B",
-            config: config,
+            config: resolvedConfig,
             isSystem: sys,
             community: communityMeta
         )

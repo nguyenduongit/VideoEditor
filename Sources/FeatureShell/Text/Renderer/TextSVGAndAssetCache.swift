@@ -28,6 +28,9 @@ public final class TextSVGAndAssetCache: @unchecked Sendable {
         animatedDecoderCache.removeAll()
         staticTextCache.removeAll()
         lock.unlock()
+        #if os(macOS)
+        TextRenderPerformanceCache.shared.clearAll()
+        #endif
     }
 
     public func cachedTextImage(forKey key: Int) -> CIImage? {

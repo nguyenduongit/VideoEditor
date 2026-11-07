@@ -23,7 +23,7 @@ public enum TextCompositeLayerRenderer: Sendable {
         canvasSize: CGSize,
         localTime: Double
     ) -> CIImage? {
-        guard bg.isEnabled, canvasSize.width > 0, canvasSize.height > 0 else { return nil }
+        guard bg.isActive, canvasSize.width > 0, canvasSize.height > 0 else { return nil }
         let width = Int(canvasSize.width)
         let height = Int(canvasSize.height)
         guard let context = CGContext(
@@ -50,18 +50,9 @@ public enum TextCompositeLayerRenderer: Sendable {
         let sy = CGFloat(max(0.01, anchorConfig.scale * overlay.scaleY))
         context.scaleBy(x: sx, y: sy)
 
-        let boxW = bg.fitToTextBounds
-            ? max(16.0, textRawSize.width + CGFloat(bg.paddingX * 2.0))
-            : CGFloat(max(20.0, bg.customWidth))
-        let boxH = bg.fitToTextBounds
-            ? max(16.0, textRawSize.height + CGFloat(bg.paddingY * 2.0))
-            : CGFloat(max(20.0, bg.customHeight))
-        let rect = CGRect(
-            x: -boxW / 2.0 + CGFloat(bg.offsetX),
-            y: -boxH / 2.0 - CGFloat(bg.offsetY),
-            width: boxW,
-            height: boxH
-        )
+        let boxW = bg.fitToTextBounds ? max(16.0, textRawSize.width + CGFloat(bg.paddingX * 2.0)) : CGFloat(max(20.0, bg.customWidth))
+        let boxH = bg.fitToTextBounds ? max(16.0, textRawSize.height + CGFloat(bg.paddingY * 2.0)) : CGFloat(max(20.0, bg.customHeight))
+        let rect = CGRect(x: -boxW / 2.0 + CGFloat(bg.offsetX), y: -boxH / 2.0 - CGFloat(bg.offsetY), width: boxW, height: boxH)
         let corner = min(CGFloat(bg.cornerRadius), min(boxW, boxH) / 2.0)
 
         drawBoxShadowIfNeeded(bg: bg, rect: rect, corner: corner, in: context)
@@ -72,13 +63,11 @@ public enum TextCompositeLayerRenderer: Sendable {
         guard let cgImage = context.makeImage() else { return nil }
         var ciImage = CIImage(cgImage: cgImage)
         let canvasExtent = CGRect(origin: .zero, size: canvasSize)
-
         if bg.featherRadius > 0.25 {
             ciImage = applyGPUFeather(radius: bg.featherRadius, to: ciImage, extent: canvasExtent)
         }
         let effectiveAlpha = max(0.0, min(1.0, bg.opacity * anchorConfig.opacity))
-        ciImage = TextSVGAndAssetCache.applyPremultipliedOpacity(effectiveAlpha, to: ciImage)
-        return ciImage
+        return TextSVGAndAssetCache.applyPremultipliedOpacity(effectiveAlpha, to: ciImage)
     }
 
     private static func drawBoxShadowIfNeeded(
@@ -87,7 +76,9 @@ public enum TextCompositeLayerRenderer: Sendable {
         corner: CGFloat,
         in context: CGContext
     ) {
-        guard bg.hasShadow, bg.shadowBlur > 0.1 || bg.shadowDistance > 0.1 else { return }
+        guard bg.hasShadow,
+              bg.shadowColorHex.uppercased() != "NONE",
+              bg.shadowBlur > 0.1 || bg.shadowDistance > 0.1 else { return }
         let rad = bg.shadowAngleDegrees * .pi / 180.0
         let dx = cos(rad) * bg.shadowDistance
         let dy = sin(rad) * bg.shadowDistance
@@ -123,8 +114,10 @@ public enum TextCompositeLayerRenderer: Sendable {
 
         switch bg.sourceKind {
         case .solid:
-            context.setFillColor(TextAdvancedStyleRenderer.parseHexColor(bg.solidColorHex).cgColor)
-            context.fill(rect)
+            if bg.solidColorHex.uppercased() != "NONE" && !bg.solidColorHex.isEmpty {
+                context.setFillColor(TextAdvancedStyleRenderer.parseHexColor(bg.solidColorHex).cgColor)
+                context.fill(rect)
+            }
 
         case .linearGradient:
             TextAdvancedStyleRenderer.fillPathWithLinearGradient(
@@ -162,9 +155,8 @@ public enum TextCompositeLayerRenderer: Sendable {
     }
 
     private static func drawRadialGradient(colorsHex: [String], in rect: CGRect, context: CGContext) {
-        let cgColors = (colorsHex.count >= 2 ? colorsHex : ["#FF2A85", "#7928CA"]).map {
-            TextAdvancedStyleRenderer.parseHexColor($0).cgColor
-        } as CFArray
+        guard colorsHex.contains(where: { $0.uppercased() != "NONE" && !$0.isEmpty }) else { return }
+        let cgColors = TextAdvancedStyleRenderer.resolveGradientCGColors(colorsHex) as CFArray
         guard let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cgColors, locations: nil) else {
             return
         }
@@ -183,7 +175,7 @@ public enum TextCompositeLayerRenderer: Sendable {
         corner: CGFloat,
         in context: CGContext
     ) {
-        guard bg.borderWidth > 0.2 else { return }
+        guard bg.borderWidth > 0.2, bg.borderColorHex.uppercased() != "NONE" else { return }
         let path = CGPath(roundedRect: rect, cornerWidth: corner, cornerHeight: corner, transform: nil)
         context.saveGState()
         context.addPath(path)

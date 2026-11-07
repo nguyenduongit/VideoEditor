@@ -29,6 +29,13 @@ extension TextAdvancedStyleRenderer {
 
         if stroke.isGradient && stroke.gradientColors.count >= 2 {
             let expanded = bounds.insetBy(dx: -CGFloat(strokeWidth), dy: -CGFloat(strokeWidth))
+            if stroke.gradientColors.contains(where: { $0.uppercased() == "NONE" }) {
+                context.saveGState()
+                context.addPath(unionPath)
+                context.setBlendMode(.clear)
+                context.fillPath()
+                context.restoreGState()
+            }
             fillPathWithLinearGradient(
                 path: unionPath,
                 bounds: expanded,
@@ -39,8 +46,13 @@ extension TextAdvancedStyleRenderer {
         } else {
             context.saveGState()
             context.addPath(unionPath)
-            context.setFillColor(parseHexColor(stroke.colorHex).cgColor)
-            context.fillPath()
+            if stroke.colorHex.uppercased() == "NONE" {
+                context.setBlendMode(.clear)
+                context.fillPath()
+            } else {
+                context.setFillColor(parseHexColor(stroke.colorHex).cgColor)
+                context.fillPath()
+            }
             context.restoreGState()
         }
     }
@@ -51,7 +63,13 @@ extension TextAdvancedStyleRenderer {
         config: TextConfiguration,
         in context: CGContext
     ) {
-        guard config.textColorHex.uppercased() != "NONE" || config.colorFillMode == .linearGradient else { return }
+        // Luôn làm sạch ruột chữ (xóa phần màu của Stroke tràn vào lòng chữ) trước khi áp lớp Fill
+        context.saveGState()
+        context.addPath(glyphPath)
+        context.setBlendMode(.clear)
+        context.fillPath()
+        context.restoreGState()
+
         if config.colorFillMode == .linearGradient && config.gradientColors.count >= 2 {
             fillPathWithLinearGradient(
                 path: glyphPath,
@@ -60,12 +78,29 @@ extension TextAdvancedStyleRenderer {
                 angleDegrees: config.gradientAngle,
                 in: context
             )
-        } else {
+        } else if config.textColorHex.uppercased() != "NONE" {
             context.saveGState()
             context.addPath(glyphPath)
             context.setFillColor(parseHexColor(config.textColorHex).cgColor)
             context.fillPath()
             context.restoreGState()
+        }
+    }
+
+    /// Chuẩn hóa mảng màu Gradient: Nếu 1 đầu là `"NONE"` (Trong suốt), tự động lấy cùng hệ RGB của đầu kia với Alpha = 0
+    /// để chuyển sắc từ Màu sang Trong suốt trong trẻo tuyệt đối, không bị xỉn xám đen ở vùng giữa.
+    public static func resolveGradientCGColors(_ colorsHex: [String]) -> [CGColor] {
+        let rawList = colorsHex.count >= 2 ? colorsHex : ["#FFFFFF", "#000000"]
+        let firstValid = rawList.first { $0.uppercased() != "NONE" && !$0.isEmpty }
+        guard let fallbackHex = firstValid else {
+            return [NSColor.clear.cgColor, NSColor.clear.cgColor]
+        }
+        let fallbackRGB = parseHexColor(fallbackHex).withAlphaComponent(0.0)
+        return rawList.map { hex in
+            if hex.uppercased() == "NONE" || hex.isEmpty {
+                return fallbackRGB.cgColor
+            }
+            return parseHexColor(hex).cgColor
         }
     }
 
@@ -76,7 +111,8 @@ extension TextAdvancedStyleRenderer {
         angleDegrees: Double,
         in context: CGContext
     ) {
-        let cgColors = colorsHex.map { parseHexColor($0).cgColor } as CFArray
+        guard colorsHex.contains(where: { $0.uppercased() != "NONE" && !$0.isEmpty }) else { return }
+        let cgColors = resolveGradientCGColors(colorsHex) as CFArray
         guard let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cgColors, locations: nil) else {
             return
         }
@@ -105,11 +141,11 @@ extension TextAdvancedStyleRenderer {
         config: TextConfiguration,
         in context: CGContext
     ) {
-        let layout = TextCurvedPathBuilder.buildShapedLayout(
+        let layout = TextRenderPerformanceCache.shared.cachedShapedLayout(
             text: tokenText,
             font: font,
-            characterSpacing: config.characterSpacing,
-            curve: TextCurveStyle(shape: .none)
+            config: config,
+            curveOverride: TextCurveStyle(shape: .none)
         )
         drawStyledVectorGlyphPath(layout.combinedPath, pathBounds: layout.bounds, config: config, in: context)
         TextCurvedPathBuilder.drawEmojiFallbacks(layout.emojiGlyphs, in: context)

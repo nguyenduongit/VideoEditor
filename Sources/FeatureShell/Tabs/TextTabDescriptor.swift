@@ -8,16 +8,18 @@ public struct TextTabDescriptor: TabDescriptor {
     public let iconName: String = "textformat"
     public let order: Int = 40
 
-    private let timelineViewModel: TimelineViewModel?
+    private let viewModel: TextLibraryViewModel
 
+    @MainActor
     public init(timelineViewModel: TimelineViewModel? = nil) {
-        self.timelineViewModel = timelineViewModel
+        self.viewModel = TextLibraryViewModel(timelineViewModel: timelineViewModel)
     }
 
+    @MainActor
     public func makeSidebarView() -> AnyView {
         AnyView(
             TextLibraryView(
-                viewModel: TextLibraryViewModel(timelineViewModel: timelineViewModel)
+                viewModel: viewModel
             )
         )
     }

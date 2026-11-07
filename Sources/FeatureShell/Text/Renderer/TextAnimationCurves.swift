@@ -44,6 +44,45 @@ public enum TextAnimationCurves: Sendable {
         }
     }
 
+    /// Đường cong hàm mũ dừng êm tức thì (Exponential Ease-Out)
+    public static func expoEaseOut(_ p: Double) -> Double {
+        let clamped = min(1.0, max(0.0, p))
+        return clamped >= 1.0 ? 1.0 : 1.0 - pow(2.0, -10.0 * clamped)
+    }
+
+    /// Đường cong hàm mũ tăng tốc đột ngột (Exponential Ease-In)
+    public static func expoEaseIn(_ p: Double) -> Double {
+        let clamped = min(1.0, max(0.0, p))
+        return clamped <= 0.0 ? 0.0 : pow(2.0, 10.0 * (clamped - 1.0))
+    }
+
+    /// Đường cong vượt ngưỡng đích rồi co về vị trí gốc (Back Ease-Out)
+    public static func backEaseOut(_ p: Double, overshoot: Double = 1.70158) -> Double {
+        let clamped = min(1.0, max(0.0, p))
+        let t = clamped - 1.0
+        let c3 = overshoot + 1.0
+        return 1.0 + c3 * pow(t, 3.0) + overshoot * pow(t, 2.0)
+    }
+
+    /// Đường cong lùi nhẹ lấy đà trước khi lao đi (Back Ease-In)
+    public static func backEaseIn(_ p: Double, overshoot: Double = 1.70158) -> Double {
+        let clamped = min(1.0, max(0.0, p))
+        let c3 = overshoot + 1.0
+        return c3 * pow(clamped, 3.0) - overshoot * pow(clamped, 2.0)
+    }
+
+    /// Đường cong dốc tròn (Circular Ease-Out)
+    public static func circEaseOut(_ p: Double) -> Double {
+        let clamped = min(1.0, max(0.0, p))
+        return sqrt(max(0.0, 1.0 - pow(clamped - 1.0, 2.0)))
+    }
+
+    /// Đường cong hình sin bồng bềnh 2 đầu (Sine Ease-In-Out)
+    public static func sineEaseInOut(_ p: Double) -> Double {
+        let clamped = min(1.0, max(0.0, p))
+        return -(cos(.pi * clamped) - 1.0) / 2.0
+    }
+
     /// Đường cong đàn hồi (Elastic Ease-Out).
     public static func elasticEaseOut(_ p: Double) -> Double {
         if p <= 0.0 { return 0.0 }

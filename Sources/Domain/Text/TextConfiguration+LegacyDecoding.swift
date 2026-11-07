@@ -8,8 +8,15 @@ extension TextConfiguration {
         set { colorFillMode = newValue ? .linearGradient : .solid }
     }
     public var hasStroke: Bool {
-        get { innerStroke.isEnabled }
-        set { innerStroke.isEnabled = newValue }
+        get { innerStroke.isEnabled && innerStroke.width > 0.05 }
+        set {
+            innerStroke.isEnabled = newValue
+            if newValue && innerStroke.width <= 0.05 {
+                innerStroke.width = 2.0
+            } else if !newValue {
+                innerStroke.width = 0.0
+            }
+        }
     }
     public var strokeColorHex: String {
         get { innerStroke.colorHex }
@@ -17,11 +24,21 @@ extension TextConfiguration {
     }
     public var strokeWidth: Double {
         get { innerStroke.width }
-        set { innerStroke.width = max(0.0, newValue) }
+        set {
+            innerStroke.width = max(0.0, newValue)
+            if newValue > 0.05 { innerStroke.isEnabled = true }
+        }
     }
     public var hasOuterStroke: Bool {
-        get { outerStroke.isEnabled }
-        set { outerStroke.isEnabled = newValue }
+        get { outerStroke.isEnabled && outerStroke.width > 0.05 }
+        set {
+            outerStroke.isEnabled = newValue
+            if newValue && outerStroke.width <= 0.05 {
+                outerStroke.width = 6.0
+            } else if !newValue {
+                outerStroke.width = 0.0
+            }
+        }
     }
     public var outerStrokeColorHex: String {
         get { outerStroke.colorHex }
@@ -29,27 +46,50 @@ extension TextConfiguration {
     }
     public var outerStrokeWidth: Double {
         get { outerStroke.width }
-        set { outerStroke.width = max(0.0, newValue) }
+        set {
+            outerStroke.width = max(0.0, newValue)
+            if newValue > 0.05 { outerStroke.isEnabled = true }
+        }
     }
     public var hasGlow: Bool {
-        get { glow.isEnabled }
-        set { glow.isEnabled = newValue }
+        get { glow.isEnabled && glow.colorHex.uppercased() != "NONE" }
+        set {
+            glow.isEnabled = newValue
+            if !newValue {
+                glow.colorHex = "NONE"
+            } else if glow.colorHex.uppercased() == "NONE" {
+                glow.colorHex = "#FFD700"
+            }
+        }
     }
     public var glowColorHex: String {
         get { glow.colorHex }
-        set { glow.colorHex = newValue }
+        set {
+            glow.colorHex = newValue
+            if newValue.uppercased() != "NONE" { glow.isEnabled = true }
+        }
     }
     public var glowRadius: Double {
         get { glow.range }
         set { glow.range = max(0.0, newValue) }
     }
     public var hasShadow: Bool {
-        get { shadow.isEnabled }
-        set { shadow.isEnabled = newValue }
+        get { shadow.isEnabled && shadow.colorHex.uppercased() != "NONE" }
+        set {
+            shadow.isEnabled = newValue
+            if !newValue {
+                shadow.colorHex = "NONE"
+            } else if shadow.colorHex.uppercased() == "NONE" {
+                shadow.colorHex = "#000000"
+            }
+        }
     }
     public var shadowColorHex: String {
         get { shadow.colorHex }
-        set { shadow.colorHex = newValue }
+        set {
+            shadow.colorHex = newValue
+            if newValue.uppercased() != "NONE" { shadow.isEnabled = true }
+        }
     }
     public var shadowRadius: Double {
         get { shadow.blur }
@@ -78,12 +118,22 @@ extension TextConfiguration {
         }
     }
     public var hasBackground: Bool {
-        get { background.isEnabled }
-        set { background.isEnabled = newValue }
+        get { background.isActive }
+        set {
+            background.isEnabled = newValue
+            if !newValue && background.sourceKind == .solid {
+                background.solidColorHex = "NONE"
+            } else if newValue && background.sourceKind == .solid && background.solidColorHex.uppercased() == "NONE" {
+                background.solidColorHex = "#000000B2"
+            }
+        }
     }
     public var backgroundColorHex: String {
         get { background.solidColorHex }
-        set { background.solidColorHex = newValue }
+        set {
+            background.solidColorHex = newValue
+            if newValue.uppercased() != "NONE" { background.isEnabled = true }
+        }
     }
     public var backgroundCornerRadius: Double {
         get { background.cornerRadius }
@@ -123,10 +173,12 @@ extension TextConfiguration {
 
     static func decodeInnerStroke(from c: KeyedDecodingContainer<DynamicCodingKey>) -> TextStrokeStyle {
         if let s = try? c.decodeIfPresent(TextStrokeStyle.self, forKey: .init("innerStroke")) { return s }
+        let has = (try? c.decodeIfPresent(Bool.self, forKey: .init("hasStroke"))) ?? false
+        let w = (try? c.decodeIfPresent(Double.self, forKey: .init("strokeWidth"))) ?? 2.0
         return TextStrokeStyle(
-            isEnabled: (try? c.decodeIfPresent(Bool.self, forKey: .init("hasStroke"))) ?? false,
-            width: (try? c.decodeIfPresent(Double.self, forKey: .init("strokeWidth"))) ?? 2.0,
-            colorHex: (try? c.decodeIfPresent(String.self, forKey: .init("strokeColorHex"))) ?? "#000000",
+            isEnabled: true,
+            width: has ? w : 0.0,
+            colorHex: (try? c.decodeIfPresent(String.self, forKey: .init("strokeColorHex"))) ?? "#FFFFFF",
             isGradient: (try? c.decodeIfPresent(Bool.self, forKey: .init("innerStrokeIsGradient"))) ?? false,
             gradientColors: (try? c.decodeIfPresent([String].self, forKey: .init("innerStrokeGradientColors"))) ?? ["#FFD700", "#FF2A85"],
             gradientAngle: (try? c.decodeIfPresent(Double.self, forKey: .init("innerStrokeGradientAngle"))) ?? 90.0
@@ -135,10 +187,12 @@ extension TextConfiguration {
 
     static func decodeOuterStroke(from c: KeyedDecodingContainer<DynamicCodingKey>) -> TextStrokeStyle {
         if let s = try? c.decodeIfPresent(TextStrokeStyle.self, forKey: .init("outerStroke")) { return s }
+        let has = (try? c.decodeIfPresent(Bool.self, forKey: .init("hasOuterStroke"))) ?? false
+        let w = (try? c.decodeIfPresent(Double.self, forKey: .init("outerStrokeWidth"))) ?? 6.0
         return TextStrokeStyle(
-            isEnabled: (try? c.decodeIfPresent(Bool.self, forKey: .init("hasOuterStroke"))) ?? false,
-            width: (try? c.decodeIfPresent(Double.self, forKey: .init("outerStrokeWidth"))) ?? 6.0,
-            colorHex: (try? c.decodeIfPresent(String.self, forKey: .init("outerStrokeColorHex"))) ?? "#FFFFFF",
+            isEnabled: true,
+            width: has ? w : 0.0,
+            colorHex: (try? c.decodeIfPresent(String.self, forKey: .init("outerStrokeColorHex"))) ?? "#EF4444",
             isGradient: (try? c.decodeIfPresent(Bool.self, forKey: .init("outerStrokeIsGradient"))) ?? false,
             gradientColors: (try? c.decodeIfPresent([String].self, forKey: .init("outerStrokeGradientColors"))) ?? ["#38BDF8", "#818CF8"],
             gradientAngle: (try? c.decodeIfPresent(Double.self, forKey: .init("outerStrokeGradientAngle"))) ?? 90.0
@@ -147,9 +201,11 @@ extension TextConfiguration {
 
     static func decodeGlow(from c: KeyedDecodingContainer<DynamicCodingKey>) -> TextGlowStyle {
         if let g = try? c.decodeIfPresent(TextGlowStyle.self, forKey: .init("glow")) { return g }
+        let has = (try? c.decodeIfPresent(Bool.self, forKey: .init("hasGlow"))) ?? false
+        let hex = (try? c.decodeIfPresent(String.self, forKey: .init("glowColorHex"))) ?? "#FFD700"
         return TextGlowStyle(
-            isEnabled: (try? c.decodeIfPresent(Bool.self, forKey: .init("hasGlow"))) ?? false,
-            colorHex: (try? c.decodeIfPresent(String.self, forKey: .init("glowColorHex"))) ?? "#FFD700",
+            isEnabled: true,
+            colorHex: has ? hex : "NONE",
             intensity: 80.0,
             range: (try? c.decodeIfPresent(Double.self, forKey: .init("glowRadius"))) ?? 8.0
         )
@@ -157,13 +213,15 @@ extension TextConfiguration {
 
     static func decodeShadow(from c: KeyedDecodingContainer<DynamicCodingKey>) -> TextShadowStyle {
         if let s = try? c.decodeIfPresent(TextShadowStyle.self, forKey: .init("shadow")) { return s }
+        let has = (try? c.decodeIfPresent(Bool.self, forKey: .init("hasShadow"))) ?? false
+        let hex = (try? c.decodeIfPresent(String.self, forKey: .init("shadowColorHex"))) ?? "#000000"
         let dx = (try? c.decodeIfPresent(Double.self, forKey: .init("shadowOffsetX"))) ?? 2.0
         let dy = (try? c.decodeIfPresent(Double.self, forKey: .init("shadowOffsetY"))) ?? 2.0
         let dist = hypot(dx, dy)
         let ang = dist > 0.001 ? (-atan2(dy, dx) * 180.0 / .pi) : -45.0
         return TextShadowStyle(
-            isEnabled: (try? c.decodeIfPresent(Bool.self, forKey: .init("hasShadow"))) ?? false,
-            colorHex: (try? c.decodeIfPresent(String.self, forKey: .init("shadowColorHex"))) ?? "#000000",
+            isEnabled: true,
+            colorHex: has ? hex : "NONE",
             opacity: 75.0,
             blur: (try? c.decodeIfPresent(Double.self, forKey: .init("shadowRadius"))) ?? 6.0,
             distance: dist,
@@ -192,7 +250,7 @@ extension TextConfiguration {
         let padY = (try? c.decodeIfPresent(Double.self, forKey: .init("backgroundPaddingY"))) ?? pad
         let feather = (try? c.decodeIfPresent(Double.self, forKey: .init("backgroundFeather"))) ?? 0.0
         return TextBackgroundStyle(
-            isEnabled: hasBg, sourceKind: .solid, solidColorHex: hex,
+            isEnabled: true, sourceKind: .solid, solidColorHex: hasBg ? hex : "NONE",
             cornerRadius: corner, featherRadius: feather, paddingX: padX, paddingY: padY
         )
     }

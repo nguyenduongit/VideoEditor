@@ -2,15 +2,15 @@ import SwiftUI
 import CoreText
 import AppKit
 
-/// Phân loại danh mục phong cách phông chữ trong hệ thống biên tập video.
+/// Font category styles
 public enum FontCategory: String, CaseIterable, Identifiable, Sendable {
-    case all = "Tất cả"
-    case calligraphy = "Thư pháp"
-    case handwriting = "Viết tay"
-    case headline = "Tiêu đề"
-    case comic = "Hoạt hình"
-    case vintage = "Cổ điển"
-    case subtitle = "Phụ đề"
+    case all = "All"
+    case calligraphy = "Calligraphy"
+    case handwriting = "Handwriting"
+    case headline = "Headline"
+    case comic = "Comic"
+    case vintage = "Vintage"
+    case subtitle = "Subtitle"
 
     public var id: String { rawValue }
 }

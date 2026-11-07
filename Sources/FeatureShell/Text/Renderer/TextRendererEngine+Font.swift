@@ -16,11 +16,10 @@ extension TextRendererEngine {
         guard !config.content.isEmpty else { return .zero }
         #if os(macOS)
         let font = resolveFont(name: config.fontName, size: CGFloat(config.fontSize), isBold: config.isBold, isItalic: config.isItalic)
-        let layout = TextCurvedPathBuilder.buildShapedLayout(
+        let layout = TextRenderPerformanceCache.shared.cachedShapedLayout(
             text: config.content,
             font: font,
-            characterSpacing: config.characterSpacing,
-            curve: config.curve
+            config: config
         )
         var w = ceil(max(layout.bounds.width, layout.lineAdvanceWidth))
         var h = ceil(max(16.0, layout.bounds.height))
@@ -133,18 +132,7 @@ extension TextRendererEngine {
     }
 
     internal func resolveFont(name: String, size: CGFloat, isBold: Bool, isItalic: Bool) -> NSFont {
-        let safeSize = max(6.0, size)
-        if name.lowercased() == "system" {
-            return isBold ? NSFont.boldSystemFont(ofSize: safeSize) : NSFont.systemFont(ofSize: safeSize)
-        }
-        var font = NSFont(name: name, size: safeSize) ?? NSFont.systemFont(ofSize: safeSize)
-        var traits: NSFontTraitMask = []
-        if isBold { traits.insert(.boldFontMask) }
-        if isItalic { traits.insert(.italicFontMask) }
-        if !traits.isEmpty {
-            font = NSFontManager.shared.convert(font, toHaveTrait: traits)
-        }
-        return font
+        TextRenderPerformanceCache.shared.cachedFont(name: name, size: size, isBold: isBold, isItalic: isItalic)
     }
 
     public static func parseHexColor(_ hex: String) -> NSColor {

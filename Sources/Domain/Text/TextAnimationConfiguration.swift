@@ -12,7 +12,7 @@ public enum TextMotionEasing: String, Codable, Sendable, CaseIterable, Identifia
 
 /// Cấu hình hoạt ảnh chuyển động toàn diện cho Text Clip (In, Out, Loop & Open Creative Manifests).
 /// Tuân thủ AGENTS.md R2.3 (thuần Domain, không UI) và R4.3 (đơn nhiệm).
-public struct TextAnimationConfiguration: Codable, Sendable, Equatable {
+public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable {
     public var inType: TextInAnimationType
     public var inDuration: Double
     public var outType: TextOutAnimationType

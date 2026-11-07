@@ -18,8 +18,8 @@ public enum TextColorFillMode: String, Codable, Sendable, CaseIterable, Identifi
 
     public var displayName: String {
         switch self {
-        case .solid: return "Đơn sắc (Solid)"
-        case .linearGradient: return "Chuyển sắc (Linear)"
+        case .solid: return "Solid"
+        case .linearGradient: return "Linear"
         }
     }
 
@@ -67,7 +67,7 @@ public enum TextLayerBlendMode: String, Codable, Sendable, CaseIterable, Identif
 }
 
 /// Cấu hình một đường viền độc lập của chữ (dùng đối xứng cho cả Stroke 1 - Trong và Stroke 2 - Ngoài)
-public struct TextStrokeStyle: Codable, Equatable, Sendable {
+public struct TextStrokeStyle: Codable, Equatable, Hashable, Sendable {
     public var isEnabled: Bool
     public var width: Double
     public var colorHex: String
@@ -76,15 +76,15 @@ public struct TextStrokeStyle: Codable, Equatable, Sendable {
     public var gradientAngle: Double
 
     public init(
-        isEnabled: Bool = false,
-        width: Double = 3.0,
-        colorHex: String = "#000000",
+        isEnabled: Bool = true,
+        width: Double = 0.0,
+        colorHex: String = "#FFFFFF",
         isGradient: Bool = false,
         gradientColors: [String] = ["#FFD700", "#FF2A85"],
         gradientAngle: Double = 90.0
     ) {
         self.isEnabled = isEnabled
-        self.width = max(0.0, min(40.0, width))
+        self.width = max(0.0, min(45.0, width))
         self.colorHex = colorHex
         self.isGradient = isGradient
         self.gradientColors = gradientColors.count >= 2 ? gradientColors : ["#FFD700", "#FF2A85"]
@@ -102,31 +102,31 @@ public struct TextStrokeStyle: Codable, Equatable, Sendable {
 }
 
 /// Cấu hình phát sáng hào quang (Outer Glow) trong Subtab Style
-public struct TextGlowStyle: Codable, Equatable, Sendable {
+public struct TextGlowStyle: Codable, Equatable, Hashable, Sendable {
     public var isEnabled: Bool
     public var colorHex: String
     public var intensity: Double
     public var range: Double
 
     public init(
-        isEnabled: Bool = false,
-        colorHex: String = "#FFD700",
+        isEnabled: Bool = true,
+        colorHex: String = "NONE",
         intensity: Double = 80.0,
         range: Double = 10.0
     ) {
         self.isEnabled = isEnabled
         self.colorHex = colorHex
         self.intensity = max(0.0, min(100.0, intensity))
-        self.range = max(0.0, min(50.0, range))
+        self.range = max(0.0, min(60.0, range))
     }
 
     public var isActive: Bool {
-        isEnabled && intensity > 0.5 && range > 0.1
+        isEnabled && colorHex.uppercased() != "NONE" && intensity > 0.5 && range > 0.1
     }
 }
 
 /// Cấu hình đổ bóng chuyên sâu kiểu CapCut (Opacity, Blur, Distance, Angle) trong Subtab Style
-public struct TextShadowStyle: Codable, Equatable, Sendable {
+public struct TextShadowStyle: Codable, Equatable, Hashable, Sendable {
     public var isEnabled: Bool
     public var colorHex: String
     public var opacity: Double
@@ -135,8 +135,8 @@ public struct TextShadowStyle: Codable, Equatable, Sendable {
     public var angleDegrees: Double
 
     public init(
-        isEnabled: Bool = false,
-        colorHex: String = "#000000",
+        isEnabled: Bool = true,
+        colorHex: String = "NONE",
         opacity: Double = 75.0,
         blur: Double = 6.0,
         distance: Double = 4.0,
@@ -151,7 +151,7 @@ public struct TextShadowStyle: Codable, Equatable, Sendable {
     }
 
     public var isActive: Bool {
-        isEnabled && opacity > 0.5
+        isEnabled && colorHex.uppercased() != "NONE" && opacity > 0.5
     }
 
     public var offsetX: Double {
@@ -175,15 +175,15 @@ public enum TextCurveShape: String, Codable, Sendable, CaseIterable, Identifiabl
 
     public var displayName: String {
         switch self {
-        case .none: return "Thẳng (None)"
-        case .arc: return "Cung tròn (Arc)"
-        case .wave: return "Lượn sóng (Wave)"
+        case .none: return "None"
+        case .arc: return "Arc"
+        case .wave: return "Wave"
         }
     }
 }
 
 /// Cấu hình uốn cong chữ tham số hóa (Cung tròn Arc & Sóng hình sin Wave)
-public struct TextCurveStyle: Codable, Equatable, Sendable {
+public struct TextCurveStyle: Codable, Equatable, Hashable, Sendable {
     public var shape: TextCurveShape
     public var angleDegrees: Double
     public var radiusOffset: Double

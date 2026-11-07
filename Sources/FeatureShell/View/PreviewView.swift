@@ -33,7 +33,7 @@ public struct PreviewView: View {
             Color.black
             previewContent
                 .clipped()
-            if viewModel.activePreviewAsset == nil {
+            if viewModel.activePreviewAsset == nil && viewModel.activePreviewTextPreset == nil && !viewModel.isPlaying {
                 PreviewObjectManipulatorView(
                     timelineViewModel: viewModel.timelineViewModel,
                     inspectorViewModel: viewModel.inspectorViewModel,
@@ -58,10 +58,63 @@ public struct PreviewView: View {
 
     @ViewBuilder
     private var previewContent: some View {
-        if let asset = viewModel.activePreviewAsset {
+        if let textPreset = viewModel.activePreviewTextPreset {
+            textPresetPreviewContent(for: textPreset)
+        } else if let asset = viewModel.activePreviewAsset {
             assetPreviewContent(for: asset)
         } else {
             timelineContent
+        }
+    }
+
+    private func textPresetPreviewContent(for preset: TextPreset) -> some View {
+        let theme = TextThumbnailRenderer.computeTheme(for: preset.config)
+        let baseSize = viewModel.aspectRatio.renderSize
+        let previewCanvasSize = CGSize(width: baseSize.width * 0.5, height: baseSize.height * 0.5)
+
+        return ZStack {
+            LinearGradient(
+                colors: theme.backgroundColors,
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            SwiftUI.TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
+                let cycle = max(2.2, min(4.0, preset.defaultDuration))
+                let t = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycle)
+                if let frame = TextThumbnailRenderer.renderCanvasPreviewFrame(
+                    for: preset,
+                    localTime: t,
+                    duration: cycle,
+                    canvasSize: previewCanvasSize
+                ) {
+                    Image(nsImage: frame)
+                        .resizable()
+                        .scaledToFit()
+                }
+            }
+            VStack {
+                HStack(spacing: DSSpacing.xs) {
+                    Image(systemName: "eye.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DSColors.toggleCyan)
+                    Text("Preset Preview: \(preset.name)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.white)
+                    Spacer()
+                    Button("Close") {
+                        viewModel.setPreviewTextPreset(nil)
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(DSColors.toggleCyan)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.black.opacity(0.65))
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+                .padding(DSSpacing.sm)
+                Spacer()
+            }
         }
     }
 

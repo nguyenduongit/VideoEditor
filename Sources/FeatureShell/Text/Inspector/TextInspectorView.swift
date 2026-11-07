@@ -2,7 +2,7 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Bảng điều khiển Inspector hợp nhất cho Module `Text` (1 Lõi Đơn Dòng · 3 Tab: `Text`, `Background`, `Animation`).
+/// Bảng điều khiển Inspector hợp nhất cho Module `Text` (1 Lõi Đơn Dòng · 4 Tab: `Text`, `Color`, `Background`, `Animation`).
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
 public struct TextInspectorView: View {
     @Bindable private var viewModel: InspectorViewModel
@@ -33,6 +33,13 @@ public struct TextInspectorView: View {
     @ViewBuilder
     private var tabContent: some View {
         switch viewModel.effectiveTab {
+        case "Color":
+            DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
+                TextColorTabContent(viewModel: viewModel)
+                    .padding(.leading, DSSize.inspectorContentPadding)
+                    .padding(.trailing, DSSpacing.md)
+                    .padding(.vertical, DSSpacing.md)
+            }
         case "Animation":
             TextAnimationTabContent(viewModel: viewModel)
         case "Background":

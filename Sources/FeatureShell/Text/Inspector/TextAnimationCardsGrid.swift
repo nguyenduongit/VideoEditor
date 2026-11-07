@@ -2,7 +2,7 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Grid hiển thị danh sách Gói Hoạt Ảnh Sáng Tạo Mở (`AnimationPreset`) cho 3 pha (In, Out, Loop) kèm mô phỏng trực tiếp.
+/// Grid hiển thị danh sách Gói Hoạt Ảnh Sáng Tạo Mở (`AnimationPreset`) cho 3 pha (In, Out, Loop) kèm mô phỏng trực tiếp trên chữ "Text".
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, View body <= 80 dòng) và R4.3 (đơn nhiệm).
 public struct TextAnimationCardsGrid: View {
     public let selectedSubTab: TextAnimationTabContent.AnimationSubTab
@@ -49,25 +49,11 @@ public struct TextAnimationCardsGrid: View {
                             title: preset.name,
                             iconName: preset.manifest.iconName,
                             isSelected: isSelected,
-                            previewConfig: makePreviewConfig(inManifest: preset.manifest)
+                            preset: preset
                         ) {
                             onSelectInPreset(preset)
                         }
                         .id("in-\(preset.id)-\(isSelected)")
-                    }
-                case .outAnimation:
-                    noneCard(isSelected: !config.animation.hasOutAnimation) { onSelectOutPreset(nil) }
-                    ForEach(outPresets) { preset in
-                        let isSelected = config.animation.outManifest?.id == preset.manifest.id
-                        TextAnimationPreviewCardView(
-                            title: preset.name,
-                            iconName: preset.manifest.iconName,
-                            isSelected: isSelected,
-                            previewConfig: makePreviewConfig(outManifest: preset.manifest)
-                        ) {
-                            onSelectOutPreset(preset)
-                        }
-                        .id("out-\(preset.id)-\(isSelected)")
                     }
                 case .loopAnimation:
                     noneCard(isSelected: !config.animation.hasLoopAnimation) { onSelectLoopPreset(nil) }
@@ -77,11 +63,25 @@ public struct TextAnimationCardsGrid: View {
                             title: preset.name,
                             iconName: preset.manifest.iconName,
                             isSelected: isSelected,
-                            previewConfig: makePreviewConfig(loopManifest: preset.manifest)
+                            preset: preset
                         ) {
                             onSelectLoopPreset(preset)
                         }
                         .id("loop-\(preset.id)-\(isSelected)")
+                    }
+                case .outAnimation:
+                    noneCard(isSelected: !config.animation.hasOutAnimation) { onSelectOutPreset(nil) }
+                    ForEach(outPresets) { preset in
+                        let isSelected = config.animation.outManifest?.id == preset.manifest.id
+                        TextAnimationPreviewCardView(
+                            title: preset.name,
+                            iconName: preset.manifest.iconName,
+                            isSelected: isSelected,
+                            preset: preset
+                        ) {
+                            onSelectOutPreset(preset)
+                        }
+                        .id("out-\(preset.id)-\(isSelected)")
                     }
                 }
             }
@@ -97,26 +97,8 @@ public struct TextAnimationCardsGrid: View {
             title: "None",
             iconName: "slash.circle",
             isSelected: isSelected,
-            previewConfig: TextConfiguration(content: "Aa", fontSize: 16.0, isBold: true),
+            preset: nil,
             action: action
         )
-    }
-
-    private func makePreviewConfig(
-        inManifest: CreativeAnimationManifest? = nil,
-        outManifest: CreativeAnimationManifest? = nil,
-        loopManifest: CreativeAnimationManifest? = nil
-    ) -> TextConfiguration {
-        var sample = TextConfiguration(content: "Aa", fontSize: 16.0, isBold: true)
-        sample.animation = TextAnimationConfiguration(
-            inDuration: 1.0,
-            outDuration: 1.0,
-            loopSpeed: 1.2,
-            motionEasing: config.animation.motionEasing,
-            inManifest: inManifest,
-            outManifest: outManifest,
-            loopManifest: loopManifest
-        )
-        return sample
     }
 }

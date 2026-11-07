@@ -59,18 +59,18 @@ public struct TextPresetActionSectionView: View {
                 onSaveCompleted: { newID, newName in
                     viewModel.commitTextProperty(key: "originPresetId", text: newID)
                     viewModel.commitTextProperty(key: "originPresetName", text: newName)
-                    saveSuccessMessage = "Đã lưu preset \"\(newName)\" thành công!"
+                    saveSuccessMessage = "Preset \"\(newName)\" saved successfully!"
                 },
                 onDismiss: { isSaveModalPresented = false }
             )
         }
-        .alert("Xác nhận ghi đè Preset", isPresented: $isOverwriteAlertPresented) {
-            Button(String(localized: "Ghi đè"), role: .destructive) {
+        .alert("Confirm Overwrite Preset", isPresented: $isOverwriteAlertPresented) {
+            Button("Overwrite", role: .destructive) {
                 overwriteCurrentPreset()
             }
-            Button(String(localized: "Hủy"), role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text(String(localized: "Bạn có chắc chắn muốn cập nhật toàn bộ định dạng và hiệu ứng mới vào preset \"\(originPresetName ?? "")\" trên Supabase không?"))
+            Text("Are you sure you want to update all styles and effects to preset \"\(originPresetName ?? "")\" on Supabase?")
         }
     }
 
@@ -83,7 +83,7 @@ public struct TextPresetActionSectionView: View {
                     } else {
                         Image(systemName: "arrow.triangle.2.circlepath")
                     }
-                    Text(String(localized: "Ghi đè \"\(originName)\""))
+                    Text("Overwrite \"\(originName)\"")
                         .lineLimit(1)
                 }
                 .font(.system(size: 11, weight: .semibold))
@@ -106,7 +106,7 @@ public struct TextPresetActionSectionView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
-            .help(String(localized: "Lưu thành bản sao preset mới..."))
+            .help("Save as New Preset...")
         }
     }
 
@@ -114,7 +114,7 @@ public struct TextPresetActionSectionView: View {
         Button(action: { isSaveModalPresented = true }) {
             HStack(spacing: 6) {
                 Image(systemName: "square.and.arrow.down")
-                Text(String(localized: "Lưu thành Preset..."))
+                Text("Save as Preset...")
                 Spacer()
                 Image(systemName: "icloud.and.arrow.up")
                     .foregroundStyle(DSColors.textSecondary)
@@ -137,7 +137,7 @@ public struct TextPresetActionSectionView: View {
         let updatedPreset = TextPreset(
             id: originID,
             name: originName,
-            description: existing?.description ?? "Cập nhật từ timeline",
+            description: existing?.description ?? "Updated from timeline",
             category: existing?.category ?? .trending,
             tags: existing?.tags ?? [originName.lowercased()],
             defaultDuration: existing?.defaultDuration ?? 4.0,
@@ -155,12 +155,12 @@ public struct TextPresetActionSectionView: View {
                 try await viewModel.dependencies.presetRepositories.textRepository?.savePreset(updatedPreset)
                 await MainActor.run {
                     isOverwriting = false
-                    saveSuccessMessage = "Đã ghi đè \"\(originName)\" thành công!"
+                    saveSuccessMessage = "Preset \"\(originName)\" overwritten successfully!"
                 }
             } catch {
                 await MainActor.run {
                     isOverwriting = false
-                    saveSuccessMessage = "Lỗi khi lưu mẫu: \(error.localizedDescription)"
+                    saveSuccessMessage = "Error saving template: \(error.localizedDescription)"
                 }
             }
         }

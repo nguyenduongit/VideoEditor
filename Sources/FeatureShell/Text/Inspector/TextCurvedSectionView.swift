@@ -15,7 +15,7 @@ public struct TextCurvedSectionView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.md) {
-            Text(String(localized: "Đường cong văn bản (Curved Path)"))
+            Text(String(localized: "Curved Path"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
 
@@ -23,7 +23,7 @@ public struct TextCurvedSectionView: View {
 
             switch selectedShape {
             case .none:
-                Text(String(localized: "Văn bản nằm trên đường cơ sở thẳng tiêu chuẩn."))
+                Text(String(localized: "Text is aligned on a standard flat baseline."))
                     .font(.system(size: 11))
                     .foregroundStyle(DSColors.textSecondary.opacity(0.8))
                     .padding(.vertical, 2)
@@ -92,7 +92,7 @@ public struct TextCurvedSectionView: View {
     private var arcControls: some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
             DSSliderWithInput(
-                title: "Góc uốn cung tròn",
+                title: "Arc Angle",
                 value: Binding(
                     get: { currentConfig.curve.angleDegrees },
                     set: { val in
@@ -109,7 +109,7 @@ public struct TextCurvedSectionView: View {
             )
 
             DSSliderWithInput(
-                title: "Tinh chỉnh bán kính",
+                title: "Radius Offset",
                 value: Binding(
                     get: { currentConfig.curve.radiusOffset },
                     set: { val in
@@ -130,7 +130,7 @@ public struct TextCurvedSectionView: View {
     private var waveControls: some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
             DSSliderWithInput(
-                title: "Biên độ sóng (Amplitude)",
+                title: "Amplitude",
                 value: Binding(
                     get: { currentConfig.curve.waveAmplitude },
                     set: { val in
@@ -147,7 +147,7 @@ public struct TextCurvedSectionView: View {
             )
 
             DSSliderWithInput(
-                title: "Bước sóng (Wavelength)",
+                title: "Wavelength",
                 value: Binding(
                     get: { currentConfig.curve.wavelength },
                     set: { val in
@@ -167,7 +167,7 @@ public struct TextCurvedSectionView: View {
 
     private var followTangentRow: some View {
         DSToggleRow(
-            title: "Xoay ký tự vuông góc theo tiếp tuyến",
+            title: "Follow Tangent Angle",
             isOn: Binding(
                 get: { currentConfig.curve.followTangent },
                 set: { val in

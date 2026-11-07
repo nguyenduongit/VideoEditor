@@ -17,8 +17,8 @@ struct TextIntegrationTests {
         let vm = TextLibraryViewModel(timelineViewModel: nil)
         #expect(vm.defaultPreset.id == "default")
         #expect(vm.filteredPresetsWithDefaultFirst.first?.id == "default")
-        #expect(vm.defaultPreset.name == "Văn bản mặc định")
-        #expect(vm.defaultPreset.config.content == "Văn bản")
+        #expect(vm.defaultPreset.name == "Default Text")
+        #expect(vm.defaultPreset.config.content == "Text")
     }
 
     @Test func testTextConfigurationJSONSerialization() {
@@ -130,7 +130,7 @@ struct TextIntegrationTests {
     @Test func testInspectorTabsForTextClip() {
         let registry = ClipPropertyRegistry()
         let tabs = registry.tabs(for: .text)
-        #expect(tabs == ["Text", "Background", "Animation"])
+        #expect(tabs == ["Text", "Color", "Background", "Animation"])
 
         let timelineVM = TimelineViewModel(initialLayers: [])
         timelineVM.addTextClip(named: "Tiêu đề", config: TextConfiguration(content: "Tiêu đề"))
@@ -144,7 +144,7 @@ struct TextIntegrationTests {
         inspectorVM.syncWithSelection()
 
         #expect(inspectorVM.selectedClip?.id == clip.id)
-        #expect(inspectorVM.availableTabs == ["Text", "Background", "Animation"])
+        #expect(inspectorVM.availableTabs == ["Text", "Color", "Background", "Animation"])
         #expect(inspectorVM.effectiveTab == "Text")
     }
 

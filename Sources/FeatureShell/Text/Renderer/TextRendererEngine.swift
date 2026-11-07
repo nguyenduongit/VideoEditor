@@ -23,7 +23,7 @@ public final class TextRendererEngine: Sendable {
         let isStaticFrame = isFrameStatic(config: config, localTime: localTime, duration: duration)
         if isStaticFrame {
             var hasher = Hasher()
-            hasher.combine(config.encodeToJSON() ?? config.content)
+            hasher.combine(config)
             hasher.combine(Int(canvasSize.width))
             hasher.combine(Int(canvasSize.height))
             let cacheKey = hasher.finalize()
@@ -89,25 +89,47 @@ public final class TextRendererEngine: Sendable {
                 pixelateScale: evaluated.pixelateScale,
                 rgbSplitIntensity: evaluated.rgbSplitIntensity,
                 overlay: evaluated.overlay,
-                lightSweepIntensity: config.animation.lightSweepIntensity
+                lightSweepIntensity: config.animation.lightSweepIntensity,
+                shadow: evaluated.config.shadow,
+                glow: evaluated.config.glow
             )
         } else {
             textImage = nil
         }
 
         #if os(macOS)
-        guard config.background.isEnabled else { return textImage }
-        let rawGlyphBounds = measureCoreGlyphBounds(for: config)
+        return compositeWithBackground(
+            textImage: textImage,
+            baseConfig: config,
+            evaluated: evaluated,
+            canvasSize: canvasSize,
+            localTime: localTime
+        )
+        #else
+        return textImage
+        #endif
+    }
+
+    #if os(macOS)
+    private func compositeWithBackground(
+        textImage: CIImage?,
+        baseConfig: TextConfiguration,
+        evaluated: TextAnimationEvaluator.EvaluationResult,
+        canvasSize: CGSize,
+        localTime: Double
+    ) -> CIImage? {
+        guard baseConfig.background.isEnabled else { return textImage }
+        let rawGlyphBounds = measureCoreGlyphBounds(for: baseConfig)
         let maxSafeW = CGFloat(TextAutoFitter.maxSafeWidth(for: canvasSize))
         let safeguard: CGFloat = (rawGlyphBounds.width > maxSafeW && rawGlyphBounds.width > 0)
             ? (maxSafeW / rawGlyphBounds.width)
             : 1.0
 
-        let bgAnchor = config.background.animateWithText ? evaluated.config : config
-        let bgOverlay = config.background.animateWithText ? evaluated.overlay : TextTransformOverlay()
+        let bgAnchor = baseConfig.background.animateWithText ? evaluated.config : baseConfig
+        let bgOverlay = baseConfig.background.animateWithText ? evaluated.overlay : TextTransformOverlay()
 
         guard var bgImg = TextCompositeLayerRenderer.renderBackground(
-            background: config.background,
+            background: baseConfig.background,
             anchorConfig: bgAnchor,
             overlay: bgOverlay,
             textRawSize: rawGlyphBounds,
@@ -118,7 +140,7 @@ public final class TextRendererEngine: Sendable {
             return textImage
         }
 
-        if config.background.animateWithText {
+        if baseConfig.background.animateWithText {
             bgImg = TextShaderFilterEngine.applyFilters(
                 to: bgImg,
                 blurRadius: evaluated.blurRadius,
@@ -132,10 +154,8 @@ public final class TextRendererEngine: Sendable {
 
         guard let fgText = textImage else { return bgImg }
         return fgText.composited(over: bgImg)
-        #else
-        return textImage
-        #endif
     }
+    #endif
 
     /// Kết xuất lớp chữ (thẳng hoặc cong Arc / Sine Wave) thành CIImage
     public func renderImage(
@@ -176,11 +196,10 @@ public final class TextRendererEngine: Sendable {
         in context: CGContext
     ) {
         let font = resolveFont(name: config.fontName, size: CGFloat(config.fontSize), isBold: config.isBold, isItalic: config.isItalic)
-        let layout = TextCurvedPathBuilder.buildShapedLayout(
+        let layout = TextRenderPerformanceCache.shared.cachedShapedLayout(
             text: config.content,
             font: font,
-            characterSpacing: config.characterSpacing,
-            curve: config.curve
+            config: config
         )
 
         let textWidth = max(1.0, layout.bounds.width)
@@ -220,6 +239,16 @@ public final class TextRendererEngine: Sendable {
         if config.animation.isMaskEnabled {
             let maskRect = layout.bounds.insetBy(dx: -20.0, dy: -12.0)
             context.clip(to: maskRect)
+        }
+        if overlay.revealProgress >= 0.0 {
+            let p = CGFloat(max(0.0, min(1.0, overlay.revealProgress)))
+            let wipeRect = CGRect(
+                x: layout.bounds.minX - 20.0,
+                y: layout.bounds.minY - 20.0,
+                width: (layout.bounds.width + 40.0) * p,
+                height: layout.bounds.height + 40.0
+            )
+            context.clip(to: wipeRect)
         }
 
         TextAdvancedStyleRenderer.drawStyledVectorGlyphPath(

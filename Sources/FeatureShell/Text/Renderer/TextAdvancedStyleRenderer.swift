@@ -23,20 +23,24 @@ public enum TextAdvancedStyleRenderer: Sendable {
         return paragraph
     }
 
-    /// Vẽ trọn bộ 5 lớp (Shadow -> Glow -> Outer Stroke -> Inner Stroke -> Fill) trực tiếp lên đường dẫn Vector `CGPath`
+    /// Vẽ trọn bộ các lớp kiểu chữ (Outer Stroke -> Inner Stroke -> Fill) trực tiếp lên đường dẫn Vector `CGPath`.
+    /// Mặc định `drawEffectsOnCPU: false` để chuyển toàn bộ tính toán Shadow & Glow sang GPU Metal đạt 60fps.
     public static func drawStyledVectorGlyphPath(
         _ glyphPath: CGPath,
         pathBounds: CGRect,
         config: TextConfiguration,
-        in context: CGContext
+        in context: CGContext,
+        drawEffectsOnCPU: Bool = false
     ) {
         guard !glyphPath.isEmpty else { return }
         let innerW = config.innerStroke.isEnabled ? max(0.0, config.innerStroke.width) : 0.0
         let outerW = config.outerStroke.isEnabled ? max(0.0, config.outerStroke.width) : 0.0
         let fullSilhouetteStroke = (innerW + outerW) * 2.0
 
-        drawVectorShadow(glyphPath: glyphPath, silhouetteStroke: fullSilhouetteStroke, shadow: config.shadow, in: context)
-        drawVectorGlow(glyphPath: glyphPath, silhouetteStroke: fullSilhouetteStroke, glow: config.glow, in: context)
+        if drawEffectsOnCPU {
+            drawVectorShadow(glyphPath: glyphPath, silhouetteStroke: fullSilhouetteStroke, shadow: config.shadow, in: context)
+            drawVectorGlow(glyphPath: glyphPath, silhouetteStroke: fullSilhouetteStroke, glow: config.glow, in: context)
+        }
 
         if config.outerStroke.isEnabled && outerW > 0.25 {
             drawVectorStroke(
@@ -65,7 +69,7 @@ public enum TextAdvancedStyleRenderer: Sendable {
         shadow: TextShadowStyle,
         in context: CGContext
     ) {
-        guard shadow.isEnabled, shadow.opacity > 0.5 else { return }
+        guard shadow.isEnabled, shadow.colorHex.uppercased() != "NONE", shadow.opacity > 0.5 else { return }
         let baseColor = parseHexColor(shadow.colorHex)
         let alpha = CGFloat(shadow.opacity / 100.0) * baseColor.alphaComponent
         let shadowColor = baseColor.withAlphaComponent(max(0.0, min(1.0, alpha)))
@@ -93,7 +97,7 @@ public enum TextAdvancedStyleRenderer: Sendable {
         glow: TextGlowStyle,
         in context: CGContext
     ) {
-        guard glow.isEnabled, glow.intensity > 0.5, glow.range > 0.2 else { return }
+        guard glow.isEnabled, glow.colorHex.uppercased() != "NONE", glow.intensity > 0.5, glow.range > 0.2 else { return }
         let baseColor = parseHexColor(glow.colorHex)
         let normIntensity = max(0.0, min(1.0, glow.intensity / 100.0))
         let glowColor = baseColor.withAlphaComponent(CGFloat(min(1.0, 0.35 + normIntensity * 0.65)))

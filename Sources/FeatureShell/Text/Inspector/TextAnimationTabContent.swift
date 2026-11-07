@@ -14,8 +14,8 @@ public struct TextAnimationTabContent: View {
 
     public enum AnimationSubTab: String, CaseIterable {
         case inAnimation = "In"
-        case outAnimation = "Out"
         case loopAnimation = "Loop"
+        case outAnimation = "Out"
     }
 
     public init(viewModel: InspectorViewModel) {
@@ -89,7 +89,13 @@ public struct TextAnimationTabContent: View {
     }
 
     private var hasActiveAnimationForCurrentSubTab: Bool {
-        switch selectedSubTab {
+        currentConfig.animation.hasInAnimation
+            || currentConfig.animation.hasOutAnimation
+            || currentConfig.animation.hasLoopAnimation
+    }
+
+    private func hasAnimation(for tab: AnimationSubTab) -> Bool {
+        switch tab {
         case .inAnimation:
             return currentConfig.animation.hasInAnimation
         case .outAnimation:
@@ -102,15 +108,23 @@ public struct TextAnimationTabContent: View {
     private var subTabBar: some View {
         HStack(spacing: 2) {
             ForEach(AnimationSubTab.allCases, id: \.self) { tab in
+                let isSelected = selectedSubTab == tab
                 Button(action: { selectedSubTab = tab }) {
-                    Text(tab.rawValue)
-                        .font(.system(size: 11, weight: selectedSubTab == tab ? .semibold : .regular))
-                        .foregroundStyle(selectedSubTab == tab ? DSColors.textPrimary : DSColors.textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 5)
-                        .background(selectedSubTab == tab ? DSColors.windowBackground : Color.clear)
-                        .contentShape(RoundedRectangle(cornerRadius: 5))
-                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                    HStack(spacing: 4) {
+                        Text(tab.rawValue)
+                            .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                            .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
+                        if hasAnimation(for: tab) {
+                            Circle()
+                                .fill(DSColors.toggleCyan)
+                                .frame(width: 5, height: 5)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 5)
+                    .background(isSelected ? DSColors.windowBackground : Color.clear)
+                    .contentShape(RoundedRectangle(cornerRadius: 5))
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
                 }
                 .buttonStyle(.plain)
                 .contentShape(RoundedRectangle(cornerRadius: 5))

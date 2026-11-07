@@ -3,7 +3,7 @@ import Foundation
 /// Cấu hình lõi đơn dòng duy nhất dùng chung cho cả Người dùng và Mẫu chữ (Text Template).
 /// Cấu trúc 3 trụ cột chính: Text (Basic / Dual Stroke / Style / Curved) · Background · Animation.
 /// Tuân thủ AGENTS.md R2.3 (thuần Domain) và R3.1 (File <= 300 dòng, Hàm <= 50 dòng).
-public struct TextConfiguration: Codable, Equatable, Sendable {
+public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
     // MARK: - Nội dung đơn dòng & Typography (Subtab Basic)
     private var rawContent: String
     public var content: String {
@@ -14,6 +14,7 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
     public var fontSize: Double
     public var isBold: Bool
     public var isItalic: Bool
+    public var isUnderlined: Bool
     public var alignment: TextAlignmentType
     public var characterSpacing: Double
 
@@ -46,23 +47,24 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
     }
 
     public init(
-        content: String = "Văn bản",
+        content: String = "Text",
         fontName: String = "Helvetica",
         fontSize: Double = 48.0,
         textColorHex: String = "#FFFFFF",
         isBold: Bool = false,
         isItalic: Bool = false,
+        isUnderlined: Bool = false,
         alignment: TextAlignmentType = .center,
         characterSpacing: Double = 0.0,
         colorFillMode: TextColorFillMode = .solid,
         gradientColors: [String] = ["#FF2A85", "#FDE047"],
         gradientAngle: Double = 90.0,
-        innerStroke: TextStrokeStyle = TextStrokeStyle(),
-        outerStroke: TextStrokeStyle = TextStrokeStyle(isEnabled: false, width: 6.0, colorHex: "#FFFFFF"),
-        glow: TextGlowStyle = TextGlowStyle(),
-        shadow: TextShadowStyle = TextShadowStyle(),
+        innerStroke: TextStrokeStyle = TextStrokeStyle(isEnabled: true, width: 0.0, colorHex: "#FFFFFF"),
+        outerStroke: TextStrokeStyle = TextStrokeStyle(isEnabled: true, width: 0.0, colorHex: "#EF4444"),
+        glow: TextGlowStyle = TextGlowStyle(isEnabled: true, colorHex: "NONE"),
+        shadow: TextShadowStyle = TextShadowStyle(isEnabled: true, colorHex: "NONE"),
         curve: TextCurveStyle = TextCurveStyle(),
-        background: TextBackgroundStyle = TextBackgroundStyle(),
+        background: TextBackgroundStyle = TextBackgroundStyle(isEnabled: true, sourceKind: .solid, solidColorHex: "NONE"),
         positionX: Double = 0.0,
         positionY: Double = 0.0,
         scale: Double = 1.0,
@@ -75,6 +77,7 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
         self.fontSize = max(8.0, fontSize)
         self.isBold = isBold
         self.isItalic = isItalic
+        self.isUnderlined = isUnderlined
         self.alignment = alignment
         self.characterSpacing = characterSpacing
         self.colorFillMode = colorFillMode
@@ -97,7 +100,7 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case content
-        case fontName, fontSize, isBold, isItalic, alignment, characterSpacing
+        case fontName, fontSize, isBold, isItalic, isUnderlined, alignment, characterSpacing
         case colorFillMode, textColorHex, gradientColors, gradientAngle
         case innerStroke, outerStroke, glow, shadow, curve, background
         case positionX, positionY, scale, rotation, opacity, animation
@@ -110,6 +113,7 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
         try c.encode(fontSize, forKey: .fontSize)
         try c.encode(isBold, forKey: .isBold)
         try c.encode(isItalic, forKey: .isItalic)
+        try c.encode(isUnderlined, forKey: .isUnderlined)
         try c.encode(alignment, forKey: .alignment)
         try c.encode(characterSpacing, forKey: .characterSpacing)
         try c.encode(colorFillMode, forKey: .colorFillMode)
@@ -132,12 +136,13 @@ public struct TextConfiguration: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: DynamicCodingKey.self)
-        let decodedText = (try? c.decodeIfPresent(String.self, forKey: .init("content"))) ?? "Văn bản"
+        let decodedText = (try? c.decodeIfPresent(String.self, forKey: .init("content"))) ?? "Text"
         self.rawContent = Self.sanitizeSingleLine(decodedText)
         self.fontName = (try? c.decodeIfPresent(String.self, forKey: .init("fontName"))) ?? "Helvetica"
         self.fontSize = max(8.0, (try? c.decodeIfPresent(Double.self, forKey: .init("fontSize"))) ?? 48.0)
         self.isBold = (try? c.decodeIfPresent(Bool.self, forKey: .init("isBold"))) ?? false
         self.isItalic = (try? c.decodeIfPresent(Bool.self, forKey: .init("isItalic"))) ?? false
+        self.isUnderlined = (try? c.decodeIfPresent(Bool.self, forKey: .init("isUnderlined"))) ?? false
         self.alignment = (try? c.decodeIfPresent(TextAlignmentType.self, forKey: .init("alignment"))) ?? .center
         self.characterSpacing = (try? c.decodeIfPresent(Double.self, forKey: .init("characterSpacing"))) ?? 0.0
         self.textColorHex = (try? c.decodeIfPresent(String.self, forKey: .init("textColorHex"))) ?? "#FFFFFF"

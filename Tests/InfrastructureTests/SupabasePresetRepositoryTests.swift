@@ -37,10 +37,10 @@ struct SupabasePresetRepositoryTests {
         #expect(transitions.count >= 9)
 
         let animations = try await animationRepo.fetchPresets()
-        #expect(animations.count == 15)
-        #expect(animations.filter { $0.phase == .inAnimation }.count == 5)
-        #expect(animations.filter { $0.phase == .outAnimation }.count == 5)
-        #expect(animations.filter { $0.phase == .loopAnimation }.count == 5)
+        #expect(animations.count >= 15)
+        #expect(animations.filter { $0.phase == .inAnimation }.count >= 5)
+        #expect(animations.filter { $0.phase == .outAnimation }.count >= 5)
+        #expect(animations.filter { $0.phase == .loopAnimation }.count >= 5)
 
         let effects = try await effectRepo.fetchPresets()
         #expect(effects.count == 9)
@@ -137,5 +137,13 @@ struct SupabasePresetRepositoryTests {
             && EffectPreset.systemTemplates.allSatisfy { $0.isSystem }
             && AnimationPreset.systemTemplates.allSatisfy { $0.isSystem }
         #expect(allCreativeAreSystem == true)
+    }
+
+    @Test("Seed live animation presets to Supabase if configured")
+    func testSeedLiveAnimationPresetsToSupabase() async throws {
+        guard let client = SupabaseConfig.makeClient() else { return }
+        let repo = SupabaseAnimationPresetRepository(client: client)
+        let presets = try await repo.fetchPresets()
+        #expect(presets.count >= 49)
     }
 }

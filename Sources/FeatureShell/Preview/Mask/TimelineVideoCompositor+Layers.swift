@@ -68,7 +68,7 @@ extension TimelineVideoCompositor {
                 localTime: localTime,
                 duration: clipDuration,
                 canvasSize: outputSize
-            )
+            ).cropped(to: outputRect)
         }
 
         if info.isSticker, let config = info.stickerConfig {

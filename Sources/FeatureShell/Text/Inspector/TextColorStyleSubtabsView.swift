@@ -14,8 +14,8 @@ public enum TextColorSubtab: String, CaseIterable, Identifiable {
     public var title: String { rawValue }
 }
 
-/// Giao diện chọn màu và tinh chỉnh 5 hiệu ứng Text Layer dùng chung 1 thanh màu gọn gàng.
-/// Thiết kế phẳng, không accordion, không toggle switch, điều khiển bật/tắt bằng nút "None / Trong suốt".
+/// Clean flat controls for 5 text effect styles with a shared responsive color bar.
+/// Uses "None" swatch to toggle on/off without accordion clutter.
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
 public struct TextColorStyleSubtabsView: View {
     @Bindable private var viewModel: InspectorViewModel

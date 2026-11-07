@@ -31,6 +31,15 @@ public final class SupabaseAnimationPresetRepository: AnimationPresetRepositoryP
                 .value
 
             let fetched = rows.map { $0.toPreset() }
+            let systemIDs = Set(AnimationPreset.systemTemplates.map(\.id))
+            let fetchedIDs = Set(fetched.map(\.id))
+
+            // Nếu Supabase chưa có đủ các animation dev tạo sẵn, tự động đồng bộ (upsert) lên Supabase
+            if !systemIDs.isSubset(of: fetchedIDs) {
+                try? await seedSystemCatalogSafely(preserving: fetched)
+                return templateLoader.loadAllTemplates()
+            }
+
             templateLoader.setInMemoryTemplates(fetched)
             return templateLoader.loadAllTemplates()
         } catch {

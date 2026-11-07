@@ -43,7 +43,7 @@ struct PresetCloudSyncTests {
         let deps = EditorDependencies(textTemplates: loader)
         let vm = TextLibraryViewModel(dependencies: deps)
         #expect(vm.defaultPreset.id == "default")
-        #expect(vm.defaultPreset.name == "Văn bản mặc định")
+        #expect(vm.defaultPreset.name == "Default Text")
         #expect(vm.templatePresets.isEmpty)
         #expect(vm.filteredPresetsWithDefaultFirst.count == 1)
         #expect(vm.filteredPresetsWithDefaultFirst.first?.id == "default")

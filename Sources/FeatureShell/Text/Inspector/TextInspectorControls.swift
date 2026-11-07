@@ -111,13 +111,17 @@ public struct TextColorSwatchesRow: View {
                     .foregroundStyle(DSColors.textSecondary)
             }
 
-            HStack(spacing: DSSpacing.xs) {
-                if allowNone {
-                    noneColorButton
-                }
-
-                // Dải 14 ô vuông liền mạch
+            HStack(spacing: DSSpacing.sm) {
+                // Dải ô vuông co giãn tự động theo % chiều rộng khả dụng
                 HStack(spacing: 1) {
+                    if allowNone {
+                        Button(action: { onSelect("NONE") }) {
+                            noneSquare(isSelected: isNoneSelected)
+                        }
+                        .buttonStyle(.plain)
+                        .help("No Color (None)")
+                    }
+
                     ForEach(swatches, id: \.self) { hex in
                         let isSelected = Self.isColorMatching(swatchHex: hex, selectedHex: selectedHex)
                         Button(action: { onSelect(hex) }) {
@@ -126,12 +130,12 @@ public struct TextColorSwatchesRow: View {
                         .buttonStyle(.plain)
                     }
                 }
+                .frame(maxWidth: .infinity)
+                .frame(height: 20)
                 .padding(1)
                 .background(DSColors.inputBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 3))
                 .overlay(RoundedRectangle(cornerRadius: 3).stroke(DSColors.blockBorder, lineWidth: 1))
-
-                Spacer(minLength: 4)
 
                 if showCustomPicker {
                     customColorButton
@@ -144,29 +148,30 @@ public struct TextColorSwatchesRow: View {
         selectedHex.uppercased() == "NONE" || selectedHex.isEmpty
     }
 
-    private var noneColorButton: some View {
-        Button(action: { onSelect("NONE") }) {
+    @ViewBuilder
+    private func noneSquare(isSelected: Bool) -> some View {
+        GeometryReader { geo in
             ZStack {
                 Rectangle()
-                    .fill(Color.white.opacity(0.08))
-                    .frame(width: 16, height: 16)
-                Path { path in
-                    path.move(to: CGPoint(x: 2, y: 14))
-                    path.addLine(to: CGPoint(x: 14, y: 2))
-                }
-                .stroke(Color.red, lineWidth: 1.5)
+                    .fill(Color.white.opacity(0.06))
 
-                if isNoneSelected {
+                Path { path in
+                    path.move(to: CGPoint(x: 3, y: geo.size.height - 3))
+                    path.addLine(to: CGPoint(x: geo.size.width - 3, y: 3))
+                }
+                .stroke(Color.red, lineWidth: 1.8)
+
+                if isSelected {
                     Rectangle()
                         .stroke(Color.white, lineWidth: 1.5)
-                        .frame(width: 16, height: 16)
+                        .overlay(
+                            Rectangle()
+                                .stroke(Color.black.opacity(0.8), lineWidth: 0.8)
+                        )
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 2))
-            .overlay(RoundedRectangle(cornerRadius: 2).stroke(DSColors.blockBorder, lineWidth: 1))
         }
-        .buttonStyle(.plain)
-        .help("Không màu / Tắt hiệu ứng (None)")
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
@@ -174,18 +179,17 @@ public struct TextColorSwatchesRow: View {
         ZStack {
             Rectangle()
                 .fill(Color(hex: hex))
-                .frame(width: 16, height: 16)
 
             if isSelected {
                 Rectangle()
                     .stroke(Color.white, lineWidth: 1.5)
-                    .frame(width: 16, height: 16)
                     .overlay(
                         Rectangle()
                             .stroke(Color.black.opacity(0.8), lineWidth: 0.8)
                     )
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var isCustomSelected: Bool {
@@ -199,10 +203,8 @@ public struct TextColorSwatchesRow: View {
                 if isCustomSelected {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color(hex: selectedHex))
-                        .frame(width: 22, height: 22)
                     RoundedRectangle(cornerRadius: 3)
                         .stroke(Color.white, lineWidth: 1.5)
-                        .frame(width: 22, height: 22)
                         .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.black.opacity(0.8), lineWidth: 0.8))
                 } else {
                     RoundedRectangle(cornerRadius: 3)
@@ -212,11 +214,10 @@ public struct TextColorSwatchesRow: View {
                                 center: .center
                             )
                         )
-                        .frame(width: 22, height: 22)
                         .overlay(RoundedRectangle(cornerRadius: 3).stroke(DSColors.blockBorder, lineWidth: 1))
                 }
             }
-            .frame(width: 22, height: 22)
+            .frame(width: 24, height: 20)
         }
         .buttonStyle(.plain)
         .popover(isPresented: $isShowingColorPicker, arrowEdge: .bottom) {
@@ -225,7 +226,7 @@ public struct TextColorSwatchesRow: View {
                 onSelect: onSelect
             )
         }
-        .help("Chọn màu tùy chỉnh")
+        .help("Custom Color")
     }
 
     public static func cleanHex(_ hex: String) -> String {

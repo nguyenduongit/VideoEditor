@@ -4,13 +4,16 @@ extension AnimationPreset {
     /// Bộ sưu tập 15 Gói Hoạt Ảnh Sáng Tạo Mở (5 In + 5 Out + 5 Loop) thế hệ mới
     public static let systemTemplates: [AnimationPreset] = inCatalog + outCatalog + loopCatalog
 
-    public static let inCatalog: [AnimationPreset] = [
+    public static let inCatalogV1: [AnimationPreset] = [
         inElasticJellyDrop, inVortexSpin3D, inGlitchTeleport, inFlipCascade3D, inHyperWhipBlur
     ]
 
-    public static let outCatalog: [AnimationPreset] = [
+    public static let outCatalogV1: [AnimationPreset] = [
         outCRTCollapse, outPixelDisintegrate, outGravityShatter, outBlackholeImplode, outSupersonicWhip
     ]
+
+    public static let inCatalog: [AnimationPreset] = inCatalogV1 + inCatalogV2
+    public static let outCatalog: [AnimationPreset] = outCatalogV1 + outCatalogV2
 
     // MARK: - 5 GÓI IN ANIMATION (XUẤT HIỆN)
 

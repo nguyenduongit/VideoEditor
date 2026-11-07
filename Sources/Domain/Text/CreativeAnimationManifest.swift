@@ -12,7 +12,7 @@ public enum AnimationPhaseCategory: String, Codable, Sendable, CaseIterable, Ide
 /// Đặc tả Công thức Chuyển động Toán học & Quang học Động (Open Creative Animation Manifest).
 /// Cho phép cộng đồng tự do lập trình phương trình chuyển động 2D/3D, Squash & Stretch, Glitch/Blur và thanh trượt tùy chỉnh.
 /// Tuân thủ AGENTS.md R2.3 (thuần Domain) và R5.6 (Forward Compatibility).
-public struct CreativeAnimationManifest: Codable, Sendable, Equatable, Identifiable {
+public struct CreativeAnimationManifest: Codable, Sendable, Equatable, Hashable, Identifiable {
     public var id: String
     public var name: String
     public var iconName: String
@@ -34,6 +34,10 @@ public struct CreativeAnimationManifest: Codable, Sendable, Equatable, Identifia
     public var blurExpr: String?
     public var rgbSplitExpr: String?
     public var pixelateExpr: String?
+    public var trackingExpr: String?
+    public var glowExpr: String?
+    public var hueExpr: String?
+    public var revealExpr: String?
 
     public init(
         id: String,
@@ -54,7 +58,11 @@ public struct CreativeAnimationManifest: Codable, Sendable, Equatable, Identifia
         opacityExpr: String? = nil,
         blurExpr: String? = nil,
         rgbSplitExpr: String? = nil,
-        pixelateExpr: String? = nil
+        pixelateExpr: String? = nil,
+        trackingExpr: String? = nil,
+        glowExpr: String? = nil,
+        hueExpr: String? = nil,
+        revealExpr: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -75,6 +83,10 @@ public struct CreativeAnimationManifest: Codable, Sendable, Equatable, Identifia
         self.blurExpr = blurExpr
         self.rgbSplitExpr = rgbSplitExpr
         self.pixelateExpr = pixelateExpr
+        self.trackingExpr = trackingExpr
+        self.glowExpr = glowExpr
+        self.hueExpr = hueExpr
+        self.revealExpr = revealExpr
     }
 }
 

@@ -12,6 +12,7 @@ public struct DSDualSlider: View {
     private let step: Double
     private let showsInThumb: Bool
     private let showsOutThumb: Bool
+    private let showsLoopSegment: Bool
     private let onEditingChanged: ((Bool) -> Void)?
 
     @State private var isDraggingIn: Bool = false
@@ -25,6 +26,7 @@ public struct DSDualSlider: View {
         step: Double = 0.05,
         showsInThumb: Bool = true,
         showsOutThumb: Bool = true,
+        showsLoopSegment: Bool = false,
         onEditingChanged: ((Bool) -> Void)? = nil
     ) {
         self._inValue = inValue
@@ -34,6 +36,7 @@ public struct DSDualSlider: View {
         self.step = step
         self.showsInThumb = showsInThumb
         self.showsOutThumb = showsOutThumb
+        self.showsLoopSegment = showsLoopSegment
         self.onEditingChanged = onEditingChanged
     }
 
@@ -46,17 +49,25 @@ public struct DSDualSlider: View {
             let maxTotal = totalDuration
 
             // Tính toán vị trí X cho 2 con trượt
-            let inFrac = min(1.0, max(0.0, inValue / maxTotal))
-            let inX = (thumbWidth / 2.0) + CGFloat(inFrac) * usableWidth
+            let inFrac = showsInThumb ? min(1.0, max(0.0, inValue / maxTotal)) : 0.0
+            let inX = showsInThumb ? ((thumbWidth / 2.0) + CGFloat(inFrac) * usableWidth) : 0.0
 
-            let outFrac = min(1.0, max(0.0, outValue / maxTotal))
-            let outX = width - ((thumbWidth / 2.0) + CGFloat(outFrac) * usableWidth)
+            let outFrac = showsOutThumb ? min(1.0, max(0.0, outValue / maxTotal)) : 0.0
+            let outX = showsOutThumb ? (width - ((thumbWidth / 2.0) + CGFloat(outFrac) * usableWidth)) : width
 
             ZStack(alignment: .leading) {
                 // Rãnh trượt nền
                 Capsule()
                     .fill(Color.white.opacity(0.22))
                     .frame(height: 2.5)
+
+                // Đoạn rãnh giữa cho hoạt ảnh Vòng lặp (Loop - phần thời gian còn lại)
+                if showsLoopSegment, outX > inX {
+                    Capsule()
+                        .fill(Color(red: 0.20, green: 0.88, blue: 0.55))
+                        .frame(width: max(0.0, outX - inX), height: 2.5)
+                        .offset(x: max(0.0, inX))
+                }
 
                 // Đoạn rãnh hoạt ảnh Vào (In)
                 if showsInThumb {
@@ -138,7 +149,8 @@ public struct DSDualSlider: View {
                 if step > 0 {
                     raw = (raw / step).rounded() * step
                 }
-                let maxAllowed = max(minDuration, maxTotal - outValue)
+                let activeOut = showsOutThumb ? outValue : 0.0
+                let maxAllowed = max(minDuration, maxTotal - activeOut)
                 inValue = max(minDuration, min(maxAllowed, raw))
             }
             .onEnded { _ in
@@ -160,7 +172,8 @@ public struct DSDualSlider: View {
                 if step > 0 {
                     raw = (raw / step).rounded() * step
                 }
-                let maxAllowed = max(minDuration, maxTotal - inValue)
+                let activeIn = showsInThumb ? inValue : 0.0
+                let maxAllowed = max(minDuration, maxTotal - activeIn)
                 outValue = max(minDuration, min(maxAllowed, raw))
             }
             .onEnded { _ in

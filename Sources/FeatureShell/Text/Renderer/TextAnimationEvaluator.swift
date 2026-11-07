@@ -14,6 +14,7 @@ public struct TextTransformOverlay: Sendable, Equatable {
     public var lightSweepPhase: Double
     public var glitchSliceIntensity: Double
     public var liquidWavePhase: Double
+    public var revealProgress: Double
 
     public init(
         scaleX: Double = 1.0,
@@ -25,7 +26,8 @@ public struct TextTransformOverlay: Sendable, Equatable {
         motionBlurAngle: Double = 0.0,
         lightSweepPhase: Double = -1.0,
         glitchSliceIntensity: Double = 0.0,
-        liquidWavePhase: Double = -1.0
+        liquidWavePhase: Double = -1.0,
+        revealProgress: Double = -1.0
     ) {
         self.scaleX = scaleX
         self.scaleY = scaleY
@@ -37,6 +39,7 @@ public struct TextTransformOverlay: Sendable, Equatable {
         self.lightSweepPhase = lightSweepPhase
         self.glitchSliceIntensity = glitchSliceIntensity
         self.liquidWavePhase = liquidWavePhase
+        self.revealProgress = revealProgress
     }
 }
 
@@ -75,7 +78,9 @@ public enum TextAnimationEvaluator {
         config: TextConfiguration,
         localTime: Double,
         duration: Double,
-        canvasSize: CGSize
+        canvasSize: CGSize,
+        charIndex: Int = 0,
+        charCount: Int = 1
     ) -> EvaluationResult {
         guard !config.animation.isDefault else { return EvaluationResult(config: config) }
 
@@ -98,10 +103,13 @@ public enum TextAnimationEvaluator {
         if anim.hasInAnimation, t < inDuration {
             let progress = min(1.0, max(0.0, t / max(0.05, inDuration)))
             if let manifest = anim.inManifest {
-                let vars = OpenAnimationRuntimeEngine.Variables(progress: progress, anim: anim, manifest: manifest)
+                let vars = OpenAnimationRuntimeEngine.Variables(
+                    progress: progress, anim: anim, manifest: manifest,
+                    charIndex: charIndex, charCount: charCount
+                )
                 OpenAnimationRuntimeEngine.applyManifest(
                     manifest, variables: vars, config: &evaluated, overlay: &overlay,
-                    blur: &blur, pixelate: &pixelate, rgbSplit: &rgbSplit
+                    blur: &blur, pixelate: &pixelate, rgbSplit: &rgbSplit, hue: &hue
                 )
             } else {
                 let eased = TextAnimationCurves.apply(progress: progress, easing: anim.motionEasing)
@@ -120,10 +128,13 @@ public enum TextAnimationEvaluator {
         if anim.hasOutAnimation, t > outStart {
             let progress = min(1.0, max(0.0, (safeDur - t) / max(0.05, outDuration)))
             if let manifest = anim.outManifest {
-                let vars = OpenAnimationRuntimeEngine.Variables(progress: progress, anim: anim, manifest: manifest)
+                let vars = OpenAnimationRuntimeEngine.Variables(
+                    progress: progress, anim: anim, manifest: manifest,
+                    charIndex: charIndex, charCount: charCount
+                )
                 OpenAnimationRuntimeEngine.applyManifest(
                     manifest, variables: vars, config: &evaluated, overlay: &overlay,
-                    blur: &blur, pixelate: &pixelate, rgbSplit: &rgbSplit
+                    blur: &blur, pixelate: &pixelate, rgbSplit: &rgbSplit, hue: &hue
                 )
             } else {
                 let easedExit = TextAnimationCurves.apply(progress: 1.0 - progress, easing: anim.motionEasing)
@@ -143,11 +154,12 @@ public enum TextAnimationEvaluator {
                 let phase = loopTime * anim.loopSpeed * 2.0 * .pi
                 if let manifest = anim.loopManifest {
                     let vars = OpenAnimationRuntimeEngine.Variables(
-                        progress: 1.0, phase: phase, blend: blend, anim: anim, manifest: manifest
+                        progress: 1.0, phase: phase, blend: blend, anim: anim, manifest: manifest,
+                        charIndex: charIndex, charCount: charCount
                     )
                     OpenAnimationRuntimeEngine.applyManifest(
                         manifest, variables: vars, config: &evaluated, overlay: &overlay,
-                        blur: &blur, pixelate: &pixelate, rgbSplit: &rgbSplit
+                        blur: &blur, pixelate: &pixelate, rgbSplit: &rgbSplit, hue: &hue
                     )
                 } else {
                     TextLoopAnimationEvaluator.apply(

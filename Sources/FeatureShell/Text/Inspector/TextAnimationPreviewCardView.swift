@@ -2,14 +2,15 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Thẻ xem trước hoạt ảnh trực tiếp (Live Animated "Aa" Preview Card) chuẩn CapCut Pro.
-/// Tự động chạy mô phỏng chuyển động thực khi người dùng di chuột (Hover) hoặc khi thẻ đang được chọn.
+/// Thẻ xem trước hoạt ảnh trực tiếp (Live Animated "Text" Preview Card) chuẩn CapCut Pro.
+/// Tự động kết xuất hoạt ảnh chân thực 1:1 qua `TextRendererEngine` khi người dùng di chuột (Hover).
+/// Khi không hover, hiển thị chữ mẫu "Text" tĩnh rõ nét kèm biểu tượng mô tả.
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, Hàm <= 50 dòng, View body <= 80 dòng).
 public struct TextAnimationPreviewCardView: View {
     public let title: String
     public let iconName: String
     public let isSelected: Bool
-    public let previewConfig: TextConfiguration
+    public let preset: AnimationPreset?
     public let action: () -> Void
 
     @State private var isHovered: Bool = false
@@ -18,26 +19,26 @@ public struct TextAnimationPreviewCardView: View {
         title: String,
         iconName: String,
         isSelected: Bool,
-        previewConfig: TextConfiguration,
+        preset: AnimationPreset?,
         action: @escaping () -> Void
     ) {
         self.title = title
         self.iconName = iconName
         self.isSelected = isSelected
-        self.previewConfig = previewConfig
+        self.preset = preset
         self.action = action
     }
 
     public var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 previewStage
                     .frame(maxWidth: .infinity)
-                    .frame(height: 36)
+                    .frame(height: 38)
                     .clipped()
 
                 Text(title)
-                    .font(.system(size: 9, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: 9.5, weight: isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -45,7 +46,7 @@ public struct TextAnimationPreviewCardView: View {
             .padding(.horizontal, 4)
             .padding(.vertical, 4)
             .frame(maxWidth: .infinity)
-            .frame(height: 60)
+            .frame(height: 62)
             .background(cardBackground)
             .contentShape(Rectangle())
             .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
@@ -53,6 +54,7 @@ public struct TextAnimationPreviewCardView: View {
                 RoundedRectangle(cornerRadius: DSRadius.small)
                     .stroke(borderColor, lineWidth: isSelected ? 1.5 : 0.8)
             )
+            .onHover { isHovered = $0 }
         }
         .buttonStyle(.plain)
         .contentShape(Rectangle())
@@ -65,74 +67,63 @@ public struct TextAnimationPreviewCardView: View {
 
     @ViewBuilder
     private var previewStage: some View {
-        if previewConfig.animation.isDefault {
+        if preset == nil {
             Image(systemName: iconName)
-                .font(.system(size: 15, weight: isSelected ? .bold : .regular))
+                .font(.system(size: 16, weight: isSelected ? .bold : .regular))
                 .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.textSecondary)
-        } else if isHovered || isSelected {
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let preset, isHovered {
             SwiftUI.TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
-                let cycleDuration = 1.4
-                let t = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycleDuration)
-                animatedSampleText(localTime: t, duration: cycleDuration)
+                let cycle = cycleDuration(for: preset.phase)
+                let t = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycle)
+                animatedThumbnailStage(preset: preset, localTime: t, duration: cycle)
             }
-        } else {
-            ZStack(alignment: .topTrailing) {
-                Text("Aa")
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
-                    .foregroundStyle(DSColors.textPrimary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let preset {
+            staticThumbnailStage(preset: preset)
+        }
+    }
 
-                Image(systemName: iconName)
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(DSColors.textSecondary)
-                    .padding(3)
+    private func staticThumbnailStage(preset: AnimationPreset) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Text("Text")
+                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.textPrimary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Image(systemName: iconName)
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.textSecondary.opacity(0.8))
+                .padding(3)
+        }
+    }
+
+    private func animatedThumbnailStage(preset: AnimationPreset, localTime: Double, duration: Double) -> some View {
+        let frame = TextThumbnailRenderer.renderAnimationPreviewFrame(
+            preset: preset,
+            localTime: localTime,
+            duration: duration,
+            targetSize: CGSize(width: 320, height: 160)
+        )
+
+        return ZStack {
+            if let frame {
+                Image(nsImage: frame)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                Text("Text")
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.textPrimary)
             }
         }
     }
 
-    private func animatedSampleText(localTime: Double, duration: Double) -> some View {
-        let stageSize = CGSize(width: 72, height: 34)
-        let eval = TextAnimationEvaluator.evaluate(
-            config: previewConfig,
-            localTime: localTime,
-            duration: duration,
-            canvasSize: stageSize
-        )
-        let cfg = eval.config
-        let ov = eval.overlay
-        let sx = CGFloat(max(0.15, min(2.2, cfg.scale * ov.scaleX)))
-        let sy = CGFloat(max(0.15, min(2.2, cfg.scale * ov.scaleY)))
-        let dx = CGFloat(max(-26.0, min(26.0, cfg.positionX * 0.45)))
-        let dy = CGFloat(max(-16.0, min(16.0, -cfg.positionY * 0.45)))
-
-        return ZStack {
-            if eval.rgbSplitIntensity > 0.5 {
-                Text(cfg.content)
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .foregroundStyle(DSColors.trafficClose.opacity(0.75))
-                    .offset(x: dx - 2.0, y: dy)
-                Text(cfg.content)
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .foregroundStyle(DSColors.toggleCyan.opacity(0.75))
-                    .offset(x: dx + 2.0, y: dy)
-            }
-            Text(cfg.content)
-                .font(.system(size: 14, weight: .heavy, design: .rounded))
-                .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.textPrimary)
-                .padding(.horizontal, 4)
-                .scaleEffect(x: sx, y: sy)
-                .rotationEffect(.degrees(cfg.rotation * 0.35))
-                .rotation3DEffect(
-                    .degrees(ov.perspectiveX * 55.0),
-                    axis: (x: 1, y: 0, z: 0)
-                )
-                .rotation3DEffect(
-                    .degrees(ov.perspectiveY * 55.0),
-                    axis: (x: 0, y: 1, z: 0)
-                )
-                .offset(x: dx, y: dy)
-                .opacity(max(0.15, min(1.0, cfg.opacity)))
-                .blur(radius: CGFloat(min(4.0, (eval.blurRadius + ov.motionBlurRadius) * 0.15)))
+    private func cycleDuration(for phase: AnimationPhaseCategory) -> Double {
+        switch phase {
+        case .inAnimation: return 1.4
+        case .loopAnimation: return 2.0
+        case .outAnimation: return 1.5
         }
     }
 

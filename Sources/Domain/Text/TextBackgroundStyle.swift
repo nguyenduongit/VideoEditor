@@ -12,11 +12,11 @@ public enum TextBackgroundSourceKind: String, Codable, Sendable, CaseIterable, I
 
     public var displayName: String {
         switch self {
-        case .solid: return "Màu đơn (Solid)"
+        case .solid: return "Solid Color"
         case .linearGradient: return "Linear Gradient"
         case .radialGradient: return "Radial Gradient"
-        case .inlineSVG: return "Khung SVG"
-        case .animatedAsset: return "Ảnh / GIF / APNG"
+        case .inlineSVG: return "SVG Vector"
+        case .animatedAsset: return "Image / GIF / APNG"
         }
     }
 
@@ -43,9 +43,9 @@ public enum TextBackgroundContentFitMode: String, Codable, Sendable, CaseIterabl
 
     public var displayName: String {
         switch self {
-        case .fill: return "Lấp đầy (Fill)"
-        case .fit: return "Vừa khung (Fit)"
-        case .stretch: return "Kéo giãn (Stretch)"
+        case .fill: return "Fill"
+        case .fit: return "Fit"
+        case .stretch: return "Stretch"
         }
     }
 }
@@ -53,7 +53,7 @@ public enum TextBackgroundContentFitMode: String, Codable, Sendable, CaseIterabl
 /// Cấu hình nền thống nhất duy nhất cho Tab Background của Text Clip.
 /// Tự động bám theo tâm/góc xoay/tỉ lệ của dòng chữ và hỗ trợ đồng bộ chuyển động cùng Animation của chữ.
 /// Tuân thủ AGENTS.md R2.3 (thuần Domain) và R3.1 (File <= 300 dòng, Hàm <= 50 dòng).
-public struct TextBackgroundStyle: Codable, Equatable, Sendable {
+public struct TextBackgroundStyle: Codable, Equatable, Hashable, Sendable {
     public var isEnabled: Bool
     public var sourceKind: TextBackgroundSourceKind
     public var solidColorHex: String
@@ -91,18 +91,18 @@ public struct TextBackgroundStyle: Codable, Equatable, Sendable {
     public var animateWithText: Bool
 
     public init(
-        isEnabled: Bool = false,
+        isEnabled: Bool = true,
         sourceKind: TextBackgroundSourceKind = .solid,
-        solidColorHex: String = "#000000B2",
+        solidColorHex: String = "NONE",
         gradientColorsHex: [String] = ["#FF2A85", "#7928CA"],
         gradientAngleDegrees: Double = 45.0,
         svgMarkup: String = "",
         assetPathOrURL: String = "",
         cornerRadius: Double = 10.0,
         borderWidth: Double = 0.0,
-        borderColorHex: String = "#FFFFFF",
-        hasShadow: Bool = false,
-        shadowColorHex: String = "#00000099",
+        borderColorHex: String = "NONE",
+        hasShadow: Bool = true,
+        shadowColorHex: String = "NONE",
         shadowBlur: Double = 8.0,
         shadowDistance: Double = 4.0,
         shadowAngleDegrees: Double = -45.0,
@@ -152,13 +152,33 @@ public struct TextBackgroundStyle: Codable, Equatable, Sendable {
         self.animateWithText = animateWithText
     }
 
+    public var isActive: Bool {
+        guard isEnabled && opacity > 0.005 else { return false }
+        let hasSource: Bool = {
+            switch sourceKind {
+            case .solid:
+                return solidColorHex.uppercased() != "NONE" && !solidColorHex.isEmpty
+            case .linearGradient, .radialGradient:
+                return gradientColorsHex.contains { $0.uppercased() != "NONE" && !$0.isEmpty }
+            case .inlineSVG:
+                return !svgMarkup.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            case .animatedAsset:
+                return !assetPathOrURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
+        }()
+        let hasBorder = borderWidth > 0.1 && borderColorHex.uppercased() != "NONE"
+        let hasBoxShadow = hasShadow && shadowColorHex.uppercased() != "NONE" && (shadowBlur > 0.1 || shadowDistance > 0.1)
+        return hasSource || hasBorder || hasBoxShadow
+    }
+
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: DynamicCodingKey.self)
         let rawSource = (try? c.decodeIfPresent(String.self, forKey: .init("sourceKind"))) ?? "solid"
-        let decodedEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .init("isEnabled"))) ?? false
+        let decodedEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .init("isEnabled"))) ?? true
         self.isEnabled = (rawSource == "none") ? false : decodedEnabled
         self.sourceKind = (try? c.decodeIfPresent(TextBackgroundSourceKind.self, forKey: .init("sourceKind"))) ?? .solid
-        self.solidColorHex = (try? c.decodeIfPresent(String.self, forKey: .init("solidColorHex"))) ?? "#000000B2"
+        let rawSolidHex = (try? c.decodeIfPresent(String.self, forKey: .init("solidColorHex"))) ?? "NONE"
+        self.solidColorHex = (rawSource == "none" || !decodedEnabled) ? "NONE" : rawSolidHex
         let cols = (try? c.decodeIfPresent([String].self, forKey: .init("gradientColorsHex"))) ?? ["#FF2A85", "#7928CA"]
         self.gradientColorsHex = cols.count >= 2 ? cols : ["#FF2A85", "#7928CA"]
         self.gradientAngleDegrees = (try? c.decodeIfPresent(Double.self, forKey: .init("gradientAngleDegrees"))) ?? 45.0
@@ -168,9 +188,9 @@ public struct TextBackgroundStyle: Codable, Equatable, Sendable {
         self.assetPathOrURL = pathOrURL
         self.cornerRadius = max(0.0, (try? c.decodeIfPresent(Double.self, forKey: .init("cornerRadius"))) ?? 10.0)
         self.borderWidth = max(0.0, (try? c.decodeIfPresent(Double.self, forKey: .init("borderWidth"))) ?? 0.0)
-        self.borderColorHex = (try? c.decodeIfPresent(String.self, forKey: .init("borderColorHex"))) ?? "#FFFFFF"
-        self.hasShadow = (try? c.decodeIfPresent(Bool.self, forKey: .init("hasShadow"))) ?? false
-        self.shadowColorHex = (try? c.decodeIfPresent(String.self, forKey: .init("shadowColorHex"))) ?? "#00000099"
+        self.borderColorHex = (try? c.decodeIfPresent(String.self, forKey: .init("borderColorHex"))) ?? "NONE"
+        self.hasShadow = (try? c.decodeIfPresent(Bool.self, forKey: .init("hasShadow"))) ?? true
+        self.shadowColorHex = (try? c.decodeIfPresent(String.self, forKey: .init("shadowColorHex"))) ?? "NONE"
         self.shadowBlur = max(0.0, (try? c.decodeIfPresent(Double.self, forKey: .init("shadowBlur"))) ?? 8.0)
         self.shadowDistance = max(0.0, (try? c.decodeIfPresent(Double.self, forKey: .init("shadowDistance"))) ?? 4.0)
         self.shadowAngleDegrees = (try? c.decodeIfPresent(Double.self, forKey: .init("shadowAngleDegrees"))) ?? -45.0

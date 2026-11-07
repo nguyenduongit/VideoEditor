@@ -1,9 +1,11 @@
 import Foundation
 
 extension AnimationPreset {
-    public static let loopCatalog: [AnimationPreset] = [
+    public static let loopCatalogV1: [AnimationPreset] = [
         loopHarmonicWave, loopBassHeartbeat, loopPendulum3D, loopNeonFlicker, loopJellySquash
     ]
+
+    public static let loopCatalog: [AnimationPreset] = loopCatalogV1 + loopCatalogV2
 
     // MARK: - 5 GÓI LOOP ANIMATION (VÒNG LẶP)
 

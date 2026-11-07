@@ -18,6 +18,7 @@ public final class ShellViewModel {
     public var selectedTabID: TabID
     public var isPlaying: Bool = false
     public var activePreviewAsset: MediaAsset?
+    public var activePreviewTextPreset: TextPreset?
     public var avPlayer: AVPlayer?
     public var previewImage: NSImage?
     public var timelinePreviewImage: NSImage?
@@ -78,10 +79,28 @@ public final class ShellViewModel {
     }
 
     public func selectTab(_ id: TabID) {
+        if id != .text {
+            activePreviewTextPreset = nil
+        }
         selectedTabID = id
     }
 
+    public func setPreviewTextPreset(_ preset: TextPreset?) {
+        if preset != nil {
+            if isPlaying {
+                stopPlayback()
+            }
+            cleanupCurrentPlayer()
+            activePreviewAsset = nil
+            previewImage = nil
+        }
+        activePreviewTextPreset = preset
+    }
+
     public func setPreviewAsset(_ asset: MediaAsset?) {
+        if asset != nil {
+            activePreviewTextPreset = nil
+        }
         // Bỏ chọn asset khi đang xem timeline (không có asset preview) là no-op:
         // không được dừng timeline playback. Click vào timeline (kể cả nút mute/hide)
         // đi qua clearSelection() -> setPreviewAsset(nil) và từng làm player bị pause.
@@ -114,6 +133,7 @@ public final class ShellViewModel {
     public var onTimelineActivated: (() -> Void)?
 
     public func switchToTimelinePreview() {
+        activePreviewTextPreset = nil
         if activePreviewAsset != nil {
             cleanupCurrentPlayer()
             activePreviewAsset = nil

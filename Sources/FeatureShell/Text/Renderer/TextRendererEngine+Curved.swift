@@ -31,7 +31,8 @@ public enum TextCurvedPathBuilder: Sendable {
         text: String,
         font: NSFont,
         characterSpacing: Double,
-        curve: TextCurveStyle
+        curve: TextCurveStyle,
+        isUnderlined: Bool = false
     ) -> ShapedLayout {
         let safeText = text.precomposedStringWithCanonicalMapping
         guard !safeText.isEmpty else {
@@ -66,6 +67,13 @@ public enum TextCurvedPathBuilder: Sendable {
                 into: combined,
                 emojis: &emojis
             )
+        }
+        if isUnderlined && !curve.isActive && !combined.isEmpty {
+            let pathBox = combined.boundingBoxOfPath
+            let thickness = max(2.0, font.pointSize * 0.065)
+            let underlineY = baselineOffset - max(3.0, descent * 0.45) - thickness / 2.0
+            let barRect = CGRect(x: pathBox.minX, y: underlineY, width: max(4.0, pathBox.width), height: thickness)
+            combined.addRoundedRect(in: barRect, cornerWidth: thickness / 2.0, cornerHeight: thickness / 2.0)
         }
         return makeCenteredLayout(
             combined: combined,
