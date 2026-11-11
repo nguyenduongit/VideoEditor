@@ -28,6 +28,7 @@ public final class TextRenderPerformanceCache: @unchecked Sendable {
         let spacingCentipoints: Int
         let curve: TextCurveStyle
         let isUnderlined: Bool
+        let preserveBaseline: Bool
     }
 
     private struct TokenizeKey: Hashable {
@@ -96,7 +97,8 @@ public final class TextRenderPerformanceCache: @unchecked Sendable {
         text: String,
         font: NSFont,
         config: TextConfiguration,
-        curveOverride: TextCurveStyle? = nil
+        curveOverride: TextCurveStyle? = nil,
+        preserveBaseline: Bool = false
     ) -> TextCurvedPathBuilder.ShapedLayout {
         let effectiveCurve = curveOverride ?? config.curve
         let fKey = FontKey(
@@ -110,7 +112,8 @@ public final class TextRenderPerformanceCache: @unchecked Sendable {
             fontKey: fKey,
             spacingCentipoints: Int((config.characterSpacing * 100.0).rounded()),
             curve: effectiveCurve,
-            isUnderlined: config.isUnderlined
+            isUnderlined: config.isUnderlined,
+            preserveBaseline: preserveBaseline
         )
 
         lock.lock()
@@ -125,7 +128,8 @@ public final class TextRenderPerformanceCache: @unchecked Sendable {
             font: font,
             characterSpacing: config.characterSpacing,
             curve: effectiveCurve,
-            isUnderlined: config.isUnderlined
+            isUnderlined: config.isUnderlined,
+            preserveBaseline: preserveBaseline
         )
 
         lock.lock()

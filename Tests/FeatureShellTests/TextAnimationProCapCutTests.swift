@@ -2,6 +2,7 @@ import Testing
 import Foundation
 import CoreGraphics
 import CoreImage
+import CoreMedia
 #if os(macOS)
 import AppKit
 #endif
@@ -251,5 +252,24 @@ struct TextAnimationProCapCutTests {
         #expect(config.animation.loopType == .pulse)
         config.animation.loopType = (config.animation.loopType == loopSelected || loopSelected == .none) ? .none : loopSelected
         #expect(config.animation.loopType == .none)
+    }
+
+    @Test("TimelineViewModel and ShellViewModel loop playback range and click stop callbacks")
+    func testTextAnimationLoopRangePreviewAndStopCallbacks() {
+        let shellVM = ShellViewModel(registry: TabRegistry())
+        let clipRange = CMTimeRange(start: CMTime(seconds: 2.0, preferredTimescale: 600), duration: CMTime(seconds: 5.0, preferredTimescale: 600))
+
+        // Trigger loop range request (as done when selecting animation)
+        shellVM.timelineViewModel.onLoopRangeRequested?(clipRange)
+        #expect(shellVM.playbackEngine.loopRange == clipRange)
+
+        // Trigger stop request (as done when clicking anywhere)
+        shellVM.timelineViewModel.onStopPlaybackRequested?()
+        #expect(shellVM.playbackEngine.loopRange == nil)
+
+        // When loopRange is nil, onStopPlaybackRequested does not alter playing state if not in loop mode
+        shellVM.playbackEngine.loopRange = nil
+        shellVM.timelineViewModel.onStopPlaybackRequested?()
+        #expect(shellVM.playbackEngine.loopRange == nil)
     }
 }

@@ -11,6 +11,14 @@ extension TimelineClipView {
                 Label("Tách âm thanh", systemImage: "waveform.badge.plus")
             }
         }
+
+        if clip.kind == .text {
+            Button {
+                onSavePreset?(clip)
+            } label: {
+                Label(String(localized: "Save as Preset..."), systemImage: "square.and.arrow.down")
+            }
+        }
     }
 
     private var canExtractAudio: Bool {

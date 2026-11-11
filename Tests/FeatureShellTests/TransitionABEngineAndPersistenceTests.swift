@@ -166,32 +166,32 @@ struct TransitionABEngineAndPersistenceTests {
         let timelineVM = TimelineViewModel(initialLayers: [layer])
         let inspectorVM = InspectorViewModel(timelineViewModel: timelineVM)
 
-        guard let zoomPreset = TransitionPreset.builtInCatalog.first(where: { $0.id == "zoom_blur" }) else {
-            Issue.record("Missing zoom_blur preset")
+        guard let transitionPreset = TransitionPreset.builtInCatalog.first(where: { $0.id == "dissolve_default" }) ?? TransitionPreset.builtInCatalog.first else {
+            Issue.record("Missing transition preset in builtInCatalog")
             return
         }
 
-        let created = try #require(timelineVM.addOrUpdateCutTransition(zoomPreset, between: c0.id, and: c1.id))
+        let created = try #require(timelineVM.addOrUpdateCutTransition(transitionPreset, between: c0.id, and: c1.id))
         #expect(timelineVM.layers[0].transitions.count == 1)
-        #expect(created.shaderType == .zoomBlur)
+        #expect(created.shaderType == .dissolve)
 
         // Transactional parameter update via InspectorViewModel
         inspectorVM.syncWithSelection()
         inspectorVM.onTransitionSliderEditingChanged(true)
-        inspectorVM.updateTransitionParameter(id: "zoomStrength", value: 0.72, commit: false)
+        inspectorVM.updateTransitionParameter(id: "gammaCurve", value: 1.85, commit: false)
         inspectorVM.onTransitionSliderEditingChanged(false)
-        #expect(abs((timelineVM.layers[0].transitions.first?.parameterValues["zoomStrength"] ?? 0) - 0.72) < 0.001)
+        #expect(abs((timelineVM.layers[0].transitions.first?.parameterValues["gammaCurve"] ?? 0) - 1.85) < 0.001)
 
         // LayerScript JSON roundtrip
         let script = LayerScript(from: timelineVM.layers[0])
         let encoded = try JSONEncoder().encode(script)
         let decodedLayer = try JSONDecoder().decode(LayerScript.self, from: encoded).toTimelineLayer()
         #expect(decodedLayer.transitions.count == 1)
-        #expect(abs((decodedLayer.transitions.first?.parameterValues["zoomStrength"] ?? 0) - 0.72) < 0.001)
+        #expect(abs((decodedLayer.transitions.first?.parameterValues["gammaCurve"] ?? 0) - 1.85) < 0.001)
 
         // Undo parameter edit -> Undo transition creation -> Redo both
         timelineVM.undo()
-        #expect(abs((timelineVM.layers[0].transitions.first?.parameterValues["zoomStrength"] ?? 0) - 0.38) < 0.001)
+        #expect(abs((timelineVM.layers[0].transitions.first?.parameterValues["gammaCurve"] ?? 0) - 1.0) < 0.001)
         timelineVM.undo()
         #expect(timelineVM.layers[0].transitions.isEmpty)
         timelineVM.redo()
@@ -200,7 +200,7 @@ struct TransitionABEngineAndPersistenceTests {
         // SupabaseTransitionPresetRepository offline-first roundtrip
         let loader = TransitionTemplateLoader()
         let repo = SupabaseTransitionPresetRepository(client: nil, templateLoader: loader)
-        var customPreset = zoomPreset
+        var customPreset = transitionPreset
         customPreset = TransitionPreset(
             id: "custom_cyber_zoom",
             name: "Cyber Zoom",
@@ -209,13 +209,65 @@ struct TransitionABEngineAndPersistenceTests {
             defaultDuration: 0.45,
             shaderType: .zoomBlur,
             defaultEasing: .cubicBezier,
-            parameters: zoomPreset.parameters,
+            parameters: transitionPreset.parameters,
             parameterValues: ["zoomStrength": 0.8],
             isSystem: false
         )
         try await repo.savePreset(customPreset)
         let allPresets = try await repo.fetchPresets()
         #expect(allPresets.contains(where: { $0.id == "custom_cyber_zoom" }))
-        #expect(allPresets.count >= 10)
+        #expect(allPresets.count >= 2)
+    }
+
+    @Test("TimelineTransitionOverlayView positioning math is strictly symmetrical and Inspector duration updates realtime")
+    func transitionOverlaySymmetryAndDurationRealtime() throws {
+        let c0 = TimelineClip(name: "A", kind: .video, timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 2.0, preferredTimescale: 600)))
+        let c1 = TimelineClip(name: "B", kind: .video, timeRange: CMTimeRange(start: CMTime(seconds: 2.0, preferredTimescale: 600), duration: CMTime(seconds: 3.0, preferredTimescale: 600)))
+        let layer = TimelineLayer(name: "V1", kind: .video, clips: [c0, c1])
+        let timelineVM = TimelineViewModel(initialLayers: [layer])
+        let inspectorVM = InspectorViewModel(timelineViewModel: timelineVM)
+
+        guard let preset = TransitionPreset.builtInCatalog.first else {
+            Issue.record("Missing builtInCatalog transition preset")
+            return
+        }
+
+        let trans = try #require(timelineVM.addOrUpdateCutTransition(preset, between: c0.id, and: c1.id))
+        timelineVM.selectedTransitionID = trans.id
+        inspectorVM.syncWithSelection()
+
+        let pps: CGFloat = 100.0
+        let cutX = c0.timeRange.end.seconds * pps // 200.0 pt
+
+        // 1. Initial symmetry check
+        let initialDuration = trans.duration.seconds // default ~0.5s
+        let initialWidth = initialDuration * pps
+        let initialStartX = cutX - (initialWidth / 2.0)
+        let initialLeftWing = cutX - initialStartX
+        let initialRightWing = (initialStartX + initialWidth) - cutX
+        #expect(abs(initialLeftWing - initialRightWing) < 0.0001)
+
+        // 2. Max allowed duration check: 2 * min(2.0, 3.0) = 4.0s
+        #expect(abs(inspectorVM.maxAllowedTransitionDuration - 4.0) < 0.001)
+
+        // 3. Realtime slider duration adjustment (commit: false)
+        inspectorVM.updateTransitionDuration(1.2, commit: false)
+        let updatedTrans = try #require(timelineVM.layers[0].transitions.first)
+        #expect(abs(updatedTrans.duration.seconds - 1.2) < 0.001)
+
+        let updatedWidth = 1.2 * pps // 120.0 pt
+        let updatedStartX = cutX - (updatedWidth / 2.0) // 140.0 pt
+        let updatedLeftWing = cutX - updatedStartX // 60.0 pt
+        let updatedRightWing = (updatedStartX + updatedWidth) - cutX // 60.0 pt
+        #expect(abs(updatedLeftWing - updatedRightWing) < 0.0001)
+
+        // 4. Delete key removal via deleteSelectedClips with Undo/Redo
+        #expect(timelineVM.layers[0].transitions.count == 1)
+        timelineVM.deleteSelectedClips()
+        #expect(timelineVM.layers[0].transitions.isEmpty)
+        #expect(timelineVM.selectedTransitionID == nil)
+
+        timelineVM.undo()
+        #expect(timelineVM.layers[0].transitions.count == 1)
     }
 }

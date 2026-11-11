@@ -22,20 +22,20 @@ public struct DSInspectorTabBar<Trailing: View>: View {
     }
 
     public var body: some View {
-        HStack(spacing: DSSpacing.md) {
+        HStack(spacing: tabSpacing) {
             if tabs.isEmpty {
                 Text(fallbackTitle)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: fontSize, weight: .semibold))
                     .foregroundStyle(DSColors.textPrimary)
             } else {
                 ForEach(tabs, id: \.self) { tab in
                     tabButton(title: tab)
                 }
             }
-            Spacer()
+            Spacer(minLength: 0)
             trailing
         }
-        .padding(.horizontal, DSSpacing.lg)
+        .padding(.horizontal, outerPadding)
         .frame(height: DSSize.sidebarHeaderHeight)
         .background(DSColors.blockBackground)
         .overlay(
@@ -46,25 +46,49 @@ public struct DSInspectorTabBar<Trailing: View>: View {
         )
     }
 
+    private var fontSize: CGFloat {
+        if tabs.count >= 5 {
+            return 11.0
+        } else if tabs.count >= 4 {
+            return 12.0
+        } else {
+            return 12.5
+        }
+    }
+
+    private var tabSpacing: CGFloat {
+        tabs.count >= 4 ? DSSpacing.xs : DSSpacing.md
+    }
+
+    private var tabHorizontalPadding: CGFloat {
+        tabs.count >= 4 ? 6 : DSSpacing.sm
+    }
+
+    private var outerPadding: CGFloat {
+        tabs.count >= 4 ? DSSpacing.md : DSSpacing.lg
+    }
+
     private func tabButton(title: String) -> some View {
         let isSelected = selectedTab.caseInsensitiveCompare(title) == .orderedSame
 
         return Button {
             selectedTab = title
         } label: {
-            VStack(spacing: DSSpacing.none) {
-                Spacer()
-
+            ZStack(alignment: .bottom) {
                 Text(title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+                    .font(.system(size: fontSize, weight: isSelected ? .semibold : .medium))
                     .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
-                    .padding(.horizontal, DSSpacing.sm)
-                    .padding(.bottom, DSSpacing.sm)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .padding(.horizontal, tabHorizontalPadding)
+                    .frame(maxHeight: .infinity, alignment: .center)
 
                 Rectangle()
                     .frame(height: 2)
                     .foregroundStyle(isSelected ? DSColors.toggleCyan : Color.clear)
             }
+            .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

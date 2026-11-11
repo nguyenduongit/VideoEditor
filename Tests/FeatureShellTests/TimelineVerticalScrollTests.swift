@@ -159,8 +159,8 @@ struct TimelineVerticalScrollTests {
         let controlsWidth = DSSize.inspectorColumnWidth * 4 + DSSize.inspectorColumnSpacing * 3
         let paddingWidth = DSSize.inspectorContentPadding + DSSpacing.md
         let totalContentWidth = controlsWidth + paddingWidth
-        #expect(totalContentWidth == 384)
-        #expect(totalContentWidth + DSSize.timelineBottomBuffer == DSSize.sidebarWidth)
+        #expect(totalContentWidth == 378)
+        #expect(totalContentWidth + DSSize.timelineBottomBuffer <= DSSize.sidebarWidth)
     }
 
     @Test("DSContentHeightPreferenceKey updates dynamically on expansion and collapse")

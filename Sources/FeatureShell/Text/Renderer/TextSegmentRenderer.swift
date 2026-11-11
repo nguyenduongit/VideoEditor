@@ -2,6 +2,7 @@ import Foundation
 import CoreGraphics
 #if os(macOS)
 import AppKit
+import CoreText
 #endif
 import Domain
 
@@ -17,48 +18,36 @@ public enum TextSegmentRenderer: Sendable {
     #if os(macOS)
     /// Chia tách văn bản đơn dòng thành danh sách token kèm toạ độ x tương đối
     public static func tokenize(
-        content: String,
-        scope: TextAnimationScope,
-        font: NSFont,
-        spacing: Double
+        content: String, scope: TextAnimationScope, font: NSFont, spacing: Double
     ) -> (tokens: [TextToken], totalWidth: CGFloat) {
         computeTokens(content: content, scope: scope, font: font, spacing: spacing)
     }
 
     public static func computeTokens(
-        content: String,
-        scope: TextAnimationScope,
-        font: NSFont,
-        spacing: Double
+        content: String, scope: TextAnimationScope, font: NSFont, spacing: Double
     ) -> (tokens: [TextToken], totalWidth: CGFloat) {
         guard !content.isEmpty else { return ([], 0) }
-
         let rawUnits: [String]
         switch scope {
-        case .wholeBlock:
-            rawUnits = [content]
-        case .perWord:
-            rawUnits = splitWordsPreservingSpaces(content)
-        case .perCharacter:
-            rawUnits = content.map { String($0) }
+        case .wholeBlock: rawUnits = [content]
+        case .perWord: rawUnits = splitWordsPreservingSpaces(content)
+        case .perCharacter: rawUnits = content.map { String($0) }
         }
+
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .kern: CGFloat(spacing)]
+        let ctLine = CTLineCreateWithAttributedString(NSAttributedString(string: content, attributes: attrs))
+        let fullTypoWidth = max(1.0, CGFloat(CTLineGetTypographicBounds(ctLine, nil, nil, nil)))
 
         var tokens: [TextToken] = []
-        var currentX: CGFloat = 0.0
-        let kern = CGFloat(spacing)
-
+        var utf16Cursor = 0
         for unit in rawUnits {
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .kern: kern
-            ]
-            let str = NSAttributedString(string: unit, attributes: attrs)
-            let tokenWidth = max(1.0, ceil(str.size().width))
-            tokens.append(TextToken(text: unit, relativeX: currentX, width: tokenWidth))
-            currentX += tokenWidth + kern
+            let nextCursor = utf16Cursor + unit.utf16.count
+            let xStart = CTLineGetOffsetForStringIndex(ctLine, utf16Cursor, nil)
+            let xEnd = CTLineGetOffsetForStringIndex(ctLine, nextCursor, nil)
+            tokens.append(TextToken(text: unit, relativeX: xStart, width: max(1.0, xEnd - xStart)))
+            utf16Cursor = nextCursor
         }
-
-        return (tokens, max(1.0, currentX - kern))
+        return (tokens, fullTypoWidth)
     }
 
     private static func splitWordsPreservingSpaces(_ text: String) -> [String] {
@@ -175,16 +164,20 @@ public enum TextSegmentRenderer: Sendable {
 
         for (orderIndex, tokenIdx) in visibleIndices.enumerated() {
             let token = tokens[tokenIdx]
-            let staggerOrder = TextAnimationCurves.staggerOrderIndex(
-                index: orderIndex, count: visibleCount, direction: baseConfig.animation.staggerDirection
-            )
-            let tokenDelay = staggerOrder * effectiveStaggerDelay
-            let rawItemTime = localTime - tokenDelay
-
-            if rawItemTime < 0, baseConfig.animation.hasInAnimation {
-                continue
+            let itemLocalTime: Double
+            if baseConfig.animation.hasScriptAnimation {
+                itemLocalTime = localTime
+            } else {
+                let staggerOrder = TextAnimationCurves.staggerOrderIndex(
+                    index: orderIndex, count: visibleCount, direction: baseConfig.animation.staggerDirection
+                )
+                let tokenDelay = staggerOrder * effectiveStaggerDelay
+                let rawItemTime = localTime - tokenDelay
+                if rawItemTime < 0, baseConfig.animation.hasInAnimation {
+                    continue
+                }
+                itemLocalTime = max(0.0, rawItemTime)
             }
-            let itemLocalTime = max(0.0, rawItemTime)
 
             var singleConfig = baseConfig
             singleConfig.content = token.text
@@ -199,6 +192,9 @@ public enum TextSegmentRenderer: Sendable {
                 duration: duration, canvasSize: canvasSize,
                 charIndex: orderIndex, charCount: visibleCount
             )
+            if evaluated.config.opacity <= 0.005 && evaluated.overlay.trailingCursorOpacity <= 0.01 {
+                continue
+            }
 
             if isKaraokeGlow || isKaraokeBox {
                 applyKaraokeTokenStyle(
@@ -209,9 +205,18 @@ public enum TextSegmentRenderer: Sendable {
             }
 
             let tokenCenter = startX + token.relativeX + token.width / 2.0
+            let curvePt = resolveTokenWaveAndCurveCenter(
+                evaluated: &evaluated,
+                baseConfig: baseConfig,
+                tokenCenter: tokenCenter,
+                totalWidth: -startX * 2.0,
+                orderIndex: orderIndex,
+                visibleCount: visibleCount
+            )
             drawSingleToken(
                 evaluated.config, font: font, overlay: evaluated.overlay,
-                center: CGPoint(x: tokenCenter, y: 0),
+                center: curvePt,
+                tokenWidth: token.width,
                 totalHeight: totalHeight,
                 in: context
             )
@@ -223,6 +228,7 @@ public enum TextSegmentRenderer: Sendable {
         font: NSFont,
         overlay: TextTransformOverlay,
         center: CGPoint,
+        tokenWidth: CGFloat,
         totalHeight: CGFloat,
         in context: CGContext
     ) {
@@ -241,8 +247,12 @@ public enum TextSegmentRenderer: Sendable {
         if abs(config.rotation) > 0.001 {
             context.rotate(by: CGFloat(-config.rotation * .pi / 180.0))
         }
-        if abs(overlay.skewX) > 0.001 {
-            context.concatenate(CGAffineTransform(a: 1, b: 0, c: CGFloat(overlay.skewX), d: 1, tx: 0, ty: 0))
+        let radSkewX = config.skewX * .pi / 180.0
+        let radSkewY = config.skewY * .pi / 180.0
+        let totalSkewX = overlay.skewX + tan(radSkewX)
+        let totalSkewY = tan(radSkewY)
+        if abs(totalSkewX) > 0.001 || abs(totalSkewY) > 0.001 {
+            context.concatenate(CGAffineTransform(a: 1, b: CGFloat(totalSkewY), c: CGFloat(totalSkewX), d: 1, tx: 0, ty: 0))
         }
         let sx = CGFloat(max(0.01, config.scale * overlay.scaleX))
         let sy = CGFloat(max(0.01, config.scale * overlay.scaleY))
@@ -251,16 +261,27 @@ public enum TextSegmentRenderer: Sendable {
         }
         context.translateBy(x: 0, y: -pivotOffsetY)
 
-        if config.opacity < 1.0 {
-            context.setAlpha(CGFloat(max(0.0, config.opacity)))
+        if config.opacity > 0.005 {
+            renderTokenGlyphAndEchoes(
+                config: config,
+                font: font,
+                overlay: overlay,
+                tokenWidth: tokenWidth,
+                totalHeight: totalHeight,
+                in: context
+            )
         }
 
-        TextAdvancedStyleRenderer.drawStyledTokenString(
-            config.content,
-            font: font,
-            config: config,
-            in: context
-        )
+        if overlay.trailingCursorOpacity > 0.01 {
+            drawTrailingCursorBar(
+                config: config,
+                font: font,
+                tokenWidth: tokenWidth,
+                totalHeight: totalHeight,
+                cursorOpacity: overlay.trailingCursorOpacity,
+                in: context
+            )
+        }
         context.restoreGState()
     }
     #endif

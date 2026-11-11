@@ -28,6 +28,7 @@ public struct TimelineClipView: View {
     let onTrimChange: ((Bool, CGFloat) -> Void)?
     let onTrimEnd: ((Bool) -> Void)?
     let onExtractAudio: (() -> Void)?
+    let onSavePreset: ((TimelineClip) -> Void)?
     let onSeek: ((CMTime) -> Void)?
     let onUpdateProperties: ((UUID, [String: PropertyValue], Bool) -> Void)?
 
@@ -53,6 +54,7 @@ public struct TimelineClipView: View {
         onTrimChange: ((Bool, CGFloat) -> Void)? = nil,
         onTrimEnd: ((Bool) -> Void)? = nil,
         onExtractAudio: (() -> Void)? = nil,
+        onSavePreset: ((TimelineClip) -> Void)? = nil,
         onMove: @escaping (CMTime, CGFloat) -> Void,
         onMoveEnd: @escaping () -> Void,
         onUpdateProperties: ((UUID, [String: PropertyValue], Bool) -> Void)? = nil
@@ -67,7 +69,7 @@ public struct TimelineClipView: View {
         self.thumbnailService = thumbnailService
         self.waveformService = waveformService; self.onSelect = onSelect; self.onSeek = onSeek
         self.onTrim = onTrim; self.onTrimChange = onTrimChange; self.onTrimEnd = onTrimEnd
-        self.onExtractAudio = onExtractAudio
+        self.onExtractAudio = onExtractAudio; self.onSavePreset = onSavePreset
         self.onMove = onMove; self.onMoveEnd = onMoveEnd
         self.onUpdateProperties = onUpdateProperties
     }
@@ -78,7 +80,7 @@ public struct TimelineClipView: View {
         let clipX = max(0, baseX + effectiveDragOffset + effectiveTrimLeft)
 
         ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: DSRadius.small)
+            RoundedRectangle(cornerRadius: DSRadius.clip)
                 .fill(clipColor.opacity(0.85))
 
             clipContent(width: clipWidth)
@@ -89,8 +91,8 @@ public struct TimelineClipView: View {
                 isHoveringRightTrim: isHoveringRightTrim
             )
         }
-        .frame(width: clipWidth, height: height - 6)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+        .frame(width: clipWidth, height: height - 4)
+        .clipShape(RoundedRectangle(cornerRadius: DSRadius.clip))
         .contentShape(Rectangle())
         .simultaneousGesture(
             TapGesture().onEnded {
@@ -147,7 +149,7 @@ public struct TimelineClipView: View {
                 ClipFadeHandleOverlayView(
                     clip: clip,
                     width: width,
-                    height: height - 6,
+                    height: height - 4,
                     pixelsPerSecond: pixelsPerSecond,
                     isLocked: isLocked,
                     onFadeChanged: { updateFade(fadeIn: $0, fadeOut: $1, isCommitted: false) },
@@ -155,10 +157,10 @@ public struct TimelineClipView: View {
                 )
             }
 
-            if !isLocked {
+            if !isLocked && isSelected {
                 ClipTrimHandleView(
                     isLeft: true,
-                    height: height - 6,
+                    height: height - 4,
                     isHovering: $isHoveringLeftTrim,
                     onSelect: { onSelect(false) },
                     onTrimChanged: handleLeftTrimChanged,
@@ -168,7 +170,7 @@ public struct TimelineClipView: View {
 
                 ClipTrimHandleView(
                     isLeft: false,
-                    height: height - 6,
+                    height: height - 4,
                     isHovering: $isHoveringRightTrim,
                     onSelect: { onSelect(false) },
                     onTrimChanged: handleRightTrimChanged,
@@ -177,7 +179,7 @@ public struct TimelineClipView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
             }
         }
-        .frame(width: width, height: height - 6)
+        .frame(width: width, height: height - 4)
     }
 
     var activeSourceStartTime: CMTime {
@@ -236,10 +238,6 @@ public struct TimelineClipView: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-        )
-        .overlay(
-            Rectangle().fill(Color.white.opacity(0.20)).frame(height: 0.5),
-            alignment: .top
         )
         .overlay(alignment: .bottom) {
             clipAnimationDurationLine(width: width, duration: duration)

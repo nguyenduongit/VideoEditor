@@ -18,9 +18,14 @@ public enum DSSize {
 
     public static let timelineTopbarHeight: CGFloat = 36
     public static let layerHeaderWidth: CGFloat = 100
-    public static let videoLayerHeight: CGFloat = 80
+    public static let videoLayerHeight: CGFloat = 100
+    public static let imageLayerHeight: CGFloat = 55
+    public static let audioLayerHeight: CGFloat = 60
     public static let mediaLayerHeight: CGFloat = 60
-    public static let compactLayerHeight: CGFloat = 30
+    public static let compactLayerHeight: CGFloat = 26
+    public static let clipHeaderHeight: CGFloat = 15
+    public static let clipFilmstripHeight: CGFloat = 40
+    public static let clipWaveformHeight: CGFloat = 45
     public static let rulerHeight: CGFloat = 26
     public static let trimHandleWidth: CGFloat = 8
     public static let layerSpacing: CGFloat = 4
@@ -29,5 +34,5 @@ public enum DSSize {
     public static let slimScrollerHeight: CGFloat = 7
     public static let inspectorColumnWidth: CGFloat = 85
     public static let inspectorColumnSpacing: CGFloat = 8
-    public static let inspectorContentPadding: CGFloat = 12
+    public static let inspectorContentPadding: CGFloat = 6
 }

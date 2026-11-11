@@ -131,9 +131,10 @@ struct TimelineDropTargetBridgeTests {
         let op = view.draggingEntered(mock)
         #expect(op == .copy)
         #expect(guideX != nil)
-        // Destination sets 1:1 block frame anchored at cursor X (100) and video layer height (74)
+        // Destination sets 1:1 block frame anchored at cursor X (100) and video layer height (94)
         #expect(dragItem.draggingFrame.origin.x == 100)
-        #expect(dragItem.draggingFrame.size.height == 74)
+        let expectedTrackHeight = ClipKind.video.presentation.defaultLayerHeight - 6.0
+        #expect(dragItem.draggingFrame.size.height == expectedTrackHeight)
 
         view.draggingExited(mock)
         #expect(guideX == nil)

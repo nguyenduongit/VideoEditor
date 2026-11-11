@@ -70,7 +70,7 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
         let sx = outputSize.width / max(1.0, logicalSize.width)
         let sy = outputSize.height / max(1.0, logicalSize.height)
         let outputRect = CGRect(origin: .zero, size: outputSize)
-        var canvas = CIImage(color: CIColor.black).cropped(to: outputRect)
+        var canvas = CIImage(color: CIColor(red: 0, green: 0, blue: 0, alpha: 0)).cropped(to: outputRect)
         let compTime = asyncVideoCompositionRequest.compositionTime
 
         for rawInfo in instruction.layerInfos.reversed() {
@@ -87,7 +87,8 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
             )
         }
 
-        ciContext.render(canvas, to: dstPixelBuffer, bounds: outputRect, colorSpace: CGColorSpaceCreateDeviceRGB())
+        let finalCanvas = canvas.composited(over: CIImage(color: CIColor.black).cropped(to: outputRect))
+        ciContext.render(finalCanvas, to: dstPixelBuffer, bounds: outputRect, colorSpace: CGColorSpaceCreateDeviceRGB())
         asyncVideoCompositionRequest.finish(withComposedVideoFrame: dstPixelBuffer)
     }
 

@@ -4,14 +4,26 @@ import Foundation
 public enum StickerCategory: String, Codable, Sendable, CaseIterable, Identifiable {
     case all = "Tất cả"
     case emoji = "Emoji & Biểu cảm"
+    case natureHoliday = "Thiên nhiên & Lễ hội"
     case social = "Mạng xã hội"
     case arrow = "Mũi tên & Chỉ dẫn"
     case badge = "Huy hiệu & Đồ họa"
 
     public var id: String { rawValue }
 
+    public var displayName: String {
+        switch self {
+        case .all: return "All"
+        case .emoji: return "Emoji & Faces"
+        case .natureHoliday: return "Nature & Holidays"
+        case .social: return "Social & Vlog"
+        case .arrow: return "Arrows"
+        case .badge: return "Badges & Graphics"
+        }
+    }
+
     public static var assignableCases: [StickerCategory] {
-        [.emoji, .social, .arrow, .badge]
+        [.emoji, .natureHoliday, .social, .arrow, .badge]
     }
 }
 
@@ -102,137 +114,52 @@ public struct StickerPreset: Identifiable, Codable, Sendable, Equatable {
 
     public static let builtInCatalog: [StickerPreset] = [
         StickerPreset(
-            id: "sticker_svg_star_badge",
-            name: "Huy Hiệu Ngôi Sao (SVG)",
-            description: "Nhãn dán vector SVG sắc nét ở mọi mức phóng đại",
-            category: .badge,
+            id: "sticker_animated_flower_leaf",
+            name: "Hoa Lá Động (SVG)",
+            description: "Cây hoa lá đung đưa và cánh hoa rơi hoạt họa bằng vector SVG thuần CSS",
+            category: .natureHoliday,
             format: .svg,
-            tags: ["svg", "star", "badge", "vector"],
-            defaultDuration: 3.5,
-            systemSymbolFallback: "star.circle.fill",
-            config: StickerConfiguration(
-                format: .svg,
-                svgMarkup: """
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
-                  <circle cx="120" cy="120" r="104" fill="#F59E0B" stroke="#FFFFFF" stroke-width="10"/>
-                  <polygon points="120,44 142,92 194,98 155,134 166,186 120,160 74,186 85,134 46,98 98,92" fill="#FFFBEB"/>
-                </svg>
-                """,
-                systemSymbolFallback: "star.circle.fill",
-                hasShadow: true
-            ),
-            isSystem: true
-        ),
-        StickerPreset(
-            id: "sticker_svg_neon_arrow",
-            name: "Mũi Tên Neon (SVG)",
-            description: "Mũi tên chỉ dẫn vector SVG viền sáng rực rỡ",
-            category: .arrow,
-            format: .svg,
-            tags: ["svg", "arrow", "neon", "vector"],
-            defaultDuration: 3.0,
-            systemSymbolFallback: "arrow.right.circle.fill",
-            config: StickerConfiguration(
-                format: .svg,
-                svgMarkup: """
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 160">
-                  <path d="M24,56 H164 V20 L256,80 L164,140 V104 H24 Z" fill="#06B6D4" stroke="#FFFFFF" stroke-width="10" stroke-linejoin="round"/>
-                </svg>
-                """,
-                systemSymbolFallback: "arrow.right.circle.fill",
-                hasShadow: true
-            ),
-            isSystem: true
-        ),
-        StickerPreset(
-            id: "sticker_svg_love_pill",
-            name: "Nhãn Tim Đỏ (SVG)",
-            description: "Khung pill thả tim vector SVG lưu gọn trong JSON Supabase",
-            category: .social,
-            format: .svg,
-            tags: ["svg", "love", "heart", "social", "vector"],
-            defaultDuration: 3.0,
-            systemSymbolFallback: "heart.text.square.fill",
-            config: StickerConfiguration(
-                format: .svg,
-                svgMarkup: """
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 140">
-                  <rect x="12" y="16" width="256" height="108" rx="54" fill="#EF4444" stroke="#FFFFFF" stroke-width="8"/>
-                  <path d="M140,102 C140,102 96,74 96,50 C96,36 108,28 120,28 C130,28 137,34 140,41 C143,34 150,28 160,28 C172,28 184,36 184,50 C184,74 140,102 140,102 Z" fill="#FFFFFF"/>
-                </svg>
-                """,
-                systemSymbolFallback: "heart.fill",
-                hasShadow: true
-            ),
-            isSystem: true
-        ),
-        StickerPreset(
-            id: "sticker_heart_like",
-            name: "Trái tim Like",
-            description: "Biểu tượng yêu thích nhảy theo nhịp",
-            category: .social,
-            format: .apng,
-            tags: ["heart", "like", "love", "social"],
-            defaultDuration: 3.0,
-            systemSymbolFallback: "heart.fill",
-            isSystem: true
-        ),
-        StickerPreset(
-            id: "sticker_thumbs_up",
-            name: "Ngón tay Like",
-            description: "Nút Like động phong cách phẳng",
-            category: .social,
-            format: .gif,
-            tags: ["like", "thumbsup", "social"],
-            defaultDuration: 3.0,
-            systemSymbolFallback: "hand.thumbsup.fill",
-            isSystem: true
-        ),
-        StickerPreset(
-            id: "sticker_fire_trending",
-            name: "Ngọn lửa Hot",
-            description: "Hiệu ứng lửa bùng cháy dành cho nội dung nổi bật",
-            category: .badge,
-            format: .apng,
-            tags: ["fire", "hot", "trending", "flame"],
-            defaultDuration: 3.0,
-            systemSymbolFallback: "flame.fill",
-            isSystem: true
-        ),
-        StickerPreset(
-            id: "sticker_arrow_pointing",
-            name: "Mũi tên chú ý",
-            description: "Mũi tên nhấp nháy chỉ dẫn người xem",
-            category: .arrow,
-            format: .apng,
-            tags: ["arrow", "pointer", "direction"],
-            defaultDuration: 3.0,
-            systemSymbolFallback: "arrowshape.right.fill",
-            isSystem: true
-        ),
-        StickerPreset(
-            id: "sticker_party_popper",
-            name: "Pháo giấy chúc mừng",
-            description: "Hiệu ứng nổ pháo giấy sinh động",
-            category: .emoji,
-            format: .gif,
-            tags: ["party", "celebrate", "popper"],
-            defaultDuration: 2.5,
-            systemSymbolFallback: "party.popper.fill",
-            isSystem: true
-        ),
-        StickerPreset(
-            id: "sticker_star_sparkle",
-            name: "Ngôi sao lấp lánh",
-            description: "Chùm sao phát sáng lấp lánh",
-            category: .badge,
-            format: .apng,
-            tags: ["star", "sparkle", "shine"],
+            tags: ["flower", "leaf", "nature", "animated", "svg", "css"],
             defaultDuration: 3.0,
             systemSymbolFallback: "sparkles",
+            config: StickerConfiguration(
+                format: .svg,
+                loopMode: .loop,
+                playbackSpeed: 1.0,
+                sourceURLString: "sticker_animated_flower_leaf.apng",
+                svgMarkup: animatedFlowerSVGMarkup,
+                systemSymbolFallback: "sparkles",
+                hasShadow: false,
+                shadowColorHex: "#00000040",
+                shadowBlur: 10.0,
+                shadowDistance: 4.0
+            ),
+            isSystem: true
+        ),
+        StickerPreset(
+            id: "sticker_animated_xmas_tree",
+            name: "Cây Thông Noel (SVG)",
+            description: "Cây thông Noel đung đưa, đèn led nhấp nháy nhiều màu và tuyết rơi hoạt họa bằng vector SVG thuần CSS",
+            category: .natureHoliday,
+            format: .svg,
+            tags: ["xmas", "tree", "christmas", "holiday", "noel", "animated", "svg"],
+            defaultDuration: 3.0,
+            systemSymbolFallback: "sparkles",
+            config: StickerConfiguration(
+                format: .svg,
+                loopMode: .loop,
+                playbackSpeed: 1.0,
+                sourceURLString: "sticker_animated_xmas_tree.apng",
+                svgMarkup: animatedXmasTreeSVGMarkup,
+                systemSymbolFallback: "sparkles",
+                hasShadow: false,
+                shadowColorHex: "#00000040",
+                shadowBlur: 10.0,
+                shadowDistance: 4.0
+            ),
             isSystem: true
         )
-    ]
+    ] + emojiPresets
 
     public func encodeToJSON() -> String? {
         let encoder = JSONEncoder()

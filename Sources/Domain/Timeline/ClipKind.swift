@@ -80,9 +80,9 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable, Identifiable {
 
     public var isAuxiliary: Bool {
         switch self {
-        case .video, .audio:
+        case .video, .audio, .image:
             return false
-        case .image, .text, .adjustment, .effect, .sticker:
+        case .text, .adjustment, .effect, .sticker:
             return true
         }
     }

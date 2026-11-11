@@ -8,16 +8,18 @@ public struct AdjustmentTabDescriptor: TabDescriptor {
     public let iconName: String = "slider.horizontal.3"
     public let order: Int = 30
 
-    private let timelineViewModel: TimelineViewModel?
+    private let viewModel: AdjustmentLibraryViewModel
 
+    @MainActor
     public init(timelineViewModel: TimelineViewModel? = nil) {
-        self.timelineViewModel = timelineViewModel
+        self.viewModel = AdjustmentLibraryViewModel(timelineViewModel: timelineViewModel)
     }
 
+    @MainActor
     public func makeSidebarView() -> AnyView {
         AnyView(
             AdjustmentLibraryView(
-                viewModel: AdjustmentLibraryViewModel(timelineViewModel: timelineViewModel)
+                viewModel: viewModel
             )
         )
     }

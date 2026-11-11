@@ -93,14 +93,11 @@ extension TimelineVideoCompositor {
         if info.isSolidColor {
             let color = info.solidColorHex.flatMap { Self.parseCIColor(hex: $0) } ?? CIColor.black
             var solidImg = CIImage(color: color).cropped(to: outputRect)
-            if info.opacity < 1.0 {
-                solidImg = TextSVGAndAssetCache.applyPremultipliedOpacity(Double(info.opacity), to: solidImg)
-            }
+            if info.opacity < 1.0 { solidImg = TextSVGAndAssetCache.applyPremultipliedOpacity(Double(info.opacity), to: solidImg) }
             if let maskParams = info.maskParameters, maskParams.isMaskActive {
-                let scaledMask = maskParams.scaled(sx: Double(sx), sy: Double(sy))
-                solidImg = TimelineMaskGenerator.applyMask(to: solidImg, params: scaledMask, canvasSize: outputSize)
+                solidImg = TimelineMaskGenerator.applyMask(to: solidImg, params: maskParams.scaled(sx: Double(sx), sy: Double(sy)), canvasSize: outputSize)
             }
-            return solidImg.composited(over: canvas)
+            return info.blendMode != .normal ? TextCompositeLayerRenderer.blend(layerImage: solidImg, over: canvas, mode: info.blendMode) : solidImg.composited(over: canvas)
         }
 
         if let renderedLayer = renderVideoOrStillLayer(
@@ -112,7 +109,9 @@ extension TimelineVideoCompositor {
             sx: sx,
             sy: sy
         ) {
-            return renderedLayer.composited(over: canvas)
+            return info.blendMode != .normal
+                ? TextCompositeLayerRenderer.blend(layerImage: renderedLayer, over: canvas, mode: info.blendMode)
+                : renderedLayer.composited(over: canvas)
         }
         return canvas
     }
@@ -221,11 +220,12 @@ extension TimelineVideoCompositor {
                 rawImage = rawImage.transformed(by: CGAffineTransform(translationX: -ext.origin.x, y: -ext.origin.y))
             }
             let rawH = info.rawNaturalSize.height > 0 ? info.rawNaturalSize.height : ext.height
+            let rawW = info.rawNaturalSize.width > 0 ? info.rawNaturalSize.width : ext.width
+            rawImage = applyPerspective(to: rawImage, width: rawW, height: rawH, pX: info.perspectiveX, pY: info.perspectiveY)
             let fSrc = CGAffineTransform(a: 1.0, b: 0.0, c: 0.0, d: -1.0, tx: 0.0, ty: rawH)
             let fScale = CGAffineTransform(scaleX: sx, y: sy)
             let fDst = CGAffineTransform(a: 1.0, b: 0.0, c: 0.0, d: -1.0, tx: 0.0, ty: outputSize.height)
-            let ciTransform = fSrc.concatenating(info.transform).concatenating(fScale).concatenating(fDst)
-            return rawImage.transformed(by: ciTransform)
+            return rawImage.transformed(by: fSrc.concatenating(info.transform).concatenating(fScale).concatenating(fDst))
         }
 
         if let srcBuffer = request.sourceFrame(byTrackID: info.trackID) {
@@ -240,11 +240,11 @@ extension TimelineVideoCompositor {
                     by: CGAffineTransform(scaleX: rawW / max(1.0, bufW), y: rawH / max(1.0, bufH))
                 )
             }
+            rawImage = applyPerspective(to: rawImage, width: rawW, height: rawH, pX: info.perspectiveX, pY: info.perspectiveY)
             let fSrc = CGAffineTransform(a: 1.0, b: 0.0, c: 0.0, d: -1.0, tx: 0.0, ty: rawH)
             let fScale = CGAffineTransform(scaleX: sx, y: sy)
             let fDst = CGAffineTransform(a: 1.0, b: 0.0, c: 0.0, d: -1.0, tx: 0.0, ty: outputSize.height)
-            let ciTransform = fSrc.concatenating(info.transform).concatenating(fScale).concatenating(fDst)
-            let transformed = rawImage.transformed(by: ciTransform)
+            let transformed = rawImage.transformed(by: fSrc.concatenating(info.transform).concatenating(fScale).concatenating(fDst))
             storeCachedFrame(transformed, for: info.trackID)
             return transformed
         }

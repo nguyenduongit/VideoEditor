@@ -16,7 +16,7 @@ struct SevenModulesAndTemplateLockTests {
         timelineViewModel.addTextClip(named: "Basic Text", config: TextConfiguration(content: "Xin chào"))
         inspectorViewModel.syncWithSelection()
         #expect(!inspectorViewModel.isSelectedClipLockedTemplate)
-        #expect(inspectorViewModel.availableTabs == ["Text", "Color", "Background", "Animation"])
+        #expect(inspectorViewModel.availableTabs == ["Text", "Appearance", "Background", "Animation"])
 
         let preset = TextPreset(
             id: "cinema_epic_3d",
@@ -29,7 +29,7 @@ struct SevenModulesAndTemplateLockTests {
         inspectorViewModel.syncWithSelection()
         #expect(!inspectorViewModel.isSelectedClipLockedTemplate)
         #expect(inspectorViewModel.selectedClip?.originPresetID == "cinema_epic_3d")
-        #expect(inspectorViewModel.availableTabs == ["Text", "Color", "Background", "Animation"])
+        #expect(inspectorViewModel.availableTabs == ["Text", "Appearance", "Background", "Animation"])
     }
 
     @Test("Adjustment template unlocks all 5 Color Grading tabs while retaining originPresetID")

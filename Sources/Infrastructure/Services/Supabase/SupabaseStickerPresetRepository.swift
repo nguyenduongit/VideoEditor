@@ -34,15 +34,19 @@ public final class SupabaseStickerPresetRepository: StickerPresetRepositoryProto
                 .value
 
             let fetched = rows.map { $0.toPreset() }
-            let systemIDs = Set(StickerPreset.builtInCatalog.map(\.id))
-            let fetchedSystemIDs = Set(fetched.filter(\.isSystem).map(\.id))
+            let needsSystemSync = StickerPreset.builtInCatalog.contains { sys in
+                guard let remote = fetched.first(where: { $0.id == sys.id }) else { return true }
+                return remote.config.svgMarkup != sys.config.svgMarkup
+                    || remote.category != sys.category
+                    || abs(remote.defaultDuration - sys.defaultDuration) > 0.01
+            }
 
-            if !systemIDs.isSubset(of: fetchedSystemIDs) {
+            if needsSystemSync {
                 do {
                     try await seedSystemCatalogSafely(preserving: fetched)
                 } catch {
                     stickerRepoLogger.warning("Seed an toàn sticker_presets bỏ qua do lỗi mạng/bảng: \(error.localizedDescription)")
-                    templateLoader.setInMemoryTemplates(fetched)
+                    templateLoader.setInMemoryTemplates(StickerPreset.builtInCatalog + fetched.filter { !$0.isSystem })
                 }
                 return templateLoader.loadAllTemplates()
             }

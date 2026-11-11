@@ -3,8 +3,8 @@ import Domain
 import DesignSystem
 
 /// Khối điều khiển Nội dung & Kiểu chữ (Content & Typography) cho Text Clip.
-/// Gồm ô nhập văn bản, chọn phông chữ, định dạng B/I, cỡ chữ (kèm Keyframe),
-/// và khoảng cách ký tự (Character Spacing). Line Spacing đã được loại bỏ.
+/// Gồm ô nhập văn bản, chọn phông chữ, định dạng B/I/U, cỡ chữ (kèm Keyframe),
+/// và khoảng cách ký tự (Character Spacing).
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
 public struct TextContentAndTypographySection: View {
     @Bindable private var viewModel: InspectorViewModel
@@ -24,11 +24,7 @@ public struct TextContentAndTypographySection: View {
     // MARK: - Content Section
 
     private var contentSection: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            Text(String(localized: "Content"))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DSColors.textSecondary)
-
+        DSSectionCard(title: String(localized: "Content")) {
             let contentBinding = Binding<String>(
                 get: { currentConfig.content },
                 set: { newText in
@@ -44,43 +40,27 @@ public struct TextContentAndTypographySection: View {
             .font(.system(size: 12))
             .foregroundStyle(DSColors.textPrimary)
             .padding(.horizontal, DSSpacing.sm)
-            .frame(height: 28)
+            .frame(height: 26)
             .background(DSColors.windowBackground)
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+            .clipShape(RoundedRectangle(cornerRadius: 4))
             .overlay(
-                RoundedRectangle(cornerRadius: DSRadius.small)
+                RoundedRectangle(cornerRadius: 4)
                     .stroke(DSColors.blockBorder, lineWidth: 1)
             )
         }
-        .padding(DSSpacing.md)
-        .background(DSColors.blockBackground)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
-        .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.block)
-                .stroke(DSColors.blockBorder, lineWidth: 1)
-        )
     }
 
     // MARK: - Typography Section
 
     private var typographySection: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            Text("Typography")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DSColors.textSecondary)
-
-            fontAndFormatRow
-            caseAndAlignmentRow
-            fontSizeSlider
-            characterSpacingSlider
+        DSSectionCard(title: "Typography") {
+            VStack(alignment: .leading, spacing: DSSpacing.md) {
+                fontPickerButton
+                toolbarFormattingRow
+                fontSizeSlider
+                characterSpacingSlider
+            }
         }
-        .padding(DSSpacing.md)
-        .background(DSColors.blockBackground)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
-        .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.block)
-                .stroke(DSColors.blockBorder, lineWidth: 1)
-        )
     }
 
     private var fontSizeSlider: some View {
@@ -90,7 +70,7 @@ public struct TextContentAndTypographySection: View {
                 get: { currentConfig.fontSize },
                 set: { var cfg = currentConfig; cfg.fontSize = $0; updateConfig(cfg, commit: false) }
             ),
-            range: 12.0...160.0, step: 1.0, defaultValue: 48.0, unit: "pt",
+            range: 12.0...160.0, step: 1.0, defaultValue: 60.0, unit: "pt",
             onEditingChanged: onSliderEditingEnded
         )
     }
@@ -107,66 +87,108 @@ public struct TextContentAndTypographySection: View {
         )
     }
 
-    private var fontAndFormatRow: some View {
-        HStack(spacing: DSSpacing.sm) {
-            HStack(spacing: 4) {
-                formatToggleButton(title: "B", isActive: currentConfig.isBold, isBold: true) {
-                    var cfg = currentConfig; cfg.isBold.toggle(); commitConfig(cfg)
-                }
-                formatToggleButton(title: "I", isActive: currentConfig.isItalic, isItalic: true) {
-                    var cfg = currentConfig; cfg.isItalic.toggle(); commitConfig(cfg)
-                }
-                formatToggleButton(title: "U", isActive: currentConfig.isUnderlined, isUnderlined: true) {
-                    var cfg = currentConfig; cfg.isUnderlined.toggle(); commitConfig(cfg)
-                }
-            }
-            Spacer(minLength: 4)
-            fontPickerButton
-        }
-    }
-
-    private var caseAndAlignmentRow: some View {
+    private var toolbarFormattingRow: some View {
         let text = currentConfig.content
         let isUpper = !text.isEmpty && text == text.uppercased() && text != text.lowercased()
         let isLower = !text.isEmpty && text == text.lowercased() && text != text.uppercased()
         let isTitle = !text.isEmpty && !isUpper && !isLower && text == text.localizedCapitalized
-        return HStack(spacing: DSSpacing.sm) {
-            HStack(spacing: 4) {
-                formatToggleButton(title: "AA", isActive: isUpper) {
-                    var cfg = currentConfig; cfg.content = cfg.content.uppercased(); commitConfig(cfg)
+
+        return HStack(spacing: 0) {
+            // Nhóm 1: B, I, U
+            DSSegmentGroup(
+                items: [
+                    DSSegmentItem(id: "bold", title: "B", isBold: true, help: "Bold"),
+                    DSSegmentItem(id: "italic", title: "/", isItalic: true, help: "Italic"),
+                    DSSegmentItem(id: "underline", title: "U", isUnderlined: true, help: "Underline")
+                ],
+                isSelected: { id in
+                    switch id {
+                    case "bold": return currentConfig.isBold
+                    case "italic": return currentConfig.isItalic
+                    case "underline": return currentConfig.isUnderlined
+                    default: return false
+                    }
+                },
+                onSelect: { id in
+                    var cfg = currentConfig
+                    switch id {
+                    case "bold": cfg.isBold.toggle()
+                    case "italic": cfg.isItalic.toggle()
+                    case "underline": cfg.isUnderlined.toggle()
+                    default: break
+                    }
+                    commitConfig(cfg)
                 }
-                formatToggleButton(title: "Aa", isActive: isTitle) {
-                    var cfg = currentConfig; cfg.content = cfg.content.localizedCapitalized; commitConfig(cfg)
-                }
-                formatToggleButton(title: "aa", isActive: isLower) {
-                    var cfg = currentConfig; cfg.content = cfg.content.lowercased(); commitConfig(cfg)
-                }
-            }
+            )
+
             Spacer(minLength: 4)
-            HStack(spacing: 4) {
-                alignmentButton(icon: "text.alignleft", type: .left)
-                alignmentButton(icon: "text.aligncenter", type: .center)
-                alignmentButton(icon: "text.alignright", type: .right)
-            }
+            clusterDivider
+            Spacer(minLength: 4)
+
+            // Nhóm 2: AA, Aa, aa
+            DSSegmentGroup(
+                items: [
+                    DSSegmentItem(id: "upper", title: "AA", help: "Uppercase"),
+                    DSSegmentItem(id: "title", title: "Aa", help: "Title Case"),
+                    DSSegmentItem(id: "lower", title: "aa", help: "Lowercase")
+                ],
+                isSelected: { id in
+                    switch id {
+                    case "upper": return isUpper
+                    case "title": return isTitle
+                    case "lower": return isLower
+                    default: return false
+                    }
+                },
+                onSelect: { id in
+                    var cfg = currentConfig
+                    switch id {
+                    case "upper": cfg.content = cfg.content.uppercased()
+                    case "title": cfg.content = cfg.content.localizedCapitalized
+                    case "lower": cfg.content = cfg.content.lowercased()
+                    default: break
+                    }
+                    commitConfig(cfg)
+                }
+            )
+
+            Spacer(minLength: 4)
+            clusterDivider
+            Spacer(minLength: 4)
+
+            // Nhóm 3: left, center, right
+            DSSegmentGroup(
+                items: [
+                    DSSegmentItem(id: "left", iconName: "text.alignleft", help: "Align Left"),
+                    DSSegmentItem(id: "center", iconName: "text.aligncenter", help: "Align Center"),
+                    DSSegmentItem(id: "right", iconName: "text.alignright", help: "Align Right")
+                ],
+                isSelected: { id in
+                    switch id {
+                    case "left": return currentConfig.alignment == .left
+                    case "center": return currentConfig.alignment == .center
+                    case "right": return currentConfig.alignment == .right
+                    default: return false
+                    }
+                },
+                onSelect: { id in
+                    var cfg = currentConfig
+                    switch id {
+                    case "left": cfg.alignment = .left
+                    case "center": cfg.alignment = .center
+                    case "right": cfg.alignment = .right
+                    default: break
+                    }
+                    commitConfig(cfg)
+                }
+            )
         }
     }
 
-    private func alignmentButton(icon: String, type: TextAlignmentType) -> some View {
-        let isActive = currentConfig.alignment == type
-        return Button {
-            var cfg = currentConfig
-            cfg.alignment = type
-            commitConfig(cfg)
-        } label: {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(isActive ? Color.white : DSColors.textSecondary)
-                .frame(width: 28, height: 24)
-                .background(isActive ? DSColors.accent : DSColors.windowBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .overlay(RoundedRectangle(cornerRadius: 4).stroke(DSColors.blockBorder, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
+    private var clusterDivider: some View {
+        Rectangle()
+            .fill(DSColors.blockBorder)
+            .frame(width: 1, height: 16)
     }
 
     private var fontPickerButton: some View {
@@ -186,7 +208,7 @@ public struct TextContentAndTypographySection: View {
                 }
                 .padding(.leading, 8)
                 .padding(.trailing, 2)
-                .frame(height: 24)
+                .frame(height: 26)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -197,8 +219,8 @@ public struct TextContentAndTypographySection: View {
             )
             .padding(.trailing, 2)
         }
-        .frame(height: 24)
-        .frame(maxWidth: 175)
+        .frame(height: 26)
+        .frame(maxWidth: .infinity)
         .background(DSColors.windowBackground)
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(RoundedRectangle(cornerRadius: 4).stroke(DSColors.blockBorder, lineWidth: 1))
@@ -228,28 +250,6 @@ public struct TextContentAndTypographySection: View {
         commitConfig(cfg)
     }
 
-    private func formatToggleButton(
-        title: String,
-        isActive: Bool,
-        isBold: Bool = false,
-        isItalic: Bool = false,
-        isUnderlined: Bool = false,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 11, weight: isBold ? .bold : .medium))
-                .italic(isItalic)
-                .underline(isUnderlined)
-                .foregroundStyle(isActive ? Color.white : DSColors.textSecondary)
-                .frame(width: 26, height: 24)
-                .background(isActive ? DSColors.accent : DSColors.windowBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .overlay(RoundedRectangle(cornerRadius: 4).stroke(DSColors.blockBorder, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: - Helpers
 
     private var currentConfig: TextConfiguration {
@@ -270,4 +270,3 @@ public struct TextContentAndTypographySection: View {
         }
     }
 }
-

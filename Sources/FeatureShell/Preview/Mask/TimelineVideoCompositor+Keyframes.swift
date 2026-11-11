@@ -81,29 +81,33 @@ extension TimelineVideoCompositor {
     }
 
     private func resolveTransitionUniformSlots(for transition: CutTransition) -> [Float] {
-        let v = transition.parameterValues
-        if let custom = transition.customMetalSource, !custom.isEmpty {
+        Self.resolveTransitionUniformSlots(
+            shaderType: transition.shaderType,
+            parameterValues: transition.parameterValues,
+            customMetalSource: transition.customMetalSource
+        )
+    }
+
+    public static func resolveTransitionUniformSlots(
+        shaderType: TransitionShaderType,
+        parameterValues v: [String: Double],
+        customMetalSource: String? = nil
+    ) -> [Float] {
+        if let custom = customMetalSource, !custom.isEmpty {
             return v.keys.sorted().prefix(8).compactMap { v[$0].map(Float.init) }
         }
-        switch transition.shaderType {
-        case .dissolve:
-            return [Float(v["gammaCurve"] ?? 1.0)]
-        case .directionalPush:
-            return [Float(v["dirX"] ?? -1.0), Float(v["dirY"] ?? 0.0)]
-        case .whipPanLeft:
-            return [-1.0, Float(v["blurStrength"] ?? 1.0)]
-        case .whipPanRight:
-            return [1.0, Float(v["blurStrength"] ?? 1.0)]
-        case .zoomBlur:
-            return [Float(v["zoomStrength"] ?? 0.38)]
-        case .crossWarp:
-            return [Float(v["warpStrength"] ?? 48.0)]
-        case .glitchWipe:
-            return [Float(v["sliceIntensity"] ?? 90.0)]
-        case .lightLeak:
-            return [Float(v["flareIntensity"] ?? 1.0), Float(v["warmth"] ?? 0.85)]
-        case .geometricWipe:
-            return [Float(v["shapeMode"] ?? 0.0), Float(v["feather"] ?? 0.06)]
+        let mode = Float(v["mode"] ?? 0.0)
+        let subParam = Float(v["subParam"] ?? 0.0)
+        switch shaderType {
+        case .dissolve: return [Float(v["gammaCurve"] ?? 1.0), 0.0, mode, subParam]
+        case .directionalPush: return [Float(v["dirX"] ?? -1.0), Float(v["dirY"] ?? 0.0), mode, subParam]
+        case .whipPanLeft: return [-1.0, Float(v["blurStrength"] ?? 1.0), mode, subParam]
+        case .whipPanRight: return [1.0, Float(v["blurStrength"] ?? 1.0), mode, subParam]
+        case .zoomBlur: return [Float(v["zoomStrength"] ?? 0.38), 0.0, mode, subParam]
+        case .crossWarp: return [Float(v["warpStrength"] ?? 48.0), 0.0, mode, subParam]
+        case .glitchWipe: return [Float(v["sliceIntensity"] ?? 90.0), 0.0, mode, subParam]
+        case .lightLeak: return [Float(v["flareIntensity"] ?? 1.0), Float(v["warmth"] ?? 0.85), mode, subParam]
+        case .geometricWipe: return [Float(v["shapeMode"] ?? 0.0), Float(v["feather"] ?? 0.06), mode, subParam]
         }
     }
 
@@ -280,7 +284,10 @@ extension TimelineVideoCompositor {
             isProcedural: info.isProcedural,
             proceduralConfig: info.proceduralConfig,
             clip: resolvedClip,
-            videoTrackTransform: info.videoTrackTransform
+            videoTrackTransform: info.videoTrackTransform,
+            blendMode: TextLayerBlendMode(rawValue: resolvedProps["blendMode"]?.asString ?? "") ?? info.blendMode,
+            perspectiveX: resolvedProps["perspectiveX"]?.asNumber ?? info.perspectiveX,
+            perspectiveY: resolvedProps["perspectiveY"]?.asNumber ?? info.perspectiveY
         )
     }
 }

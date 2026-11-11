@@ -31,7 +31,7 @@ extension ShellViewModel {
         playbackEngine.onTimeUpdate = { [weak self] time in
             guard let self, self.isPlaying else { return }
             let total = self.timelineViewModel.totalDuration
-            if time >= total {
+            if self.playbackEngine.loopRange == nil, time >= total {
                 self.playheadState.progressTime(to: total)
                 self.stopPlayback()
             } else {
@@ -98,9 +98,33 @@ extension ShellViewModel {
             guard let self else { return }
             self.updateTimelinePreview()
         }
+        timelineViewModel.onAssetsAdded = { [weak self] addedAssets in
+            guard let self, let mediaVM = self.mediaLibraryViewModel else { return }
+            for asset in addedAssets {
+                mediaVM.registerAssetIfNeeded(asset)
+            }
+        }
         timelineViewModel.onPreviewTextPreset = { [weak self] preset in
             guard let self else { return }
             self.setPreviewTextPreset(preset)
+        }
+        timelineViewModel.onLoopRangeRequested = { [weak self] range in
+            guard let self else { return }
+            self.playbackEngine.loopRange = range
+            if let range, range.duration > .zero {
+                self.switchToTimelinePreview()
+                self.playbackEngine.seek(to: range.start)
+                self.playheadState.seek(to: range.start)
+                self.startPlayback()
+            }
+        }
+        timelineViewModel.onStopPlaybackRequested = { [weak self] in
+            guard let self else { return }
+            guard self.playbackEngine.loopRange != nil else { return }
+            self.playbackEngine.loopRange = nil
+            if self.isPlaying {
+                self.stopPlayback()
+            }
         }
     }
 

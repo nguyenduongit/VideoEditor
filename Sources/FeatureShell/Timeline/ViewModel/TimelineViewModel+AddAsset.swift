@@ -35,6 +35,7 @@ extension TimelineViewModel {
         applyAddedClips(newClipsWithLayers)
         selectedClipIDs = Set(newClipsWithLayers.map(\.clip.id))
         resetZoom()
+        onAssetsAdded?(assets)
     }
 
     // MARK: - Private Helpers

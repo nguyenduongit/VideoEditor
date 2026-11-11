@@ -5,7 +5,7 @@ import Supabase
 
 private let transitionRepoLogger = Logger(subsystem: "VideoEditor", category: "SupabaseTransitionPresetRepository")
 
-/// Hiện thực kho lưu trữ mẫu Chuyển cảnh (`TransitionPreset` — 8 họ GPU Kernel + Custom MSL + Parameters)
+/// Hiện thực kho lưu trữ mẫu Chuyển cảnh (`TransitionPreset` — 83 mẫu chuẩn trong 8 nhóm + 8 họ GPU Kernel + Parameters)
 /// qua Supabase Database (`transition_presets`).
 /// Áp dụng cơ chế Offline-First / Stale-While-Revalidate (SWR) và Upsert an toàn (bảo toàn 100% mẫu người dùng).
 /// Tuân thủ AGENTS.md R2.1 (Infrastructure hiện thực hóa Domain Protocol) và R3.1 (File <= 300 dòng).
@@ -35,15 +35,24 @@ public final class SupabaseTransitionPresetRepository: TransitionPresetRepositor
                 .value
 
             let fetched = rows.map { $0.toPreset() }
-            let systemIDs = Set(TransitionPreset.builtInCatalog.map(\.id))
-            let fetchedSystemIDs = Set(fetched.filter(\.isSystem).map(\.id))
+            let systemCatalog = TransitionPreset.builtInCatalog
+            let systemIDs = Set(systemCatalog.map(\.id))
+            let hasObsoleteSystem = fetched.contains { $0.isSystem && !systemIDs.contains($0.id) }
+            let needsSystemSync = hasObsoleteSystem || systemCatalog.contains { sys in
+                guard let remote = fetched.first(where: { $0.id == sys.id }) else { return true }
+                return remote.parameterValues != sys.parameterValues
+                    || remote.shaderType != sys.shaderType
+                    || remote.category != sys.category
+                    || remote.name != sys.name
+                    || abs(remote.defaultDuration - sys.defaultDuration) > 0.01
+            }
 
-            if !systemIDs.isSubset(of: fetchedSystemIDs) {
+            if needsSystemSync {
                 do {
                     try await seedSystemCatalogSafely(preserving: fetched)
                 } catch {
                     transitionRepoLogger.warning("Seed an toàn transition_presets bỏ qua do lỗi mạng/bảng: \(error.localizedDescription)")
-                    templateLoader.setInMemoryTemplates(fetched)
+                    templateLoader.setInMemoryTemplates(systemCatalog + fetched.filter { !$0.isSystem })
                 }
                 return templateLoader.loadAllTemplates()
             }
@@ -95,13 +104,25 @@ public final class SupabaseTransitionPresetRepository: TransitionPresetRepositor
         NotificationCenter.default.post(name: .presetStoreDidUpdate, object: nil)
     }
 
-    /// Khởi tạo/cập nhật các mẫu Chuyển cảnh hệ thống bằng Upsert không phá hủy (bảo toàn 100% mẫu người dùng).
+    /// Khởi tạo/cập nhật toàn bộ 83 mẫu Chuyển cảnh hệ thống lên Supabase bằng Upsert không phá hủy (bảo toàn 100% mẫu người dùng).
     public func seedSystemCatalogSafely(preserving existingUserPresets: [TransitionPreset] = []) async throws {
         let systemCatalog = TransitionPreset.builtInCatalog
+        let systemIDs = Set(systemCatalog.map(\.id))
         let userOnly = existingUserPresets.filter { !$0.isSystem }
         templateLoader.setInMemoryTemplates(systemCatalog + userOnly)
 
         if let client {
+            let obsoleteSystemIDs = existingUserPresets
+                .filter { $0.isSystem && !systemIDs.contains($0.id) }
+                .map(\.id)
+            for oldID in obsoleteSystemIDs {
+                _ = try? await client
+                    .from(tableName)
+                    .delete()
+                    .eq("id", value: oldID)
+                    .execute()
+            }
+
             let rows = systemCatalog.map { TransitionPresetRow(from: $0) }
             try await client
                 .from(tableName)
@@ -159,23 +180,24 @@ private struct TransitionPresetRow: Codable, Sendable {
     }
 
     func toPreset() -> TransitionPreset {
-        let cat = TransitionCategory(rawValue: category) ?? .basic
-        let shader = TransitionShaderType(rawValue: shader_type) ?? .dissolve
-        let sys = is_system ?? false
+        let builtIn = TransitionPreset.builtInCatalog.first(where: { $0.id == id })
+        let cat = TransitionCategory(rawValue: category) ?? builtIn?.category ?? .basic
+        let shader = TransitionShaderType(rawValue: shader_type) ?? builtIn?.shaderType ?? .dissolve
+        let sys = is_system ?? builtIn?.isSystem ?? false
         let (cleanTags, communityMeta) = CommunityMetadata.extract(from: tags, isSystem: sys)
         return TransitionPreset(
             id: id,
             name: name,
-            description: description ?? "",
+            description: description ?? builtIn?.description ?? "",
             category: cat,
             tags: cleanTags,
-            defaultDuration: default_duration ?? 0.5,
+            defaultDuration: default_duration ?? builtIn?.defaultDuration ?? 2.0,
             shaderType: shader,
             defaultEasing: config.defaultEasing,
-            iconName: icon_name ?? "arrow.left.arrow.right",
-            previewBadge: config.previewBadge,
-            parameters: config.parameters,
-            parameterValues: config.parameterValues,
+            iconName: icon_name ?? builtIn?.iconName ?? "arrow.left.arrow.right",
+            previewBadge: config.previewBadge ?? builtIn?.previewBadge,
+            parameters: config.parameters.isEmpty ? (builtIn?.parameters ?? []) : config.parameters,
+            parameterValues: config.parameterValues.isEmpty ? (builtIn?.parameterValues ?? [:]) : config.parameterValues,
             customMetalSource: config.customMetalSource,
             isSystem: sys,
             community: communityMeta

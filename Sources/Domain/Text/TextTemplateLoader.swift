@@ -56,7 +56,7 @@ public final class TextTemplateLoader: @unchecked Sendable {
         lock.unlock()
     }
 
-    /// Nạp toàn bộ danh sách TextPreset từ RAM đã đồng bộ với Supabase hoặc fallback mặc định
+    /// Nạp toàn bộ danh sách TextPreset: ưu tiên bộ nhớ đệm remote, fallback về mẫu tích hợp sẵn
     public func loadAllTemplates(forceReload: Bool = false) -> [TextPreset] {
         lock.lock()
         defer { lock.unlock() }

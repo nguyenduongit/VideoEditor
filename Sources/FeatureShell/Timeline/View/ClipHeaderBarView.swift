@@ -46,7 +46,7 @@ public struct ClipHeaderBarView: View {
             }
         }
         .padding(.horizontal, DSSpacing.xs)
-        .frame(height: 16)
+        .frame(height: DSSize.clipHeaderHeight)
         .background(headerBackground)
         .overlay(
             Rectangle()

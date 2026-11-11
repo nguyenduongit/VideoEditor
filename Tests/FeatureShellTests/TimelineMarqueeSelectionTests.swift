@@ -49,12 +49,12 @@ struct TimelineMarqueeSelectionTests {
     func testMarqueeSelectMultipleTracks() {
         let (vm, clip1, _, clip3) = makeTimelineViewModel()
         let topSpacer: CGFloat = 100.0
-        // Layer 0: Y = 100...180 (height 80)
-        // Layer 1: Y = 180...240 (height 60)
+        // Layer 0: Y = 100...200 (height 100)
+        // Layer 1: Y = 200...260 (height 60)
         // Clip 1: 0s - 5s (X: 0...250)
         // Clip 3: 2s - 8s (X: 100...400)
-        // Marquee spanning Y: 120...200, X: 110...190 -> touches both Clip 1 and Clip 3
-        let marquee = CGRect(x: 110, y: 120, width: 80, height: 80)
+        // Marquee spanning Y: 120...230, X: 110...190 -> touches both Clip 1 and Clip 3
+        let marquee = CGRect(x: 110, y: 120, width: 80, height: 110)
         let selected = vm.clipsIntersecting(rect: marquee, topSpacerHeight: topSpacer)
 
         #expect(selected == [clip1.id, clip3.id])
@@ -108,10 +108,10 @@ struct TimelineMarqueeSelectionTests {
     func testMarqueeStartingInsideEmptyLayerArea() {
         let (vm, clip1, _, clip3) = makeTimelineViewModel()
         let topSpacer: CGFloat = 100.0
-        // Layer 0: Y = 100...180 (height 80), Layer 1: Y = 180...240 (height 60)
+        // Layer 0: Y = 100...200 (height 100), Layer 1: Y = 200...260 (height 60)
         // In Layer 0, X: 260 is an empty gap between Clip 1 and Clip 2.
-        // User starts drag inside Layer 0 empty area at (260, 140) and drags to (50, 200)
-        let marqueeFromInsideLayer = CGRect(x: 260, y: 140, width: -210, height: 60)
+        // User starts drag inside Layer 0 empty area at (260, 140) and drags to (50, 230)
+        let marqueeFromInsideLayer = CGRect(x: 260, y: 140, width: -210, height: 90)
         let selected = vm.clipsIntersecting(rect: marqueeFromInsideLayer, topSpacerHeight: topSpacer)
         #expect(selected == [clip1.id, clip3.id])
 

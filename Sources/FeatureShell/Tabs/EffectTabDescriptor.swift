@@ -8,16 +8,18 @@ public struct EffectTabDescriptor: TabDescriptor {
     public let iconName: String = "sparkles"
     public let order: Int = 50
 
-    private let timelineViewModel: TimelineViewModel?
+    private let viewModel: EffectLibraryViewModel
 
+    @MainActor
     public init(timelineViewModel: TimelineViewModel? = nil) {
-        self.timelineViewModel = timelineViewModel
+        self.viewModel = EffectLibraryViewModel(timelineViewModel: timelineViewModel)
     }
 
+    @MainActor
     public func makeSidebarView() -> AnyView {
         AnyView(
             EffectLibraryView(
-                viewModel: EffectLibraryViewModel(timelineViewModel: timelineViewModel)
+                viewModel: viewModel
             )
         )
     }

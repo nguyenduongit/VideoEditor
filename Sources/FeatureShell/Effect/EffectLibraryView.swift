@@ -2,183 +2,137 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// View thư viện Hiệu ứng thị giác (Effects) kết nối Kho Thư viện Cộng đồng trên sidebar trái.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
+/// Left Sidebar view for the Visual Effects Library.
+/// Features a 100pt vertical category sidebar, 2-column square card grid,
+/// top-right 26pt Favorites button, and bottom-right 26pt Add button.
+/// Complies with AGENTS.md rules (File <= 300 lines, View body <= 40 lines).
 public struct EffectLibraryView: View {
     @Bindable private var viewModel: EffectLibraryViewModel
+    @State private var selectedCategory: String = EffectTemplateCategory.lightTransition.displayName
+
+    private let categories = EffectTemplateCategory.assignableCases.map(\.displayName)
 
     private let columns = [
-        GridItem(.flexible(), spacing: DSSpacing.md),
-        GridItem(.flexible(), spacing: DSSpacing.md),
-        GridItem(.flexible(), spacing: DSSpacing.md)
+        GridItem(.flexible(), spacing: DSSpacing.sm),
+        GridItem(.flexible(), spacing: DSSpacing.sm)
     ]
 
     public init(viewModel: EffectLibraryViewModel) {
         self.viewModel = viewModel
     }
 
+    private var displayedPresets: [EffectPreset] {
+        let base: [EffectPreset]
+        if selectedCategory == SidebarFavoriteManager.favoritesCategory {
+            let favs = SidebarFavoriteManager.shared.favorites(for: "effect")
+            base = viewModel.templatePresets.filter { favs.contains($0.id) }
+        } else {
+            if let cat = EffectTemplateCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
+                base = viewModel.templatePresets.filter { $0.category == cat }
+            } else {
+                base = viewModel.templatePresets
+            }
+        }
+        guard !viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return base }
+        return base.filter { $0.name.localizedCaseInsensitiveContains(viewModel.searchQuery) }
+    }
+
     public var body: some View {
         LibraryScaffoldView(
             searchQuery: $viewModel.searchQuery,
-            searchPlaceholder: "Tìm hiệu ứng, tác giả, tag...",
-            categories: EffectTemplateCategory.allCases.map(\.rawValue),
-            selectedCategory: categoryBinding,
+            searchPlaceholder: "Search effects, tags...",
+            categories: categories,
+            selectedCategory: $selectedCategory,
+            favoritesCount: SidebarFavoriteManager.shared.favorites(for: "effect").count,
             trailingAction: AnyView(reloadButton)
         ) {
             contentScrollView
         }
     }
 
-    private var categoryBinding: Binding<String> {
-        Binding(
-            get: { viewModel.selectedCategory.rawValue },
-            set: { val in
-                if let cat = EffectTemplateCategory(rawValue: val) {
-                    viewModel.selectedCategory = cat
-                }
-            }
-        )
-    }
-
     private var reloadButton: some View {
-        Button(action: { viewModel.reloadTemplates() }) {
-            Image(systemName: "arrow.clockwise")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DSColors.textSecondary)
-                .frame(width: 24, height: 24)
-                .background(DSColors.windowBackground)
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+        let size = LibraryScaffoldView<EmptyView>.searchControlHeight
+        return Button(action: { viewModel.reloadTemplates() }) {
+            ZStack {
+                RoundedRectangle(cornerRadius: DSRadius.small)
+                    .fill(DSColors.windowBackground)
+                RoundedRectangle(cornerRadius: DSRadius.small)
+                    .stroke(DSColors.blockBorder, lineWidth: 1)
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(DSColors.textSecondary)
+            }
+            .frame(width: size, height: size)
         }
         .buttonStyle(.plain)
-        .help(String(localized: "Đồng bộ lại Kho Hiệu ứng Cộng đồng"))
+        .help("Reload Effects")
     }
 
     private var contentScrollView: some View {
         DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-            let presets = viewModel.filteredPresets
-            LazyVGrid(columns: columns, spacing: DSSpacing.md) {
-                ForEach(presets) { preset in
-                    EffectCardItemView(
-                        preset: preset,
-                        onAdd: { viewModel.addPresetToTimeline(preset) },
-                        onDelete: preset.canBeModified(by: CommunityIdentity.currentAuthorID)
-                            ? { viewModel.deletePreset(preset) }
-                            : nil
-                    )
+            let presets = displayedPresets
+            if presets.isEmpty {
+                emptyTemplatesView
+            } else {
+                LazyVGrid(columns: columns, spacing: DSSpacing.sm) {
+                    ForEach(presets) { preset in
+                        let isFav = SidebarFavoriteManager.shared.isFavorite(id: preset.id, for: "effect")
+                        UnifiedLibraryCardItemView(
+                            title: preset.name,
+                            isFavorite: isFav,
+                            onAdd: {
+                                viewModel.addPresetToTimeline(preset)
+                            },
+                            onToggleFavorite: {
+                                SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "effect")
+                            }
+                        ) {
+                            effectThumbnail(for: preset)
+                        }
+                    }
                 }
+                .padding(DSSpacing.sm)
             }
-            .padding(DSSpacing.md)
         }
     }
-}
 
-/// Card hình vuông hiển thị mẫu hiệu ứng thị giác (EffectPreset) kèm thông tin tác giả cộng đồng.
-private struct EffectCardItemView: View {
-    let preset: EffectPreset
-    let onAdd: () -> Void
-    let onDelete: (() -> Void)?
-    @State private var isHovered = false
-
-    var body: some View {
-        VStack(spacing: 3) {
-            squareThumbnailBox
-            nameLabel
-            authorLabel
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            onAdd()
-        }
-        .contextMenu {
-            Button(action: onAdd) {
-                Label(String(localized: "Thêm vào Timeline"), systemImage: "plus.circle")
-            }
-            if let onDelete {
-                Divider()
-                Button(role: .destructive, action: onDelete) {
-                    Label(String(localized: "Xóa khỏi Thư viện"), systemImage: "trash")
-                }
-            }
-        }
-        .help("\(preset.name) — Tác giả: \(preset.community.authorName)\n\(preset.description)")
-    }
-
-    private var squareThumbnailBox: some View {
+    @ViewBuilder
+    private func effectThumbnail(for preset: EffectPreset) -> some View {
         ZStack {
             LinearGradient(
-                colors: [
-                    DSColors.windowBackground,
-                    DSColors.activeTabBackground
-                ],
+                colors: [DSColors.windowBackground, DSColors.clipEffect.opacity(0.3)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
 
-            ZStack {
-                Circle()
-                    .fill(DSColors.clipEffect.opacity(isHovered ? 0.25 : 0.16))
-                    .frame(width: 40, height: 40)
-                Image(systemName: preset.config.type.iconName)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(DSColors.clipEffect)
-            }
+            Image(systemName: effectIcon(for: preset))
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(DSColors.clipEffect)
         }
-        .aspectRatio(1.0, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
-        .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.block)
-                .stroke(isHovered ? DSColors.toggleCyan : DSColors.blockBorder, lineWidth: isHovered ? 1.5 : 1)
-        )
-        .overlay(alignment: .topLeading) {
-            if !preset.isSystem {
-                Text("★ \(preset.community.downloadsCount)")
-                    .font(.system(size: 8.5, weight: .semibold))
-                    .foregroundStyle(DSColors.textSecondary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(Color.black.opacity(0.55))
-                    .clipShape(Capsule())
-                    .padding(5)
-            }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            if isHovered {
-                plusButton
-                    .transition(.opacity.combined(with: .scale(scale: 0.85)))
-            }
-        }
-        .animation(.easeInOut(duration: 0.15), value: isHovered)
-        .onHover { isHovered = $0 }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var nameLabel: some View {
-        Text(preset.name)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(isHovered ? DSColors.textPrimary : DSColors.textSecondary)
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    private var authorLabel: some View {
-        Text(preset.isSystem ? "Hệ thống" : "@\(preset.community.authorName)")
-            .font(.system(size: 9))
-            .foregroundStyle(DSColors.textSecondary.opacity(0.65))
-            .lineLimit(1)
-            .truncationMode(.tail)
-    }
-
-    private var plusButton: some View {
-        Button(action: onAdd) {
-            Image(systemName: "plus")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 20, height: 20)
-                .background(DSColors.accent)
-                .clipShape(Circle())
-                .shadow(color: .black.opacity(0.35), radius: 2, y: 1)
+    private func effectIcon(for preset: EffectPreset) -> String {
+        switch preset.category {
+        case .lightTransition: return "wand.and.stars"
+        case .partyBeat: return "bolt.fill"
+        case .cinematic: return "camera.filters"
+        case .motionShake: return "waveform.path.ecg"
+        default: return "sparkles"
         }
-        .buttonStyle(.plain)
-        .padding(6)
+    }
+
+    private var emptyTemplatesView: some View {
+        VStack(spacing: DSSpacing.sm) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 28))
+                .foregroundStyle(DSColors.textSecondary.opacity(0.6))
+            Text("No effects available")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(DSColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 40)
+        .padding(.horizontal, DSSpacing.md)
     }
 }

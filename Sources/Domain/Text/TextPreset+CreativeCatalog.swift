@@ -1,18 +1,13 @@
 import Foundation
 
 extension TextPreset {
-    /// Toàn bộ danh mục mẫu chữ tích hợp sẵn (gồm mẫu mặc định + bộ sưu tập sáng tạo)
+    /// Toàn bộ danh mục mẫu chữ tích hợp sẵn (chỉ gồm mẫu mặc định hard-coded cục bộ)
     public static var templates: [TextPreset] {
         [TextPreset.default] + creativeCatalog
     }
 
-    /// Bộ sưu tập Mẫu Chữ 1-Layer Chuẩn Hóa (dùng chung 1 lõi mở cho cả User & Template)
-    public static let creativeCatalog: [TextPreset] = [
-        neonCyberGlow,
-        vlogBadgeBanner,
-        retroCurvedTitle,
-        karaokeDualStroke
-    ]
+    /// Bộ sưu tập Mẫu Chữ 1-Layer Chuẩn Hóa (để trống, chỉ dùng 1 item demo TextPreset.default)
+    public static let creativeCatalog: [TextPreset] = []
 
     public static let neonCyberGlow = TextPreset(
         id: "template_neon_cyber_glow",
@@ -39,12 +34,7 @@ extension TextPreset {
                 gradientAngle: 45.0
             ),
             glow: TextGlowStyle(isEnabled: true, colorHex: "#38BDF8", intensity: 90.0, range: 16.0),
-            shadow: TextShadowStyle(isEnabled: true, colorHex: "#000000", opacity: 80.0, blur: 8.0, distance: 4.0, angleDegrees: -45.0),
-            animation: TextAnimationConfiguration(
-                inDuration: 0.9,
-                inManifest: AnimationPreset.inGlitchTeleport.manifest,
-                loopManifest: AnimationPreset.loopNeonFlicker.manifest
-            )
+            shadow: TextShadowStyle(isEnabled: true, colorHex: "#000000", opacity: 80.0, blur: 8.0, distance: 4.0, angleDegrees: -45.0)
         ),
         isSystem: true
     )
@@ -82,11 +72,6 @@ extension TextPreset {
                 paddingX: 24.0,
                 paddingY: 12.0,
                 animateWithText: true
-            ),
-            animation: TextAnimationConfiguration(
-                inDuration: 0.9,
-                inManifest: AnimationPreset.inElasticJellyDrop.manifest,
-                loopManifest: AnimationPreset.loopJellySquash.manifest
             )
         ),
         isSystem: true
@@ -113,12 +98,7 @@ extension TextPreset {
             gradientAngle: 90.0,
             innerStroke: TextStrokeStyle(isEnabled: true, width: 3.5, colorHex: "#18181B"),
             outerStroke: TextStrokeStyle(isEnabled: true, width: 5.0, colorHex: "#FFFFFF"),
-            curve: TextCurveStyle(shape: .arc, angleDegrees: 55.0, followTangent: true),
-            animation: TextAnimationConfiguration(
-                inDuration: 0.9,
-                inManifest: AnimationPreset.inVortexSpin3D.manifest,
-                loopManifest: AnimationPreset.loopHarmonicWave.manifest
-            )
+            curve: TextCurveStyle(shape: .arc, angleDegrees: 55.0, followTangent: true)
         ),
         isSystem: true
     )
@@ -141,12 +121,7 @@ extension TextPreset {
             innerStroke: TextStrokeStyle(isEnabled: true, width: 4.0, colorHex: "#0F172A"),
             outerStroke: TextStrokeStyle(isEnabled: true, width: 3.0, colorHex: "#38BDF8"),
             shadow: TextShadowStyle(isEnabled: true, colorHex: "#000000", opacity: 70.0, blur: 6.0, distance: 3.0, angleDegrees: -90.0),
-            positionY: 320.0,
-            animation: TextAnimationConfiguration(
-                inDuration: 0.85,
-                inManifest: AnimationPreset.inFlipCascade3D.manifest,
-                loopManifest: AnimationPreset.loopBassHeartbeat.manifest
-            )
+            positionY: 320.0
         ),
         isSystem: true
     )

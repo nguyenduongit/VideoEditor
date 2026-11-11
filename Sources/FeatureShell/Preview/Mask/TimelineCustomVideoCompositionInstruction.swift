@@ -38,6 +38,9 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
         public let clip: TimelineClip?
         public let videoTrackTransform: CGAffineTransform
         public let activeTransition: ActiveTransitionRenderInfo?
+        public let blendMode: TextLayerBlendMode
+        public let perspectiveX: Double
+        public let perspectiveY: Double
 
         public init(
             trackID: CMPersistentTrackID,
@@ -68,7 +71,10 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
             proceduralConfig: ProceduralConfiguration? = nil,
             clip: TimelineClip? = nil,
             videoTrackTransform: CGAffineTransform = .identity,
-            activeTransition: ActiveTransitionRenderInfo? = nil
+            activeTransition: ActiveTransitionRenderInfo? = nil,
+            blendMode: TextLayerBlendMode = .normal,
+            perspectiveX: Double = 0.0,
+            perspectiveY: Double = 0.0
         ) {
             self.trackID = trackID
             self.transform = transform
@@ -99,6 +105,9 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
             self.clip = clip
             self.videoTrackTransform = videoTrackTransform
             self.activeTransition = activeTransition
+            self.blendMode = blendMode
+            self.perspectiveX = perspectiveX
+            self.perspectiveY = perspectiveY
         }
     }
 

@@ -1,17 +1,9 @@
 import Foundation
 
 extension EffectPreset {
-    /// Bộ sưu tập 8 Gói Hiệu Ứng Sáng Tạo Mở (Open Creative Shader & Pipeline Packages) thế hệ mới
+    /// Bộ sưu tập 1 Gói Hiệu Ứng Sáng Tạo Demo Chuẩn Hóa
     public static let systemTemplates: [EffectPreset] = [
-        rgbGlitchPackage,
-        vhsRetroTapePackage,
-        comicHalftonePackage,
-        kaleidoscopePackage,
-        vortexTwirlPackage,
-        anamorphicBloomPackage,
-        pixelRetroArcadePackage,
-        thermalVisionPackage,
-        shockwaveRipplePackage
+        rgbGlitchPackage
     ]
 
     public static let rgbGlitchPackage = EffectPreset(

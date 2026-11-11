@@ -13,29 +13,17 @@ public struct TextTransformSectionView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.md) {
-            headerRow
-            positionControl
-            scaleControl
-            rotationControl
-            opacityControl
-        }
-        .padding(DSSpacing.md)
-        .background(DSColors.blockBackground)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
-        .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.block)
-                .stroke(DSColors.blockBorder, lineWidth: 1)
-        )
-    }
-
-    private var headerRow: some View {
-        HStack {
-            Text(String(localized: "Transform"))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DSColors.textSecondary)
-            Spacer()
-            keyframeControl(for: ["positionX", "positionY", "scale", "rotation", "opacity"])
+        DSSectionCard(
+            title: String(localized: "Transform"),
+            trailingAccessory: AnyView(keyframeControl(for: ["positionX", "positionY", "scale", "rotation", "opacity"]))
+        ) {
+            VStack(alignment: .leading, spacing: DSSpacing.md) {
+                positionControl
+                scaleControl
+                rotationControl
+                skewControl
+                opacityControl
+            }
         }
     }
 
@@ -96,6 +84,43 @@ public struct TextTransformSectionView: View {
             trailingAccessory: AnyView(keyframeControl(for: ["rotation"], defaultVal: 0.0)),
             onEditingChanged: onSliderEditingEnded
         )
+    }
+
+    private var skewControl: some View {
+        VStack(spacing: DSSpacing.xs) {
+            DSSliderWithInput(
+                title: "Skew X",
+                value: Binding(
+                    get: { currentConfig.skewX },
+                    set: { val in
+                        var cfg = currentConfig
+                        cfg.skewX = val
+                        updateConfig(cfg, commit: false)
+                    }
+                ),
+                range: -60.0...60.0,
+                step: 1.0,
+                defaultValue: 0.0,
+                unit: "°",
+                onEditingChanged: onSliderEditingEnded
+            )
+            DSSliderWithInput(
+                title: "Skew Y",
+                value: Binding(
+                    get: { currentConfig.skewY },
+                    set: { val in
+                        var cfg = currentConfig
+                        cfg.skewY = val
+                        updateConfig(cfg, commit: false)
+                    }
+                ),
+                range: -60.0...60.0,
+                step: 1.0,
+                defaultValue: 0.0,
+                unit: "°",
+                onEditingChanged: onSliderEditingEnded
+            )
+        }
     }
 
     private var opacityControl: some View {

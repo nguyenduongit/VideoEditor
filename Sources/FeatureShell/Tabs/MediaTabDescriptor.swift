@@ -9,13 +9,15 @@ public struct MediaTabDescriptor: TabDescriptor {
     public let order: Int = 10
 
     private let mediaViewModel: MediaLibraryViewModel
+    private let dependencies: EditorDependencies?
 
-    public init(mediaViewModel: MediaLibraryViewModel) {
+    public init(mediaViewModel: MediaLibraryViewModel, dependencies: EditorDependencies? = nil) {
         self.mediaViewModel = mediaViewModel
+        self.dependencies = dependencies
     }
 
     public func makeSidebarView() -> AnyView {
-        AnyView(MediaLibraryView(viewModel: mediaViewModel))
+        AnyView(MediaLibraryView(viewModel: mediaViewModel, dependencies: dependencies))
     }
 
     public func makeSidebarTrailingAccessory() -> AnyView? {

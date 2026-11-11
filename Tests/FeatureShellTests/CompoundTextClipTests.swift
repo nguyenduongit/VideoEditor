@@ -35,7 +35,7 @@ struct CompoundTextClipTests {
 
         let inspectorVM = InspectorViewModel(timelineViewModel: vm)
         inspectorVM.syncWithSelection()
-        #expect(inspectorVM.availableTabs == ["Text", "Color", "Background", "Animation"])
+        #expect(inspectorVM.availableTabs == ["Text", "Appearance", "Background", "Animation"])
     }
 
     @Test("Single-line sanitization flattens CR/LF newlines into clean spaces")

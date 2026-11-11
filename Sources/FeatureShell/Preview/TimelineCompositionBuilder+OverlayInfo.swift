@@ -208,7 +208,10 @@ extension TimelineCompositionBuilder {
             solidColorHex: clip.properties["solidColorHex"]?.asString,
             isProcedural: clip.properties["isProcedural"]?.asBool ?? false,
             proceduralConfig: clip.properties["proceduralConfig"]?.asString.flatMap { ProceduralConfiguration.decode(from: $0) },
-            clip: clip
+            clip: clip,
+            blendMode: TextLayerBlendMode(rawValue: clip.properties["blendMode"]?.asString ?? "") ?? .normal,
+            perspectiveX: clip.properties["perspectiveX"]?.asNumber ?? 0.0,
+            perspectiveY: clip.properties["perspectiveY"]?.asNumber ?? 0.0
         )
     }
 

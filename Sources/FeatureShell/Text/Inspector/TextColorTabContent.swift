@@ -2,8 +2,8 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Tab `"Color"` chuyên sâu cho Module Text:
-/// Gồm 4 Subtab: `Fill` (Tô mặt chữ) · `Stroke` (Viền kép) · `Glow` (Hào quang) · `Shadow` (Đổ bóng).
+/// Tab `"Appearance"` chuyên sâu cho Module Text:
+/// Gồm 4 Subtab: `Fill` (Tô mặt chữ) · `Stroke` (Viền kép) · `Style` (Glow + Shadow) · `Effects` (Blur, Distortion, Glitch, Noise).
 /// Hỗ trợ chấm xanh chỉ báo trạng thái đang hoạt động (Active Dot Indicator).
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng, Hàm <= 50 dòng) của AGENTS.md.
 public struct TextColorTabContent: View {
@@ -13,8 +13,8 @@ public struct TextColorTabContent: View {
     public enum Subtab: String, CaseIterable, Identifiable {
         case fill = "Fill"
         case stroke = "Stroke"
-        case glow = "Glow"
-        case shadow = "Shadow"
+        case style = "Style"
+        case effects = "Effects"
 
         public var id: String { rawValue }
     }
@@ -32,10 +32,10 @@ public struct TextColorTabContent: View {
                 colorFillCard
             case .stroke:
                 TextDualStrokeControlsView(viewModel: viewModel)
-            case .glow:
-                TextGlowSectionView(viewModel: viewModel)
-            case .shadow:
-                TextShadowSectionView(viewModel: viewModel)
+            case .style:
+                TextStyleSubtabView(viewModel: viewModel)
+            case .effects:
+                TextEffectsSubtabView(viewModel: viewModel)
             }
         }
         .padding(.vertical, DSSpacing.xs)
@@ -93,10 +93,10 @@ public struct TextColorTabContent: View {
             return false
         case .stroke:
             return currentConfig.innerStroke.isActive || currentConfig.outerStroke.isActive
-        case .glow:
-            return currentConfig.glow.isActive
-        case .shadow:
-            return currentConfig.shadow.isActive
+        case .style:
+            return currentConfig.glow.isActive || currentConfig.shadow.isActive
+        case .effects:
+            return currentConfig.blurRadius > 0.1 || currentConfig.curve.isActive || currentConfig.glitchIntensity > 0.1 || currentConfig.noiseIntensity > 0.1
         }
     }
 

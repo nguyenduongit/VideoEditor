@@ -9,16 +9,18 @@ public struct StickerTabDescriptor: TabDescriptor {
     public let isSoon: Bool = false
     public let order: Int = 70
 
-    private let timelineViewModel: TimelineViewModel?
+    private let viewModel: StickerLibraryViewModel
 
+    @MainActor
     public init(timelineViewModel: TimelineViewModel? = nil) {
-        self.timelineViewModel = timelineViewModel
+        self.viewModel = StickerLibraryViewModel(timelineViewModel: timelineViewModel)
     }
 
+    @MainActor
     public func makeSidebarView() -> AnyView {
         AnyView(
             StickerLibraryView(
-                viewModel: StickerLibraryViewModel(timelineViewModel: timelineViewModel)
+                viewModel: viewModel
             )
         )
     }

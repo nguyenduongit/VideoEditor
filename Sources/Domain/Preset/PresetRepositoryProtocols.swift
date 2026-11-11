@@ -43,6 +43,27 @@ public protocol TransitionPresetRepositoryProtocol: Sendable {
     func deletePreset(id: String) async throws
 }
 
+/// Hợp đồng quản lý nạp, lưu trữ và đồng bộ mẫu Audio BGM / SFX qua Cloud URL
+public protocol AudioPresetRepositoryProtocol: Sendable {
+    func fetchPresets() async throws -> [AudioPreset]
+    func savePreset(_ preset: AudioPreset) async throws
+    func deletePreset(id: String) async throws
+}
+
+/// Hợp đồng quản lý nạp, lưu trữ và đồng bộ mẫu Stock Media (Videos, Backgrounds, SFX) qua Cloud URL
+public protocol StockMediaRepositoryProtocol: Sendable {
+    func fetchStockItems() async throws -> [StockMediaItem]
+    func saveStockItem(_ item: StockMediaItem) async throws
+    func deleteStockItem(id: String) async throws
+}
+
+/// Hợp đồng quản lý đồng bộ danh mục yêu thích (Favorites) của người dùng trên Supabase
+public protocol FavoriteRepositoryProtocol: Sendable {
+    func fetchFavorites(for tab: String) async throws -> Set<String>
+    func addFavorite(id: String, for tab: String) async throws
+    func removeFavorite(id: String, for tab: String) async throws
+}
+
 /// Điểm cung cấp trung gian cho Dependency Injection giữa App Composition Root và Feature UI.
 /// Giúp FeatureShell không cần import trực tiếp tầng Infrastructure hay Supabase SDK (R2.1, R2.5).
 /// An toàn luồng được bảo vệ bởi NSLock nội bộ theo quy tắc R8.3 của AGENTS.md.
@@ -55,6 +76,9 @@ public final class PresetRepositoryProvider: @unchecked Sendable {
     private var _animationRepository: (any AnimationPresetRepositoryProtocol)?
     private var _stickerRepository: (any StickerPresetRepositoryProtocol)?
     private var _transitionRepository: (any TransitionPresetRepositoryProtocol)?
+    private var _audioRepository: (any AudioPresetRepositoryProtocol)?
+    private var _stockMediaRepository: (any StockMediaRepositoryProtocol)?
+    private var _favoriteRepository: (any FavoriteRepositoryProtocol)?
 
     public init() {}
 
@@ -86,5 +110,20 @@ public final class PresetRepositoryProvider: @unchecked Sendable {
     public var transitionRepository: (any TransitionPresetRepositoryProtocol)? {
         get { lock.lock(); defer { lock.unlock() }; return _transitionRepository }
         set { lock.lock(); defer { lock.unlock() }; _transitionRepository = newValue }
+    }
+
+    public var audioRepository: (any AudioPresetRepositoryProtocol)? {
+        get { lock.lock(); defer { lock.unlock() }; return _audioRepository }
+        set { lock.lock(); defer { lock.unlock() }; _audioRepository = newValue }
+    }
+
+    public var stockMediaRepository: (any StockMediaRepositoryProtocol)? {
+        get { lock.lock(); defer { lock.unlock() }; return _stockMediaRepository }
+        set { lock.lock(); defer { lock.unlock() }; _stockMediaRepository = newValue }
+    }
+
+    public var favoriteRepository: (any FavoriteRepositoryProtocol)? {
+        get { lock.lock(); defer { lock.unlock() }; return _favoriteRepository }
+        set { lock.lock(); defer { lock.unlock() }; _favoriteRepository = newValue }
     }
 }

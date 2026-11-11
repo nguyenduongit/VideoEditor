@@ -49,18 +49,36 @@ struct InspectorAdvancedPropertiesTests {
 
         #expect(inspectorVM.availableTabs == ["Video", "Mask", "Adjustment", "AI"])
 
-        // Default tab is Video (contains Transform, Speed, and Audio groups)
+        // Default tab is Video (contains Transform, Blend, Speed, and Audio groups under Basic, Speed, Audio subtabs)
         inspectorVM.selectedTab = "Video"
         let videoGroups = inspectorVM.groupedDescriptors
-        #expect(videoGroups.count == 3)
+        #expect(videoGroups.count == 4)
         #expect(videoGroups.map(\.group).contains("Transform"))
+        #expect(videoGroups.map(\.group).contains("Blend"))
         #expect(videoGroups.map(\.group).contains("Speed"))
         #expect(videoGroups.map(\.group).contains("Audio"))
+
+        #expect(inspectorVM.activeSubtabs == ["Basic", "Speed", "Audio"])
+        let basicGroups = inspectorVM.groups(forSubtab: "Basic")
+        #expect(basicGroups.count == 2)
+        #expect(basicGroups.map(\.group) == ["Transform", "Blend"])
+
         let transformDesc = videoGroups.first(where: { $0.group == "Transform" })?.descriptors.map(\.id) ?? []
+        #expect(transformDesc.contains("position"))
         #expect(transformDesc.contains("scale"))
         #expect(transformDesc.contains("uniformScale"))
-        #expect(transformDesc.contains("position"))
         #expect(transformDesc.contains("rotation"))
+        #expect(transformDesc.contains("skewX"))
+        #expect(transformDesc.contains("skewY"))
+        #expect(transformDesc.contains("perspectiveX"))
+        #expect(transformDesc.contains("perspectiveY"))
+        #expect(transformDesc.contains("flip"))
+        #expect(!transformDesc.contains("opacity"))
+        #expect(transformDesc == ["position", "scale", "uniformScale", "rotation", "skewX", "skewY", "perspectiveX", "perspectiveY", "flip"])
+
+        let blendDesc = videoGroups.first(where: { $0.group == "Blend" })?.descriptors.map(\.id) ?? []
+        #expect(blendDesc.contains("blendMode"))
+        #expect(blendDesc.contains("opacity"))
         let speedDesc = videoGroups.first(where: { $0.group == "Speed" })?.descriptors.map(\.id) ?? []
         #expect(speedDesc.contains("speed"))
         #expect(speedDesc.contains("duration"))
@@ -153,5 +171,124 @@ struct InspectorAdvancedPropertiesTests {
         // Undo
         _ = vm.undo()
         #expect(vm.clip(by: clip.id)?.properties["uniformScale"]?.asBool == true)
+    }
+
+    @Test("Uniform scale aspect ratio lock and proportional scaling math")
+    func testUniformScaleAspectRatioLock() {
+        let vm = TimelineViewModel(initialLayers: [])
+        let asset = MediaAsset(url: URL(fileURLWithPath: "/tmp/aspect_ratio_test.mp4"), type: .video)
+        vm.addAsset(asset, at: .zero)
+
+        guard let clip = vm.layers.first?.clips.first else {
+            Issue.record("Clip not found")
+            return
+        }
+
+        vm.selectClip(clip.id)
+        let inspectorVM = InspectorViewModel(timelineViewModel: vm)
+        inspectorVM.syncWithSelection()
+
+        // 1. Ban đầu uniformScale là true -> Scale hiển thị, scaleWidth & scaleHeight ẩn
+        let initialTransformDesc = inspectorVM.groupedDescriptors.first(where: { $0.group == "Transform" })?.descriptors.map(\.id) ?? []
+        #expect(initialTransformDesc.contains("scale"))
+        #expect(!initialTransformDesc.contains("scaleWidth"))
+        #expect(!initialTransformDesc.contains("scaleHeight"))
+
+        // 2. Tắt uniformScale -> Scale ẩn, 2 slider Scale Width & Scale Height xuất hiện
+        inspectorVM.updateLiveBool(key: "uniformScale", value: false)
+        let splitTransformDesc = inspectorVM.groupedDescriptors.first(where: { $0.group == "Transform" })?.descriptors.map(\.id) ?? []
+        #expect(!splitTransformDesc.contains("scale"))
+        #expect(splitTransformDesc.contains("scaleWidth"))
+        #expect(splitTransformDesc.contains("scaleHeight"))
+
+        // 3. Người dùng đặt Scale Width = 90% (0.9), Scale Height = 110% (1.1)
+        inspectorVM.updateLiveValue(key: "scaleWidth", value: 0.90)
+        inspectorVM.updateLiveValue(key: "scaleHeight", value: 1.10)
+        #expect(inspectorVM.liveNumber(for: "scaleWidth", default: 1.0) == 0.90)
+        #expect(inspectorVM.liveNumber(for: "scaleHeight", default: 1.0) == 1.10)
+
+        // 4. Người dùng BẬT lại toggle uniformScale = true để khóa tỉ lệ
+        inspectorVM.updateLiveBool(key: "uniformScale", value: true)
+        // Thanh Scale duy nhất nhận giá trị của scaleWidth (90%)
+        #expect(inspectorVM.liveNumber(for: "scale", default: 1.0) == 0.90)
+
+        // 5. Người dùng chỉnh Scale lên 100% (1.0)
+        inspectorVM.updateLiveValue(key: "scale", value: 1.0)
+        #expect(inspectorVM.liveNumber(for: "scale", default: 1.0) == 1.0)
+        #expect(inspectorVM.liveNumber(for: "scaleWidth", default: 1.0) == 1.0)
+        // scaleHeight tự động tăng theo tỉ lệ khóa: 1.0 * (1.1 / 0.9) = 1.2222... (~122%)
+        let scaledH = inspectorVM.liveNumber(for: "scaleHeight", default: 1.0)
+        #expect(abs(scaledH - 1.2222) < 0.001)
+
+        // 6. Người dùng TẮT toggle để tách 2 thanh kiểm tra lại
+        inspectorVM.updateLiveBool(key: "uniformScale", value: false)
+        #expect(inspectorVM.liveNumber(for: "scaleWidth", default: 1.0) == 1.0)
+        let verifiedH = inspectorVM.liveNumber(for: "scaleHeight", default: 1.0)
+        #expect(abs(verifiedH - 1.2222) < 0.001)
+    }
+
+    @Test("Video clip with non-normal blendMode triggers custom compositor in TimelineCompositionBuilder")
+    func testVideoClipBlendModeTriggersCustomCompositor() {
+        let overlayClip = TimelineClip(
+            name: "Test.mp4",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 5, preferredTimescale: 600)),
+            properties: ["blendMode": .string("overlay")]
+        )
+        let overlayLayer = TimelineLayer(id: UUID(), name: "Video 1", kind: .video, clips: [overlayClip])
+        #expect(TimelineCompositionBuilder.hasActiveMask(in: [overlayLayer]) == true)
+
+        let normalClip = TimelineClip(
+            name: "Normal.mp4",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 5, preferredTimescale: 600)),
+            properties: ["blendMode": .string("normal")]
+        )
+        let normalLayer = TimelineLayer(id: UUID(), name: "Video 1", kind: .video, clips: [normalClip])
+        #expect(TimelineCompositionBuilder.hasActiveMask(in: [normalLayer]) == false)
+    }
+
+    @Test("TimelineCompositionBuilder computeTransform applies Skew and Flip")
+    func testTransformSkewAndFlipMatrixMath() {
+        let flippedClip = TimelineClip(
+            name: "Flipped.mp4",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 5, preferredTimescale: 600)),
+            properties: [
+                "flipHorizontal": .bool(true),
+                "flipVertical": .bool(true),
+                "skewX": .number(15.0),
+                "skewY": .number(-10.0)
+            ]
+        )
+        let canvasSize = CGSize(width: 1920, height: 1080)
+        let naturalSize = CGSize(width: 1920, height: 1080)
+        let res = TimelineCompositionBuilder.computeTransform(
+            transform: .identity,
+            naturalSize: naturalSize,
+            clip: flippedClip,
+            canvasSize: canvasSize
+        )
+        // Transform should have negative scale components due to flip
+        #expect(res.transform.a < 0)
+        #expect(res.transform.d < 0)
+        // And non-zero shear components due to skew
+        #expect(abs(res.transform.b) > 0.01)
+        #expect(abs(res.transform.c) > 0.01)
+
+        let layer = TimelineLayer(id: UUID(), name: "Video 1", kind: .video, clips: [flippedClip])
+        #expect(TimelineCompositionBuilder.hasActiveMask(in: [layer]) == true)
+
+        let perspectiveClip = TimelineClip(
+            name: "Perspective.mp4",
+            kind: .video,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 5, preferredTimescale: 600)),
+            properties: [
+                "perspectiveX": .number(0.25),
+                "perspectiveY": .number(-0.30)
+            ]
+        )
+        let perspLayer = TimelineLayer(id: UUID(), name: "Video 2", kind: .video, clips: [perspectiveClip])
+        #expect(TimelineCompositionBuilder.hasActiveMask(in: [perspLayer]) == true)
     }
 }

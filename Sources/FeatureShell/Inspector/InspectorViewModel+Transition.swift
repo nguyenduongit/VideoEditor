@@ -39,12 +39,26 @@ extension InspectorViewModel {
         }
     }
 
+    /// Giới hạn thời lượng chuyển cảnh tối đa an toàn, không vượt quá tổng 2 nửa độ dài của 2 clip liền kề.
+    public var maxAllowedTransitionDuration: Double {
+        guard let t = selectedTransition, let timelineViewModel else { return 3.0 }
+        for layer in timelineViewModel.layers {
+            if let lead = layer.clips.first(where: { $0.id == t.leadingClipID }),
+               let trail = layer.clips.first(where: { $0.id == t.trailingClipID }) {
+                let limit = 2.0 * min(lead.timeRange.duration.seconds, trail.timeRange.duration.seconds)
+                return max(0.2, min(5.0, limit))
+            }
+        }
+        return 3.0
+    }
+
     public func updateTransitionDuration(_ durationSeconds: Double, commit: Bool = true) {
         guard let t = selectedTransition, let timelineViewModel else { return }
         if !commit && dragInitialTransition == nil {
             dragInitialTransition = t
         }
-        let clamped = max(0.1, min(3.0, durationSeconds))
+        let maxAllowed = maxAllowedTransitionDuration
+        let clamped = max(0.1, min(maxAllowed, durationSeconds))
         var updated = t
         updated.duration = RationalTime(cmTime: CMTime(seconds: clamped, preferredTimescale: 600))
         timelineViewModel.updateTransition(updated, commit: commit)

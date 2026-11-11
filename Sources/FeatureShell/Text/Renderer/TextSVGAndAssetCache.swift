@@ -168,17 +168,32 @@ public final class TextSVGAndAssetCache: @unchecked Sendable {
             return frameForRemoteURL(trimmed, localTime: localTime, loop: loop, speed: speed, targetSize: targetSize)
         }
 
-        let localPath = trimmed.hasPrefix("file://")
-            ? (URL(string: trimmed)?.path ?? trimmed)
-            : trimmed
-        if localPath.lowercased().hasSuffix(".svg"),
-           let svgStr = try? String(contentsOfFile: localPath, encoding: .utf8) {
+        let resolvedURL = resolveFileURL(for: trimmed)
+        if let resolvedURL, resolvedURL.pathExtension.lowercased() == "svg",
+           let svgStr = try? String(contentsOf: resolvedURL, encoding: .utf8) {
             return rasterizeSVG(svgStr, targetSize: targetSize)
         }
 
-        let decoder = resolveLocalDecoder(key: trimmed, fileURL: URL(fileURLWithPath: localPath))
-        let time = CMTime(seconds: max(0.0, localTime), preferredTimescale: 600)
-        return decoder?.frame(at: time, loopMode: loop ? .loop : .playOnce, speed: speed)
+        if let resolvedURL, let decoder = resolveLocalDecoder(key: trimmed, fileURL: resolvedURL) {
+            let time = CMTime(seconds: max(0.0, localTime), preferredTimescale: 600)
+            return decoder.frame(at: time, loopMode: loop ? .loop : .playOnce, speed: speed)
+        }
+        return nil
+    }
+
+    private func resolveFileURL(for path: String) -> URL? {
+        let p = path.hasPrefix("file://") ? (URL(string: path)?.path ?? path) : path
+        if FileManager.default.fileExists(atPath: p) { return URL(fileURLWithPath: p) }
+        let fm = FileManager.default
+        if let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            let c = base.appendingPathComponent("VideoEditor/Stickers").appendingPathComponent(p)
+            if fm.fileExists(atPath: c.path) { return c }
+        }
+        if let base = fm.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            let c = base.appendingPathComponent("VideoEditorRemoteAssets").appendingPathComponent(p)
+            if fm.fileExists(atPath: c.path) { return c }
+        }
+        return nil
     }
 
     private func frameForRemoteURL(

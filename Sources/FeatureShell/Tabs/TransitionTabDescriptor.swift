@@ -9,16 +9,18 @@ public struct TransitionTabDescriptor: TabDescriptor {
     public let isSoon: Bool = false
     public let order: Int = 60
 
-    private let timelineViewModel: TimelineViewModel?
+    private let viewModel: TransitionLibraryViewModel
 
+    @MainActor
     public init(timelineViewModel: TimelineViewModel? = nil) {
-        self.timelineViewModel = timelineViewModel
+        self.viewModel = TransitionLibraryViewModel(timelineViewModel: timelineViewModel)
     }
 
+    @MainActor
     public func makeSidebarView() -> AnyView {
         AnyView(
             TransitionLibraryView(
-                viewModel: TransitionLibraryViewModel(timelineViewModel: timelineViewModel)
+                viewModel: viewModel
             )
         )
     }

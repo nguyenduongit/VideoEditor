@@ -134,6 +134,9 @@ struct VideoEditorApp: App {
         let stickerRepo = SupabaseStickerPresetRepository(templateLoader: dependencies.stickerTemplates)
         let transitionRepo = SupabaseTransitionPresetRepository(templateLoader: dependencies.transitionTemplates)
         let actionRepo = SupabaseActionRepository()
+        let audioRepo = SupabaseAudioPresetRepository()
+        let stockRepo = SupabaseStockMediaRepository()
+        let favRepo = SupabaseFavoriteRepository()
 
         dependencies.presetRepositories.adjustmentRepository = adjustmentRepo
         dependencies.presetRepositories.textRepository = textRepo
@@ -141,13 +144,18 @@ struct VideoEditorApp: App {
         dependencies.presetRepositories.effectRepository = effectRepo
         dependencies.presetRepositories.stickerRepository = stickerRepo
         dependencies.presetRepositories.transitionRepository = transitionRepo
+        dependencies.presetRepositories.audioRepository = audioRepo
+        dependencies.presetRepositories.stockMediaRepository = stockRepo
+        dependencies.presetRepositories.favoriteRepository = favRepo
         dependencies.actionRepositories.actionRepository = actionRepo
+
+        SidebarFavoriteManager.shared.configure(repository: favRepo)
 
         Task {
             await prefetchPresetsSafely(
                 adjustmentRepo: adjustmentRepo, textRepo: textRepo, animationRepo: animationRepo,
                 effectRepo: effectRepo, stickerRepo: stickerRepo, transitionRepo: transitionRepo,
-                actionRepo: actionRepo
+                actionRepo: actionRepo, audioRepo: audioRepo, stockRepo: stockRepo
             )
         }
     }
@@ -159,7 +167,9 @@ struct VideoEditorApp: App {
         effectRepo: SupabaseEffectPresetRepository,
         stickerRepo: SupabaseStickerPresetRepository,
         transitionRepo: SupabaseTransitionPresetRepository,
-        actionRepo: SupabaseActionRepository
+        actionRepo: SupabaseActionRepository,
+        audioRepo: SupabaseAudioPresetRepository,
+        stockRepo: SupabaseStockMediaRepository
     ) async {
         do { _ = try await adjustmentRepo.fetchPresets() } catch { logger.warning("Prefetch adjustment_presets lỗi: \(error.localizedDescription)") }
         do { _ = try await textRepo.fetchPresets() } catch { logger.warning("Prefetch text_presets lỗi: \(error.localizedDescription)") }
@@ -168,6 +178,8 @@ struct VideoEditorApp: App {
         do { _ = try await stickerRepo.fetchPresets() } catch { logger.warning("Prefetch sticker_presets lỗi: \(error.localizedDescription)") }
         do { _ = try await transitionRepo.fetchPresets() } catch { logger.warning("Prefetch transition_presets lỗi: \(error.localizedDescription)") }
         do { _ = try await actionRepo.fetchActions() } catch { logger.warning("Prefetch actions lỗi: \(error.localizedDescription)") }
+        do { _ = try await audioRepo.fetchPresets() } catch { logger.warning("Prefetch audio_presets lỗi: \(error.localizedDescription)") }
+        do { _ = try await stockRepo.fetchStockItems() } catch { logger.warning("Prefetch stock_media lỗi: \(error.localizedDescription)") }
     }
 
     private static func bindCrossModuleCallbacks(
@@ -204,6 +216,11 @@ struct VideoEditorApp: App {
         timelineViewModel.onClipsRestored = { [weak mediaViewModel] restoredClips in
             mediaViewModel?.restoreAssetsForClips(restoredClips)
         }
+        timelineViewModel.onAssetsAdded = { [weak mediaViewModel] addedAssets in
+            for asset in addedAssets {
+                mediaViewModel?.registerAssetIfNeeded(asset)
+            }
+        }
     }
 
     private static func registerAllTabs(
@@ -211,7 +228,7 @@ struct VideoEditorApp: App {
         mediaViewModel: MediaLibraryViewModel,
         timelineViewModel: TimelineViewModel
     ) {
-        registry.register(MediaTabDescriptor(mediaViewModel: mediaViewModel))
+        registry.register(MediaTabDescriptor(mediaViewModel: mediaViewModel, dependencies: timelineViewModel.dependencies))
         registry.register(AudioTabDescriptor(timelineViewModel: timelineViewModel))
         registry.register(AdjustmentTabDescriptor(timelineViewModel: timelineViewModel))
         registry.register(TextTabDescriptor(timelineViewModel: timelineViewModel))

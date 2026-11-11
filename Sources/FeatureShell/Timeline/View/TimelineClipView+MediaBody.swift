@@ -6,7 +6,7 @@ import DesignSystem
 extension TimelineClipView {
     @ViewBuilder
     func clipMediaBody(width: CGFloat) -> some View {
-        let bodyH = max(10, height - 22)
+        let bodyH = max(10, height - DSSize.clipHeaderHeight)
         let activeSrc = activeSourceStartTime
         if clip.kind.presentation.hasFilmstrip {
             VideoThumbnailFilmstripView(

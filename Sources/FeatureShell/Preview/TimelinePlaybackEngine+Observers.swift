@@ -13,6 +13,13 @@ extension TimelinePlaybackEngine {
                     self.player.play()
                 }
                 guard self.player.rate != 0 else { return }
+                if let range = self.loopRange, range.duration > .zero {
+                    if time >= range.end {
+                        self.seek(to: range.start)
+                        self.onTimeUpdate?(range.start)
+                        return
+                    }
+                }
                 self.onTimeUpdate?(time)
             }
         }
@@ -23,6 +30,10 @@ extension TimelinePlaybackEngine {
             Task { @MainActor [weak self] in
                 guard let self, self.isPlaybackActive, !self.isSeeking, !self.isResyncingComposition else { return }
                 if player.rate == 0 && player.timeControlStatus == .paused {
+                    if let range = self.loopRange, range.duration > .zero {
+                        self.seek(to: range.start)
+                        self.onTimeUpdate?(range.start)
+                    }
                     self.player.play()
                 }
             }
@@ -31,6 +42,24 @@ extension TimelinePlaybackEngine {
             Task { @MainActor [weak self] in
                 guard let self, self.isPlaybackActive, !self.isSeeking, !self.isResyncingComposition else { return }
                 if player.timeControlStatus == .paused {
+                    if let range = self.loopRange, range.duration > .zero {
+                        self.seek(to: range.start)
+                        self.onTimeUpdate?(range.start)
+                    }
+                    self.player.play()
+                }
+            }
+        }
+        endObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.isPlaybackActive else { return }
+                if let range = self.loopRange, range.duration > .zero {
+                    self.seek(to: range.start)
+                    self.onTimeUpdate?(range.start)
                     self.player.play()
                 }
             }
@@ -41,6 +70,10 @@ extension TimelinePlaybackEngine {
         if let timeObserver {
             player.removeTimeObserver(timeObserver)
             self.timeObserver = nil
+        }
+        if let endObserver {
+            NotificationCenter.default.removeObserver(endObserver)
+            self.endObserver = nil
         }
         statusObserver?.invalidate()
         statusObserver = nil

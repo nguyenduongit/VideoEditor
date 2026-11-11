@@ -130,7 +130,7 @@ struct TextIntegrationTests {
     @Test func testInspectorTabsForTextClip() {
         let registry = ClipPropertyRegistry()
         let tabs = registry.tabs(for: .text)
-        #expect(tabs == ["Text", "Color", "Background", "Animation"])
+        #expect(tabs == ["Text", "Appearance", "Background", "Animation"])
 
         let timelineVM = TimelineViewModel(initialLayers: [])
         timelineVM.addTextClip(named: "Tiêu đề", config: TextConfiguration(content: "Tiêu đề"))
@@ -144,7 +144,7 @@ struct TextIntegrationTests {
         inspectorVM.syncWithSelection()
 
         #expect(inspectorVM.selectedClip?.id == clip.id)
-        #expect(inspectorVM.availableTabs == ["Text", "Color", "Background", "Animation"])
+        #expect(inspectorVM.availableTabs == ["Text", "Appearance", "Background", "Animation"])
         #expect(inspectorVM.effectiveTab == "Text")
     }
 
@@ -271,5 +271,231 @@ struct TextIntegrationTests {
 
         let isMatched = swatches.contains { TextColorSwatchesRow.isColorMatching(swatchHex: $0, selectedHex: "#FFF1B8") }
         #expect(!isMatched)
+    }
+
+    @Test func testFourPillarsPropertiesAndSerialization() {
+        var cfg = TextConfiguration(content: "Architecture 4 Pillars")
+        cfg.skewX = 15.0
+        cfg.skewY = -8.0
+        cfg.blurRadius = 6.0
+        cfg.glitchIntensity = 45.0
+        cfg.noiseIntensity = 20.0
+        cfg.innerStroke.width = 3.0
+        cfg.outerStroke.width = 6.0
+
+        guard let json = cfg.encodeToJSON(),
+              let decoded = TextConfiguration.decode(from: json) else {
+            Issue.record("Failed to serialize or deserialize 4 pillars TextConfiguration")
+            return
+        }
+
+        #expect(decoded.skewX == 15.0)
+        #expect(decoded.skewY == -8.0)
+        #expect(decoded.blurRadius == 6.0)
+        #expect(decoded.glitchIntensity == 45.0)
+        #expect(decoded.noiseIntensity == 20.0)
+        #expect(decoded.innerStroke.width == 3.0)
+        #expect(decoded.outerStroke.width == 6.0)
+    }
+
+    @Test func testScriptDrivenContinuousAnimationEvaluation() {
+        let registry = TextAnimationScriptRegistry.shared
+        #expect(TextAnimationCategory.allCases == [.fade, .slide, .pop, .wave, .glitch, .typewriter])
+        #expect(TextTemplateCategory.assignableCases == [.title, .sub, .music])
+        #expect(registry.scripts.count == 19)
+        #expect(registry.scripts(in: .wave).count == 4)
+        #expect(registry.scripts(in: .fade).count == 3)
+        #expect(registry.scripts(in: .slide).count == 3)
+        #expect(registry.scripts(in: .pop).count == 3)
+        #expect(registry.scripts(in: .glitch).count == 3)
+        #expect(registry.scripts(in: .typewriter).count == 3)
+        #expect(registry.script(for: "wave_cascade_flow") != nil)
+
+        guard let titleWave = registry.script(for: "title_wave_float") else {
+            Issue.record("Missing title_wave_float script")
+            return
+        }
+        #expect(titleWave.category == .wave)
+        #expect(titleWave.tag == .wave)
+        #expect(titleWave.defaultInDuration == 1.0)
+        #expect(titleWave.defaultLoopDuration == 3.0)
+        #expect(titleWave.defaultOutDuration == 1.0)
+        #expect(titleWave.defaultDuration == 5.0)
+        #expect(titleWave.loopCycleDuration == 1.0)
+
+        let baseCfg = TextConfiguration(content: "TITLE")
+        for idx in 0..<5 {
+            let endIn = titleWave.evaluatePhase(base: baseCfg, phase: .intro(progress: 1.0), unitIndex: idx, unitTotal: 5)
+            let startLoop = titleWave.evaluatePhase(base: baseCfg, phase: .loop(time: 0.0, cycleProgress: 0.0), unitIndex: idx, unitTotal: 5)
+            let endLoop = titleWave.evaluatePhase(base: baseCfg, phase: .loop(time: 3.0, cycleProgress: 1.0), unitIndex: idx, unitTotal: 5)
+            let startOut = titleWave.evaluatePhase(base: baseCfg, phase: .outro(progress: 0.0), unitIndex: idx, unitTotal: 5)
+
+            #expect(abs(endIn.offsetX - startLoop.offsetX) < 1e-9)
+            #expect(abs(endIn.offsetY - startLoop.offsetY) < 1e-9)
+            #expect(abs(endIn.scaleX - startLoop.scaleX) < 1e-9)
+            #expect(abs(endIn.scaleY - startLoop.scaleY) < 1e-9)
+            #expect(abs(endIn.rotation - startLoop.rotation) < 1e-9)
+            #expect(abs(endIn.opacity - startLoop.opacity) < 1e-9)
+
+            #expect(abs(startLoop.offsetY - endLoop.offsetY) < 1e-9)
+            #expect(abs(endLoop.offsetX - startOut.offsetX) < 1e-9)
+            #expect(abs(endLoop.offsetY - startOut.offsetY) < 1e-9)
+            #expect(abs(endLoop.scaleX - startOut.scaleX) < 1e-9)
+            #expect(abs(endLoop.scaleY - startOut.scaleY) < 1e-9)
+            #expect(abs(endLoop.rotation - startOut.rotation) < 1e-9)
+            #expect(abs(endLoop.opacity - startOut.opacity) < 1e-9)
+        }
+
+        guard let neonScript = registry.script(for: "neon_color_shift") else {
+            Issue.record("Missing neon_color_shift script")
+            return
+        }
+
+        #expect(neonScript.scope == .perCharacter)
+        var cfg = TextConfiguration(content: "HELLO")
+        cfg.textColorHex = "#38BDF8"
+        cfg.innerStroke = TextStrokeStyle(isEnabled: true, width: 3.0, colorHex: "#0F172A")
+        cfg.animation.scriptId = "neon_color_shift"
+        cfg.animation.scriptDuration = 2.0
+        #expect(cfg.animation.hasScriptAnimation)
+
+        // Evaluate at mid-progress: User Fill & Stroke must be 100% preserved without color clash
+        let evalMid = TextAnimationEvaluator.evaluate(
+            config: cfg,
+            localTime: 1.0,
+            duration: 2.0,
+            canvasSize: CGSize(width: 1920, height: 1080),
+            charIndex: 0,
+            charCount: 5
+        )
+
+        #expect(evalMid.config.textColorHex == "#38BDF8")
+        #expect(evalMid.config.innerStroke.width == 3.0)
+        #expect(evalMid.config.innerStroke.colorHex == "#0F172A")
+        #expect(evalMid.config.opacity > 0.5)
+
+        // Verify the 4 new rendering primitives across themes
+        var hingeCfg = cfg
+        hingeCfg.animation.scriptId = "pop_up_hinge_3d"
+        let hingeEval = TextAnimationEvaluator.evaluate(
+            config: hingeCfg, localTime: 0.35, duration: 5.0, canvasSize: CGSize(width: 1280, height: 720), charIndex: 0, charCount: 5
+        )
+        #expect(hingeEval.config.animation.anchorPoint == .bottom)
+
+        var whipCfg = cfg
+        whipCfg.animation.scriptId = "whip_echo_slam"
+        let whipEval = TextAnimationEvaluator.evaluate(
+            config: whipCfg, localTime: 0.35, duration: 5.0, canvasSize: CGSize(width: 1280, height: 720), charIndex: 0, charCount: 2
+        )
+        #expect(whipEval.overlay.echoCount == 2)
+
+        var trailerCfg = cfg
+        trailerCfg.animation.scriptId = "trailer_tracking_expand"
+        let trailerEval = TextAnimationEvaluator.evaluate(
+            config: trailerCfg, localTime: 0.35, duration: 5.0, canvasSize: CGSize(width: 1280, height: 720), charIndex: 0, charCount: 5
+        )
+        #expect(trailerEval.overlay.trackingEmDelta > 0.05)
+
+        var curtainCfg = cfg
+        curtainCfg.animation.scriptId = "curtain_baseline_rise"
+        let curtainEval = TextAnimationEvaluator.evaluate(
+            config: curtainCfg, localTime: 0.35, duration: 5.0, canvasSize: CGSize(width: 1280, height: 720), charIndex: 0, charCount: 2
+        )
+        #expect(curtainEval.overlay.clipRevealY > 0.0 && curtainEval.overlay.clipRevealY < 1.0)
+
+        // Render with TextRendererEngine at 60fps
+        let engine = TextRendererEngine()
+        let frameImg = engine.renderAnimatedImage(
+            for: curtainCfg,
+            localTime: 0.35,
+            duration: 5.0,
+            canvasSize: CGSize(width: 1280, height: 720)
+        )
+        #expect(frameImg != nil)
+    }
+
+    @Test func testScriptThreePhaseTransitionsAndDurations() {
+        var cfg = TextConfiguration(content: "UNIFIED")
+        cfg.animation.scriptId = "neon_color_shift"
+        cfg.animation.scriptInDuration = 1.0
+        cfg.animation.scriptLoopDuration = 3.0
+        cfg.animation.scriptOutDuration = 1.0
+        cfg.animation.scriptDuration = 5.0
+
+        guard let json = cfg.encodeToJSON(),
+              let decoded = TextConfiguration.decode(from: json) else {
+            Issue.record("Failed to serialize 3-phase animation durations")
+            return
+        }
+
+        #expect(decoded.animation.scriptInDuration == 1.0)
+        #expect(decoded.animation.scriptLoopDuration == 3.0)
+        #expect(decoded.animation.scriptOutDuration == 1.0)
+
+        var scaledCfg = cfg
+        scaledCfg.animation.scriptId = "title_wave_float"
+        scaledCfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: 3, speed: 1.2)
+        #expect(scaledCfg.animation.scriptBaseLoopSeconds == 3)
+        #expect(abs(scaledCfg.animation.scriptInDuration - 1.2) < 1e-6)
+        #expect(abs(scaledCfg.animation.scriptLoopDuration - 3.6) < 1e-6)
+        #expect(abs(scaledCfg.animation.scriptOutDuration - 1.2) < 1e-6)
+        #expect(abs(scaledCfg.animation.scriptDuration - 6.0) < 1e-6)
+
+        let canvas = CGSize(width: 1920, height: 1080)
+        // Intro phase
+        let evalIntro = TextAnimationEvaluator.evaluate(config: cfg, localTime: 0.5, duration: 5.0, canvasSize: canvas)
+        #expect(evalIntro.config.opacity > 0.0)
+
+        // Loop phase (at boundary t = 1.0)
+        let evalLoopStart = TextAnimationEvaluator.evaluate(config: cfg, localTime: 1.0, duration: 5.0, canvasSize: canvas)
+        #expect(evalLoopStart.config.opacity == 1.0)
+
+        // Outro phase (at t = 4.5)
+        let evalOutro = TextAnimationEvaluator.evaluate(config: cfg, localTime: 4.5, duration: 5.0, canvasSize: canvas)
+        #expect(evalOutro.config.opacity <= 1.0)
+    }
+
+    @Test func testVideoReferencedThreeScriptAnimationsAndBasicDefaultPreset() {
+        let registry = TextAnimationScriptRegistry.shared
+        #expect(registry.script(for: "typewriter_cursor") != nil)
+        #expect(registry.script(for: "kinetic_drop_glow") != nil)
+        #expect(registry.script(for: "curved_arc_roller") != nil)
+
+        // Basic preset is hardcoded local and cannot be modified
+        let loader = TextTemplateLoader()
+        let templates = loader.loadAllTemplates()
+        #expect(templates.first?.id == "default")
+        #expect(templates.first?.isSystem == true)
+        #expect(templates.first?.canBeModified(by: "any-user") == false)
+
+        // Evaluate Video Sample 1: Typewriter Cursor
+        var cfg1 = TextConfiguration(content: "Form Space")
+        cfg1.animation.scriptId = "typewriter_cursor"
+        let eval1Active = TextAnimationEvaluator.evaluate(config: cfg1, localTime: 0.22, duration: 5.0, canvasSize: CGSize(width: 720, height: 720), charIndex: 2, charCount: 9)
+        #expect(eval1Active.overlay.trailingCursorOpacity == 1.0)
+        let eval1 = TextAnimationEvaluator.evaluate(config: cfg1, localTime: 1.0, duration: 5.0, canvasSize: CGSize(width: 720, height: 720), charIndex: 0, charCount: 10)
+        #expect(eval1.config.opacity == 1.0)
+
+        // Evaluate Video Sample 2: Kinetic Drop Glow (Arc Toss + Cascade Drop preserves User Fill & Stroke)
+        var cfg2 = TextConfiguration(content: "Text")
+        cfg2.textColorHex = "#F59E0B"
+        cfg2.innerStroke = TextStrokeStyle(isEnabled: true, width: 2.5, colorHex: "#B45309")
+        cfg2.animation.scriptId = "kinetic_drop_glow"
+        let eval2Toss = TextAnimationEvaluator.evaluate(config: cfg2, localTime: 0.35, duration: 5.0, canvasSize: CGSize(width: 720, height: 720), charIndex: 2, charCount: 4)
+        #expect(eval2Toss.config.positionY < -20.0)
+        #expect(abs(eval2Toss.config.rotation) > 1.0)
+        let eval2 = TextAnimationEvaluator.evaluate(config: cfg2, localTime: 0.8, duration: 5.0, canvasSize: CGSize(width: 720, height: 720), charIndex: 0, charCount: 4)
+        #expect(eval2.config.textColorHex == "#F59E0B")
+        #expect(eval2.config.innerStroke.width == 2.5)
+        #expect(eval2.config.innerStroke.colorHex == "#B45309")
+
+        // Evaluate Video Sample 3: Curved Wave Path Roller ("hello, june")
+        var cfg3 = TextConfiguration(content: "hello, june")
+        cfg3.animation.scriptId = "curved_arc_roller"
+        let eval3Left = TextAnimationEvaluator.evaluate(config: cfg3, localTime: 1.2, duration: 5.0, canvasSize: CGSize(width: 720, height: 720), charIndex: 1, charCount: 10)
+        let eval3Right = TextAnimationEvaluator.evaluate(config: cfg3, localTime: 1.2, duration: 5.0, canvasSize: CGSize(width: 720, height: 720), charIndex: 8, charCount: 10)
+        #expect(eval3Left.config.opacity > 0.0)
+        #expect(eval3Left.config.positionY != eval3Right.config.positionY)
+        #expect(abs(eval3Left.config.rotation) > 0.5 || abs(eval3Right.config.rotation) > 0.5)
     }
 }

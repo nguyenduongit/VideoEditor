@@ -79,11 +79,11 @@ struct TimelineViewModelTests {
 
     @Test @MainActor func testLayerHeights() {
         let vm = TimelineViewModel()
-        #expect(vm.layerHeight(for: .video) == 80.0)
-        #expect(vm.layerHeight(for: .audio) == 60.0)
-        #expect(vm.layerHeight(for: .image) == 60.0)
-        #expect(vm.layerHeight(for: .text) == 30.0)
-        #expect(vm.layerHeight(for: .adjustment) == 30.0)
+        #expect(vm.layerHeight(for: .video) == ClipKind.video.presentation.defaultLayerHeight)
+        #expect(vm.layerHeight(for: .audio) == ClipKind.audio.presentation.defaultLayerHeight)
+        #expect(vm.layerHeight(for: .image) == ClipKind.image.presentation.defaultLayerHeight)
+        #expect(vm.layerHeight(for: .text) == ClipKind.text.presentation.defaultLayerHeight)
+        #expect(vm.layerHeight(for: .adjustment) == ClipKind.adjustment.presentation.defaultLayerHeight)
     }
 
     @Test @MainActor func testBottomUpLayerOrdering() {

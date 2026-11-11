@@ -145,7 +145,8 @@ extension TextAdvancedStyleRenderer {
             text: tokenText,
             font: font,
             config: config,
-            curveOverride: TextCurveStyle(shape: .none)
+            curveOverride: TextCurveStyle(shape: .none),
+            preserveBaseline: true
         )
         drawStyledVectorGlyphPath(layout.combinedPath, pathBounds: layout.bounds, config: config, in: context)
         TextCurvedPathBuilder.drawEmojiFallbacks(layout.emojiGlyphs, in: context)

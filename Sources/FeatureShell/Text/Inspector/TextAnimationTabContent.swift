@@ -2,17 +2,14 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Tab `"Animation"` cho Text Clip, kết nối Kho Thư Viện Animation Sáng Tạo Mở (`AnimationPreset` + Supabase)
-/// hỗ trợ 3 pha: Vào (`In`), Ra (`Out`), và Vòng lặp (`Loop`) kèm thanh trượt thông số động.
+/// Tab `"Animation"` cho Text Clip:
+/// Hiển thị danh mục các Kịch Bản Hoạt Ảnh đóng gói sẵn do Dev thiết kế (Script-Driven Animation),
+/// can thiệp sâu vào Transform, Typography, Appearance, Effects và chạy xuyên suốt thời lượng.
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
 public struct TextAnimationTabContent: View {
     @Bindable private var viewModel: InspectorViewModel
-    @State private var selectedSubTab: AnimationSubTab = .inAnimation
-    @State private var inPresets: [AnimationPreset] = AnimationPreset.inCatalog
-    @State private var outPresets: [AnimationPreset] = AnimationPreset.outCatalog
-    @State private var loopPresets: [AnimationPreset] = AnimationPreset.loopCatalog
 
-    public enum AnimationSubTab: String, CaseIterable {
+    public enum AnimationSubTab: String, CaseIterable, Sendable {
         case inAnimation = "In"
         case loopAnimation = "Loop"
         case outAnimation = "Out"
@@ -24,60 +21,122 @@ public struct TextAnimationTabContent: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.none) {
-            subTabBar
-                .padding(.horizontal, DSSpacing.md)
-                .padding(.top, DSSpacing.sm)
-                .padding(.bottom, DSSpacing.xs)
-
-            TextAnimationCardsGrid(
-                selectedSubTab: selectedSubTab,
-                config: currentConfig,
-                inPresets: inPresets,
-                outPresets: outPresets,
-                loopPresets: loopPresets,
-                onSelectInPreset: { updateInPreset($0) },
-                onSelectOutPreset: { updateOutPreset($0) },
-                onSelectLoopPreset: { updateLoopPreset($0) }
+            TextScriptAnimationCardsGrid(
+                selectedScriptId: currentConfig.animation.scriptId,
+                onSelectScript: selectScript,
+                onClearScript: clearScript
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            if hasActiveAnimationForCurrentSubTab {
+            if currentConfig.animation.hasScriptAnimation {
                 Divider()
                     .background(DSColors.blockBorder)
 
-                TextAnimationSlidersView(
-                    selectedSubTab: selectedSubTab,
-                    config: Binding(get: { currentConfig }, set: { _ in }),
-                    clipDuration: selectedClipDuration,
-                    onCommit: commitConfig,
-                    onUpdateLive: { updateConfig($0, commit: false) },
-                    onEditingEnded: onSliderEditingEnded
-                )
-                .padding(.horizontal, DSSpacing.md)
-                .padding(.vertical, DSSpacing.xs)
-                .background(DSColors.blockBackground)
+                animationBottomBar
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DSColors.blockBackground)
-        .task {
-            reloadFromTemplateLoader()
-            if !viewModel.dependencies.animationTemplates.hasSyncedFromRemote,
-               let repo = viewModel.dependencies.presetRepositories.animationRepository,
-               let _ = try? await repo.fetchPresets() {
-                reloadFromTemplateLoader()
+    }
+
+    @ViewBuilder
+    private var animationBottomBar: some View {
+        let padding: CGFloat = DSSpacing.md
+        let anim = currentConfig.animation
+        VStack(alignment: .leading, spacing: DSSpacing.xs) {
+            HStack(spacing: padding) {
+                DSNumberInput(
+                    value: baseLoopSecondsBinding,
+                    step: 1.0,
+                    min: 1.0,
+                    max: 20.0,
+                    unit: "s",
+                    prefix: "Loop:",
+                    fractionDigits: 0,
+                    isFlexibleWidth: true,
+                    onEditingChanged: onSliderEditingEnded
+                )
+                .frame(maxWidth: .infinity)
+
+                DSNumberInput(
+                    value: scriptSpeedBinding,
+                    step: 0.1,
+                    min: 0.2,
+                    max: 4.0,
+                    unit: "x",
+                    prefix: "Time Scale:",
+                    fractionDigits: 1,
+                    isFlexibleWidth: true,
+                    onEditingChanged: onSliderEditingEnded
+                )
+                .frame(maxWidth: .infinity)
             }
+
+            HStack(spacing: DSSpacing.sm) {
+                Text("In: \(formatSeconds(anim.scriptInDuration))s")
+                Text("•")
+                Text("Loop: \(formatSeconds(anim.scriptLoopDuration))s")
+                Text("•")
+                Text("Out: \(formatSeconds(anim.scriptOutDuration))s")
+                Spacer()
+                Text("Total: \(formatSeconds(anim.scriptDuration))s")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(DSColors.toggleCyan)
+            }
+            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+            .foregroundStyle(DSColors.textSecondary)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .presetStoreDidUpdate)) { _ in
-            reloadFromTemplateLoader()
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, padding)
+        .padding(.vertical, DSSpacing.sm)
+        .background(DSColors.blockBackground)
+    }
+
+    private var baseLoopSecondsBinding: Binding<Double> {
+        Binding(
+            get: { Double(currentConfig.animation.scriptBaseLoopSeconds) },
+            set: { val in
+                var cfg = currentConfig
+                let steps = max(1, min(20, Int(val.rounded())))
+                cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: steps, speed: cfg.animation.scriptSpeed)
+                updateConfig(cfg, commit: false)
+            }
+        )
+    }
+
+    private var scriptSpeedBinding: Binding<Double> {
+        Binding(
+            get: { currentConfig.animation.scriptSpeed },
+            set: { val in
+                var cfg = currentConfig
+                let steps = cfg.animation.scriptBaseLoopSeconds
+                cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: steps, speed: val)
+                updateConfig(cfg, commit: false)
+            }
+        )
+    }
+
+    private func formatSeconds(_ value: Double) -> String {
+        String(format: "%.1f", value)
+    }
+
+    private func selectScript(_ script: any TextAnimationScript) {
+        var cfg = currentConfig
+        cfg.animation.scriptId = script.id
+        let baseSteps = max(1, Int(script.defaultLoopDuration.rounded()))
+        cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: baseSteps, speed: 1.0)
+        updateConfig(cfg, commit: true)
+
+        if let clip = viewModel.selectedClip, clip.timeRange.duration > .zero {
+            viewModel.timelineViewModel?.onLoopRangeRequested?(clip.timeRange)
         }
     }
 
-    private func reloadFromTemplateLoader() {
-        let loader = viewModel.dependencies.animationTemplates
-        inPresets = loader.loadTemplates(for: .inAnimation)
-        outPresets = loader.loadTemplates(for: .outAnimation)
-        loopPresets = loader.loadTemplates(for: .loopAnimation)
+    private func clearScript() {
+        var cfg = currentConfig
+        cfg.animation.scriptId = "none"
+        updateConfig(cfg, commit: true)
+        viewModel.timelineViewModel?.onStopPlaybackRequested?()
     }
 
     private var selectedClipDuration: Double {
@@ -88,116 +147,20 @@ public struct TextAnimationTabContent: View {
         return 3.0
     }
 
-    private var hasActiveAnimationForCurrentSubTab: Bool {
-        currentConfig.animation.hasInAnimation
-            || currentConfig.animation.hasOutAnimation
-            || currentConfig.animation.hasLoopAnimation
-    }
-
-    private func hasAnimation(for tab: AnimationSubTab) -> Bool {
-        switch tab {
-        case .inAnimation:
-            return currentConfig.animation.hasInAnimation
-        case .outAnimation:
-            return currentConfig.animation.hasOutAnimation
-        case .loopAnimation:
-            return currentConfig.animation.hasLoopAnimation
-        }
-    }
-
-    private var subTabBar: some View {
-        HStack(spacing: 2) {
-            ForEach(AnimationSubTab.allCases, id: \.self) { tab in
-                let isSelected = selectedSubTab == tab
-                Button(action: { selectedSubTab = tab }) {
-                    HStack(spacing: 4) {
-                        Text(tab.rawValue)
-                            .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
-                            .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
-                        if hasAnimation(for: tab) {
-                            Circle()
-                                .fill(DSColors.toggleCyan)
-                                .frame(width: 5, height: 5)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 5)
-                    .background(isSelected ? DSColors.windowBackground : Color.clear)
-                    .contentShape(RoundedRectangle(cornerRadius: 5))
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-                }
-                .buttonStyle(.plain)
-                .contentShape(RoundedRectangle(cornerRadius: 5))
-            }
-        }
-        .padding(2)
-        .background(DSColors.inputBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-    }
-
     private var currentConfig: TextConfiguration {
         viewModel.textConfiguration
     }
 
-    private func updateInPreset(_ preset: AnimationPreset?) {
-        var cfg = currentConfig
-        cfg.animation.inType = .none
-        if let preset {
-            if cfg.animation.inManifest?.id == preset.manifest.id {
-                cfg.animation.inManifest = nil
-            } else {
-                cfg.animation.inManifest = preset.manifest
-                cfg.animation.scope = preset.manifest.defaultScope
-                cfg.animation.staggerDirection = preset.manifest.defaultStaggerDirection
-                if cfg.animation.inDuration <= 0.05 { cfg.animation.inDuration = 1.0 }
+    private func updateConfig(_ config: TextConfiguration, commit: Bool) {
+        viewModel.updateTextConfiguration(config, commit: commit)
+    }
+
+    private func onSliderEditingEnded(isEditing: Bool) {
+        if !isEditing {
+            viewModel.updateTextConfiguration(currentConfig, commit: true)
+            if let clip = viewModel.selectedClip, clip.timeRange.duration > .zero {
+                viewModel.timelineViewModel?.onLoopRangeRequested?(clip.timeRange)
             }
-        } else {
-            cfg.animation.inManifest = nil
         }
-        commitConfig(cfg)
-    }
-
-    private func updateOutPreset(_ preset: AnimationPreset?) {
-        var cfg = currentConfig
-        cfg.animation.outType = .none
-        if let preset {
-            if cfg.animation.outManifest?.id == preset.manifest.id {
-                cfg.animation.outManifest = nil
-            } else {
-                cfg.animation.outManifest = preset.manifest
-                if cfg.animation.outDuration <= 0.05 { cfg.animation.outDuration = 1.0 }
-            }
-        } else {
-            cfg.animation.outManifest = nil
-        }
-        commitConfig(cfg)
-    }
-
-    private func updateLoopPreset(_ preset: AnimationPreset?) {
-        var cfg = currentConfig
-        cfg.animation.loopType = .none
-        if let preset {
-            if cfg.animation.loopManifest?.id == preset.manifest.id {
-                cfg.animation.loopManifest = nil
-            } else {
-                cfg.animation.loopManifest = preset.manifest
-            }
-        } else {
-            cfg.animation.loopManifest = nil
-        }
-        commitConfig(cfg)
-    }
-
-    private func updateConfig(_ cfg: TextConfiguration, commit: Bool) {
-        viewModel.updateTextConfiguration(cfg, commit: commit)
-    }
-
-    private func commitConfig(_ cfg: TextConfiguration) {
-        updateConfig(cfg, commit: true)
-    }
-
-    private func onSliderEditingEnded(_ editing: Bool) {
-        let key = viewModel.selectedClip?.kind == .sticker ? "stickerConfig" : "textConfig"
-        viewModel.onSliderEditingChanged(key: key, isEditing: editing)
     }
 }

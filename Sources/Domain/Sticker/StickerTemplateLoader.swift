@@ -20,11 +20,11 @@ public final class StickerTemplateLoader: @unchecked Sendable {
         defer { lock.unlock() }
         _hasSyncedFromRemote = true
         var mergedByID: [String: StickerPreset] = [:]
-        for sys in StickerPreset.builtInCatalog {
-            mergedByID[sys.id] = sys
-        }
         for remote in presets {
             mergedByID[remote.id] = remote
+        }
+        for sys in StickerPreset.builtInCatalog {
+            mergedByID[sys.id] = sys
         }
         let orderedIDs = StickerPreset.builtInCatalog.map(\.id)
             + presets.map(\.id).filter { id in !StickerPreset.builtInCatalog.contains(where: { $0.id == id }) }

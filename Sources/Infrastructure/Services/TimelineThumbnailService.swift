@@ -2,6 +2,7 @@ import Foundation
 import AVFoundation
 import AppKit
 import CoreMedia
+import ImageIO
 import Domain
 
 public actor TimelineThumbnailService: TimelineThumbnailServiceProtocol {
@@ -16,6 +17,27 @@ public actor TimelineThumbnailService: TimelineThumbnailServiceProtocol {
         }
 
         if Task.isCancelled { return nil }
+
+        if MediaType.from(fileExtension: url.pathExtension) == .image {
+            if let imgSource = CGImageSourceCreateWithURL(url as CFURL, nil) {
+                let maxDim = max(40.0, targetHeight * 2.0)
+                let options: [CFString: Any] = [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceShouldCacheImmediately: true,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                    kCGImageSourceThumbnailMaxPixelSize: maxDim
+                ]
+                if let cgThumb = CGImageSourceCreateThumbnailAtIndex(imgSource, 0, options as CFDictionary) {
+                    let bitmapRep = NSBitmapImageRep(cgImage: cgThumb)
+                    let data = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.75])
+                    if let data {
+                        cache[key] = data
+                    }
+                    return data
+                }
+            }
+            return nil
+        }
 
         let avAsset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: avAsset)

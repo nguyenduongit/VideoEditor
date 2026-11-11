@@ -40,10 +40,15 @@ public final class AnimatedStickerDecoder: @unchecked Sendable {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return }
         let count = CGImageSourceGetCount(source)
         var loaded: [Frame] = []
+        loaded.reserveCapacity(count)
         var total: Double = 0.0
+        let frameOptions: CFDictionary = [
+            kCGImageSourceShouldCache: true,
+            kCGImageSourceShouldCacheImmediately: true
+        ] as CFDictionary
 
         for i in 0..<count {
-            guard let cgImage = CGImageSourceCreateImageAtIndex(source, i, nil) else { continue }
+            guard let cgImage = CGImageSourceCreateImageAtIndex(source, i, frameOptions) else { continue }
             var frameDuration = 0.1
             if let properties = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [CFString: Any] {
                 if let gifDict = properties[kCGImagePropertyGIFDictionary] as? [CFString: Any] {
@@ -60,13 +65,19 @@ public final class AnimatedStickerDecoder: @unchecked Sendable {
                     }
                 }
             }
-            let duration = max(0.02, frameDuration)
+            if abs(frameDuration - (1.0 / 60.0)) < 0.0002 {
+                frameDuration = 1.0 / 60.0
+            } else if abs(frameDuration - (1.0 / 30.0)) < 0.0002 {
+                frameDuration = 1.0 / 30.0
+            }
+            let duration = max(0.008, frameDuration)
             loaded.append(Frame(image: cgImage, durationSeconds: duration))
             total += duration
         }
 
         self.frames = loaded
-        self.totalDurationSeconds = max(0.1, total)
+        let snappedTotal = (total * 60.0).rounded() / 60.0
+        self.totalDurationSeconds = max(0.05, abs(total - snappedTotal) < 0.002 ? snappedTotal : total)
     }
 
     /// Lấy khung hình CGImage tại thời điểm playbackTime trên Timeline
@@ -78,24 +89,24 @@ public final class AnimatedStickerDecoder: @unchecked Sendable {
         guard frames.count > 1 else { return frames.first?.image }
 
         let adjustedSpeed = max(0.1, speed)
-        var elapsed = time.seconds * adjustedSpeed
+        var elapsed = max(0.0, time.seconds) * adjustedSpeed
 
         if loopMode == .loop {
             elapsed = elapsed.truncatingRemainder(dividingBy: totalDurationSeconds)
-        } else {
-            if elapsed >= totalDurationSeconds {
-                return frames.last?.image
-            }
+            if elapsed < 0 { elapsed += totalDurationSeconds }
+        } else if elapsed >= totalDurationSeconds {
+            return frames.last?.image
         }
 
+        let sampleTime = elapsed + 1e-5
         var running: Double = 0.0
         for f in frames {
             running += f.durationSeconds
-            if elapsed <= running {
+            if sampleTime < running {
                 return f.image
             }
         }
-        return frames.last?.image
+        return frames.first?.image
     }
 }
 

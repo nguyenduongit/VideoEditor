@@ -1,6 +1,6 @@
 import Foundation
 
-public enum MediaType: String, Sendable, CaseIterable, Identifiable {
+public enum MediaType: String, Codable, Sendable, CaseIterable, Identifiable {
     case video
     case audio
     case image

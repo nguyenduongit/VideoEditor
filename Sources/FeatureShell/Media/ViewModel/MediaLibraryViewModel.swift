@@ -111,6 +111,16 @@ public final class MediaLibraryViewModel {
         }
     }
 
+    public func registerAssetIfNeeded(_ asset: MediaAsset) {
+        guard !assets.contains(where: { $0.url == asset.url }) else { return }
+        assets.append(asset)
+        loadThumbnail(for: asset)
+        prewarmDuration(for: asset)
+        if asset.type == .audio || asset.type == .video {
+            preloadWaveform(for: asset)
+        }
+    }
+
     public func toggleSelection(for id: UUID, isCmdPressed: Bool) {
         if isCmdPressed {
             if selectedAssetIDs.contains(id) {
@@ -150,6 +160,18 @@ public final class MediaLibraryViewModel {
         selectedAssetIDs.removeAll()
         notifyActiveAssetChange()
         onAssetsDeleted?(deletedAssets)
+    }
+
+    public func deleteAsset(_ asset: MediaAsset) {
+        deletedAssetsCache[asset.id] = asset
+        deletedAssetsHistory.append([asset])
+        redoAssetsHistory.removeAll()
+
+        assets.removeAll { $0.id == asset.id }
+        thumbnails.removeValue(forKey: asset.id)
+        selectedAssetIDs.remove(asset.id)
+        notifyActiveAssetChange()
+        onAssetsDeleted?([asset])
     }
 
     public func restoreAssets(_ restored: [MediaAsset]) {

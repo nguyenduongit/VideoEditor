@@ -1,14 +1,9 @@
 import Foundation
 
 extension AdjustmentPreset {
-    /// Bộ sưu tập 6 Gói Phối Màu Điện Ảnh 5 Tầng (5-Stage Film Emulation & Color Grading Packages) thế hệ mới
+    /// Bộ sưu tập 1 Gói Phối Màu Điện Ảnh Demo Chuẩn Hóa
     public static let creativeCatalog: [AdjustmentPreset] = [
-        kodak2383FilmPrint,
-        blockbusterTealOrange,
-        fujiEternaSoftVintage,
-        cyberpunkNeonNight,
-        tokyoPastelVlog,
-        silverHalideNoir
+        kodak2383FilmPrint
     ]
 
     public static let kodak2383FilmPrint = AdjustmentPreset(

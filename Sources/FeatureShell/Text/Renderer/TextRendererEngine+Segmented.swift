@@ -40,6 +40,11 @@ extension TextRendererEngine {
     /// Xác định xem văn bản có nên được kết xuất phân tách theo ký tự / từ hay không
     public func shouldRenderSegmented(for config: TextConfiguration) -> Bool {
         guard !config.animation.isDefault else { return false }
+        if config.animation.hasScriptAnimation {
+            if let script = TextAnimationScriptRegistry.shared.script(for: config.animation.scriptId) {
+                return script.scope != .wholeBlock
+            }
+        }
         if config.animation.scope != .wholeBlock { return true }
         return Self.isKineticTypographyAnimation(config.animation)
     }
@@ -63,7 +68,10 @@ extension TextRendererEngine {
         defer { NSGraphicsContext.restoreGraphicsState() }
 
         let effectiveScope: TextAnimationScope
-        if config.animation.scope != .wholeBlock {
+        if config.animation.hasScriptAnimation,
+           let script = TextAnimationScriptRegistry.shared.script(for: config.animation.scriptId) {
+            effectiveScope = script.scope
+        } else if config.animation.scope != .wholeBlock {
             effectiveScope = config.animation.scope
         } else {
             effectiveScope = config.content.count > 50 ? .perWord : .perCharacter
@@ -105,7 +113,8 @@ extension TextRendererEngine {
         var ciImage = CIImage(cgImage: cgImage)
         ciImage = TextSVGAndAssetCache.applyPremultipliedOpacity(config.opacity, to: ciImage)
         let globalEval = TextAnimationEvaluator.evaluate(
-            config: config, localTime: localTime, duration: duration, canvasSize: canvasSize
+            config: config, localTime: localTime, duration: duration, canvasSize: canvasSize,
+            charIndex: max(0, tokens.count / 2), charCount: max(1, tokens.count)
         )
         return TextShaderFilterEngine.applyFilters(
             to: ciImage,
@@ -115,8 +124,8 @@ extension TextRendererEngine {
             rgbSplitIntensity: globalEval.rgbSplitIntensity,
             overlay: globalEval.overlay,
             lightSweepIntensity: config.animation.lightSweepIntensity,
-            shadow: config.shadow,
-            glow: config.glow
+            shadow: globalEval.config.shadow,
+            glow: globalEval.config.glow
         )
     }
     #endif

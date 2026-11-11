@@ -9,10 +9,12 @@ public final class TimelinePlaybackEngine {
     public let player = AVPlayer()
     public var onTimeUpdate: ((CMTime) -> Void)?
     public var onPlaybackEnded: (() -> Void)?
+    public var loopRange: CMTimeRange?
 
     var timeObserver: Any?
     var statusObserver: NSKeyValueObservation?
     var rateObserver: NSKeyValueObservation?
+    var endObserver: Any?
     var layerAudioTrackIDs: [UUID: [CMPersistentTrackID]] = [:]
     var isResyncingComposition: Bool = false
     var isSeeking: Bool = false

@@ -24,6 +24,8 @@ public final class TimelineViewModel {
     public var dropBetweenIndex: Int?
     public var selectedClipIDs: Set<UUID> = []
     public var selectedTransitionID: UUID?
+    public var activeTransitionDropTarget: TransitionDropJoinTarget?
+    public var presetSaveTargetClip: TimelineClip?
     public var canSplit: Bool { !selectedClipIDs.isEmpty }
     public var groupMoveOffset: CGFloat = 0
     public var groupTrimLeftOffset: CGFloat = 0
@@ -32,12 +34,15 @@ public final class TimelineViewModel {
     public var onClipsSplit: (([UUID]) -> Void)?
     public var onClipsTrimmed: (() -> Void)?
     public var onClipsRestored: (([TimelineClip]) -> Void)?
+    public var onAssetsAdded: (([MediaAsset]) -> Void)?
     public var onLayerLockToggled: ((UUID, Bool) -> Void)?
     public var onLayerHideToggled: ((UUID, Bool) -> Void)?
     public var onLayerMuteToggled: ((UUID, Bool) -> Void)?
     public var aspectRatio: CanvasAspectRatio = .ratio16x9
     public var onAspectRatioChanged: ((CanvasAspectRatio) -> Void)?
     public var onSeekRequested: ((CMTime) -> Void)?
+    public var onLoopRangeRequested: ((CMTimeRange?) -> Void)?
+    public var onStopPlaybackRequested: (() -> Void)?
     public var onPreviewTextPreset: ((TextPreset?) -> Void)?
     public var currentProjectURL: URL?
 
@@ -145,10 +150,24 @@ public final class TimelineViewModel {
 
     public func defaultInsertionIndex(for kind: ClipKind) -> Int {
         if kind == .audio {
-            return layers.firstIndex { $0.kind.defaultTier > kind.defaultTier } ?? layers.count
-        } else {
-            return layers.firstIndex { $0.kind.defaultTier >= kind.defaultTier } ?? layers.count
+            // Audio luôn ưu tiên nằm ở dưới cùng của Timeline
+            return layers.count
         }
+
+        if kind == .video {
+            // Video chính luôn ưu tiên nằm ngay trên Audio chính ở đáy Timeline
+            let hasMainVideo = layers.contains { $0.kind == .video }
+            if !hasMainVideo {
+                return layers.firstIndex { $0.kind == .audio } ?? layers.count
+            }
+            // Nếu đã có Video chính thì Video mới là Overlay/B-roll -> xếp chồng lên trên cùng
+            return 0
+        }
+
+        // Tất cả các layer phía trên (Text, Sticker, Effect, Adjustment, Image, Video overlay...):
+        // Cái nào thêm trước thì nằm kế tiếp phía trên Video chính;
+        // Cái nào thêm sau sẽ tiếp tục xếp chồng lên trên đỉnh (index 0).
+        return 0
     }
 
     @discardableResult

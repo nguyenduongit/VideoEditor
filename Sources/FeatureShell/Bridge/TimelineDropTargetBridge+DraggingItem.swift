@@ -47,6 +47,56 @@ extension TimelineDropTargetNSView {
         }
     }
 
+    func updateTransitionDraggingItem(
+        sender: any NSDraggingInfo,
+        target: TransitionDropJoinTarget
+    ) {
+        sender.draggingFormation = .none
+        let w = max(14.0, target.overlayWidth)
+        let h = max(10.0, target.overlayHeight)
+        let cutLocalX = target.cutCanvasX - scrollOffset
+        let cutLocalY = target.layerMidY - verticalScrollOffset
+        let previewImg = renderCyanTransitionPreview(width: w, height: h)
+        let newFrame = NSRect(
+            x: cutLocalX - (w / 2),
+            y: cutLocalY - (h / 2),
+            width: w,
+            height: h
+        )
+
+        sender.enumerateDraggingItems(
+            options: [],
+            for: self,
+            classes: [NSString.self, NSPasteboardItem.self],
+            searchOptions: [:]
+        ) { item, _, _ in
+            item.setDraggingFrame(newFrame, contents: previewImg)
+            let comp = NSDraggingImageComponent(key: .icon)
+            comp.contents = previewImg
+            comp.frame = NSRect(origin: .zero, size: NSSize(width: w, height: h))
+            item.imageComponentsProvider = { [comp] }
+        }
+    }
+
+    private func renderCyanTransitionPreview(width: CGFloat, height: CGFloat) -> NSImage {
+        let size = NSSize(width: width, height: height)
+        let img = NSImage(size: size)
+        img.lockFocus()
+        let rect = NSRect(origin: .zero, size: size)
+        let path = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 4, yRadius: 4)
+        NSColor(DSColors.toggleCyan).withAlphaComponent(0.60).setFill()
+        path.fill()
+        NSColor.white.withAlphaComponent(0.90).setStroke()
+        path.lineWidth = 1.2
+        path.stroke()
+
+        let midLine = NSRect(x: width * 0.5 - 0.5, y: 0, width: 1.0, height: height)
+        NSColor.white.withAlphaComponent(0.80).setFill()
+        midLine.fill()
+        img.unlockFocus()
+        return img
+    }
+
     func restoreThumbnailDraggingItem(
         sender: any NSDraggingInfo,
         url: URL,

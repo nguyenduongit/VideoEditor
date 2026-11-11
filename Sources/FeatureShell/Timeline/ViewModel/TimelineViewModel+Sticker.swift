@@ -8,7 +8,8 @@ extension TimelineViewModel {
     public func addStickerPreset(_ preset: StickerPreset, at time: CMTime? = nil) {
         let proposedStart = time ?? currentTime
         let targetStart = TimeRational.snapToFrame(time: proposedStart)
-        let frames = max(15, Int64(round(preset.defaultDuration * Double(TimeRational.defaultFPS))))
+        let durSeconds = preset.defaultDuration > 0.05 ? preset.defaultDuration : 3.0
+        let frames = max(15, Int64(round(durSeconds * Double(TimeRational.defaultFPS))))
         let resolvedDuration = CMTime(value: frames, timescale: TimeRational.defaultFPS)
         let timeRange = CMTimeRange(start: targetStart, duration: resolvedDuration)
 

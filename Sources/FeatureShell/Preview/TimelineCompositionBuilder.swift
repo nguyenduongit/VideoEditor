@@ -186,13 +186,25 @@ struct TimelineCompositionBuilder {
         }
 
         let userScale = clip.properties["scale"]?.asNumber ?? 1.0
+        let userScaleX = clip.properties["scaleWidth"]?.asNumber ?? userScale
+        let userScaleY = clip.properties["scaleHeight"]?.asNumber ?? userScale
         let autoPanZoom = isAutoPanActive ? (autoPan?.zoom ?? 1.0) : 1.0
-        let finalScale = max(0.01, baseScale * userScale * autoPanZoom)
+
+        let flipH = clip.properties["flipHorizontal"]?.asBool ?? false
+        let flipV = clip.properties["flipVertical"]?.asBool ?? false
+        let dirX: CGFloat = flipH ? -1.0 : 1.0
+        let dirY: CGFloat = flipV ? -1.0 : 1.0
+
+        let finalScaleX = max(0.01, baseScale * userScaleX * autoPanZoom)
+        let finalScaleY = max(0.01, baseScale * userScaleY * autoPanZoom)
+        let finalScale = max(finalScaleX, finalScaleY)
 
         let userPosX = clip.properties["positionX"]?.asNumber ?? 0.0
         let userPosY = clip.properties["positionY"]?.asNumber ?? 0.0
         let userRotation = clip.properties["rotation"]?.asNumber ?? 0.0
         let userOpacity = clip.properties["opacity"]?.asNumber ?? 1.0
+        let skewX = clip.properties["skewX"]?.asNumber ?? 0.0
+        let skewY = clip.properties["skewY"]?.asNumber ?? 0.0
 
         let refSize = CanvasAspectRatio.closest(for: canvasSize).renderSize
         let coordScaleX = refSize.width > 0 ? Double(canvasSize.width / refSize.width) : 1.0
@@ -200,17 +212,26 @@ struct TimelineCompositionBuilder {
 
         let effectivePosX = isAutoPanActive ? 0.0 : (userPosX * coordScaleX)
         let effectivePosY = userPosY * coordScaleY
-        let dx = (canvasSize.width - srcW * finalScale) / 2.0 + effectivePosX
-        let dy = (canvasSize.height - srcH * finalScale) / 2.0 + effectivePosY
+        let cx = canvasSize.width / 2.0 + effectivePosX
+        let cy = canvasSize.height / 2.0 + effectivePosY
+        let dx = (canvasSize.width - srcW * finalScaleX * dirX) / 2.0 + effectivePosX
+        let dy = (canvasSize.height - srcH * finalScaleY * dirY) / 2.0 + effectivePosY
 
         var finalTransform = transform
-            .concatenating(CGAffineTransform(scaleX: finalScale, y: finalScale))
+            .concatenating(CGAffineTransform(scaleX: finalScaleX * dirX, y: finalScaleY * dirY))
             .concatenating(CGAffineTransform(translationX: dx, y: dy))
+
+        if skewX != 0.0 || skewY != 0.0 {
+            let radX = CGFloat(skewX * .pi / 180.0)
+            let radY = CGFloat(skewY * .pi / 180.0)
+            let skewMat = CGAffineTransform(translationX: cx, y: cy)
+                .concatenating(CGAffineTransform(a: 1.0, b: tan(radY), c: tan(radX), d: 1.0, tx: 0.0, ty: 0.0))
+                .translatedBy(x: -cx, y: -cy)
+            finalTransform = finalTransform.concatenating(skewMat)
+        }
 
         if userRotation != 0.0 {
             let radians = userRotation * .pi / 180.0
-            let cx = canvasSize.width / 2.0 + effectivePosX
-            let cy = canvasSize.height / 2.0 + effectivePosY
             let rot = CGAffineTransform(translationX: cx, y: cy)
                 .rotated(by: radians)
                 .translatedBy(x: -cx, y: -cy)

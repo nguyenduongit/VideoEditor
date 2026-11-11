@@ -181,6 +181,7 @@ public final class ShellViewModel {
     }
 
     public func stopPlayback() {
+        playbackEngine.loopRange = nil
         playbackEngine.pause()
         isPlaying = false
         playheadState.setPlaying(false)

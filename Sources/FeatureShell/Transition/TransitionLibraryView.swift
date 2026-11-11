@@ -2,26 +2,55 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// View thư viện Mẫu chuyển cảnh (Transitions) bên sidebar trái.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
+/// Left Sidebar view for the Transitions Library.
+/// Features a 100pt vertical category sidebar, 2-column square card grid,
+/// top-right 26pt Favorites button, and bottom-right 26pt Add button.
+/// Complies with AGENTS.md rules (File <= 300 lines, View body <= 40 lines).
 public struct TransitionLibraryView: View {
     @Bindable private var viewModel: TransitionLibraryViewModel
+    @State private var selectedCategory: String = TransitionCategory.basic.displayName
+
+    private let categories = TransitionCategory.assignableCases.map(\.displayName)
 
     private let columns = [
-        GridItem(.flexible(), spacing: DSSpacing.md),
-        GridItem(.flexible(), spacing: DSSpacing.md)
+        GridItem(.flexible(), spacing: DSSpacing.sm),
+        GridItem(.flexible(), spacing: DSSpacing.sm)
     ]
 
     public init(viewModel: TransitionLibraryViewModel) {
         self.viewModel = viewModel
     }
 
+    private var displayedPresets: [TransitionPreset] {
+        let trimmed = viewModel.searchQuery.trimmingCharacters(in: .whitespaces)
+        let base: [TransitionPreset]
+        if selectedCategory == SidebarFavoriteManager.favoritesCategory {
+            let favs = SidebarFavoriteManager.shared.favorites(for: "transition")
+            base = viewModel.templatePresets.filter { favs.contains($0.id) }
+        } else if !trimmed.isEmpty {
+            base = viewModel.templatePresets
+        } else {
+            if let cat = TransitionCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
+                base = viewModel.templatePresets.filter { $0.category == cat }
+            } else {
+                base = viewModel.templatePresets
+            }
+        }
+        guard !trimmed.isEmpty else { return base }
+        return base.filter {
+            $0.name.localizedCaseInsensitiveContains(trimmed)
+            || $0.description.localizedCaseInsensitiveContains(trimmed)
+            || $0.tags.contains { $0.localizedCaseInsensitiveContains(trimmed) }
+        }
+    }
+
     public var body: some View {
         LibraryScaffoldView(
             searchQuery: $viewModel.searchQuery,
-            searchPlaceholder: "Tìm kiếm mẫu chuyển cảnh...",
-            categories: TransitionCategory.allCases.map(\.rawValue),
-            selectedCategory: categoryBinding,
+            searchPlaceholder: "Search transitions...",
+            categories: categories,
+            selectedCategory: $selectedCategory,
+            favoritesCount: SidebarFavoriteManager.shared.favorites(for: "transition").count,
             trailingAction: AnyView(reloadButton)
         ) {
             contentScrollView
@@ -34,94 +63,78 @@ public struct TransitionLibraryView: View {
         }
     }
 
-    private var categoryBinding: Binding<String> {
-        Binding(
-            get: { viewModel.selectedCategory.rawValue },
-            set: { val in
-                if let cat = TransitionCategory(rawValue: val) {
-                    viewModel.selectedCategory = cat
-                }
-            }
-        )
-    }
-
     private var reloadButton: some View {
-        Button(action: { viewModel.reloadTemplates() }) {
-            Image(systemName: "arrow.clockwise")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DSColors.textSecondary)
-                .frame(width: 24, height: 24)
-                .background(DSColors.windowBackground)
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+        let size = LibraryScaffoldView<EmptyView>.searchControlHeight
+        return Button(action: {
+            viewModel.reloadTemplates()
+            Task { await viewModel.syncFromRemoteIfAvailable(force: true) }
+        }) {
+            ZStack {
+                RoundedRectangle(cornerRadius: DSRadius.small)
+                    .fill(DSColors.windowBackground)
+                RoundedRectangle(cornerRadius: DSRadius.small)
+                    .stroke(DSColors.blockBorder, lineWidth: 1)
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(DSColors.textSecondary)
+            }
+            .frame(width: size, height: size)
         }
         .buttonStyle(.plain)
-        .help(String(localized: "Tải lại danh sách chuyển cảnh"))
+        .help("Reload Transitions")
     }
 
     private var contentScrollView: some View {
         DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-            let presets = viewModel.filteredPresets
+            let presets = displayedPresets
             if presets.isEmpty {
-                emptyView
+                emptyTemplatesView
             } else {
-                LazyVGrid(columns: columns, spacing: DSSpacing.md) {
+                LazyVGrid(columns: columns, spacing: DSSpacing.sm) {
                     ForEach(presets) { preset in
-                        transitionCard(preset)
+                        let isFav = SidebarFavoriteManager.shared.isFavorite(id: preset.id, for: "transition")
+                        UnifiedLibraryCardItemView(
+                            title: preset.name,
+                            isFavorite: isFav,
+                            onAdd: {
+                                viewModel.applyTransitionToTimeline(preset)
+                            },
+                            onToggleFavorite: {
+                                SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "transition")
+                            }
+                        ) {
+                            transitionThumbnail(for: preset)
+                        }
+                        .overlay(
+                            TransitionDragBridgeView(
+                                preset: preset,
+                                onAddToTimeline: {
+                                    viewModel.applyTransitionToTimeline(preset)
+                                },
+                                onToggleFavorite: {
+                                    SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "transition")
+                                }
+                            )
+                        )
+                        .help("\(preset.name) — \(preset.description)")
                     }
                 }
-                .padding(DSSpacing.md)
+                .padding(DSSpacing.sm)
             }
         }
     }
 
-    private func transitionCard(_ preset: TransitionPreset) -> some View {
-        Button(action: { viewModel.applyTransitionToTimeline(preset) }) {
-            VStack(alignment: .leading, spacing: DSSpacing.xs) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: DSRadius.small)
-                        .fill(DSColors.windowBackground)
-                        .frame(height: 72)
-
-                    Image(systemName: preset.iconName)
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(DSColors.accent)
-                }
-
-                Text(preset.name)
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(DSColors.textPrimary)
-                    .lineLimit(1)
-
-                Text(preset.description)
-                    .font(.system(size: 9.5))
-                    .foregroundStyle(DSColors.textSecondary)
-                    .lineLimit(2)
-
-                HStack {
-                    Text("\(String(format: "%.1f", preset.defaultDuration))s")
-                        .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(DSColors.textSecondary)
-                    Spacer()
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(DSColors.accent)
-                }
-                .padding(.top, 2)
-            }
-            .padding(DSSpacing.sm)
-            .background(DSColors.blockBackground)
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
-            .overlay(RoundedRectangle(cornerRadius: DSRadius.block).stroke(DSColors.blockBorder, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
+    @ViewBuilder
+    private func transitionThumbnail(for preset: TransitionPreset) -> some View {
+        TransitionAnimatedThumbnailView(preset: preset)
     }
 
-    private var emptyView: some View {
+    private var emptyTemplatesView: some View {
         VStack(spacing: DSSpacing.sm) {
             Image(systemName: "arrow.left.arrow.right")
-                .font(.system(size: 26))
+                .font(.system(size: 28))
                 .foregroundStyle(DSColors.textSecondary.opacity(0.6))
-            Text(String(localized: "Không tìm thấy chuyển cảnh"))
+            Text("No transitions available")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
         }
@@ -130,4 +143,3 @@ public struct TransitionLibraryView: View {
         .padding(.horizontal, DSSpacing.md)
     }
 }
-

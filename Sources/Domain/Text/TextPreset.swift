@@ -1,31 +1,34 @@
 import Foundation
 
-/// Danh mục phân loại mẫu chữ (Text Template Category) đồng bộ với Supabase
+/// Danh mục phân loại mẫu chữ (Text Template Category) gồm 3 nhóm chính: Title, Sub, Music
 public enum TextTemplateCategory: String, Codable, Sendable, CaseIterable, Identifiable {
     case all = "Tất cả"
-    case karaoke = "Karaoke & Phụ đề"
-    case trending = "Trending"
-    case cyber = "Neon & Cyber"
-    case cinema = "3D & Điện ảnh"
-    case vlog = "Vlog & Tin tức"
+    case title = "Title"
+    case sub = "Sub"
+    case music = "Music"
+
+    // Legacy static aliases preserving backward compatibility
+    public static let karaoke: Self = .sub
+    public static let trending: Self = .title
+    public static let cyber: Self = .title
+    public static let cinema: Self = .title
+    public static let vlog: Self = .title
 
     public var id: String { rawValue }
 
-    /// Tên hiển thị tiếng Anh chuẩn trên giao diện UI
+    /// Tên hiển thị chuẩn trên giao diện UI
     public var displayName: String {
         switch self {
         case .all: return "All"
-        case .karaoke: return "Subtitles"
-        case .trending: return "Trending"
-        case .cyber: return "Neon & Cyber"
-        case .cinema: return "3D & Cinema"
-        case .vlog: return "Vlog & News"
+        case .title: return "Title"
+        case .sub: return "Sub"
+        case .music: return "Music"
         }
     }
 
     /// Các danh mục thực tế gán cho từng mẫu (không tính tab lọc "Tất cả")
     public static var assignableCases: [TextTemplateCategory] {
-        [.karaoke, .trending, .cyber, .cinema, .vlog]
+        [.title, .sub, .music]
     }
 }
 
@@ -124,11 +127,12 @@ public struct TextPreset: Identifiable, Codable, Sendable, Equatable {
         id: "default",
         name: "Default Text",
         description: "Standard single-line text title",
-        category: .vlog,
+        category: .title,
+        defaultDuration: 5.0,
         config: TextConfiguration(
             content: "Text",
             fontName: "Helvetica",
-            fontSize: 48.0,
+            fontSize: 60.0,
             textColorHex: "#FFFFFF",
             isBold: true
         ),

@@ -79,6 +79,25 @@ public struct TimelineView: View {
             }
             return .ignored
         }
+        .sheet(item: Binding(get: { viewModel.presetSaveTargetClip }, set: { viewModel.presetSaveTargetClip = $0 })) { (clip: TimelineClip) in
+            let textConfig = TextConfiguration.decode(from: clip.properties["textConfig"]?.asString ?? "") ?? TextConfiguration(content: clip.name)
+            SavePresetModalView(
+                kind: .text(config: textConfig),
+                originPresetID: clip.properties["originPresetId"]?.asString,
+                originPresetName: clip.properties["originPresetName"]?.asString,
+                dependencies: viewModel.dependencies,
+                onSaveCompleted: { newID, newName in
+                    viewModel.commitClipProperties(clipID: clip.id, properties: [
+                        "originPresetId": .string(newID),
+                        "originPresetName": .string(newName)
+                    ])
+                    viewModel.presetSaveTargetClip = nil
+                },
+                onDismiss: {
+                    viewModel.presetSaveTargetClip = nil
+                }
+            )
+        }
     }
 
     private var timelineBody: some View {
@@ -134,7 +153,8 @@ public struct TimelineView: View {
             onZoomIn: { viewModel.zoomIn() }, onZoomOut: { viewModel.zoomOut() },
             onTogglePlayPause: { playheadState.togglePlayPause() },
             onUndo: { _ = viewModel.undo() }, onRedo: { _ = viewModel.redo() },
-            onStepFrame: { playheadState.stepFrame(by: $0) }
+            onStepFrame: { playheadState.stepFrame(by: $0) },
+            onAnyClick: { viewModel.onStopPlaybackRequested?() }
         )
     }
 
@@ -176,16 +196,7 @@ public struct TimelineView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DSColors.layerTrackBackground)
-        .overlay(TimelineDropTargetBridge(
-            pixelsPerSecond: pps, scrollOffset: scrollOffset,
-            onDropAsset: { asset, dropTime in
-                isTimelineFocused = true; viewModel.addAsset(asset, at: dropTime)
-                onTimelineActivated?()
-                playheadState.seek(to: playheadState.currentTime, force: true)
-            },
-            onDragGuideChanged: { dragGuideCanvasX = $0 },
-            snapCandidatesProvider: { viewModel.snapCandidateTimes(playheadTime: playheadState.currentTime) }
-        ))
+        .overlay(makeDropTargetBridge(pps: pps, topSpacerHeight: topSpacerHeight))
     }
 
     private func tracksContentView(
@@ -228,6 +239,8 @@ public struct TimelineView: View {
             isDropTargetTop: viewModel.dropBetweenIndex == index,
             isDropTargetBottom: viewModel.dropBetweenIndex == viewModel.layers.count && index == viewModel.layers.count - 1,
             selectedClipIDs: viewModel.selectedClipIDs,
+            selectedTransitionID: viewModel.selectedTransitionID,
+            activeTransitionDropTarget: viewModel.activeTransitionDropTarget,
             groupDragOffset: viewModel.groupMoveOffset,
             groupTrimLeftOffset: viewModel.groupTrimLeftOffset,
             groupTrimRightOffset: viewModel.groupTrimRightOffset,
@@ -245,6 +258,7 @@ public struct TimelineView: View {
             onMoveClip: { handleClipMoving(clipID: $0, clipKind: $1, from: layer.id, at: index, newStart: $2, dragY: $3) },
             onMoveClipEnd: { handleClipMoveEnd(clipID: $0) },
             onExtractAudio: { viewModel.extractAudio(clipID: $0) },
+            onSavePreset: { viewModel.presetSaveTargetClip = $0 },
             onUpdateClipProperties: { id, props, done in
                 done ? viewModel.commitClipProperties(clipID: id, properties: props) : viewModel.updateClipLiveProperties(clipID: id, properties: props)
             },

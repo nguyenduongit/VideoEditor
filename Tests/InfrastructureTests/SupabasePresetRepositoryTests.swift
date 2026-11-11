@@ -34,7 +34,10 @@ struct SupabasePresetRepositoryTests {
         let stickers = try await stickerRepo.fetchPresets()
         #expect(!stickers.isEmpty)
         let transitions = try await transitionRepo.fetchPresets()
-        #expect(transitions.count >= 9)
+        #expect(transitions.count == 83)
+        #expect(transitions.contains(where: { $0.id == "dissolve_default" }))
+        #expect(transitions.contains(where: { $0.id == "trans_basic_white_flash" }))
+        #expect(transitions.contains(where: { $0.id == "trans_light_white_flash" }))
 
         let animations = try await animationRepo.fetchPresets()
         #expect(animations.count >= 15)
@@ -43,18 +46,15 @@ struct SupabasePresetRepositoryTests {
         #expect(animations.filter { $0.phase == .loopAnimation }.count >= 5)
 
         let effects = try await effectRepo.fetchPresets()
-        #expect(effects.count == 9)
+        #expect(effects.count == 1)
         #expect(effects.contains(where: { $0.id == "creative_fx_rgb_glitch" }))
-        #expect(effects.contains(where: { $0.id == "creative_fx_vhs_retro" }))
 
         let adjustments = try await adjustmentRepo.fetchPresets()
-        #expect(adjustments.count == 7)
+        #expect(adjustments.count == 2)
         #expect(adjustments.contains(where: { $0.id == "creative_color_kodak_2383" }))
 
         let texts = try await textRepo.fetchPresets()
-        #expect(texts.count == 6) // 1 default + 4 unified creative + 1 preserved user preset
-        #expect(texts.contains(where: { $0.id == "template_neon_cyber_glow" }))
-        #expect(texts.contains(where: { $0.id == "template_vlog_badge_banner" }))
+        #expect(texts.count == 2) // 1 default + 1 preserved user preset
         #expect(texts.contains(where: { $0.id == "community_user_saved_1" }))
     }
 
@@ -145,5 +145,93 @@ struct SupabasePresetRepositoryTests {
         let repo = SupabaseAnimationPresetRepository(client: client)
         let presets = try await repo.fetchPresets()
         #expect(presets.count >= 49)
+    }
+
+    @Test("Seed and synchronize all 83 live transition presets to Supabase if configured")
+    func testSeedLiveTransitionPresetsToSupabase() async throws {
+        guard let client = SupabaseConfig.makeClient() else { return }
+        let repo = SupabaseTransitionPresetRepository(client: client)
+        let presets = try await repo.fetchPresets()
+        #expect(presets.count >= 83)
+        let whiteFlashBasic = presets.first(where: { $0.id == "trans_basic_white_flash" })
+        #expect(whiteFlashBasic?.parameterValues["mode"] == 6.0)
+        let whiteFlashLight = presets.first(where: { $0.id == "trans_light_white_flash" })
+        #expect(whiteFlashLight?.parameterValues["warmth"] == 0.0)
+        #expect(whiteFlashLight?.parameterValues["mode"] == 1.0)
+    }
+
+    @Test("Audio Preset Repository saves, fetches and deletes audio presets deterministically")
+    func testAudioPresetRepositoryOperations() async throws {
+        let repo = SupabaseAudioPresetRepository(client: nil)
+        let initial = try await repo.fetchPresets()
+        #expect(!initial.isEmpty)
+        #expect(initial.contains(where: { $0.id == "audio_bgm_sunny_day" }))
+        #expect(initial.contains(where: { $0.id == "audio_dance_beat" }))
+        let danceBeat = initial.first(where: { $0.id == "audio_dance_beat" })
+        #expect(danceBeat?.category == "Dance Beat")
+        #expect(danceBeat?.durationFormatted == "8-Beat")
+
+        let custom = AudioPreset(
+            id: "audio_custom_rock",
+            name: "Rock Anthem",
+            category: "Music",
+            duration: 180,
+            audioURL: URL(string: "https://example.com/audio/rock.mp3"),
+            icon: "guitars.fill",
+            isSystem: false
+        )
+        try await repo.savePreset(custom)
+
+        let updated = try await repo.fetchPresets()
+        #expect(updated.contains(where: { $0.id == "audio_custom_rock" }))
+        let found = updated.first(where: { $0.id == "audio_custom_rock" })
+        #expect(found?.durationFormatted == "03:00")
+
+        try await repo.deletePreset(id: "audio_custom_rock")
+        let afterDelete = try await repo.fetchPresets()
+        #expect(!afterDelete.contains(where: { $0.id == "audio_custom_rock" }))
+    }
+
+    @Test("Stock Media Repository saves, fetches and deletes media items deterministically")
+    func testStockMediaRepositoryOperations() async throws {
+        let repo = SupabaseStockMediaRepository(client: nil)
+        let initial = try await repo.fetchStockItems()
+        #expect(!initial.isEmpty)
+        #expect(initial.contains(where: { $0.id == "stock_video_intro" }))
+
+        let customItem = StockMediaItem(
+            id: "stock_custom_drone",
+            name: "Drone Mountains",
+            category: "Stock Videos",
+            type: .video,
+            mediaURL: URL(string: "https://example.com/stock/mountains.mp4")!,
+            icon: "mountain.2"
+        )
+        try await repo.saveStockItem(customItem)
+
+        let updated = try await repo.fetchStockItems()
+        #expect(updated.contains(where: { $0.id == "stock_custom_drone" }))
+
+        try await repo.deleteStockItem(id: "stock_custom_drone")
+        let afterDelete = try await repo.fetchStockItems()
+        #expect(!afterDelete.contains(where: { $0.id == "stock_custom_drone" }))
+    }
+
+    @Test("Favorite Repository manages and synchronizes tab favorites deterministically")
+    func testFavoriteRepositoryOperations() async throws {
+        let repo = SupabaseFavoriteRepository(client: nil, customClientID: "test_device_unit_tests")
+        let tab = "audio"
+
+        try await repo.addFavorite(id: "item_fav_1", for: tab)
+        try await repo.addFavorite(id: "item_fav_2", for: tab)
+
+        let favorites = try await repo.fetchFavorites(for: tab)
+        #expect(favorites.contains("item_fav_1"))
+        #expect(favorites.contains("item_fav_2"))
+
+        try await repo.removeFavorite(id: "item_fav_1", for: tab)
+        let afterRemove = try await repo.fetchFavorites(for: tab)
+        #expect(!afterRemove.contains("item_fav_1"))
+        #expect(afterRemove.contains("item_fav_2"))
     }
 }

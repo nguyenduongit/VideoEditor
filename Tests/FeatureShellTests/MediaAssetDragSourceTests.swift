@@ -108,4 +108,38 @@ struct MediaAssetDragSourceTests {
         #expect(!addCalled)
         #expect(!selectCalled)
     }
+
+    @Test func testDeleteButtonHitRectCalculation() {
+        let (view, _) = makeView(width: 100, height: 120)
+        let hitRect = view.deleteButtonHitRect
+        #expect(hitRect.width == 30)
+        #expect(hitRect.height == 30)
+        #expect(hitRect.origin.x == 70)
+        #expect(hitRect.origin.y == 0)
+    }
+
+    @Test func testClickOnDeleteButtonInvokesOnDelete() throws {
+        let (view, window) = makeView(width: 100, height: 120)
+        var addCalled = false
+        var selectCalled = false
+        var deleteCalled = false
+
+        view.onAddToTimeline = { addCalled = true }
+        view.onSelect = { _ in selectCalled = true }
+        view.onDelete = { deleteCalled = true }
+
+        let insidePoint = NSPoint(x: 85, y: 15)
+        let downEvent = try #require(makeMouseEvent(type: .leftMouseDown, locationInView: insidePoint, view: view, window: window))
+        let upEvent = try #require(makeMouseEvent(type: .leftMouseUp, locationInView: insidePoint, view: view, window: window))
+
+        view.mouseDown(with: downEvent)
+        #expect(!selectCalled)
+        #expect(!addCalled)
+        #expect(!deleteCalled)
+
+        view.mouseUp(with: upEvent)
+        #expect(deleteCalled)
+        #expect(!addCalled)
+        #expect(!selectCalled)
+    }
 }

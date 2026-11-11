@@ -37,7 +37,12 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
     public var positionY: Double
     public var scale: Double
     public var rotation: Double
+    public var skewX: Double
+    public var skewY: Double
     public var opacity: Double
+    public var blurRadius: Double
+    public var glitchIntensity: Double
+    public var noiseIntensity: Double
     public var animation: TextAnimationConfiguration
 
     public static func sanitizeSingleLine(_ text: String) -> String {
@@ -49,7 +54,7 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
     public init(
         content: String = "Text",
         fontName: String = "Helvetica",
-        fontSize: Double = 48.0,
+        fontSize: Double = 60.0,
         textColorHex: String = "#FFFFFF",
         isBold: Bool = false,
         isItalic: Bool = false,
@@ -69,7 +74,12 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
         positionY: Double = 0.0,
         scale: Double = 1.0,
         rotation: Double = 0.0,
+        skewX: Double = 0.0,
+        skewY: Double = 0.0,
         opacity: Double = 1.0,
+        blurRadius: Double = 0.0,
+        glitchIntensity: Double = 0.0,
+        noiseIntensity: Double = 0.0,
         animation: TextAnimationConfiguration = TextAnimationConfiguration()
     ) {
         self.rawContent = Self.sanitizeSingleLine(content)
@@ -94,7 +104,12 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
         self.positionY = positionY
         self.scale = max(0.05, scale)
         self.rotation = rotation
+        self.skewX = max(-60.0, min(60.0, skewX))
+        self.skewY = max(-60.0, min(60.0, skewY))
         self.opacity = max(0.0, min(1.0, opacity))
+        self.blurRadius = max(0.0, min(60.0, blurRadius))
+        self.glitchIntensity = max(0.0, min(100.0, glitchIntensity))
+        self.noiseIntensity = max(0.0, min(100.0, noiseIntensity))
         self.animation = animation
     }
 
@@ -103,7 +118,8 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
         case fontName, fontSize, isBold, isItalic, isUnderlined, alignment, characterSpacing
         case colorFillMode, textColorHex, gradientColors, gradientAngle
         case innerStroke, outerStroke, glow, shadow, curve, background
-        case positionX, positionY, scale, rotation, opacity, animation
+        case positionX, positionY, scale, rotation, skewX, skewY, opacity
+        case blurRadius, glitchIntensity, noiseIntensity, animation
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -130,7 +146,12 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
         try c.encode(positionY, forKey: .positionY)
         try c.encode(scale, forKey: .scale)
         try c.encode(rotation, forKey: .rotation)
+        try c.encode(skewX, forKey: .skewX)
+        try c.encode(skewY, forKey: .skewY)
         try c.encode(opacity, forKey: .opacity)
+        try c.encode(blurRadius, forKey: .blurRadius)
+        try c.encode(glitchIntensity, forKey: .glitchIntensity)
+        try c.encode(noiseIntensity, forKey: .noiseIntensity)
         try c.encode(animation, forKey: .animation)
     }
 
@@ -165,7 +186,12 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
         self.positionY = (try? c.decodeIfPresent(Double.self, forKey: .init("positionY"))) ?? 0.0
         self.scale = max(0.05, (try? c.decodeIfPresent(Double.self, forKey: .init("scale"))) ?? 1.0)
         self.rotation = (try? c.decodeIfPresent(Double.self, forKey: .init("rotation"))) ?? 0.0
+        self.skewX = (try? c.decodeIfPresent(Double.self, forKey: .init("skewX"))) ?? 0.0
+        self.skewY = (try? c.decodeIfPresent(Double.self, forKey: .init("skewY"))) ?? 0.0
         self.opacity = max(0.0, min(1.0, (try? c.decodeIfPresent(Double.self, forKey: .init("opacity"))) ?? 1.0))
+        self.blurRadius = (try? c.decodeIfPresent(Double.self, forKey: .init("blurRadius"))) ?? 0.0
+        self.glitchIntensity = (try? c.decodeIfPresent(Double.self, forKey: .init("glitchIntensity"))) ?? 0.0
+        self.noiseIntensity = (try? c.decodeIfPresent(Double.self, forKey: .init("noiseIntensity"))) ?? 0.0
         self.animation = (try? c.decodeIfPresent(TextAnimationConfiguration.self, forKey: .init("animation")))
             ?? TextAnimationConfiguration()
     }

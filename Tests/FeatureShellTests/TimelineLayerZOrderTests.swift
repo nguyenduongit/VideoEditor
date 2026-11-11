@@ -49,11 +49,11 @@ struct TimelineLayerZOrderTests {
         )
         vm.addAsset(baseVideo, at: .zero)
 
-        // Create text layer (tier 0)
+        // Create text layer
         let textLayer = vm.createLayer(for: .text)
         #expect(vm.layers.firstIndex(where: { $0.id == textLayer.id }) == 0)
 
-        // Add overlay video (tier 3) overlapping base video at 2s
+        // Add overlay video overlapping base video at 2s (added after text)
         let overlayVideo = MediaAsset(
             url: URL(fileURLWithPath: "/tmp/overlay.mp4"),
             name: "Overlay.mp4",
@@ -61,11 +61,11 @@ struct TimelineLayerZOrderTests {
         )
         vm.addAsset(overlayVideo, at: CMTime(seconds: 2, preferredTimescale: 600))
 
-        // Expected order: Text (tier 0) -> Overlay Video (top of tier 3) -> Base Video
+        // Expected order: Overlay Video (added later) -> Text (added earlier) -> Base Video (bottom)
         #expect(vm.layers.count == 3)
-        #expect(vm.layers[0].kind == .text)
-        #expect(vm.layers[1].kind == .video)
-        #expect(vm.layers[1].clips.first?.name == "Overlay.mp4")
+        #expect(vm.layers[0].kind == .video)
+        #expect(vm.layers[0].clips.first?.name == "Overlay.mp4")
+        #expect(vm.layers[1].kind == .text)
         #expect(vm.layers[2].kind == .video)
         #expect(vm.layers[2].clips.first?.name == "Base.mp4")
     }

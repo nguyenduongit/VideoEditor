@@ -11,6 +11,9 @@ public struct TimelineLayer: Identifiable, Sendable, Hashable, Equatable {
     public var clips: [TimelineClip]
     public var transitions: [CutTransition]
 
+    /// Sai số tối đa cho phép (tương đương ~1 tick ở timescale 600) để coi 2 clip là nối sát nhau không có khoảng cách.
+    public static let contiguousToleranceSeconds: Double = 0.002
+
     public init(
         id: UUID = UUID(),
         name: String? = nil,
@@ -36,6 +39,24 @@ public struct TimelineLayer: Identifiable, Sendable, Hashable, Equatable {
 
     public mutating func sortClips() {
         clips.sort { $0.timeRange.start < $1.timeRange.start }
+        pruneInvalidTransitions()
+    }
+
+    /// Kiểm tra 2 clip có nằm kề nhau và nối sát nhau hoàn toàn (không có khoảng trống/gap) hay không.
+    public func areClipsContiguous(leadingID: UUID, trailingID: UUID) -> Bool {
+        Self.areClipsContiguous(in: clips, leadingID: leadingID, trailingID: trailingID)
+    }
+
+    private static func areClipsContiguous(in clips: [TimelineClip], leadingID: UUID, trailingID: UUID) -> Bool {
+        guard let idx = clips.firstIndex(where: { $0.id == leadingID }),
+              idx + 1 < clips.count,
+              clips[idx + 1].id == trailingID else {
+            return false
+        }
+        let leadEnd = clips[idx].timeRange.end.seconds
+        let trailStart = clips[idx + 1].timeRange.start.seconds
+        guard leadEnd.isFinite, trailStart.isFinite else { return false }
+        return abs(trailStart - leadEnd) <= contiguousToleranceSeconds
     }
 
     /// Checks if a given time range collides with any existing clip on this layer.
@@ -91,23 +112,23 @@ public struct TimelineLayer: Identifiable, Sendable, Hashable, Equatable {
         return removed
     }
 
-    /// Tự động loại bỏ các transition mồ côi hoặc không còn nối 2 clip liền kề
+    /// Tự động loại bỏ các transition mồ côi hoặc có khoảng cách (gap) giữa 2 clip
     public mutating func pruneInvalidTransitions() {
-        let clipIDs = Set(clips.map(\.id))
+        let currentClips = clips
+        let clipIDs = Set(currentClips.map(\.id))
         transitions.removeAll { t in
             guard clipIDs.contains(t.leadingClipID), clipIDs.contains(t.trailingClipID) else {
                 return true
             }
-            guard let idx = clips.firstIndex(where: { $0.id == t.leadingClipID }),
-                  idx + 1 < clips.count,
-                  clips[idx + 1].id == t.trailingClipID else {
-                return true
-            }
-            return false
+            return !Self.areClipsContiguous(in: currentClips, leadingID: t.leadingClipID, trailingID: t.trailingClipID)
         }
     }
 
     public mutating func addOrUpdateTransition(_ transition: CutTransition) {
+        guard areClipsContiguous(leadingID: transition.leadingClipID, trailingID: transition.trailingClipID) else {
+            pruneInvalidTransitions()
+            return
+        }
         if let idx = transitions.firstIndex(where: { $0.id == transition.id || ($0.leadingClipID == transition.leadingClipID && $0.trailingClipID == transition.trailingClipID) }) {
             transitions[idx] = transition
         } else {

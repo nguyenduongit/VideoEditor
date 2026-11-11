@@ -26,9 +26,26 @@ extension TimelineCompositionBuilder {
                     || hasActiveGrid(in: clip)
                     || hasActiveAutoPan(in: clip)
                     || hasActiveAdjustment(in: clip)
+                    || hasActiveBlendMode(in: clip)
+                    || hasActiveTransformEffect(in: clip)
                     || (ClipKeyframeMap.from(clip: clip)?.isEmpty == false)
             }
         }
+    }
+
+    static func hasActiveTransformEffect(in clip: TimelineClip) -> Bool {
+        let skewX = clip.properties["skewX"]?.asNumber ?? 0.0
+        let skewY = clip.properties["skewY"]?.asNumber ?? 0.0
+        let pX = clip.properties["perspectiveX"]?.asNumber ?? 0.0
+        let pY = clip.properties["perspectiveY"]?.asNumber ?? 0.0
+        let flipH = clip.properties["flipHorizontal"]?.asBool ?? false
+        let flipV = clip.properties["flipVertical"]?.asBool ?? false
+        return abs(skewX) > 0.001 || abs(skewY) > 0.001 || abs(pX) > 0.001 || abs(pY) > 0.001 || flipH || flipV
+    }
+
+    static func hasActiveBlendMode(in clip: TimelineClip) -> Bool {
+        guard let mode = clip.properties["blendMode"]?.asString else { return false }
+        return mode.lowercased() != "normal"
     }
 
     static func hasActiveAdjustment(in clip: TimelineClip) -> Bool {
@@ -189,7 +206,10 @@ extension TimelineCompositionBuilder {
             isProcedural: clip.properties["isProcedural"]?.asBool ?? false,
             proceduralConfig: clip.properties["proceduralConfig"]?.asString.flatMap { ProceduralConfiguration.decode(from: $0) },
             clip: clip,
-            videoTrackTransform: meta.transform
+            videoTrackTransform: meta.transform,
+            blendMode: TextLayerBlendMode(rawValue: clip.properties["blendMode"]?.asString ?? "") ?? .normal,
+            perspectiveX: clip.properties["perspectiveX"]?.asNumber ?? 0.0,
+            perspectiveY: clip.properties["perspectiveY"]?.asNumber ?? 0.0
         )
     }
 

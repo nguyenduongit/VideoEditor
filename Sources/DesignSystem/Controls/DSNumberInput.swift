@@ -13,6 +13,7 @@ public struct DSNumberInput: View {
     private let fractionDigits: Int
     private let displayMultiplier: Double
     private let customWidth: CGFloat?
+    private let isFlexibleWidth: Bool
     private let onEditingChanged: ((Bool) -> Void)?
 
     @State private var isEditingText = false
@@ -36,6 +37,7 @@ public struct DSNumberInput: View {
         fractionDigits: Int? = nil,
         displayMultiplier: Double? = nil,
         customWidth: CGFloat? = nil,
+        isFlexibleWidth: Bool = false,
         onEditingChanged: ((Bool) -> Void)? = nil
     ) {
         self._value = value
@@ -45,6 +47,7 @@ public struct DSNumberInput: View {
         self.unit = unit
         self.prefix = prefix
         self.customWidth = customWidth
+        self.isFlexibleWidth = isFlexibleWidth
         self.displayMultiplier = displayMultiplier ?? ((unit == "%" && (max ?? 1.0) <= 10.0) ? 100.0 : 1.0)
         if let fractionDigits {
             self.fractionDigits = fractionDigits
@@ -68,6 +71,9 @@ public struct DSNumberInput: View {
                 Text(prefix)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(DSColors.textSecondary)
+                    .lineLimit(1)
+                    .layoutPriority(1)
+                    .fixedSize(horizontal: true, vertical: false)
                     .padding(.leading, DSSpacing.xs)
             } else {
                 Spacer()
@@ -80,7 +86,8 @@ public struct DSNumberInput: View {
             stepperButton
                 .padding(.trailing, 2)
         }
-        .frame(width: customWidth ?? DSSize.inspectorColumnWidth, height: 26)
+        .frame(minWidth: isFlexibleWidth ? 0 : nil, maxWidth: isFlexibleWidth ? .infinity : (customWidth ?? DSSize.inspectorColumnWidth))
+        .frame(height: 26)
         .background(DSColors.inputBackground)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
         .overlay(

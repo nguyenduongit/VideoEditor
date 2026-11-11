@@ -12,49 +12,32 @@ public struct TextInspectorView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.none) {
-            tabContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            Divider()
-                .background(DSColors.blockBorder)
-
-            TextPresetActionSectionView(
-                viewModel: viewModel,
-                currentConfig: viewModel.textConfiguration
-            )
-            .padding(.leading, DSSize.inspectorContentPadding)
-            .padding(.trailing, DSSpacing.md)
-            .padding(.vertical, DSSpacing.sm)
-            .background(DSColors.blockBackground)
-        }
+        tabContent
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
     private var tabContent: some View {
         switch viewModel.effectiveTab {
-        case "Color":
+        case "Appearance", "Color":
             DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
                 TextColorTabContent(viewModel: viewModel)
-                    .padding(.leading, DSSize.inspectorContentPadding)
-                    .padding(.trailing, DSSpacing.md)
-                    .padding(.vertical, DSSpacing.md)
+                    .padding(.horizontal, DSSize.inspectorContentPadding)
+                    .padding(.vertical, DSSize.inspectorContentPadding)
             }
         case "Animation":
             TextAnimationTabContent(viewModel: viewModel)
         case "Background":
             DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
                 TextBackgroundTabContent(viewModel: viewModel)
-                    .padding(.leading, DSSize.inspectorContentPadding)
-                    .padding(.trailing, DSSpacing.md)
-                    .padding(.vertical, DSSpacing.md)
+                    .padding(.horizontal, DSSize.inspectorContentPadding)
+                    .padding(.vertical, DSSize.inspectorContentPadding)
             }
         default:
             DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
                 TextBasicTabContent(viewModel: viewModel)
-                    .padding(.leading, DSSize.inspectorContentPadding)
-                    .padding(.trailing, DSSpacing.md)
-                    .padding(.vertical, DSSpacing.md)
+                    .padding(.horizontal, DSSize.inspectorContentPadding)
+                    .padding(.vertical, DSSize.inspectorContentPadding)
             }
         }
     }

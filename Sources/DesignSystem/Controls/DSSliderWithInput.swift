@@ -1,7 +1,9 @@
 import SwiftUI
 
-/// Inspector slider row with top title, smooth horizontal slider spanning 3 columns, and compact number pill in column 4.
-/// Complies with R8.1 and R8.2 of AGENTS.md.
+/// Bố cục Slider 2 tầng chuẩn NLE:
+/// - Dòng 1: Tiêu đề bên trái.
+/// - Dòng 2: Hàng điều khiển cao đúng 26pt gồm Slider (co giãn linh hoạt) + Ô nhập số 60x26pt + Nút Keyframe (nằm chính xác sau ô số).
+/// Tuân thủ quy tắc R3.1 (<= 300 dòng, View body <= 80 dòng) và R8.1/R8.2 của AGENTS.md.
 public struct DSSliderWithInput: View {
     private let title: String
     @Binding private var value: Double
@@ -52,55 +54,71 @@ public struct DSSliderWithInput: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xs) {
+            if !title.isEmpty {
+                headerRow
+            }
+            sliderRow
+        }
+    }
+
+    private var headerRow: some View {
+        HStack(spacing: DSSpacing.xs) {
             Text(title)
-                .font(.system(size: 12, weight: .regular))
+                .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(DSColors.textPrimary)
-                .frame(alignment: .leading)
+                .lineLimit(1)
 
-            HStack(spacing: DSSize.inspectorColumnSpacing) {
-                if let leadingIcon {
-                    Button(action: { onLeadingIconTap?() }) {
-                        Image(systemName: leadingIcon)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(isLeadingIconActive ? DSColors.accent : DSColors.textSecondary)
-                            .frame(width: 22, height: 22)
-                            .background(isLeadingIconActive ? DSColors.activeTabBackground : Color.clear)
-                            .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .focusable(false)
-                    .help(leadingIconHelp ?? "")
+            Spacer()
+        }
+        .frame(height: 16)
+    }
+
+    private var sliderRow: some View {
+        HStack(spacing: DSSize.inspectorColumnSpacing) {
+            if let leadingIcon {
+                Button(action: { onLeadingIconTap?() }) {
+                    Image(systemName: leadingIcon)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(isLeadingIconActive ? DSColors.accent : DSColors.textSecondary)
+                        .frame(width: 22, height: 22)
+                        .background(isLeadingIconActive ? DSColors.activeTabBackground : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .help(leadingIconHelp ?? "")
+            }
 
-                // Slider spans remaining horizontal space
-                DSCustomSlider(
-                    value: $value,
-                    range: range,
-                    step: step,
-                    defaultValue: defaultValue,
-                    accentColor: accentColor,
-                    onEditingChanged: onEditingChanged
-                )
-                .opacity(isDimmed ? 0.65 : 1.0)
+            // Slider spans remaining horizontal space
+            DSCustomSlider(
+                value: $value,
+                range: range,
+                step: step,
+                defaultValue: defaultValue,
+                accentColor: accentColor,
+                onEditingChanged: onEditingChanged
+            )
+            .opacity(isDimmed ? 0.65 : 1.0)
 
-                // Value pill
-                DSNumberInput(
-                    value: $value,
-                    step: step,
-                    min: range.lowerBound,
-                    max: range.upperBound,
-                    unit: unit,
-                    displayMultiplier: (unit == "%" && range.upperBound <= 10.0) ? 100.0 : 1.0,
-                    onEditingChanged: onEditingChanged
-                )
-                .frame(width: DSSize.inspectorColumnWidth)
+            // Value pill
+            DSNumberInput(
+                value: $value,
+                step: step,
+                min: range.lowerBound,
+                max: range.upperBound,
+                unit: unit,
+                displayMultiplier: (unit == "%" && range.upperBound <= 10.0) ? 100.0 : 1.0,
+                customWidth: 60,
+                onEditingChanged: onEditingChanged
+            )
+            .frame(width: 60)
 
-                if let trailingAccessory {
-                    trailingAccessory
-                        .frame(width: 35, alignment: .center)
-                }
+            if let trailingAccessory {
+                trailingAccessory
+                    .frame(width: 35, alignment: .center)
             }
         }
+        .frame(height: 26)
     }
 }

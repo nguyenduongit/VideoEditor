@@ -50,15 +50,17 @@ public struct VideoThumbnailFilmstripView: View {
     }
 
     public var body: some View {
-        let waveformHeight: CGFloat = 30.0
-        let filmstripHeight = max(10, height - waveformHeight)
+        let hasWaveform = clip.kind.presentation.hasWaveform
+        let filmstripHeight = hasWaveform ? DSSize.clipFilmstripHeight : max(10, height)
         let thumbHeight = filmstripHeight
         let thumbWidth = max(24.0, thumbHeight * (16.0 / 9.0))
         let slotCount = max(1, Int(ceil(width / thumbWidth)))
 
         VStack(spacing: 0) {
             filmstrip(slotCount: slotCount, thumbWidth: thumbWidth, thumbHeight: thumbHeight)
-            audioStrip
+            if hasWaveform {
+                audioStrip
+            }
         }
         .frame(width: width, height: height)
         .clipped()
@@ -78,7 +80,7 @@ public struct VideoThumbnailFilmstripView: View {
                         .clipped()
                 } else {
                     Rectangle()
-                        .fill(DSColors.clipVideo)
+                        .fill(clip.kind.presentation.color)
                         .frame(width: thumbWidth, height: thumbHeight)
                 }
             }
@@ -102,7 +104,7 @@ public struct VideoThumbnailFilmstripView: View {
                 activeAudioStrip
             }
         }
-        .frame(height: 30)
+        .frame(height: DSSize.clipWaveformHeight)
         .background(DSColors.waveformVideoBackground)
         .overlay(
             Rectangle()
@@ -152,7 +154,27 @@ public struct VideoThumbnailFilmstripView: View {
             return
         }
 
-        guard let url = clip.mediaURL, let service = thumbnailService else { return }
+        guard let url = clip.mediaURL else { return }
+
+        if clip.kind == .image {
+            let imgData: Data? = if let service = thumbnailService {
+                await service.generateThumbnail(for: url, at: .zero, targetHeight: thumbHeight * 2.0)
+            } else {
+                nil
+            }
+            let nsImg = (imgData.flatMap { NSImage(data: $0) }) ?? NSImage(contentsOf: url)
+            if let nsImg, !Task.isCancelled {
+                var localThumbnails: [Int: NSImage] = [:]
+                for i in 0..<slotCount {
+                    localThumbnails[i] = nsImg
+                }
+                thumbnails = localThumbnails
+                FilmstripMemoryCache.cache[key] = localThumbnails
+            }
+            return
+        }
+
+        guard let service = thumbnailService else { return }
         let durationSec = Double(width / pixelsPerSecond)
         guard durationSec > 0 else { return }
 

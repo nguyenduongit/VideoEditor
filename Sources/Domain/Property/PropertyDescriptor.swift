@@ -9,6 +9,8 @@ public enum PropertyControlKind: Sendable, Equatable {
     case toggle
     case textField
     case picker(options: [PickerOption])
+    case dropdown(options: [PickerOption])
+    case flip(horizontalID: String = "flipHorizontal", verticalID: String = "flipVertical")
 }
 
 /// An option item for picker controls.
@@ -46,6 +48,7 @@ public struct PropertyDescriptor: Identifiable, Sendable, Equatable {
     public let id: String
     public let title: String
     public let tab: String
+    public let subtab: String
     public let group: String
     public let control: PropertyControlKind
     public let defaultValue: PropertyValue
@@ -55,6 +58,7 @@ public struct PropertyDescriptor: Identifiable, Sendable, Equatable {
         id: String,
         title: String,
         tab: String = "General",
+        subtab: String? = nil,
         group: String,
         control: PropertyControlKind,
         defaultValue: PropertyValue,
@@ -63,6 +67,7 @@ public struct PropertyDescriptor: Identifiable, Sendable, Equatable {
         self.id = id
         self.title = title
         self.tab = tab
+        self.subtab = subtab ?? group
         self.group = group
         self.control = control
         self.defaultValue = defaultValue

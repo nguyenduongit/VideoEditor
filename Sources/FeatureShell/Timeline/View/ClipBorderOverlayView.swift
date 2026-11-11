@@ -17,28 +17,32 @@ public struct ClipBorderOverlayView: View {
         self.isHoveringRightTrim = isHoveringRightTrim
     }
 
+    @ViewBuilder
     public var body: some View {
-        let baseLineWidth: CGFloat = isSelected ? 1.5 : 1.0
-        let baseStrokeColor: Color = isSelected ? Color.white : Color.white.opacity(0.25)
-        let endCapWidth: CGFloat = isSelected ? 3.5 : 2.5
-        let leftCapColor: Color = (isSelected || isHoveringLeftTrim) ? Color.white : Color.white.opacity(0.65)
-        let rightCapColor: Color = (isSelected || isHoveringRightTrim) ? Color.white : Color.white.opacity(0.65)
+        if isSelected {
+            let baseLineWidth: CGFloat = 1.5
+            let baseStrokeColor: Color = Color.white
+            let endCapWidth: CGFloat = 3.5
+            let leftCapColor: Color = isHoveringLeftTrim ? Color.white : Color.white.opacity(0.85)
+            let rightCapColor: Color = isHoveringRightTrim ? Color.white : Color.white.opacity(0.85)
 
-        return ZStack {
-            RoundedRectangle(cornerRadius: DSRadius.small)
-                .stroke(baseStrokeColor, lineWidth: baseLineWidth)
+            ZStack {
+                HStack(spacing: 0) {
+                    Rectangle()
+                        .fill(leftCapColor)
+                        .frame(width: endCapWidth)
+                    Spacer()
+                    Rectangle()
+                        .fill(rightCapColor)
+                        .frame(width: endCapWidth)
+                }
 
-            HStack(spacing: 0) {
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(leftCapColor)
-                    .frame(width: endCapWidth)
-                Spacer()
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(rightCapColor)
-                    .frame(width: endCapWidth)
+                RoundedRectangle(cornerRadius: DSRadius.clip)
+                    .stroke(baseStrokeColor, lineWidth: baseLineWidth)
             }
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.clip))
+            .allowsHitTesting(false)
         }
-        .allowsHitTesting(false)
     }
 }
 

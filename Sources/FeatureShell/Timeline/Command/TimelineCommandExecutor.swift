@@ -40,6 +40,23 @@ public final class TimelineCommandExecutor {
         return true
     }
 
+    /// Ghi nhận giao dịch Undo/Redo cho các thao tác đã áp dụng liên tục vào mô hình (như kéo thả vị trí trên Preview),
+    /// tránh phải đảo ngược trạng thái về ban đầu gây nháy giật (flash / flicker) màn hình.
+    public func recordExecuted(command: TimelineCommand, inverse: TimelineCommand, title: String? = nil) {
+        guard let viewModel else { return }
+        if historyIndex < history.count {
+            history.removeSubrange(historyIndex..<history.count)
+        }
+        let record = TimelineHistoryRecord(
+            title: title,
+            command: command,
+            inverse: inverse
+        )
+        history.append(record)
+        historyIndex = history.count
+        viewModel.updateUndoRedoState()
+    }
+
     // MARK: - Internal Apply Logic
 
     func apply(command: TimelineCommand, on vm: TimelineViewModel) -> TimelineCommand? {

@@ -3,49 +3,41 @@ import Foundation
 extension ClipPropertyRegistry {
     func registerBuiltInDescriptors() {
         register(descriptors: videoDescriptors, for: .video, tabs: ["Video", "Mask", "Adjustment", "AI"])
-        register(descriptors: imageDescriptors, for: .image)
+        register(descriptors: imageDescriptors, for: .image, tabs: ["Image", "Mask", "Adjustment"])
         register(descriptors: audioDescriptors, for: .audio)
-        register(descriptors: textDescriptors, for: .text, tabs: ["Text", "Color", "Background", "Animation"])
+        register(descriptors: textDescriptors, for: .text, tabs: ["Text", "Appearance", "Background", "Animation"])
         register(descriptors: effectDescriptors(), for: .effect, tabs: ["Effect"])
         register(descriptors: adjustmentDescriptors, for: .adjustment, tabs: ["Basic", "HSL", "Wheels", "Curves", "Effects"])
         register(descriptors: stickerDescriptors, for: .sticker, tabs: ["Sticker", "Animation"])
     }
 
     var stickerDescriptors: [PropertyDescriptor] {
-        transformDescriptors(tab: "Sticker", includeUniform: true) + [
-            PropertyDescriptor(id: "flipHorizontal", title: "Lật ngang", tab: "Sticker", group: "Sticker",
-                               control: .toggle, defaultValue: .bool(false)),
-            PropertyDescriptor(id: "flipVertical", title: "Lật dọc", tab: "Sticker", group: "Sticker",
-                               control: .toggle, defaultValue: .bool(false)),
+        transformDescriptors(tab: "Sticker", subtab: "Sticker", includeUniform: true)
+            + blendDescriptors(tab: "Sticker", subtab: "Sticker") + [
             PropertyDescriptor(id: "speed", title: "Tốc độ", tab: "Sticker", group: "Sticker",
                                control: .slider(min: 0.25, max: 4.0, step: 0.05, unit: "x"), defaultValue: .number(1.0))
         ]
     }
 
     var videoDescriptors: [PropertyDescriptor] {
-        transformDescriptors(tab: "Video", includeUniform: true)
-            + speedGroupDescriptors(tab: "Video")
-            + audioGroupDescriptors(tab: "Video")
+        transformDescriptors(tab: "Video", subtab: "Basic", includeUniform: true)
+            + blendDescriptors(tab: "Video", subtab: "Basic")
+            + speedGroupDescriptors(tab: "Video", subtab: "Speed")
+            + audioGroupDescriptors(tab: "Video", subtab: "Audio")
             + adjustmentDescriptors(tab: "Adjustment")
             + maskGroupDescriptors(tab: "Mask")
             + autoPanGroupDescriptors(tab: "AI")
     }
 
     var imageDescriptors: [PropertyDescriptor] {
-        transformDescriptors(tab: "Image", includeUniform: true) + [
-            PropertyDescriptor(
-                id: "speed",
-                title: "Speed",
-                tab: "Speed",
-                group: "Speed",
-                control: .slider(min: 0.1, max: 10.0, step: 0.05, unit: "x"),
-                defaultValue: .number(1.0)
-            )
-        ]
+        transformDescriptors(tab: "Image", subtab: "Basic", includeUniform: true)
+            + blendDescriptors(tab: "Image", subtab: "Basic")
+            + adjustmentDescriptors(tab: "Adjustment")
+            + maskGroupDescriptors(tab: "Mask")
     }
 
     var audioDescriptors: [PropertyDescriptor] {
-        audioGroupDescriptors(tab: "Audio") + [
+        audioGroupDescriptors(tab: "Audio", subtab: "Audio") + [
             PropertyDescriptor(
                 id: "pan",
                 title: "Balance",
@@ -62,7 +54,7 @@ extension ClipPropertyRegistry {
                 control: .toggle,
                 defaultValue: .bool(false)
             )
-        ] + speedGroupDescriptors()
+        ] + speedGroupDescriptors(tab: "Audio", subtab: "Speed")
     }
 
     var textDescriptors: [PropertyDescriptor] {
@@ -91,15 +83,46 @@ extension ClipPropertyRegistry {
                 control: .slider(min: 12.0, max: 160.0, step: 1.0, unit: "pt"),
                 defaultValue: .number(48.0)
             )
-        ] + transformDescriptors(tab: "Text", includeUniform: false)
+        ] + transformDescriptors(tab: "Text", subtab: "Text", includeUniform: false)
     }
 
-    private func audioGroupDescriptors(tab: String = "Audio") -> [PropertyDescriptor] {
+    func blendDescriptors(tab: String, subtab: String = "Basic") -> [PropertyDescriptor] {
+        let blendOptions = [
+            PickerOption(id: "normal", title: "Normal"),
+            PickerOption(id: "multiply", title: "Multiply"),
+            PickerOption(id: "screen", title: "Screen"),
+            PickerOption(id: "overlay", title: "Overlay"),
+            PickerOption(id: "add", title: "Add (Glow)")
+        ]
+        return [
+            PropertyDescriptor(
+                id: "blendMode",
+                title: "Mode",
+                tab: tab,
+                subtab: subtab,
+                group: "Blend",
+                control: .dropdown(options: blendOptions),
+                defaultValue: .string("normal")
+            ),
+            PropertyDescriptor(
+                id: "opacity",
+                title: "Opacity",
+                tab: tab,
+                subtab: subtab,
+                group: "Blend",
+                control: .slider(min: 0.0, max: 1.0, step: 0.01, unit: "%"),
+                defaultValue: .number(1.0)
+            )
+        ]
+    }
+
+    private func audioGroupDescriptors(tab: String = "Audio", subtab: String = "Audio") -> [PropertyDescriptor] {
         [
             PropertyDescriptor(
                 id: "volume",
                 title: "Volume",
                 tab: tab,
+                subtab: subtab,
                 group: "Audio",
                 control: .slider(min: 0.0, max: 2.0, step: 0.01, unit: "%"),
                 defaultValue: .number(1.0)
@@ -108,6 +131,7 @@ extension ClipPropertyRegistry {
                 id: "fadeIn",
                 title: "Fade in",
                 tab: tab,
+                subtab: subtab,
                 group: "Audio",
                 control: .slider(min: 0.0, max: 10.0, step: 0.1, unit: "s"),
                 defaultValue: .number(0.0)
@@ -116,6 +140,7 @@ extension ClipPropertyRegistry {
                 id: "fadeOut",
                 title: "Fade out",
                 tab: tab,
+                subtab: subtab,
                 group: "Audio",
                 control: .slider(min: 0.0, max: 10.0, step: 0.1, unit: "s"),
                 defaultValue: .number(0.0)
@@ -123,12 +148,13 @@ extension ClipPropertyRegistry {
         ]
     }
 
-    private func speedGroupDescriptors(tab: String = "Speed") -> [PropertyDescriptor] {
+    private func speedGroupDescriptors(tab: String = "Speed", subtab: String = "Speed") -> [PropertyDescriptor] {
         [
             PropertyDescriptor(
                 id: "speed",
                 title: "Speed",
                 tab: tab,
+                subtab: subtab,
                 group: "Speed",
                 control: .slider(min: 0.1, max: 10.0, step: 0.05, unit: "x"),
                 defaultValue: .number(1.0)
@@ -137,6 +163,7 @@ extension ClipPropertyRegistry {
                 id: "duration",
                 title: "Duration",
                 tab: tab,
+                subtab: subtab,
                 group: "Speed",
                 control: .numberField(min: 0.1, max: 36000.0, step: 0.1, unit: "s"),
                 defaultValue: .number(0.0)
@@ -145,6 +172,7 @@ extension ClipPropertyRegistry {
                 id: "pitchPreservation",
                 title: "Keep pitch",
                 tab: tab,
+                subtab: subtab,
                 group: "Speed",
                 control: .toggle,
                 defaultValue: .bool(true)
@@ -152,139 +180,80 @@ extension ClipPropertyRegistry {
         ]
     }
 
-    private func transformDescriptors(tab: String, includeUniform: Bool) -> [PropertyDescriptor] {
+    private func transformDescriptors(tab: String, subtab: String = "Basic", includeUniform: Bool) -> [PropertyDescriptor] {
         var list: [PropertyDescriptor] = [
             PropertyDescriptor(
-                id: "scale",
-                title: "Scale",
-                tab: tab,
-                group: "Transform",
-                control: .slider(min: 0.0, max: 5.0, step: 0.01, unit: "%"),
-                defaultValue: .number(1.0)
+                id: "position", title: "Position", tab: tab, subtab: subtab, group: "Transform",
+                control: .position2D(xID: "positionX", yID: "positionY", step: 1.0),
+                defaultValue: .number(0.0)
             )
         ]
         if includeUniform {
+            list.append(contentsOf: [
+                PropertyDescriptor(
+                    id: "scale", title: "Scale", tab: tab, subtab: subtab, group: "Transform",
+                    control: .slider(min: 0.01, max: 5.0, step: 0.01, unit: "%"),
+                    defaultValue: .number(1.0),
+                    condition: PropertyCondition(key: "uniformScale", matchesOneOf: [.bool(true)])
+                ),
+                PropertyDescriptor(
+                    id: "scaleWidth", title: "Scale Width", tab: tab, subtab: subtab, group: "Transform",
+                    control: .slider(min: 0.01, max: 5.0, step: 0.01, unit: "%"),
+                    defaultValue: .number(1.0),
+                    condition: PropertyCondition(key: "uniformScale", matchesOneOf: [.bool(false)])
+                ),
+                PropertyDescriptor(
+                    id: "scaleHeight", title: "Scale Height", tab: tab, subtab: subtab, group: "Transform",
+                    control: .slider(min: 0.01, max: 5.0, step: 0.01, unit: "%"),
+                    defaultValue: .number(1.0),
+                    condition: PropertyCondition(key: "uniformScale", matchesOneOf: [.bool(false)])
+                ),
+                PropertyDescriptor(
+                    id: "uniformScale", title: "Uniform scale", tab: tab, subtab: subtab, group: "Transform",
+                    control: .toggle, defaultValue: .bool(true)
+                )
+            ])
+        } else {
             list.append(
                 PropertyDescriptor(
-                    id: "uniformScale",
-                    title: "Uniform scale",
-                    tab: tab,
-                    group: "Transform",
-                    control: .toggle,
-                    defaultValue: .bool(true)
+                    id: "scale", title: "Scale", tab: tab, subtab: subtab, group: "Transform",
+                    control: .slider(min: 0.01, max: 5.0, step: 0.01, unit: "%"),
+                    defaultValue: .number(1.0)
                 )
             )
         }
         list.append(contentsOf: [
             PropertyDescriptor(
-                id: "position",
-                title: "Position",
-                tab: tab,
-                group: "Transform",
-                control: .position2D(xID: "positionX", yID: "positionY", step: 1.0),
-                defaultValue: .number(0.0)
-            ),
-            PropertyDescriptor(
-                id: "rotation",
-                title: "Rotate",
-                tab: tab,
-                group: "Transform",
+                id: "rotation", title: "Rotate", tab: tab, subtab: subtab, group: "Transform",
                 control: .rotation(min: -360.0, max: 360.0, step: 0.1),
                 defaultValue: .number(0.0)
             ),
             PropertyDescriptor(
-                id: "opacity",
-                title: "Opacity",
-                tab: tab,
-                group: "Transform",
-                control: .slider(min: 0.0, max: 1.0, step: 0.01, unit: "%"),
-                defaultValue: .number(1.0)
+                id: "skewX", title: "Skew X", tab: tab, subtab: subtab, group: "Transform",
+                control: .slider(min: -60.0, max: 60.0, step: 0.1, unit: "°"),
+                defaultValue: .number(0.0)
+            ),
+            PropertyDescriptor(
+                id: "skewY", title: "Skew Y", tab: tab, subtab: subtab, group: "Transform",
+                control: .slider(min: -60.0, max: 60.0, step: 0.1, unit: "°"),
+                defaultValue: .number(0.0)
+            ),
+            PropertyDescriptor(
+                id: "perspectiveX", title: "Perspective X", tab: tab, subtab: subtab, group: "Transform",
+                control: .slider(min: -1.0, max: 1.0, step: 0.01, unit: "%"),
+                defaultValue: .number(0.0)
+            ),
+            PropertyDescriptor(
+                id: "perspectiveY", title: "Perspective Y", tab: tab, subtab: subtab, group: "Transform",
+                control: .slider(min: -1.0, max: 1.0, step: 0.01, unit: "%"),
+                defaultValue: .number(0.0)
+            ),
+            PropertyDescriptor(
+                id: "flip", title: "Flip", tab: tab, subtab: subtab, group: "Transform",
+                control: .flip(horizontalID: "flipHorizontal", verticalID: "flipVertical"),
+                defaultValue: .bool(false)
             )
         ])
         return list
-    }
-
-    func maskGroupDescriptors(tab: String = "Mask") -> [PropertyDescriptor] {
-        maskShapeDescriptors(tab: tab) + maskParameterDescriptors(tab: tab)
-    }
-
-    private func maskShapeDescriptors(tab: String) -> [PropertyDescriptor] {
-        let options = [
-            PickerOption(id: "none", title: "None", iconName: "circle.slash"),
-            PickerOption(id: "split", title: "Split", iconName: "rectangle.split.2x1"),
-            PickerOption(id: "filmstrip", title: "Filmstrip", iconName: "film"),
-            PickerOption(id: "circle", title: "Circle", iconName: "circle"),
-            PickerOption(id: "rectangle", title: "Rectangle", iconName: "square")
-        ]
-        let anyMask = PropertyCondition(
-            key: "maskType",
-            matchesOneOf: [.string("split"), .string("filmstrip"), .string("circle"), .string("rectangle")]
-        )
-        return [
-            PropertyDescriptor(
-                id: "maskType",
-                title: "Shape",
-                tab: tab,
-                group: "Mask",
-                control: .picker(options: options),
-                defaultValue: .string("none")
-            ),
-            PropertyDescriptor(
-                id: "maskInvert",
-                title: "Invert",
-                tab: tab,
-                group: "Mask",
-                control: .toggle,
-                defaultValue: .bool(false),
-                condition: anyMask
-            ),
-            PropertyDescriptor(
-                id: "maskFeather",
-                title: "Feather",
-                tab: tab,
-                group: "Mask",
-                control: .slider(min: 0.0, max: 1.0, step: 0.01, unit: "%"),
-                defaultValue: .number(0.0),
-                condition: anyMask
-            )
-        ]
-    }
-
-    private func maskParameterDescriptors(tab: String) -> [PropertyDescriptor] {
-        let filmstripCond = PropertyCondition(key: "maskType", matchesOneOf: [.string("filmstrip")])
-        let circleCond = PropertyCondition(key: "maskType", matchesOneOf: [.string("circle")])
-        let rectCond = PropertyCondition(key: "maskType", matchesOneOf: [.string("rectangle")])
-        let posCond = PropertyCondition(key: "maskType", matchesOneOf: [.string("split"), .string("circle"), .string("rectangle")])
-        let rotCond = PropertyCondition(key: "maskType", matchesOneOf: [.string("split"), .string("circle"), .string("rectangle")])
-
-        return [
-            PropertyDescriptor(id: "maskPosition", title: "Position", tab: tab, group: "Mask",
-                               control: .position2D(xID: "maskPositionX", yID: "maskPositionY", step: 1.0),
-                               defaultValue: .number(0.0), condition: posCond),
-            PropertyDescriptor(id: "maskOffsetY", title: "Offset Y", tab: tab, group: "Mask",
-                               control: .slider(min: -500.0, max: 500.0, step: 1.0, unit: "px"),
-                               defaultValue: .number(0.0), condition: filmstripCond),
-            PropertyDescriptor(id: "maskRotation", title: "Rotate", tab: tab, group: "Mask",
-                               control: .rotation(min: -360.0, max: 360.0, step: 0.1),
-                               defaultValue: .number(0.0), condition: rotCond),
-            PropertyDescriptor(id: "maskRadiusX", title: "Radius X", tab: tab, group: "Mask",
-                               control: .slider(min: 10.0, max: 1000.0, step: 1.0, unit: "px"),
-                               defaultValue: .number(200.0), condition: circleCond),
-            PropertyDescriptor(id: "maskRadiusY", title: "Radius Y", tab: tab, group: "Mask",
-                               control: .slider(min: 10.0, max: 1000.0, step: 1.0, unit: "px"),
-                               defaultValue: .number(200.0), condition: circleCond),
-            PropertyDescriptor(id: "maskWidth", title: "Width", tab: tab, group: "Mask",
-                               control: .slider(min: 10.0, max: 2000.0, step: 1.0, unit: "px"),
-                               defaultValue: .number(400.0), condition: rectCond),
-            PropertyDescriptor(id: "maskHeight", title: "Height", tab: tab, group: "Mask",
-                               control: .slider(min: 10.0, max: 2000.0, step: 1.0, unit: "px"),
-                               defaultValue: .number(300.0), condition: rectCond),
-            PropertyDescriptor(id: "maskCornerRadius", title: "Roundness", tab: tab, group: "Mask",
-                               control: .slider(min: 0.0, max: 200.0, step: 1.0, unit: "px"),
-                               defaultValue: .number(0.0), condition: rectCond),
-            PropertyDescriptor(id: "maskFilmHeight", title: "Height", tab: tab, group: "Mask",
-                               control: .slider(min: 50.0, max: 1080.0, step: 1.0, unit: "px"),
-                               defaultValue: .number(500.0), condition: filmstripCond)
-        ]
     }
 }

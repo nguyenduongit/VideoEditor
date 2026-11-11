@@ -46,6 +46,9 @@ public final class TextRendererEngine: Sendable {
         }
         let anim = config.animation
         if anim.isDefault { return true }
+        if anim.hasScriptAnimation {
+            return false
+        }
         if anim.hasLoopAnimation || anim.comboType != .none || anim.lightSweepIntensity > 0.01 || anim.rgbSplitIntensity > 0.01 {
             return false
         }
@@ -68,7 +71,7 @@ public final class TextRendererEngine: Sendable {
         )
 
         let textImage: CIImage?
-        if shouldRenderSegmented(for: config) && !config.curve.isActive {
+        if shouldRenderSegmented(for: config) {
             textImage = renderSegmentedAnimatedImage(
                 for: config,
                 localTime: localTime,
@@ -82,12 +85,14 @@ public final class TextRendererEngine: Sendable {
             localTime: localTime,
             duration: duration
         ) {
+            let totalBlur = max(evaluated.blurRadius, config.blurRadius)
+            let totalRgbSplit = max(evaluated.rgbSplitIntensity, config.glitchIntensity)
             textImage = TextShaderFilterEngine.applyFilters(
                 to: rawText,
-                blurRadius: evaluated.blurRadius,
+                blurRadius: totalBlur,
                 hueAngle: evaluated.hueAngle,
                 pixelateScale: evaluated.pixelateScale,
-                rgbSplitIntensity: evaluated.rgbSplitIntensity,
+                rgbSplitIntensity: totalRgbSplit,
                 overlay: evaluated.overlay,
                 lightSweepIntensity: config.animation.lightSweepIntensity,
                 shadow: evaluated.config.shadow,
@@ -226,8 +231,12 @@ public final class TextRendererEngine: Sendable {
         if abs(config.rotation) > 0.001 {
             context.rotate(by: CGFloat(-config.rotation * .pi / 180.0))
         }
-        if abs(overlay.skewX) > 0.001 {
-            context.concatenate(CGAffineTransform(a: 1, b: 0, c: CGFloat(overlay.skewX), d: 1, tx: 0, ty: 0))
+        let radSkewX = config.skewX * .pi / 180.0
+        let radSkewY = config.skewY * .pi / 180.0
+        let totalSkewX = overlay.skewX + tan(radSkewX)
+        let totalSkewY = tan(radSkewY)
+        if abs(totalSkewX) > 0.001 || abs(totalSkewY) > 0.001 {
+            context.concatenate(CGAffineTransform(a: 1, b: CGFloat(totalSkewY), c: CGFloat(totalSkewX), d: 1, tx: 0, ty: 0))
         }
         let sx = CGFloat(max(0.01, config.scale * overlay.scaleX))
         let sy = CGFloat(max(0.01, config.scale * overlay.scaleY))

@@ -16,6 +16,7 @@ public final class MediaAssetDragSourceNSView: NSView {
     public var asset: MediaAsset?
     public var onSelect: ((Bool) -> Void)?
     public var onAddToTimeline: (() -> Void)?
+    public var onDelete: (() -> Void)?
     public var onHover: ((Bool) -> Void)?
 
     // MARK: Constants
@@ -30,6 +31,7 @@ public final class MediaAssetDragSourceNSView: NSView {
 
     private var mouseDownEvent: NSEvent?
     private var isClickingAddButton = false
+    private var isClickingDeleteButton = false
     private var trackingArea: NSTrackingArea?
 
     // MARK: NSView
@@ -42,10 +44,19 @@ public final class MediaAssetDragSourceNSView: NSView {
         return NSRect(x: max(0, w - size), y: max(0, w - size), width: size, height: size)
     }
 
+    public var deleteButtonHitRect: NSRect {
+        let size = Self.plusButtonSize
+        let w = bounds.width
+        return NSRect(x: max(0, w - size), y: 0, width: size, height: size)
+    }
+
     override public func resetCursorRects() {
         super.resetCursorRects()
         if onAddToTimeline != nil && bounds.width >= Self.plusButtonSize {
             addCursorRect(plusButtonHitRect, cursor: .pointingHand)
+        }
+        if onDelete != nil && bounds.width >= Self.plusButtonSize {
+            addCursorRect(deleteButtonHitRect, cursor: .pointingHand)
         }
     }
 
@@ -72,11 +83,17 @@ public final class MediaAssetDragSourceNSView: NSView {
 
     override public func mouseDown(with event: NSEvent) {
         let localPoint = convert(event.locationInWindow, from: nil)
+        if onDelete != nil && deleteButtonHitRect.contains(localPoint) {
+            isClickingDeleteButton = true
+            mouseDownEvent = event
+            return
+        }
         if onAddToTimeline != nil && plusButtonHitRect.contains(localPoint) {
             isClickingAddButton = true
             mouseDownEvent = event
             return
         }
+        isClickingDeleteButton = false
         isClickingAddButton = false
         mouseDownEvent = event
         let isCmd = event.modifierFlags.contains(.command)
@@ -84,7 +101,7 @@ public final class MediaAssetDragSourceNSView: NSView {
     }
 
     override public func mouseDragged(with event: NSEvent) {
-        if isClickingAddButton { return }
+        if isClickingAddButton || isClickingDeleteButton { return }
         guard let downEvent = mouseDownEvent else { return }
         guard displaceExceedsThreshold(event: event, origin: downEvent) else { return }
         mouseDownEvent = nil
@@ -92,6 +109,15 @@ public final class MediaAssetDragSourceNSView: NSView {
     }
 
     override public func mouseUp(with event: NSEvent) {
+        if isClickingDeleteButton {
+            isClickingDeleteButton = false
+            mouseDownEvent = nil
+            let localPoint = convert(event.locationInWindow, from: nil)
+            if deleteButtonHitRect.contains(localPoint) {
+                onDelete?()
+            }
+            return
+        }
         if isClickingAddButton {
             isClickingAddButton = false
             mouseDownEvent = nil

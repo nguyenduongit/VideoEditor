@@ -42,7 +42,6 @@ public final class TransitionLibraryViewModel {
 
     public func reloadTemplates() {
         templatePresets = dependencies.transitionTemplates.loadAllTemplates()
-        Task { await syncFromRemoteIfAvailable(force: true) }
     }
 
     public func syncFromRemoteIfAvailable(force: Bool = false) async {
@@ -65,28 +64,45 @@ public final class TransitionLibraryViewModel {
         }
     }
 
-    /// Thêm hiệu ứng chuyển cảnh vào cặp clip liền kề gần nhất trên Timeline.
+    /// Thêm hoặc thay thế hiệu ứng chuyển cảnh vào cặp clip nối sát nhau (không có khoảng cách) trên Timeline.
     public func applyTransitionToTimeline(_ preset: TransitionPreset) {
         guard let timelineViewModel else { return }
 
+        if let selectedTransID = timelineViewModel.selectedTransitionID {
+            for layer in timelineViewModel.layers where (layer.kind == .video || layer.kind == .image) && !layer.isLocked && !layer.isHidden {
+                if let existing = layer.transition(by: selectedTransID),
+                   layer.areClipsContiguous(leadingID: existing.leadingClipID, trailingID: existing.trailingClipID) {
+                    timelineViewModel.addOrUpdateCutTransition(preset, between: existing.leadingClipID, and: existing.trailingClipID)
+                    return
+                }
+            }
+        }
+
         if let selectedClipID = timelineViewModel.selectedClipIDs.first {
-            for layer in timelineViewModel.layers where layer.kind == .video || layer.kind == .image {
+            for layer in timelineViewModel.layers where (layer.kind == .video || layer.kind == .image) && !layer.isLocked && !layer.isHidden {
                 let neighbors = layer.neighbors(of: selectedClipID)
-                if let next = neighbors.next {
+                if let next = neighbors.next,
+                   layer.areClipsContiguous(leadingID: selectedClipID, trailingID: next.id) {
                     timelineViewModel.addOrUpdateCutTransition(preset, between: selectedClipID, and: next.id)
                     return
-                } else if let prev = neighbors.previous {
+                } else if let prev = neighbors.previous,
+                          layer.areClipsContiguous(leadingID: prev.id, trailingID: selectedClipID) {
                     timelineViewModel.addOrUpdateCutTransition(preset, between: prev.id, and: selectedClipID)
                     return
                 }
             }
         }
 
-        for layer in timelineViewModel.layers where layer.kind == .video || layer.kind == .image {
+        for layer in timelineViewModel.layers where (layer.kind == .video || layer.kind == .image) && !layer.isLocked && !layer.isHidden {
             let sortedClips = layer.clips
-            if sortedClips.count >= 2 {
-                timelineViewModel.addOrUpdateCutTransition(preset, between: sortedClips[0].id, and: sortedClips[1].id)
-                return
+            guard sortedClips.count >= 2 else { continue }
+            for idx in 0..<(sortedClips.count - 1) {
+                let leadID = sortedClips[idx].id
+                let trailID = sortedClips[idx + 1].id
+                if layer.areClipsContiguous(leadingID: leadID, trailingID: trailID) {
+                    timelineViewModel.addOrUpdateCutTransition(preset, between: leadID, and: trailID)
+                    return
+                }
             }
         }
     }

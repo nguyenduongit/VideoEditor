@@ -8,17 +8,20 @@ public struct MediaAssetDragBridgeView: NSViewRepresentable {
     private let asset: MediaAsset
     private let onSelect: (Bool) -> Void
     private let onAddToTimeline: (() -> Void)?
+    private let onDelete: (() -> Void)?
     private let onHover: ((Bool) -> Void)?
 
     public init(
         asset: MediaAsset,
         onSelect: @escaping (Bool) -> Void,
         onAddToTimeline: (() -> Void)? = nil,
+        onDelete: (() -> Void)? = nil,
         onHover: ((Bool) -> Void)? = nil
     ) {
         self.asset = asset
         self.onSelect = onSelect
         self.onAddToTimeline = onAddToTimeline
+        self.onDelete = onDelete
         self.onHover = onHover
     }
 
@@ -27,6 +30,7 @@ public struct MediaAssetDragBridgeView: NSViewRepresentable {
         view.asset = asset
         view.onSelect = onSelect
         view.onAddToTimeline = onAddToTimeline
+        view.onDelete = onDelete
         view.onHover = onHover
         return view
     }
@@ -35,6 +39,7 @@ public struct MediaAssetDragBridgeView: NSViewRepresentable {
         nsView.asset = asset
         nsView.onSelect = onSelect
         nsView.onAddToTimeline = onAddToTimeline
+        nsView.onDelete = onDelete
         nsView.onHover = onHover
     }
 }

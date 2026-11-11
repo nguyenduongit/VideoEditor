@@ -27,8 +27,11 @@ public struct TimelineTrackContentView: View {
     private let onMoveClip: (UUID, ClipKind, CMTime, CGFloat) -> Void
     private let onMoveEnd: (UUID) -> Void
     private let onExtractAudio: ((UUID) -> Void)?
+    private let onSavePreset: ((TimelineClip) -> Void)?
     private let onUpdateClipProperties: ((UUID, [String: PropertyValue], Bool) -> Void)?
     private let onSelectTransition: ((UUID) -> Void)?
+    private let selectedTransitionID: UUID?
+    private let activeTransitionDropTarget: TransitionDropJoinTarget?
 
     public init(
         layer: TimelineLayer,
@@ -40,6 +43,8 @@ public struct TimelineTrackContentView: View {
         isDropTargetBottom: Bool = false,
         selectedClipIDs: Set<UUID> = [],
         selectedClipID: UUID? = nil,
+        selectedTransitionID: UUID? = nil,
+        activeTransitionDropTarget: TransitionDropJoinTarget? = nil,
         groupDragOffset: CGFloat = 0,
         groupTrimLeftOffset: CGFloat = 0,
         groupTrimRightOffset: CGFloat = 0,
@@ -55,6 +60,7 @@ public struct TimelineTrackContentView: View {
         onMoveClip: @escaping (UUID, ClipKind, CMTime, CGFloat) -> Void,
         onMoveClipEnd: @escaping (UUID) -> Void,
         onExtractAudio: ((UUID) -> Void)? = nil,
+        onSavePreset: ((TimelineClip) -> Void)? = nil,
         onUpdateClipProperties: ((UUID, [String: PropertyValue], Bool) -> Void)? = nil,
         onSelectTransition: ((UUID) -> Void)? = nil
     ) {
@@ -71,6 +77,9 @@ public struct TimelineTrackContentView: View {
         self.snapCandidatesProvider = snapCandidatesProvider
         self.beatTimes = beatTimes
         self.onExtractAudio = onExtractAudio
+        self.onSavePreset = onSavePreset
+        self.selectedTransitionID = selectedTransitionID
+        self.activeTransitionDropTarget = activeTransitionDropTarget
         if !selectedClipIDs.isEmpty {
             self.selectedClipIDs = selectedClipIDs
         } else if let selectedClipID {
@@ -173,6 +182,7 @@ public struct TimelineTrackContentView: View {
                     onExtractAudio: {
                         onExtractAudio?(clip.id)
                     },
+                    onSavePreset: onSavePreset,
                     onMove: { newStart, dragY in
                         onMoveClip(clip.id, clip.kind, newStart, dragY)
                     },
@@ -186,23 +196,42 @@ public struct TimelineTrackContentView: View {
             ForEach(layer.transitions) { transition in
                 if let lead = layer.clips.first(where: { $0.id == transition.leadingClipID }) {
                     let cutX = lead.timeRange.end.seconds * pixelsPerSecond
-                    Button(action: {
-                        onSelectTransition?(transition.id)
-                    }) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(DSColors.accent)
-                                .frame(width: 18, height: 22)
-                            Image(systemName: "hourglass")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(Color.white)
+                    let durSec = transition.duration.seconds
+                    let overlayW = durSec * pixelsPerSecond
+                    let isSelected = selectedTransitionID == transition.id
+
+                    TimelineTransitionOverlayView(
+                        transition: transition,
+                        width: overlayW,
+                        height: height,
+                        isSelected: isSelected,
+                        onSelect: {
+                            onSelectTransition?(transition.id)
                         }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .offset(x: cutX - 9, y: 0)
-                    .zIndex(50)
+                    )
+                    .position(x: cutX, y: height / 2)
+                    .zIndex(45)
                 }
+            }
+
+            if let activeTarget = activeTransitionDropTarget, activeTarget.layerID == layer.id {
+                let previewTrans = CutTransition(
+                    presetID: "preview",
+                    name: "Preview",
+                    leadingClipID: activeTarget.leadingClipID,
+                    trailingClipID: activeTarget.trailingClipID,
+                    duration: RationalTime(cmTime: CMTime(seconds: Double(activeTarget.overlayWidth / pixelsPerSecond), preferredTimescale: 600))
+                )
+                TimelineTransitionOverlayView(
+                    transition: previewTrans,
+                    width: activeTarget.overlayWidth,
+                    height: height,
+                    isSelected: true,
+                    onSelect: {}
+                )
+                .position(x: activeTarget.cutCanvasX, y: height / 2)
+                .zIndex(46)
+                .shadow(color: DSColors.toggleCyan.opacity(0.85), radius: 6, x: 0, y: 0)
             }
         }
         .frame(width: canvasWidth, height: height, alignment: .leading)

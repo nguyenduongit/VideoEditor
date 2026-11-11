@@ -144,4 +144,50 @@ extension TimelineView {
             scrollOffset = clamped
         }
     }
+
+    func makeDropTargetBridge(pps: CGFloat, topSpacerHeight: CGFloat) -> TimelineDropTargetBridge {
+        TimelineDropTargetBridge(
+            pixelsPerSecond: pps,
+            scrollOffset: scrollOffset,
+            verticalScrollOffset: verticalScrollOffset,
+            onDropAsset: { asset, dropTime in
+                isTimelineFocused = true
+                viewModel.addAsset(asset, at: dropTime)
+                onTimelineActivated?()
+                playheadState.seek(to: playheadState.currentTime, force: true)
+            },
+            onDragGuideChanged: { dragGuideCanvasX = $0 },
+            snapCandidatesProvider: { viewModel.snapCandidateTimes(playheadTime: playheadState.currentTime) },
+            resolveTransitionJoinTarget: { presetID, canvasX, canvasY in
+                let preset = viewModel.lookupTransitionPreset(by: presetID)
+                let target = viewModel.resolveTransitionDropTarget(
+                    preset: preset,
+                    canvasX: canvasX,
+                    canvasY: canvasY,
+                    topSpacerHeight: topSpacerHeight
+                )
+                viewModel.activeTransitionDropTarget = target
+                return target
+            },
+            onDropTransition: { presetID, canvasX, canvasY in
+                guard let preset = viewModel.lookupTransitionPreset(by: presetID) else { return false }
+                guard viewModel.dropTransition(
+                    preset,
+                    atCanvasX: canvasX,
+                    canvasY: canvasY,
+                    topSpacerHeight: topSpacerHeight
+                ) != nil else {
+                    return false
+                }
+                viewModel.activeTransitionDropTarget = nil
+                isTimelineFocused = true
+                onTimelineActivated?()
+                playheadState.seek(to: playheadState.currentTime, force: true)
+                return true
+            },
+            onTransitionDragEnded: {
+                viewModel.activeTransitionDropTarget = nil
+            }
+        )
+    }
 }

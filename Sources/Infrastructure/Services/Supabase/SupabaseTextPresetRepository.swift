@@ -31,15 +31,6 @@ public final class SupabaseTextPresetRepository: TextPresetRepositoryProtocol, @
                 .value
 
             let fetched = rows.map { $0.toPreset() }
-            let systemIDs = Set(TextPreset.creativeCatalog.map(\.id))
-            let fetchedSystemIDs = Set(fetched.filter(\.isSystem).map(\.id))
-
-            // Nếu Supabase chưa có đủ các mẫu hệ thống mới, thực hiện Upsert an toàn (không xóa dữ liệu user)
-            if !systemIDs.isSubset(of: fetchedSystemIDs) {
-                try? await seedSystemCatalogSafely(preserving: fetched)
-                return templateLoader.loadAllTemplates()
-            }
-
             templateLoader.setInMemoryTemplates(fetched)
             return templateLoader.loadAllTemplates()
         } catch {
@@ -86,20 +77,10 @@ public final class SupabaseTextPresetRepository: TextPresetRepositoryProtocol, @
         NotificationCenter.default.post(name: .presetStoreDidUpdate, object: nil)
     }
 
-    /// Khởi tạo/cập nhật các mẫu hệ thống mặc định bằng Upsert không phá hủy (bảo toàn 100% mẫu của người dùng).
+    /// Khởi tạo/cập nhật các mẫu cục bộ (Basic mặc định luôn giữ local)
     public func seedSystemCatalogSafely(preserving existingUserPresets: [TextPreset] = []) async throws {
-        let systemCatalog = [TextPreset.default] + TextPreset.creativeCatalog
-        let userOnly = existingUserPresets.filter { !$0.isSystem }
-        templateLoader.setInMemoryTemplates(systemCatalog + userOnly)
-
-        if let client {
-            let rows = systemCatalog.map { TextPresetRow(from: $0) }
-            try await client
-                .from(tableName)
-                .upsert(rows)
-                .execute()
-        }
-
+        let userOnly = existingUserPresets.filter { !$0.isSystem && $0.id != TextPreset.default.id }
+        templateLoader.setInMemoryTemplates([TextPreset.default] + TextPreset.creativeCatalog + userOnly)
         NotificationCenter.default.post(name: .presetStoreDidUpdate, object: nil)
     }
 }

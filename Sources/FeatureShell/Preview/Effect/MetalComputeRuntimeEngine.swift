@@ -210,4 +210,9 @@ public final class MetalComputeRuntimeEngine: @unchecked Sendable {
         cmdBuffer.waitUntilCompleted()
         return makeOutputCIImage(from: outTex, localRect: localRect, targetRect: canvasRect) ?? toImage
     }
+
+    public func renderCGImage(from image: CIImage, rect: CGRect) -> CGImage? {
+        guard let ciContext else { return nil }
+        return ciContext.createCGImage(image, from: rect, format: .RGBA8, colorSpace: colorSpace)
+    }
 }

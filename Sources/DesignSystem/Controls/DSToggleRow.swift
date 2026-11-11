@@ -31,7 +31,7 @@ public struct DSToggleRow: View {
             toggleSwitch
                 .frame(width: DSSize.inspectorColumnWidth, alignment: .trailing)
         }
-        .frame(height: 28)
+        .frame(height: 26)
     }
 
     private var toggleSwitch: some View {

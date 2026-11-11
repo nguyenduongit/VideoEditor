@@ -1,15 +1,13 @@
 import SwiftUI
 
-/// Collapsible property group section with disclosure chevron and reset button.
-/// Complies with R8.1 and R8.2 of AGENTS.md.
+/// Section Card cho thuộc tính Inspector, tương thích ngược với DSCollapsibleSection.
+/// Đã được chuyển đổi hoàn toàn sang kiến trúc Section Card phẳng không gập mở theo yêu cầu AAS.
+/// Tuân thủ quy tắc R3.1 (<= 300 dòng, View body <= 80 dòng) và R8.1/R8.2 của AGENTS.md.
 public struct DSCollapsibleSection<Content: View>: View {
     private let title: String
     private let trailingAccessory: AnyView?
     private let onReset: (() -> Void)?
     private let content: () -> Content
-
-    @State private var isExpanded: Bool
-    @State private var isHoveredReset = false
 
     public init(
         title: String,
@@ -19,73 +17,17 @@ public struct DSCollapsibleSection<Content: View>: View {
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.title = title
-        self._isExpanded = State(initialValue: defaultExpanded)
         self.trailingAccessory = trailingAccessory
         self.onReset = onReset
         self.content = content
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            headerRow
-
-            if isExpanded {
-                VStack(alignment: .leading, spacing: DSSpacing.sm) {
-                    content()
-                }
-                .padding(.top, DSSpacing.xxs)
-            }
-        }
-    }
-
-    private var headerRow: some View {
-        HStack(spacing: DSSpacing.sm) {
-            titleToggleArea
-
-            Spacer()
-
-            if isExpanded {
-                if let onReset {
-                    resetButton(action: onReset)
-                }
-
-                if let trailingAccessory {
-                    trailingAccessory
-                }
-            }
-        }
-        .frame(height: 24)
-    }
-
-    private var titleToggleArea: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isExpanded.toggle()
-            }
-        } label: {
-            HStack(spacing: DSSpacing.xs) {
-                Text(title)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(DSColors.textPrimary)
-
-                Image(systemName: isExpanded ? "arrowtriangle.up.fill" : "arrowtriangle.down.fill")
-                    .font(.system(size: 8))
-                    .foregroundStyle(DSColors.textSecondary)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func resetButton(action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: "arrow.counterclockwise")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(isHoveredReset ? DSColors.textPrimary : DSColors.textSecondary)
-                .frame(width: 18, height: 18)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { isHoveredReset = $0 }
+        DSSectionCard(
+            title: title,
+            trailingAccessory: trailingAccessory,
+            onReset: onReset,
+            content: content
+        )
     }
 }

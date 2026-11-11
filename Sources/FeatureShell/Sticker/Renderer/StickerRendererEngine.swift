@@ -124,16 +124,11 @@ public final class StickerRendererEngine: Sendable {
         localTime: Double,
         rasterTarget: CGSize
     ) -> CGImage? {
-        if let svg = config.svgMarkup, !svg.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            if let cg = TextSVGAndAssetCache.shared.rasterizeSVG(svg, targetSize: rasterTarget) {
-                return cg
-            }
-        }
+        let speed = clipProperties["speed"]?.asNumber ?? config.playbackSpeed
+        let loopRaw = clipProperties["loopMode"]?.asString ?? config.loopMode.rawValue
+        let shouldLoop = (StickerLoopMode(rawValue: loopRaw) ?? config.loopMode) == .loop
 
         if let srcPath = config.sourceURLString, !srcPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let speed = clipProperties["speed"]?.asNumber ?? config.playbackSpeed
-            let loopRaw = clipProperties["loopMode"]?.asString ?? config.loopMode.rawValue
-            let shouldLoop = (StickerLoopMode(rawValue: loopRaw) ?? config.loopMode) == .loop
             if let cg = TextSVGAndAssetCache.shared.frameForAsset(
                 path: srcPath,
                 localTime: localTime,
@@ -141,6 +136,24 @@ public final class StickerRendererEngine: Sendable {
                 speed: speed,
                 targetSize: rasterTarget
             ) {
+                return cg
+            }
+        }
+
+        if let originID = clipProperties["originPresetId"]?.asString, !originID.isEmpty {
+            if let cg = TextSVGAndAssetCache.shared.frameForAsset(
+                path: "\(originID).apng",
+                localTime: localTime,
+                loop: shouldLoop,
+                speed: speed,
+                targetSize: rasterTarget
+            ) {
+                return cg
+            }
+        }
+
+        if let svg = config.svgMarkup, !svg.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let cg = TextSVGAndAssetCache.shared.rasterizeSVG(svg, targetSize: rasterTarget) {
                 return cg
             }
         }

@@ -39,6 +39,15 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
     public var loopManifest: CreativeAnimationManifest?
     public var parameterValues: [String: Double]
 
+    // MARK: - Script-Driven Continuous Animation (Dev-Authored)
+    public var scriptId: String
+    public var scriptDuration: Double
+    public var scriptInDuration: Double
+    public var scriptLoopDuration: Double
+    public var scriptOutDuration: Double
+    public var isScriptLoop: Bool
+    public var scriptSpeed: Double
+
     public init(
         inType: TextInAnimationType = .none,
         inDuration: Double = 1.0,
@@ -61,7 +70,14 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         inManifest: CreativeAnimationManifest? = nil,
         outManifest: CreativeAnimationManifest? = nil,
         loopManifest: CreativeAnimationManifest? = nil,
-        parameterValues: [String: Double] = [:]
+        parameterValues: [String: Double] = [:],
+        scriptId: String = "none",
+        scriptDuration: Double = 5.0,
+        scriptInDuration: Double = 1.0,
+        scriptLoopDuration: Double = 3.0,
+        scriptOutDuration: Double = 1.0,
+        isScriptLoop: Bool = false,
+        scriptSpeed: Double = 1.0
     ) {
         self.inType = inType
         self.inDuration = max(0.1, min(3.0, inDuration))
@@ -85,6 +101,23 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         self.outManifest = outManifest
         self.loopManifest = loopManifest
         self.parameterValues = parameterValues
+        self.scriptId = scriptId
+        self.scriptInDuration = max(0.0, min(20.0, scriptInDuration))
+        self.scriptLoopDuration = max(0.2, min(80.0, scriptLoopDuration))
+        self.scriptOutDuration = max(0.0, min(20.0, scriptOutDuration))
+        self.scriptDuration = max(0.2, min(120.0, scriptDuration))
+        self.isScriptLoop = isScriptLoop
+        self.scriptSpeed = max(0.2, min(4.0, scriptSpeed))
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case inType, inDuration, outType, outDuration, loopType, loopSpeed, comboType
+        case scope, staggerDirection, staggerDelay, anchorPoint
+        case rgbSplitIntensity, lightSweepIntensity, isMaskEnabled, isMotionBlurEnabled
+        case isTypewriterCursorVisible, highlightColorHex, motionEasing
+        case inManifest, outManifest, loopManifest, parameterValues
+        case scriptId, scriptDuration, scriptInDuration, scriptLoopDuration, scriptOutDuration
+        case isScriptLoop, scriptSpeed
     }
 
     public init(from decoder: Decoder) throws {
@@ -111,6 +144,36 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         self.outManifest = try? c.decodeIfPresent(CreativeAnimationManifest.self, forKey: .outManifest)
         self.loopManifest = try? c.decodeIfPresent(CreativeAnimationManifest.self, forKey: .loopManifest)
         self.parameterValues = (try? c.decodeIfPresent([String: Double].self, forKey: .parameterValues)) ?? [:]
+        self.scriptId = (try? c.decodeIfPresent(String.self, forKey: .scriptId)) ?? "none"
+        self.scriptInDuration = (try? c.decodeIfPresent(Double.self, forKey: .scriptInDuration)) ?? 1.0
+        self.scriptLoopDuration = (try? c.decodeIfPresent(Double.self, forKey: .scriptLoopDuration)) ?? 3.0
+        self.scriptOutDuration = (try? c.decodeIfPresent(Double.self, forKey: .scriptOutDuration)) ?? 1.0
+        self.scriptDuration = (try? c.decodeIfPresent(Double.self, forKey: .scriptDuration)) ?? 5.0
+        self.isScriptLoop = (try? c.decodeIfPresent(Bool.self, forKey: .isScriptLoop)) ?? false
+        self.scriptSpeed = (try? c.decodeIfPresent(Double.self, forKey: .scriptSpeed)) ?? 1.0
+    }
+
+    public var hasScriptAnimation: Bool {
+        scriptId != "none" && !scriptId.isEmpty
+    }
+
+    /// Số giây Loop cơ sở (bội số nguyên của 1s, mặc định 3s) trước khi nhân hệ số `scriptSpeed`.
+    public var scriptBaseLoopSeconds: Int {
+        let unit = max(0.1, scriptInDuration > 0.05 ? scriptInDuration : scriptSpeed)
+        return max(1, min(30, Int((scriptLoopDuration / unit).rounded())))
+    }
+
+    /// Áp dụng quy tắc thời lượng chuẩn hóa:
+    /// - Base In = 1s, Base Out = 1s, Base Loop = `baseLoopSeconds` (bội số nguyên của 1s).
+    /// - Khi thay đổi `speed` (ví dụ 1.2x): In = 1.2s, Loop = 3.6s, Out = 1.2s, Tổng = 6.0s.
+    public mutating func applyUnifiedScriptTiming(baseLoopSeconds: Int, speed: Double) {
+        let cleanLoop = max(1, min(30, baseLoopSeconds))
+        let cleanSpeed = max(0.2, min(4.0, (speed * 100.0).rounded() / 100.0))
+        self.scriptSpeed = cleanSpeed
+        self.scriptInDuration = (1.0 * cleanSpeed * 100.0).rounded() / 100.0
+        self.scriptLoopDuration = (Double(cleanLoop) * cleanSpeed * 100.0).rounded() / 100.0
+        self.scriptOutDuration = (1.0 * cleanSpeed * 100.0).rounded() / 100.0
+        self.scriptDuration = (Double(2 + cleanLoop) * cleanSpeed * 100.0).rounded() / 100.0
     }
 
     public var hasInAnimation: Bool {
@@ -126,7 +189,7 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
     }
 
     public var isDefault: Bool {
-        !hasInAnimation && !hasOutAnimation && !hasLoopAnimation
+        !hasScriptAnimation && !hasInAnimation && !hasOutAnimation && !hasLoopAnimation
             && rgbSplitIntensity == 0.0 && lightSweepIntensity == 0.0 && !isMaskEnabled
     }
 

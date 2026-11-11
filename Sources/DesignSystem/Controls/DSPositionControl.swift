@@ -68,6 +68,6 @@ public struct DSPositionControl: View {
                     .frame(width: 35, height: 18)
             }
         }
-        .frame(height: 28)
+        .frame(height: 26)
     }
 }

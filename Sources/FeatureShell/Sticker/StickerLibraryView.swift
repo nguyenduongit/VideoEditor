@@ -3,28 +3,48 @@ import AppKit
 import Domain
 import DesignSystem
 
-/// View thư viện Nhãn dán (SVG Vector & GIF / APNG Stickers) bên sidebar trái,
-/// kết xuất trực tiếp hình thu nhỏ Vector SVG sắc nét ngay trên thẻ chọn.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
+/// Left Sidebar view for the Stickers Library (SVG Vector & GIF / APNG).
+/// Features a 100pt vertical category sidebar, 2-column square card grid,
+/// top-right 26pt Favorites button, and bottom-right 26pt Add button.
+/// Complies with AGENTS.md rules (File <= 300 lines, View body <= 40 lines).
 public struct StickerLibraryView: View {
     @Bindable private var viewModel: StickerLibraryViewModel
+    @State private var selectedCategory: String = StickerCategory.emoji.displayName
+
+    private let categories = StickerCategory.assignableCases.map(\.displayName)
 
     private let columns = [
-        GridItem(.flexible(), spacing: DSSpacing.md),
-        GridItem(.flexible(), spacing: DSSpacing.md),
-        GridItem(.flexible(), spacing: DSSpacing.md)
+        GridItem(.flexible(), spacing: DSSpacing.sm),
+        GridItem(.flexible(), spacing: DSSpacing.sm)
     ]
 
     public init(viewModel: StickerLibraryViewModel) {
         self.viewModel = viewModel
     }
 
+    private var displayedPresets: [StickerPreset] {
+        let base: [StickerPreset]
+        if selectedCategory == SidebarFavoriteManager.favoritesCategory {
+            let favs = SidebarFavoriteManager.shared.favorites(for: "sticker")
+            base = viewModel.templatePresets.filter { favs.contains($0.id) }
+        } else {
+            if let cat = StickerCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
+                base = viewModel.templatePresets.filter { $0.category == cat }
+            } else {
+                base = viewModel.templatePresets
+            }
+        }
+        guard !viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return base }
+        return base.filter { $0.name.localizedCaseInsensitiveContains(viewModel.searchQuery) }
+    }
+
     public var body: some View {
         LibraryScaffoldView(
             searchQuery: $viewModel.searchQuery,
-            searchPlaceholder: "Tìm kiếm nhãn dán SVG, GIF, emoji...",
-            categories: StickerCategory.allCases.map(\.rawValue),
-            selectedCategory: categoryBinding,
+            searchPlaceholder: "Search stickers...",
+            categories: categories,
+            selectedCategory: $selectedCategory,
+            favoritesCount: SidebarFavoriteManager.shared.favorites(for: "sticker").count,
             trailingAction: AnyView(reloadButton)
         ) {
             contentScrollView
@@ -37,107 +57,77 @@ public struct StickerLibraryView: View {
         }
     }
 
-    private var categoryBinding: Binding<String> {
-        Binding(
-            get: { viewModel.selectedCategory.rawValue },
-            set: { val in
-                if let cat = StickerCategory(rawValue: val) {
-                    viewModel.selectedCategory = cat
-                }
-            }
-        )
-    }
-
     private var reloadButton: some View {
-        Button(action: { viewModel.reloadTemplates() }) {
-            Image(systemName: "arrow.clockwise")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DSColors.textSecondary)
-                .frame(width: 24, height: 24)
-                .background(DSColors.windowBackground)
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+        let size = LibraryScaffoldView<EmptyView>.searchControlHeight
+        return Button(action: { viewModel.reloadTemplates() }) {
+            ZStack {
+                RoundedRectangle(cornerRadius: DSRadius.small)
+                    .fill(DSColors.windowBackground)
+                RoundedRectangle(cornerRadius: DSRadius.small)
+                    .stroke(DSColors.blockBorder, lineWidth: 1)
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(DSColors.textSecondary)
+            }
+            .frame(width: size, height: size)
         }
         .buttonStyle(.plain)
-        .help(String(localized: "Tải lại danh sách nhãn dán"))
+        .help("Reload Stickers")
     }
 
     private var contentScrollView: some View {
         DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-            let presets = viewModel.filteredPresets
+            let presets = displayedPresets
             if presets.isEmpty {
                 emptyView
             } else {
-                LazyVGrid(columns: columns, spacing: DSSpacing.md) {
+                LazyVGrid(columns: columns, spacing: DSSpacing.sm) {
                     ForEach(presets) { preset in
-                        stickerCard(preset)
-                    }
-                }
-                .padding(DSSpacing.md)
-            }
-        }
-    }
-
-    private func stickerCard(_ preset: StickerPreset) -> some View {
-        Button(action: { viewModel.addStickerToTimeline(preset) }) {
-            VStack(spacing: DSSpacing.xs) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: DSRadius.small)
-                        .fill(DSColors.windowBackground)
-                        .frame(height: 72)
-
-                    stickerThumbnail(for: preset)
-
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Text(preset.format.rawValue.uppercased())
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(preset.format == .svg ? DSColors.toggleCyan : DSColors.textSecondary)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 1)
-                                .background(DSColors.blockBackground.opacity(0.85))
-                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                        let isFav = SidebarFavoriteManager.shared.isFavorite(id: preset.id, for: "sticker")
+                        UnifiedLibraryCardItemView(
+                            title: preset.name,
+                            isFavorite: isFav,
+                            onAdd: {
+                                viewModel.addStickerToTimeline(preset)
+                            },
+                            onToggleFavorite: {
+                                SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "sticker")
+                            }
+                        ) {
+                            stickerThumbnail(for: preset)
                         }
-                        Spacer()
                     }
-                    .padding(4)
                 }
-
-                Text(preset.name)
-                    .font(.system(size: 10.5, weight: .medium))
-                    .foregroundStyle(DSColors.textPrimary)
-                    .lineLimit(1)
+                .padding(DSSpacing.sm)
             }
-            .padding(DSSpacing.xs)
-            .background(DSColors.blockBackground)
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
-            .overlay(RoundedRectangle(cornerRadius: DSRadius.block).stroke(DSColors.blockBorder, lineWidth: 1))
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
     private func stickerThumbnail(for preset: StickerPreset) -> some View {
-        if let svg = preset.config.svgMarkup,
-           !svg.isEmpty,
-           let cgImg = TextSVGAndAssetCache.shared.rasterizeSVG(svg, targetSize: CGSize(width: 96, height: 96)) {
-            Image(decorative: cgImg, scale: 2.0)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 46, height: 46)
-        } else {
-            Image(systemName: preset.systemSymbolFallback)
-                .font(.system(size: 28))
-                .foregroundStyle(DSColors.toggleCyan)
+        ZStack {
+            if let svg = preset.config.svgMarkup, !svg.isEmpty {
+                SVGStickerThumbnailView(
+                    svgMarkup: svg,
+                    fallbackSymbol: preset.systemSymbolFallback
+                )
+                .padding(DSSpacing.xs)
+            } else {
+                Image(systemName: preset.systemSymbolFallback)
+                    .font(.system(size: 32))
+                    .foregroundStyle(DSColors.toggleCyan)
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DSColors.windowBackground)
     }
 
     private var emptyView: some View {
         VStack(spacing: DSSpacing.sm) {
             Image(systemName: "face.smiling")
-                .font(.system(size: 26))
+                .font(.system(size: 28))
                 .foregroundStyle(DSColors.textSecondary.opacity(0.6))
-            Text(String(localized: "Không tìm thấy nhãn dán"))
+            Text("No stickers found")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
         }

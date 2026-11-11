@@ -10,6 +10,21 @@ public enum AdjustmentTemplateCategory: String, Codable, Sendable, CaseIterable,
     case moodyMono = "Moody & B&W"
 
     public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .all: return "All"
+        case .cinematic: return "Cinematic"
+        case .filmVintage: return "Film & Vintage"
+        case .portraitVlog: return "Portrait & Vlog"
+        case .cyberNeon: return "Cyber & Night"
+        case .moodyMono: return "Moody & B&W"
+        }
+    }
+
+    public static var assignableCases: [AdjustmentTemplateCategory] {
+        [.cinematic, .filmVintage, .portraitVlog, .cyberNeon, .moodyMono]
+    }
 }
 
 /// Mẫu thiết lập sẵn thông số màu (Color Grading Template Script) tuần tự hóa JSON độc lập và tương thích Supabase `jsonb`.

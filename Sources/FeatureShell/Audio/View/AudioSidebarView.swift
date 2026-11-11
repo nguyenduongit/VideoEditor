@@ -1,127 +1,98 @@
 import SwiftUI
+import CoreMedia
 import Domain
 import DesignSystem
 
-/// Giao diện Sidebar hiển thị danh mục công cụ âm thanh và tính năng Dance Beat Counter.
-/// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, View body <= 80 dòng) và R2.4 (DesignSystem).
+/// Left Sidebar view for the Audio Library and Dance Beat Counter utility.
+/// Provides a 2-column grid layout with top-right 26pt Favorites button and bottom-right 26pt Add button.
+/// Complies with AGENTS.md rules (File <= 300 lines, View body <= 40 lines).
 public struct AudioSidebarView: View {
-    public weak var timelineViewModel: TimelineViewModel?
+    @State private var viewModel: AudioSidebarViewModel
 
-    public init(timelineViewModel: TimelineViewModel? = nil) {
-        self.timelineViewModel = timelineViewModel
-    }
+    private let columns = [
+        GridItem(.flexible(), spacing: DSSpacing.sm),
+        GridItem(.flexible(), spacing: DSSpacing.sm)
+    ]
 
-    private var canAdd: Bool {
-        timelineViewModel?.canAddDanceBeatCounter ?? false
+    public init(timelineViewModel: TimelineViewModel? = nil, dependencies: EditorDependencies? = nil) {
+        _viewModel = State(wrappedValue: AudioSidebarViewModel(
+            timelineViewModel: timelineViewModel,
+            dependencies: dependencies
+        ))
     }
 
     public var body: some View {
         LibraryScaffoldView(
-            searchPlaceholder: "Tìm kiếm âm thanh, công cụ..."
+            searchQuery: $viewModel.searchQuery,
+            searchPlaceholder: "Search audio, tools...",
+            categories: viewModel.categories,
+            selectedCategory: $viewModel.selectedCategory,
+            favoritesCount: SidebarFavoriteManager.shared.favorites(for: "audio").count,
+            trailingAction: AnyView(reloadButton)
         ) {
-            VStack(alignment: .leading, spacing: DSSpacing.lg) {
-                sectionHeader
-                danceBeatCounterCard
-                Spacer()
-            }
-            .padding(DSSpacing.md)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            contentScrollView
         }
     }
 
-    private var sectionHeader: some View {
-        Text(String(localized: "CÔNG CỤ THUẬT TOÁN"))
-            .font(.system(size: 11, weight: .bold))
-            .foregroundStyle(DSColors.textSecondary)
-    }
-
-    private var danceBeatCounterCard: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            HStack(spacing: DSSpacing.md) {
-                ZStack {
-                    Circle()
-                        .fill(DSColors.accent.opacity(0.18))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: "figure.dance")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(DSColors.accent)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Text("Dance Beat Counter")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(DSColors.textPrimary)
-                        Spacer()
-                        statusBadge
-                    }
-
-                    Text("Đếm nhịp 8 tự động khớp bài nhạc chính cho video dạy nhảy.")
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(DSColors.textSecondary)
-                        .lineLimit(2)
-                }
-            }
-
-            Divider().background(DSColors.blockBorder)
-
-            HStack {
-                if !canAdd {
-                    Text("Cần có track nhạc chính trên timeline")
-                        .font(.system(size: 10))
-                        .foregroundStyle(DSColors.textSecondary.opacity(0.7))
-                }
-                Spacer()
-                addButton
-            }
-        }
-        .padding(DSSpacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(DSColors.blockBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(DSColors.blockBorder, lineWidth: 1)
-                )
-        )
-    }
-
-    private var statusBadge: some View {
-        HStack(spacing: 3) {
-            Circle()
-                .fill(canAdd ? Color.green : Color.orange)
-                .frame(width: 6, height: 6)
-            Text(canAdd ? "Sẵn sàng" : "Chờ nhạc")
-                .font(.system(size: 9.5, weight: .medium))
-                .foregroundStyle(canAdd ? Color.green : DSColors.textSecondary)
-        }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(
-            Capsule()
-                .fill((canAdd ? Color.green : Color.orange).opacity(0.12))
-        )
-    }
-
-    private var addButton: some View {
-        Button {
-            timelineViewModel?.addDanceBeatCounter()
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "plus")
-                    .font(.system(size: 11, weight: .bold))
-                Text("Thêm vào timeline")
+    private var reloadButton: some View {
+        let size = LibraryScaffoldView<EmptyView>.searchControlHeight
+        return Button(action: {
+            viewModel.syncPresetsFromSupabase()
+        }) {
+            ZStack {
+                RoundedRectangle(cornerRadius: DSRadius.small)
+                    .fill(DSColors.blockBackground)
+                Image(systemName: "arrow.clockwise")
                     .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(DSColors.textSecondary)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(canAdd ? DSColors.accent : DSColors.blockBorder)
-            )
-            .foregroundStyle(canAdd ? Color.white : DSColors.textSecondary.opacity(0.7))
+            .frame(width: size, height: size)
         }
         .buttonStyle(.plain)
-        .disabled(!canAdd)
+        .help("Reload audio")
+    }
+
+    private var contentScrollView: some View {
+        DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
+            LazyVGrid(columns: columns, spacing: DSSpacing.sm) {
+                ForEach(viewModel.filteredItems) { item in
+                    let isFav = SidebarFavoriteManager.shared.isFavorite(id: item.id, for: "audio")
+                    UnifiedLibraryCardItemView(
+                        title: item.name,
+                        isFavorite: isFav,
+                        onAdd: {
+                            viewModel.addPresetToTimeline(item)
+                        },
+                        onToggleFavorite: {
+                            SidebarFavoriteManager.shared.toggleFavorite(id: item.id, for: "audio")
+                        }
+                    ) {
+                        thumbnail(for: item)
+                    }
+                }
+            }
+            .padding(DSSpacing.sm)
+        }
+    }
+
+    @ViewBuilder
+    private func thumbnail(for item: AudioPreset) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: item.icon)
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(item.id == "audio_dance_beat" ? DSColors.accent : DSColors.toggleCyan)
+
+            Text(item.durationFormatted)
+                .font(.system(size: 9.5, weight: .regular, design: .monospaced))
+                .foregroundStyle(DSColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            LinearGradient(
+                colors: [DSColors.windowBackground, DSColors.blockBackground],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
     }
 }

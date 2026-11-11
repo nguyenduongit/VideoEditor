@@ -41,7 +41,10 @@ let package = Package(
                 "Domain",
                 "DesignSystem"
             ],
-            path: "Sources/FeatureShell"
+            path: "Sources/FeatureShell",
+            resources: [
+                .process("Resources")
+            ]
         ),
         .executableTarget(
             name: "VideoEditorApp",

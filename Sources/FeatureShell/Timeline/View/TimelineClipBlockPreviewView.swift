@@ -30,18 +30,18 @@ public struct TimelineClipBlockPreviewView: View {
 
     public var body: some View {
         ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: DSRadius.small)
+            RoundedRectangle(cornerRadius: DSRadius.clip)
                 .fill(clipBackgroundColor)
 
             if kind.isAuxiliary {
                 auxiliaryPreviewContent
-                    .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+                    .clipShape(RoundedRectangle(cornerRadius: DSRadius.clip))
             } else {
                 VStack(spacing: 0) {
                     headerBar
                     bodyContent
                 }
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.clip))
             }
 
             borderOverlay
@@ -127,11 +127,14 @@ public struct TimelineClipBlockPreviewView: View {
     private var bodyContent: some View {
         let bodyH = max(10, height - 16)
         if kind.presentation.hasFilmstrip {
-            let waveH: CGFloat = 30.0
+            let hasWave = kind.presentation.hasWaveform
+            let waveH: CGFloat = hasWave ? 30.0 : 0.0
             let filmH = max(10, bodyH - waveH)
             VStack(spacing: 0) {
                 filmstripView(height: filmH)
-                previewWaveform(height: waveH, background: DSColors.waveformVideoBackground)
+                if hasWave {
+                    previewWaveform(height: waveH, background: DSColors.waveformVideoBackground)
+                }
             }
         } else if kind.presentation.hasWaveform {
             previewWaveform(height: bodyH, background: DSColors.waveformAudioBackground)
@@ -203,7 +206,7 @@ public struct TimelineClipBlockPreviewView: View {
         let borderColor: Color = kind.presentation.borderColor
 
         return ZStack {
-            RoundedRectangle(cornerRadius: DSRadius.small)
+            RoundedRectangle(cornerRadius: DSRadius.clip)
                 .stroke(borderColor, lineWidth: 1.5)
 
             HStack(spacing: 0) {
@@ -216,6 +219,7 @@ public struct TimelineClipBlockPreviewView: View {
                     .frame(width: 2.5)
             }
         }
+        .clipShape(RoundedRectangle(cornerRadius: DSRadius.clip))
         .allowsHitTesting(false)
     }
 }

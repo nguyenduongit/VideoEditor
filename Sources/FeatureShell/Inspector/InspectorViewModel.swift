@@ -169,9 +169,9 @@ public final class InspectorViewModel {
                 if (key == "speed" || key == "duration") && retimeable {
                     timelineViewModel.applySpeedChange(clipID: clip.id, newProperties: liveProperties, oldProperties: initial)
                 } else {
-                    timelineViewModel.updateClipLiveProperties(clipID: clip.id, properties: initial)
                     let cmd = TimelineCommand.updateClipProperties(clipID: clip.id, properties: liveProperties)
-                    timelineViewModel.commandExecutor?.execute(cmd)
+                    let inv = TimelineCommand.updateClipProperties(clipID: clip.id, properties: initial)
+                    timelineViewModel.commandExecutor?.recordExecuted(command: cmd, inverse: inv)
                 }
             }
             dragInitialProperties = nil
@@ -183,11 +183,23 @@ public final class InspectorViewModel {
         guard let clip = selectedClip, let timelineViewModel else { return }
         dragInitialProperties = nil
         liveProperties[key] = .string(text)
+        var targetDurationSec: Double?
         if key == "textConfig", let cfg = TextConfiguration.decode(from: text) {
             syncTextFlatProperties(from: cfg)
+            if clip.kind == .text, cfg.animation.hasScriptAnimation,
+               abs(clip.timeRange.duration.seconds - cfg.animation.scriptDuration) > 0.02 {
+                targetDurationSec = cfg.animation.scriptDuration
+            }
         }
-        let cmd = TimelineCommand.updateClipProperties(clipID: clip.id, properties: liveProperties)
-        timelineViewModel.commandExecutor?.execute(cmd)
+        let propCmd = TimelineCommand.updateClipProperties(clipID: clip.id, properties: liveProperties)
+        if let targetDurationSec {
+            let rStart = RationalTime(cmTime: clip.timeRange.start)
+            let rDur = RationalTime(cmTime: CMTime(seconds: max(1.0, targetDurationSec), preferredTimescale: TimeRational.defaultFPS))
+            let trimCmd = TimelineCommand.trimClip(clipID: clip.id, newStart: rStart, newDuration: rDur, newSourceStart: nil)
+            timelineViewModel.commandExecutor?.execute(.batch(commands: [propCmd, trimCmd]))
+        } else {
+            timelineViewModel.commandExecutor?.execute(propCmd)
+        }
         ensurePlayheadWithinClip(clip: clip)
         syncWithSelection()
     }
@@ -200,6 +212,7 @@ public final class InspectorViewModel {
         liveProperties[key] = .number(value)
         applyAutoKeyframeIfNeeded(key: key, value: value)
         syncTextConfigFromLiveNumber(key: key, value: value, clip: clip)
+        handleScaleLiveProperty(key: key, value: value)
         let retimeable = clip.kind == .video || clip.kind == .audio || clip.kind == .image
         if key == "speed" && retimeable {
             let oldSpeed = max(0.01, dragInitialProperties?["speed"]?.asNumber ?? clip.properties["speed"]?.asNumber ?? 1.0)
@@ -243,6 +256,9 @@ public final class InspectorViewModel {
     public func updateLiveBool(key: String, value: Bool) {
         guard let clip = selectedClip, let timelineViewModel else { return }
         liveProperties[key] = .bool(value)
+        if key == "uniformScale" {
+            handleUniformScaleToggled(value: value)
+        }
         let cmd = TimelineCommand.updateClipProperties(clipID: clip.id, properties: liveProperties)
         timelineViewModel.commandExecutor?.execute(cmd)
         syncWithSelection()

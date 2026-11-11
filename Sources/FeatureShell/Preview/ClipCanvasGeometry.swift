@@ -102,10 +102,14 @@ public struct ClipCanvasGeometry: Sendable {
         }
 
         let userScale = clip.properties["scale"]?.asNumber ?? 1.0
+        let userScaleX = clip.properties["scaleWidth"]?.asNumber ?? userScale
+        let userScaleY = clip.properties["scaleHeight"]?.asNumber ?? userScale
         let autoPanZoom = isAutoPanActive ? (autoPan?.zoom ?? 1.0) : 1.0
-        let finalScale = max(0.01, baseScale * userScale * autoPanZoom)
-        let clipW = srcW * finalScale
-        let clipH = srcH * finalScale
+        let finalScaleX = max(0.01, baseScale * userScaleX * autoPanZoom)
+        let finalScaleY = max(0.01, baseScale * userScaleY * autoPanZoom)
+        let finalScale = max(finalScaleX, finalScaleY)
+        let clipW = srcW * finalScaleX
+        let clipH = srcH * finalScaleY
 
         let userPosX = clip.properties["positionX"]?.asNumber ?? 0.0
         let userPosY = clip.properties["positionY"]?.asNumber ?? 0.0

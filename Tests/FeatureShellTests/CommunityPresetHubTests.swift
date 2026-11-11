@@ -56,10 +56,10 @@ struct CommunityPresetHubTests {
         #expect(decodedAdj?.canBeModified(by: "any_user") == true)
     }
 
-    @Test("DynamicShaderRuntimeEngine executes all 9 next-gen Open Creative Effect Packages at 60fps")
+    @Test("DynamicShaderRuntimeEngine executes single demo Open Creative Effect Package at 60fps")
     func testAllEightCreativeEffectPackagesRenderCleanly() {
         let packages = EffectPreset.systemTemplates
-        #expect(packages.count == 9)
+        #expect(packages.count == 1)
         #expect(packages.allSatisfy { !$0.id.hasPrefix("system_effect_") })
         #expect(packages.allSatisfy { !$0.config.filterPipeline.isEmpty })
         #expect(packages.allSatisfy { !$0.config.customParameters.isEmpty })
@@ -82,10 +82,10 @@ struct CommunityPresetHubTests {
         }
     }
 
-    @Test("Next-Gen Adjustment and Text Creative Catalogs contain full 5-Stage Film Grading and Multi-Layer Kinetic Text")
+    @Test("Next-Gen Adjustment and Text Creative Catalogs contain single demo item with complete features")
     func testNextGenAdjustmentAndTextCreativeCatalogs() {
         let adjCatalog = AdjustmentPreset.creativeCatalog
-        #expect(adjCatalog.count == 6)
+        #expect(adjCatalog.count == 1)
         for preset in adjCatalog {
             let badges = preset.activeModuleBadges
             #expect(badges.contains("Basic"), "Missing Basic in \(preset.id)")
@@ -95,12 +95,9 @@ struct CommunityPresetHubTests {
             #expect(badges.contains("FX"), "Missing FX in \(preset.id)")
         }
 
-        let textCatalog = TextPreset.creativeCatalog
-        #expect(textCatalog.count == 4)
-        #expect(textCatalog.contains(where: { $0.id == "template_neon_cyber_glow" }))
-        #expect(textCatalog.contains(where: { $0.id == "template_vlog_badge_banner" }))
-        #expect(textCatalog.contains(where: { $0.id == "template_retro_curved_arc" }))
-        #expect(textCatalog.contains(where: { $0.id == "template_karaoke_dual_stroke" }))
+        let textCatalog = TextPreset.templates
+        #expect(textCatalog.count == 1)
+        #expect(textCatalog.first?.id == "default")
     }
 
     @Test("OpenAnimationRuntimeEngine executes all 15 next-gen Open Creative Animation Packages (5 In, 5 Out, 5 Loop) with custom parameters")
@@ -141,13 +138,13 @@ struct CommunityPresetHubTests {
         }
     }
 
-    @Test("EffectLibraryViewModel loads 9 Open Creative Packages, filters by author, and adds to timeline")
+    @Test("EffectLibraryViewModel loads single demo Open Creative Package, filters by author, and adds to timeline")
     func testEffectLibraryCommunityWorkflow() {
         let deps = EditorDependencies()
         let timelineVM = TimelineViewModel(dependencies: deps)
         let effectLibraryVM = EffectLibraryViewModel(timelineViewModel: timelineVM, dependencies: deps)
 
-        #expect(effectLibraryVM.filteredPresets.count == 9)
+        #expect(effectLibraryVM.filteredPresets.count == 1)
 
         effectLibraryVM.searchQuery = "openshader lab"
         #expect(effectLibraryVM.filteredPresets.map(\.id) == ["creative_fx_rgb_glitch"])

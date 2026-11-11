@@ -15,19 +15,27 @@ public struct TextTransformOverlay: Sendable, Equatable {
     public var glitchSliceIntensity: Double
     public var liquidWavePhase: Double
     public var revealProgress: Double
+    public var trailingCursorOpacity: Double
+    public var waveAmplitudeEm: Double
+    public var waveFrequencyEm: Double
+    public var wavePhaseRadians: Double
+    public var clipRevealX: Double
+    public var clipRevealY: Double
+    public var trackingEmDelta: Double
+    public var echoCount: Int
+    public var echoOffsetXEm: Double
+    public var echoOffsetYEm: Double
 
     public init(
-        scaleX: Double = 1.0,
-        scaleY: Double = 1.0,
-        skewX: Double = 0.0,
-        perspectiveX: Double = 0.0,
-        perspectiveY: Double = 0.0,
-        motionBlurRadius: Double = 0.0,
-        motionBlurAngle: Double = 0.0,
-        lightSweepPhase: Double = -1.0,
-        glitchSliceIntensity: Double = 0.0,
-        liquidWavePhase: Double = -1.0,
-        revealProgress: Double = -1.0
+        scaleX: Double = 1.0, scaleY: Double = 1.0, skewX: Double = 0.0,
+        perspectiveX: Double = 0.0, perspectiveY: Double = 0.0,
+        motionBlurRadius: Double = 0.0, motionBlurAngle: Double = 0.0,
+        lightSweepPhase: Double = -1.0, glitchSliceIntensity: Double = 0.0,
+        liquidWavePhase: Double = -1.0, revealProgress: Double = -1.0,
+        trailingCursorOpacity: Double = 0.0,
+        waveAmplitudeEm: Double = 0.0, waveFrequencyEm: Double = 0.0, wavePhaseRadians: Double = 0.0,
+        clipRevealX: Double = 1.0, clipRevealY: Double = 1.0, trackingEmDelta: Double = 0.0,
+        echoCount: Int = 0, echoOffsetXEm: Double = 0.0, echoOffsetYEm: Double = 0.0
     ) {
         self.scaleX = scaleX
         self.scaleY = scaleY
@@ -40,6 +48,16 @@ public struct TextTransformOverlay: Sendable, Equatable {
         self.glitchSliceIntensity = glitchSliceIntensity
         self.liquidWavePhase = liquidWavePhase
         self.revealProgress = revealProgress
+        self.trailingCursorOpacity = trailingCursorOpacity
+        self.waveAmplitudeEm = waveAmplitudeEm
+        self.waveFrequencyEm = waveFrequencyEm
+        self.wavePhaseRadians = wavePhaseRadians
+        self.clipRevealX = clipRevealX
+        self.clipRevealY = clipRevealY
+        self.trackingEmDelta = trackingEmDelta
+        self.echoCount = echoCount
+        self.echoOffsetXEm = echoOffsetXEm
+        self.echoOffsetYEm = echoOffsetYEm
     }
 }
 
@@ -57,11 +75,8 @@ public enum TextAnimationEvaluator {
         public var overlay: TextTransformOverlay
 
         public init(
-            config: TextConfiguration,
-            blurRadius: Double = 0.0,
-            hueAngle: Double = 0.0,
-            pixelateScale: Double = 0.0,
-            rgbSplitIntensity: Double = 0.0,
+            config: TextConfiguration, blurRadius: Double = 0.0, hueAngle: Double = 0.0,
+            pixelateScale: Double = 0.0, rgbSplitIntensity: Double = 0.0,
             overlay: TextTransformOverlay = TextTransformOverlay()
         ) {
             self.config = config
@@ -75,24 +90,27 @@ public enum TextAnimationEvaluator {
 
     /// Tính toán cấu hình Text sau khi áp dụng hoạt ảnh tại mốc thời gian `localTime`.
     public static func evaluate(
-        config: TextConfiguration,
-        localTime: Double,
-        duration: Double,
-        canvasSize: CGSize,
-        charIndex: Int = 0,
-        charCount: Int = 1
+        config: TextConfiguration, localTime: Double, duration: Double,
+        canvasSize: CGSize, charIndex: Int = 0, charCount: Int = 1
     ) -> EvaluationResult {
         guard !config.animation.isDefault else { return EvaluationResult(config: config) }
 
         var evaluated = config
-        var blur: Double = 0.0
-        var hue: Double = 0.0
-        var pixelate: Double = 0.0
+        var blur: Double = 0.0, hue: Double = 0.0, pixelate: Double = 0.0
         var rgbSplit = config.animation.rgbSplitIntensity
         var overlay = TextTransformOverlay()
         let anim = config.animation
         let safeDur = max(0.1, duration)
         let t = max(0.0, min(safeDur, localTime))
+
+        // 0. Kịch bản hoạt ảnh chạy suốt thời lượng do Dev thiết kế (Script-Driven Animation)
+        if anim.hasScriptAnimation,
+           let script = TextAnimationScriptRegistry.shared.script(for: anim.scriptId) {
+            return evaluateScriptAnimation(
+                script: script, baseConfig: config, t: t,
+                totalDuration: safeDur, charIndex: charIndex, charCount: charCount
+            )
+        }
 
         if anim.lightSweepIntensity > 0.01 {
             overlay.lightSweepPhase = (t * max(0.4, anim.loopSpeed) * 0.7).truncatingRemainder(dividingBy: 1.0)
@@ -174,6 +192,57 @@ public enum TextAnimationEvaluator {
         return EvaluationResult(
             config: evaluated, blurRadius: blur, hueAngle: hue,
             pixelateScale: pixelate, rgbSplitIntensity: rgbSplit, overlay: overlay
+        )
+    }
+
+    private static func evaluateScriptAnimation(
+        script: any TextAnimationScript,
+        baseConfig: TextConfiguration,
+        t: Double,
+        totalDuration: Double,
+        charIndex: Int,
+        charCount: Int
+    ) -> EvaluationResult {
+        var evaluated = baseConfig
+        var overlay = TextTransformOverlay()
+        let phase = script.resolvePhase(anim: baseConfig.animation, localTime: t, duration: totalDuration)
+        let delta = script.evaluatePhase(base: baseConfig, phase: phase, unitIndex: charIndex, unitTotal: charCount)
+
+        evaluated.positionX += delta.offsetX
+        evaluated.positionY += delta.offsetY
+        overlay.scaleX *= delta.scaleX
+        overlay.scaleY *= delta.scaleY
+        evaluated.skewX += delta.skewX
+        evaluated.skewY += delta.skewY
+        evaluated.rotation += delta.rotation
+        evaluated.opacity = max(0.0, min(1.0, evaluated.opacity * delta.opacity))
+        overlay.trailingCursorOpacity = delta.trailingCursorOpacity
+        overlay.waveAmplitudeEm = delta.waveAmplitudeEm
+        overlay.waveFrequencyEm = delta.waveFrequencyEm
+        overlay.wavePhaseRadians = delta.wavePhaseRadians
+        overlay.clipRevealX = delta.clipRevealX
+        overlay.clipRevealY = delta.clipRevealY
+        overlay.trackingEmDelta = delta.trackingEmDelta
+        overlay.echoCount = delta.echoCount
+        overlay.echoOffsetXEm = delta.echoOffsetXEm
+        overlay.echoOffsetYEm = delta.echoOffsetYEm
+        if let anchorOverride = delta.anchorOverride {
+            evaluated.animation.anchorPoint = anchorOverride
+        }
+
+        // Bảo toàn 100% Fill (Solid/Gradient) và Dual Stroke của người dùng;
+        // chỉ điều biến tương đối Glow/Shadow khi người dùng đã chủ động bật trong Style.
+        if delta.glowIntensityDelta != 0.0, baseConfig.glow.isActive {
+            evaluated.glow.intensity = max(0.0, min(100.0, baseConfig.glow.intensity + delta.glowIntensityDelta))
+        }
+        if delta.shadowDistanceDelta != 0.0, baseConfig.shadow.isActive {
+            evaluated.shadow.distance = max(0.0, baseConfig.shadow.distance + delta.shadowDistanceDelta)
+        }
+        let blur = max(0.0, delta.blurRadius)
+        let rgbSplit = max(baseConfig.animation.rgbSplitIntensity, delta.glitchIntensity)
+        return EvaluationResult(
+            config: evaluated, blurRadius: blur, hueAngle: 0.0,
+            pixelateScale: 0.0, rgbSplitIntensity: rgbSplit, overlay: overlay
         )
     }
 

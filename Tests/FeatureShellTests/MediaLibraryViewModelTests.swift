@@ -227,5 +227,58 @@ struct MediaLibraryViewModelTests {
         #expect(vm.filteredAssets.count == 2)
         #expect(vm.assets.count == 3)
     }
+
+    @Test @MainActor func testDropFileDirectlyToTimelineRegistersIntoMediaLibrary() {
+        let registry = TabRegistry()
+        let mediaVM = MediaLibraryViewModel(thumbnailService: MockThumbnailService())
+        let timelineVM = TimelineViewModel()
+        let shellVM = ShellViewModel(
+            registry: registry,
+            timelineViewModel: timelineVM,
+            mediaLibraryViewModel: mediaVM
+        )
+        #expect(mediaVM.assets.isEmpty)
+
+        let droppedAsset = MediaAsset(url: URL(fileURLWithPath: "/tmp/dropped_video.mp4"), type: .video)
+        timelineVM.addAsset(droppedAsset, at: .zero)
+
+        // Verifies the dropped asset is automatically registered into the media library
+        #expect(mediaVM.assets.count == 1)
+        #expect(mediaVM.assets.first?.url == droppedAsset.url)
+        #expect(mediaVM.assets.first?.type == .video)
+
+        // Adding the same asset again should not produce duplicates
+        timelineVM.addAsset(droppedAsset, at: CMTime(value: 5, timescale: 1))
+        #expect(mediaVM.assets.count == 1)
+        _ = shellVM
+    }
+
+    @Test @MainActor func testDeleteAssetSingleWithUndoRedo() {
+        let vm = MediaLibraryViewModel(thumbnailService: MockThumbnailService())
+        let asset1 = MediaAsset(url: URL(fileURLWithPath: "/tmp/1.mp4"), name: "1.mp4", type: .video)
+        let asset2 = MediaAsset(url: URL(fileURLWithPath: "/tmp/2.mp4"), name: "2.mp4", type: .video)
+        vm.assets = [asset1, asset2]
+
+        #expect(vm.assets.count == 2)
+        #expect(!vm.canUndo)
+
+        // Delete asset1
+        vm.deleteAsset(asset1)
+        #expect(vm.assets.count == 1)
+        #expect(vm.assets.first?.id == asset2.id)
+        #expect(vm.canUndo)
+
+        // Undo
+        let undone = vm.undo()
+        #expect(undone)
+        #expect(vm.assets.count == 2)
+        #expect(vm.canRedo)
+
+        // Redo
+        let redone = vm.redo()
+        #expect(redone)
+        #expect(vm.assets.count == 1)
+        #expect(vm.assets.first?.id == asset2.id)
+    }
 }
 

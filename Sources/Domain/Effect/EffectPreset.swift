@@ -10,6 +10,16 @@ public enum EffectTemplateCategory: String, Codable, Sendable, CaseIterable, Ide
 
     public var id: String { rawValue }
 
+    public var displayName: String {
+        switch self {
+        case .all: return "All"
+        case .lightTransition: return "Light & Intro"
+        case .partyBeat: return "Party & Beat"
+        case .cinematic: return "Cinematic"
+        case .motionShake: return "Motion Shake"
+        }
+    }
+
     public static var assignableCases: [EffectTemplateCategory] {
         [.lightTransition, .partyBeat, .cinematic, .motionShake]
     }

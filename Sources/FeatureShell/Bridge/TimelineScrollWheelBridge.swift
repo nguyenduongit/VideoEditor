@@ -10,6 +10,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
     private let onUndo: () -> Void
     private let onRedo: () -> Void
     private let onStepFrame: ((Int64) -> Void)?
+    private let onAnyClick: (() -> Void)?
 
     public init(
         onCmdScrollWheel: @escaping (CGFloat, CGFloat) -> Void,
@@ -19,7 +20,8 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         onTogglePlayPause: @escaping () -> Void = {},
         onUndo: @escaping () -> Void = {},
         onRedo: @escaping () -> Void = {},
-        onStepFrame: ((Int64) -> Void)? = nil
+        onStepFrame: ((Int64) -> Void)? = nil,
+        onAnyClick: (() -> Void)? = nil
     ) {
         self.onCmdScrollWheel = onCmdScrollWheel
         self.onResetZoom = onResetZoom
@@ -29,6 +31,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         self.onUndo = onUndo
         self.onRedo = onRedo
         self.onStepFrame = onStepFrame
+        self.onAnyClick = onAnyClick
     }
 
     public func makeNSView(context: Context) -> TimelineScrollWheelNSView {
@@ -41,6 +44,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         view.onUndo = onUndo
         view.onRedo = onRedo
         view.onStepFrame = onStepFrame
+        view.onAnyClick = onAnyClick
         return view
     }
 
@@ -53,6 +57,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         nsView.onUndo = onUndo
         nsView.onRedo = onRedo
         nsView.onStepFrame = onStepFrame
+        nsView.onAnyClick = onAnyClick
     }
 
     public static func dismantleNSView(_ nsView: TimelineScrollWheelNSView, coordinator: ()) {
@@ -69,6 +74,7 @@ public final class TimelineScrollWheelNSView: NSView {
     public var onUndo: (() -> Void)?
     public var onRedo: (() -> Void)?
     public var onStepFrame: ((Int64) -> Void)?
+    public var onAnyClick: (() -> Void)?
     private var eventMonitor: Any?
 
     override public init(frame frameRect: NSRect) {
@@ -85,8 +91,12 @@ public final class TimelineScrollWheelNSView: NSView {
 
     private func setupMonitor() {
         guard eventMonitor == nil else { return }
-        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel, .keyDown]) { [weak self] event in
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel, .keyDown, .leftMouseDown, .rightMouseDown]) { [weak self] event in
             guard let self, let window = self.window, event.window == window else {
+                return event
+            }
+            if event.type == .leftMouseDown || event.type == .rightMouseDown {
+                self.onAnyClick?()
                 return event
             }
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)

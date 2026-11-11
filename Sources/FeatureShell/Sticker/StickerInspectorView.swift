@@ -3,8 +3,8 @@ import Domain
 import DesignSystem
 
 /// Bảng Inspector chuyên dụng cho Tab `"Sticker"` (Vector SVG / PNG / GIF / APNG).
-/// Đã khắc phục triệt để lỗi ghi đè Bool/String của `Flip H/V`, tích hợp Keyframe, nguồn SVG/URL, Hòa trộn, Đổ bóng và Lưu mẫu.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng, Hàm <= 50 dòng) của AGENTS.md.
+/// Thiết kế tinh gọn thuần túy Transform: Scale, Vị trí (X, Y), Xoay, Độ mờ, Lật ngang/dọc kèm Keyframes.
+/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 40 dòng, Hàm <= 50 dòng) của AGENTS.md.
 public struct StickerInspectorView: View {
     @Bindable private var viewModel: InspectorViewModel
 
@@ -15,17 +15,17 @@ public struct StickerInspectorView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.md) {
             headerSection
-            StickerAppearanceAndSourceSection(viewModel: viewModel)
             transformSection
-            if currentConfig.format.isAnimated {
-                playbackSection
-            }
         }
         .padding(.vertical, DSSpacing.xs)
     }
 
     private var currentConfig: StickerConfiguration {
         viewModel.stickerConfiguration
+    }
+
+    private var isAnimatedSticker: Bool {
+        currentConfig.format.isAnimated || (currentConfig.svgMarkup?.contains("@keyframes") == true)
     }
 
     private var headerSection: some View {
@@ -39,14 +39,35 @@ public struct StickerInspectorView: View {
                     .foregroundStyle(DSColors.toggleCyan)
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(viewModel.selectedClip?.name ?? "Nhãn dán")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(DSColors.textPrimary)
                     .lineLimit(1)
-                Text(currentConfig.format.displayName)
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(DSColors.textSecondary)
+
+                HStack(spacing: 6) {
+                    if isAnimatedSticker {
+                        Text(String(localized: "ĐỘNG"))
+                            .font(.system(size: 9.5, weight: .bold))
+                            .foregroundStyle(DSColors.toggleCyan)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(DSColors.toggleCyan.opacity(0.15))
+                            .clipShape(Capsule())
+                    } else {
+                        Text(String(localized: "TĨNH"))
+                            .font(.system(size: 9.5, weight: .bold))
+                            .foregroundStyle(DSColors.textSecondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(DSColors.blockBorder.opacity(0.6))
+                            .clipShape(Capsule())
+                    }
+
+                    Text(currentConfig.format.displayName)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(DSColors.textSecondary)
+                }
             }
             Spacer()
         }
@@ -165,57 +186,6 @@ public struct StickerInspectorView: View {
             .overlay(RoundedRectangle(cornerRadius: DSRadius.small).stroke(DSColors.blockBorder, lineWidth: 1))
         }
         .buttonStyle(.plain)
-    }
-
-    private var playbackSection: some View {
-        let cfg = currentConfig
-        return VStack(alignment: .leading, spacing: DSSpacing.md) {
-            Text(String(localized: "PHÁT ẢNH ĐỘNG (GIF / APNG)"))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DSColors.textSecondary)
-
-            DSSliderWithInput(
-                title: "Tốc độ",
-                value: Binding(
-                    get: { cfg.playbackSpeed },
-                    set: { val in
-                        var updated = cfg
-                        updated.playbackSpeed = val
-                        viewModel.updateStickerConfiguration(updated, commit: false)
-                    }
-                ),
-                range: 0.25...4.0,
-                step: 0.05,
-                defaultValue: 1.0,
-                unit: "x",
-                onEditingChanged: { if !$0 { viewModel.updateStickerConfiguration(currentConfig, commit: true) } }
-            )
-
-            HStack(spacing: DSSpacing.sm) {
-                ForEach(StickerLoopMode.allCases) { mode in
-                    let isSelected = cfg.loopMode == mode
-                    Button(action: {
-                        var updated = cfg
-                        updated.loopMode = mode
-                        viewModel.updateStickerConfiguration(updated, commit: true)
-                    }) {
-                        Text(mode.displayName)
-                            .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
-                            .foregroundStyle(isSelected ? Color.white : DSColors.textSecondary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 28)
-                            .background(isSelected ? DSColors.accent : DSColors.windowBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
-                            .overlay(RoundedRectangle(cornerRadius: DSRadius.small).stroke(DSColors.blockBorder, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .padding(DSSpacing.md)
-        .background(DSColors.blockBackground)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
-        .overlay(RoundedRectangle(cornerRadius: DSRadius.block).stroke(DSColors.blockBorder, lineWidth: 1))
     }
 
     private func keyframeControl(for keys: [String], defaultVal: Double?) -> AnyView? {

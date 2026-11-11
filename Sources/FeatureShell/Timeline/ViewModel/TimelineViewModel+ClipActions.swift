@@ -26,6 +26,11 @@ extension TimelineViewModel {
     }
 
     public func deleteSelectedClips() {
+        if let transID = selectedTransitionID {
+            removeTransition(by: transID)
+            selectedTransitionID = nil
+            return
+        }
         guard !selectedClipIDs.isEmpty else { return }
         let idsToDelete = selectedClipIDs
 

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Bộ nạp và quản lý các mẫu Chuyển cảnh (`TransitionPreset`) trong bộ nhớ RAM và đồng bộ Supabase.
-/// Bảo toàn danh mục gốc `builtInCatalog` và đồng bộ hóa `hasSyncedFromRemote` dưới `NSLock`.
+/// Bảo toàn danh mục gốc `builtInCatalog` theo đúng thứ tự chuẩn và đồng bộ hóa `hasSyncedFromRemote` dưới `NSLock`.
 /// Tuân thủ AGENTS.md R2.3 (thuần Domain), R3.1 và R8.3 (Thread-safe).
 public final class TransitionTemplateLoader: @unchecked Sendable {
     private let lock = NSLock()
@@ -19,12 +19,18 @@ public final class TransitionTemplateLoader: @unchecked Sendable {
     public func setInMemoryTemplates(_ presets: [TransitionPreset]) {
         lock.lock()
         _hasSyncedFromRemote = true
-        var merged = presets
-        let existingIDs = Set(merged.map(\.id))
-        for sys in TransitionPreset.builtInCatalog where !existingIDs.contains(sys.id) {
-            merged.insert(sys, at: 0)
+        let byID = Dictionary( presets.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+        let systemIDs = Set(TransitionPreset.builtInCatalog.map(\.id))
+
+        var ordered: [TransitionPreset] = []
+        ordered.reserveCapacity(TransitionPreset.builtInCatalog.count + presets.count)
+        for sys in TransitionPreset.builtInCatalog {
+            ordered.append(byID[sys.id] ?? sys)
         }
-        inMemoryPresets = merged
+        for item in presets where !systemIDs.contains(item.id) && !item.isSystem {
+            ordered.append(item)
+        }
+        inMemoryPresets = ordered
         lock.unlock()
     }
 

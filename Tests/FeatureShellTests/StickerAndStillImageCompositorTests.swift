@@ -17,14 +17,14 @@ struct StickerAndStillImageCompositorTests {
 
     @Test("StickerPreset built-in SVG catalog encodes/decodes cleanly and renders crisp CIImage at 3x scale with Animation")
     func svgStickerSerializationAndCrispRendering() async throws {
-        guard let starPreset = StickerPreset.builtInCatalog.first(where: { $0.id == "sticker_svg_star_badge" }) else {
-            Issue.record("Missing sticker_svg_star_badge in builtInCatalog")
+        guard let flowerPreset = StickerPreset.builtInCatalog.first(where: { $0.id == "sticker_animated_flower_leaf" }) else {
+            Issue.record("Missing sticker_animated_flower_leaf in builtInCatalog")
             return
         }
-        #expect(starPreset.format == .svg)
-        #expect(starPreset.config.svgMarkup?.contains("<svg") == true)
+        #expect(flowerPreset.format == .svg)
+        #expect(flowerPreset.config.svgMarkup?.contains("<svg") == true)
 
-        var cfg = starPreset.config
+        var cfg = flowerPreset.config
         cfg.hasShadow = true
         cfg.blendMode = .screen
         cfg.animation.inType = .zoomIn
@@ -59,6 +59,13 @@ struct StickerAndStillImageCompositorTests {
         #expect(rendered != nil)
         #expect(rendered?.extent == CGRect(origin: .zero, size: canvasSize))
 
+        var animProps = props
+        animProps["originPresetId"] = .string("sticker_animated_flower_leaf")
+        let frameA = engine.renderStickerImage(config: flowerPreset.config, clipProperties: animProps, localTime: 0.0, duration: 5.0, canvasSize: canvasSize)
+        let frameB = engine.renderStickerImage(config: flowerPreset.config, clipProperties: animProps, localTime: 1.5, duration: 5.0, canvasSize: canvasSize)
+        #expect(frameA != nil)
+        #expect(frameB != nil)
+
         let loader = StickerTemplateLoader()
         let repo = SupabaseStickerPresetRepository(client: nil, templateLoader: loader)
         let customPreset = StickerPreset(
@@ -73,7 +80,45 @@ struct StickerAndStillImageCompositorTests {
         try await repo.savePreset(customPreset)
         let fetched = try await repo.fetchPresets()
         #expect(fetched.contains(where: { $0.id == "custom_svg_pill" }))
-        #expect(fetched.contains(where: { $0.id == "sticker_svg_star_badge" }))
+        #expect(fetched.contains(where: { $0.id == "sticker_animated_flower_leaf" }))
+        #expect(fetched.contains(where: { $0.id == "sticker_animated_xmas_tree" }))
+
+        if let xmasPreset = StickerPreset.builtInCatalog.first(where: { $0.id == "sticker_animated_xmas_tree" }) {
+            #expect(xmasPreset.config.svgMarkup?.contains("viewBox=\"0 0 500 500\"") == true)
+            #expect(xmasPreset.defaultDuration == 3.0)
+            #expect(flowerPreset.defaultDuration == 3.0)
+            var xmasProps = props
+            xmasProps["originPresetId"] = .string("sticker_animated_xmas_tree")
+            let xmasFrame = engine.renderStickerImage(config: xmasPreset.config, clipProperties: xmasProps, localTime: 1.0, duration: 3.0, canvasSize: canvasSize)
+            #expect(xmasFrame != nil)
+
+            // Verify 3.0s @ 60fps seamless loop wrap-around at t=0.0s and t=3.0s
+            let f0 = TextSVGAndAssetCache.shared.frameForAsset(path: "sticker_animated_flower_leaf.apng", localTime: 0.0, loop: true, speed: 1.0)
+            let fMid = TextSVGAndAssetCache.shared.frameForAsset(path: "sticker_animated_flower_leaf.apng", localTime: 1.5, loop: true, speed: 1.0)
+            let fWrap = TextSVGAndAssetCache.shared.frameForAsset(path: "sticker_animated_flower_leaf.apng", localTime: 3.0, loop: true, speed: 1.0)
+            if let f0, let fMid, let fWrap {
+                #expect(f0 === fWrap)
+                #expect(f0 !== fMid)
+            }
+        }
+
+        // Verify 36 Apple Emoji Presets and category restructuring
+        #expect(StickerPreset.emojiPresets.count == 36)
+        #expect(StickerPreset.builtInCatalog.count >= 38)
+        #expect(flowerPreset.category == .natureHoliday)
+        if let grin = StickerPreset.builtInCatalog.first(where: { $0.id == "sticker_emoji_grinning" }) {
+            #expect(grin.category == .emoji)
+            #expect(grin.format == .svg)
+            #expect(grin.config.svgMarkup?.contains("Apple Color Emoji") == true)
+            let grinRendered = engine.renderStickerImage(
+                config: grin.config,
+                clipProperties: props,
+                localTime: 0.0,
+                duration: 3.0,
+                canvasSize: canvasSize
+            )
+            #expect(grinRendered != nil)
+        }
     }
 
     @Test("InspectorViewModel updates Sticker Flip H/V strictly as .bool and bridges Animation tab")
@@ -106,6 +151,36 @@ struct StickerAndStillImageCompositorTests {
         animCarrier.animation.loopType = .pulse
         inspectorVM.updateTextConfiguration(animCarrier, commit: true)
         #expect(inspectorVM.stickerConfiguration.animation.loopType == .pulse)
+
+        // Test expanded loop animation types for stickers
+        for loop in [TextLoopAnimationType.sway, .wobble, .bounce, .spin, .float] {
+            var updated = inspectorVM.stickerConfiguration
+            updated.animation.loopType = loop
+            updated.animation.loopSpeed = 1.5
+            inspectorVM.updateStickerConfiguration(updated, commit: true)
+            #expect(inspectorVM.stickerConfiguration.animation.loopType == loop)
+            #expect(inspectorVM.stickerConfiguration.animation.loopSpeed == 1.5)
+
+            // Verify evaluation math is non-NaN and preserves validity
+            var carrier = TextConfiguration(content: "S", scale: 1.0, rotation: 0.0, opacity: 1.0)
+            var overlay = TextTransformOverlay()
+            var hue = 0.0
+            TextLoopAnimationEvaluator.apply(
+                config: &carrier,
+                overlay: &overlay,
+                loopType: loop,
+                phase: 1.25,
+                t: 0.5,
+                loopSpeed: 1.5,
+                blend: 1.0,
+                hue: &hue
+            )
+            #expect(!carrier.scale.isNaN)
+            #expect(!carrier.rotation.isNaN)
+            #expect(!carrier.opacity.isNaN)
+            #expect(!carrier.positionX.isNaN)
+            #expect(!carrier.positionY.isNaN)
+        }
     }
 
     @Test("Non-video visual timeline (.image + .sticker) builds carrier video track and custom compositor instructions")
