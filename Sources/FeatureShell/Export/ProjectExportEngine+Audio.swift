@@ -163,32 +163,44 @@ extension ProjectExportEngine {
         writer.startWriting()
         writer.startSession(atSourceTime: .zero)
 
-        let totalSec = max(0.1, CMTimeGetSeconds(totalDuration))
-        while reader.status == .reading {
-            if isCancelled {
-                reader.cancelReading()
-                writer.cancelWriting()
-                throw CancellationError()
+        final class ProgressBox: @unchecked Sendable {
+            var value: Double = 0.0
+        }
+        let progressBox = ProgressBox()
+        let progressTask = Task { @MainActor in
+            while !Task.isCancelled {
+                onProgress(max(0.0, min(0.99, progressBox.value)))
+                try? await Task.sleep(nanoseconds: 100_000_000)
             }
-            if writerInput.isReadyForMoreMediaData {
-                if let buffer = readerOutput.copyNextSampleBuffer() {
-                    let pts = CMSampleBufferGetPresentationTimeStamp(buffer)
-                    let currentSec = CMTimeGetSeconds(pts)
-                    onProgress(max(0.0, min(0.99, currentSec / totalSec)))
-                    writerInput.append(buffer)
-                } else {
-                    break
+        }
+        defer { progressTask.cancel() }
+
+        let totalSec = max(0.1, CMTimeGetSeconds(totalDuration))
+        let queue = DispatchQueue(label: "com.videoeditor.audioexport.queue", qos: .userInitiated)
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            writerInput.requestMediaDataWhenReady(on: queue) {
+                while writerInput.isReadyForMoreMediaData {
+                    if let buffer = readerOutput.copyNextSampleBuffer() {
+                        let pts = CMSampleBufferGetPresentationTimeStamp(buffer)
+                        let currentSec = CMTimeGetSeconds(pts)
+                        progressBox.value = currentSec / totalSec
+                        writerInput.append(buffer)
+                    } else {
+                        writerInput.markAsFinished()
+                        continuation.resume()
+                        return
+                    }
                 }
-            } else {
-                try? await Task.sleep(nanoseconds: 10_000_000)
             }
         }
 
+        if isCancelled || reader.status == .cancelled || writer.status == .cancelled {
+            throw CancellationError()
+        }
         if reader.status == .failed {
             throw reader.error ?? NSError(domain: "ProjectExportEngine", code: -22, userInfo: [NSLocalizedDescriptionKey: "Lỗi đọc audio khi xuất WAV."])
         }
 
-        writerInput.markAsFinished()
         await writer.finishWriting()
 
         if isCancelled { throw CancellationError() }

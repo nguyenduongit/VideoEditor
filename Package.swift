@@ -52,8 +52,7 @@ let package = Package(
                 "Domain",
                 "DesignSystem",
                 "FeatureShell",
-                "Infrastructure",
-                .product(name: "Supabase", package: "supabase-swift")
+                "Infrastructure"
             ],
             path: "Sources/VideoEditorApp"
         ),

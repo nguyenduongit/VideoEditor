@@ -211,7 +211,7 @@ public struct TimelineView: View {
             groupDragOffset: viewModel.groupMoveOffset,
             groupTrimLeftOffset: viewModel.groupTrimLeftOffset,
             groupTrimRightOffset: viewModel.groupTrimRightOffset,
-            snapCandidatesProvider: { viewModel.snapCandidateTimes(excludingClipID: $0, playheadTime: playheadState.currentTime) },
+            snapCandidatesProvider: { [weak viewModel] in viewModel?.snapCandidateTimes(excludingClipID: $0, includePlayhead: false) ?? [] },
             beatTimes: viewModel.timelineBeatTimes,
             thumbnailService: viewModel.thumbnailService, waveformService: viewModel.waveformService,
             onSelectClip: { isTimelineFocused = true; viewModel.selectClip($0, isCmdPressed: $1) },

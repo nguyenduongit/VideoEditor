@@ -2,6 +2,7 @@ import Foundation
 import CoreGraphics
 import CoreImage
 import CoreMedia
+import CryptoKit
 #if os(macOS)
 import AppKit
 #endif
@@ -75,7 +76,9 @@ public final class TextSVGAndAssetCache: @unchecked Sendable {
 
         let w = max(8, Int(ceil(targetSize.width)))
         let h = max(8, Int(ceil(targetSize.height)))
-        let cacheKey = "\(trimmed.hashValue)_\(w)x\(h)"
+        let digest = SHA256.hash(data: Data(trimmed.utf8))
+        let hash = digest.prefix(8).map { String(format: "%02x", $0) }.joined()
+        let cacheKey = "\(hash)_\(w)x\(h)"
 
         lock.lock()
         if let cached = svgImageCache[cacheKey] {
@@ -241,7 +244,9 @@ public final class TextSVGAndAssetCache: @unchecked Sendable {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let ext = URL(string: urlString)?.pathExtension ?? "dat"
         let safeExt = ext.isEmpty ? "dat" : ext
-        return dir.appendingPathComponent("\(abs(urlString.hashValue)).\(safeExt)")
+        let digest = SHA256.hash(data: Data(urlString.utf8))
+        let hash = digest.prefix(8).map { String(format: "%02x", $0) }.joined()
+        return dir.appendingPathComponent("\(hash).\(safeExt)")
     }
 
     private func prefetchRemoteAssetIfNeeded(urlString: String, destination: URL) {

@@ -68,8 +68,11 @@ extension ActionsPanelViewModel {
               let idx = actions.firstIndex(where: { $0.id == currentID }) else { return }
         actions[idx].titleText = text
         let updated = actions[idx]
-        Task {
-            try? await dependencies.actionRepositories.actionRepository?.saveAction(updated)
+        saveDebounceTask?.cancel()
+        saveDebounceTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            if Task.isCancelled { return }
+            try? await self?.dependencies.actionRepositories.actionRepository?.saveAction(updated)
         }
     }
 }

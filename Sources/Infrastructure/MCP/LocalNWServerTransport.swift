@@ -33,6 +33,7 @@ public final class LocalNWServerTransport: @unchecked Sendable, MCPServerTranspo
         let parameters = NWParameters(tls: nil, tcp: tcpOptions)
         parameters.allowLocalEndpointReuse = true
         parameters.requiredInterfaceType = .loopback
+        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: nwPort)
 
         let listener = try NWListener(using: parameters, on: nwPort)
         listener.stateUpdateHandler = { [weak self] state in
@@ -66,9 +67,16 @@ public final class LocalNWServerTransport: @unchecked Sendable, MCPServerTranspo
         isRunning = false
     }
 
+    public struct ParsedHTTPMessage {
+        public let isGET: Bool
+        public let body: String
+        public let isAuthorized: Bool
+        public let rejectionReason: String?
+    }
+
     /// Tách một gói HTTP hoàn chỉnh dựa trên `Content-Length` từ bộ đệm tích lũy TCP.
-    /// Trả về `nil` nếu dữ liệu TCP chưa nhận đủ số byte khai báo trong `Content-Length`.
-    public static func extractCompleteHTTPMessage(from buffer: inout Data) -> (isGET: Bool, body: String)? {
+    /// Kiểm tra chặt chẽ các header Origin, Referer, Host để triệt tiêu lỗ hổng CSRF/DNS Rebinding.
+    public static func extractCompleteHTTPMessage(from buffer: inout Data) -> ParsedHTTPMessage? {
         let crlfSep = Data([13, 10, 13, 10]) // "\r\n\r\n"
         let lfSep = Data([10, 10])           // "\n\n"
         guard let sepRange = buffer.range(of: crlfSep) ?? buffer.range(of: lfSep) else {
@@ -78,12 +86,18 @@ public final class LocalNWServerTransport: @unchecked Sendable, MCPServerTranspo
         let headerString = String(decoding: buffer[..<sepRange.lowerBound], as: UTF8.self)
         let isGET = headerString.hasPrefix("GET ")
         var contentLength = 0
+        var headers: [String: String] = [:]
+
         for line in headerString.split(whereSeparator: \.isNewline) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.lowercased().hasPrefix("content-length:") {
-                let rawVal = trimmed.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)
-                contentLength = max(0, Int(rawVal) ?? 0)
-                break
+            let parts = trimmed.split(separator: ":", maxSplits: 1).map(String.init)
+            if parts.count == 2 {
+                let key = parts[0].trimmingCharacters(in: .whitespaces).lowercased()
+                let val = parts[1].trimmingCharacters(in: .whitespaces)
+                headers[key] = val
+                if key == "content-length" {
+                    contentLength = max(0, Int(val) ?? 0)
+                }
             }
         }
 
@@ -95,7 +109,21 @@ public final class LocalNWServerTransport: @unchecked Sendable, MCPServerTranspo
         let bodyData = buffer.subdata(in: sepRange.upperBound..<totalExpected)
         buffer.removeSubrange(0..<totalExpected)
         let body = String(decoding: bodyData, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-        return (isGET: isGET, body: body)
+
+        // CSRF & Host Validation
+        if let host = headers["host"], !host.contains("127.0.0.1"), !host.contains("localhost") {
+            return ParsedHTTPMessage(isGET: isGET, body: body, isAuthorized: false, rejectionReason: "Invalid Host header")
+        }
+
+        if let origin = headers["origin"], origin != "null", !origin.contains("127.0.0.1"), !origin.contains("localhost") {
+            return ParsedHTTPMessage(isGET: isGET, body: body, isAuthorized: false, rejectionReason: "Cross-Origin forbidden")
+        }
+
+        if let referer = headers["referer"], !referer.contains("127.0.0.1"), !referer.contains("localhost") {
+            return ParsedHTTPMessage(isGET: isGET, body: body, isAuthorized: false, rejectionReason: "Cross-Origin Referer forbidden")
+        }
+
+        return ParsedHTTPMessage(isGET: isGET, body: body, isAuthorized: true, rejectionReason: nil)
     }
 
     // MARK: - Private Connection Framing
@@ -152,6 +180,11 @@ public final class LocalNWServerTransport: @unchecked Sendable, MCPServerTranspo
         if looksLikeHTTP {
             guard let parsed = Self.extractCompleteHTTPMessage(from: &buffer) else { return }
             receiveBuffers[connID] = buffer
+            if !parsed.isAuthorized {
+                logger.warning("Chặn request MCP HTTP không hợp lệ: \(parsed.rejectionReason ?? "Unknown")")
+                sendHTTPForbidden(parsed.rejectionReason ?? "Forbidden", on: connection)
+                return
+            }
             if parsed.isGET || parsed.body.isEmpty {
                 sendHTTPResponse("{\"status\":\"ok\",\"service\":\"VideoEditor MCP\"}", on: connection)
             } else {
@@ -194,6 +227,20 @@ public final class LocalNWServerTransport: @unchecked Sendable, MCPServerTranspo
     private func sendHTTPResponse(_ body: String, on connection: NWConnection) {
         let bodyData = Data(body.utf8)
         let headers = "HTTP/1.1 200 OK\r\n"
+            + "Content-Type: application/json; charset=utf-8\r\n"
+            + "Content-Length: \(bodyData.count)\r\n"
+            + "Connection: close\r\n\r\n"
+
+        var responseData = Data(headers.utf8)
+        responseData.append(bodyData)
+        connection.send(content: responseData, completion: .contentProcessed({ _ in
+            connection.cancel()
+        }))
+    }
+
+    private func sendHTTPForbidden(_ reason: String, on connection: NWConnection) {
+        let bodyData = Data("{\"error\":\"Forbidden\",\"reason\":\"\(reason)\"}".utf8)
+        let headers = "HTTP/1.1 403 Forbidden\r\n"
             + "Content-Type: application/json; charset=utf-8\r\n"
             + "Content-Length: \(bodyData.count)\r\n"
             + "Connection: close\r\n\r\n"

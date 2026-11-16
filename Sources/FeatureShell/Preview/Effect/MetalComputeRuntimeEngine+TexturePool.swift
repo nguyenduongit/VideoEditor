@@ -48,7 +48,7 @@ extension MetalComputeRuntimeEngine {
 
     func makePrivateTexture(width: Int, height: Int, device: MTLDevice) -> MTLTexture? {
         let desc = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: .rgba8Unorm,
+            pixelFormat: .rgba16Float,
             width: width,
             height: height,
             mipmapped: false
@@ -75,7 +75,7 @@ extension MetalComputeRuntimeEngine {
         lock.lock()
         defer { lock.unlock() }
         var bucket = scratchTexturePool[key, default: []]
-        if bucket.count < 6 {
+        if bucket.count < 16 {
             bucket.append(texture)
             scratchTexturePool[key] = bucket
         }
@@ -83,7 +83,7 @@ extension MetalComputeRuntimeEngine {
 
     func acquireOutputTexture(width: Int, height: Int, device: MTLDevice) -> MTLTexture? {
         let key = "\(width)x\(height)"
-        let ringCapacity = 8
+        let ringCapacity = 32
         lock.lock()
         var ring = outputTextureRing[key] ?? OutputRing()
         if ring.textures.count >= ringCapacity {

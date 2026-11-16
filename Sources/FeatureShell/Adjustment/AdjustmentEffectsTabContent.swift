@@ -1,6 +1,7 @@
 import SwiftUI
 import Domain
 import DesignSystem
+import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
 #endif
@@ -244,8 +245,12 @@ public struct AdjustmentEffectsTabContent: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = []
+        if let cubeType = UTType(filenameExtension: "cube") {
+            panel.allowedContentTypes = [cubeType]
+        }
         if panel.runModal() == .OK, let url = panel.url {
+            _ = url.startAccessingSecurityScopedResource()
+            defer { url.stopAccessingSecurityScopedResource() }
             if LUTParser.parse(fileURL: url) != nil, let content = try? String(contentsOf: url, encoding: .utf8) {
                 var cfg = currentConfig
                 cfg.lut = LUTConfiguration(lutName: url.lastPathComponent, lutDataString: content, intensity: 100.0, isEnabled: true)

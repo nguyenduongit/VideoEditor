@@ -8,7 +8,7 @@ import Domain
 @Observable
 @MainActor
 public final class TextLibraryViewModel {
-    public static let defaultPresetID = "text_default_preset"
+    public static let defaultPresetID = "default"
 
     public enum SubTab: String, CaseIterable, Sendable {
         case `default` = "Default"
@@ -62,15 +62,7 @@ public final class TextLibraryViewModel {
     }
 
     public var defaultPreset: TextPreset {
-        TextPreset(
-            id: Self.defaultPresetID,
-            name: "Default Text",
-            description: "Standard single-line text title",
-            category: .title,
-            defaultDuration: 5.0,
-            config: TextPreset.default.config,
-            isSystem: true
-        )
+        .default
     }
 
     /// Danh sách toàn bộ mẫu chữ hiển thị với item Mặc định ở vị trí đầu tiên (khi chọn Tất cả và không tìm kiếm)

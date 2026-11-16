@@ -122,7 +122,7 @@ public final class MetalComputeRuntimeEngine: @unchecked Sendable {
         encoder.endEncoding()
 
         cmdBuffer.commit()
-        cmdBuffer.waitUntilCompleted()
+        cmdBuffer.waitUntilScheduled()
         return makeOutputCIImage(from: outTex, localRect: localRect, targetRect: canvasRect) ?? image
     }
 
@@ -161,7 +161,7 @@ public final class MetalComputeRuntimeEngine: @unchecked Sendable {
         encoder.endEncoding()
 
         cmdBuffer.commit()
-        cmdBuffer.waitUntilCompleted()
+        cmdBuffer.waitUntilScheduled()
         return makeOutputCIImage(from: outTex, localRect: localRect, targetRect: canvasRect) ?? image
     }
 
@@ -207,7 +207,7 @@ public final class MetalComputeRuntimeEngine: @unchecked Sendable {
         encoder.endEncoding()
 
         cmdBuffer.commit()
-        cmdBuffer.waitUntilCompleted()
+        cmdBuffer.waitUntilScheduled()
         return makeOutputCIImage(from: outTex, localRect: localRect, targetRect: canvasRect) ?? toImage
     }
 

@@ -98,7 +98,9 @@ public final class TimelineViewModel {
         guard let executor = commandExecutor else { return false }
         let success = executor.undo()
         if success {
-            cleanEmptyLayers()
+            if layers.contains(where: { !$0.clips.isEmpty }) {
+                cleanEmptyLayers()
+            }
             onClipsTrimmed?()
         }
         return success
@@ -109,7 +111,9 @@ public final class TimelineViewModel {
         guard let executor = commandExecutor else { return false }
         let success = executor.redo()
         if success {
-            cleanEmptyLayers()
+            if layers.contains(where: { !$0.clips.isEmpty }) {
+                cleanEmptyLayers()
+            }
             onClipsTrimmed?()
         }
         return success
@@ -228,9 +232,14 @@ public final class TimelineViewModel {
         return nil
     }
 
+    var liveDragInitialProperties: [UUID: [String: PropertyValue]] = [:]
+
     public func updateClipLiveProperties(clipID: UUID, properties: [String: PropertyValue]) {
         for layerIndex in 0..<layers.count {
             if let clipIndex = layers[layerIndex].clips.firstIndex(where: { $0.id == clipID }) {
+                if liveDragInitialProperties[clipID] == nil {
+                    liveDragInitialProperties[clipID] = layers[layerIndex].clips[clipIndex].properties
+                }
                 layers[layerIndex].clips[clipIndex].properties = properties
                 onClipsTrimmed?()
                 return
@@ -239,8 +248,15 @@ public final class TimelineViewModel {
     }
 
     public func commitClipProperties(clipID: UUID, properties: [String: PropertyValue]) {
+        let initial = liveDragInitialProperties.removeValue(forKey: clipID)
         let cmd = TimelineCommand.updateClipProperties(clipID: clipID, properties: properties)
-        commandExecutor?.execute(cmd)
+        if let initial, initial != properties, let executor = commandExecutor {
+            _ = executor.apply(command: cmd, on: self)
+            let inv = TimelineCommand.updateClipProperties(clipID: clipID, properties: initial)
+            executor.recordExecuted(command: cmd, inverse: inv)
+        } else {
+            commandExecutor?.execute(cmd)
+        }
     }
 
     public func isTrackingSubject(for clipID: UUID) -> Bool {

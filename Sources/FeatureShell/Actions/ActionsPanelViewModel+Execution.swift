@@ -13,7 +13,15 @@ extension ActionsPanelViewModel {
         isProcessing = true
         taskStates = [:]
         errorMessage = nil
-        let orderedTasks = tasks.filter { selectedTaskIDs.contains($0.id) }
+        let orderedTasks: [WorkflowTaskItem]
+        if let current = currentAction {
+            let taskMap = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+            let prioritized = current.taskIDs.filter { selectedTaskIDs.contains($0) }.compactMap { taskMap[$0] }
+            let remaining = tasks.filter { selectedTaskIDs.contains($0.id) && !current.taskIDs.contains($0.id) }
+            orderedTasks = prioritized + remaining
+        } else {
+            orderedTasks = tasks.filter { selectedTaskIDs.contains($0.id) }
+        }
         statusMessage = "Đang thực thi \(orderedTasks.count) tác vụ..."
         let startTime = CFAbsoluteTimeGetCurrent()
 

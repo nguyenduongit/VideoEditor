@@ -7,6 +7,9 @@ import os
 public enum SupabaseConfig {
     private static let logger = Logger(subsystem: "VideoEditor", category: "SupabaseConfig")
 
+    /// Khởi tạo duy nhất 1 SupabaseClient chia sẻ cho toàn bộ ứng dụng (Composition Root).
+    public static let sharedClient: SupabaseClient? = makeClient()
+
     public static func makeClient() -> SupabaseClient? {
         let env = ProcessInfo.processInfo.environment
         let envFile = loadEnvFile()
@@ -28,16 +31,37 @@ public enum SupabaseConfig {
     }
 
     private static func loadEnvFile() -> [String: String] {
-        let cwd = FileManager.default.currentDirectoryPath
-        let envURL = URL(fileURLWithPath: cwd).appendingPathComponent(".env")
-        guard let content = try? String(contentsOf: envURL, encoding: .utf8) else { return [:] }
+        let candidateURLs = [
+            Bundle.main.url(forResource: ".env", withExtension: nil),
+            Bundle.main.resourceURL?.appendingPathComponent(".env"),
+            FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("VideoEditor/.env"),
+            URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".env")
+        ].compactMap { $0 }
+
+        for envURL in candidateURLs {
+            if let content = try? String(contentsOf: envURL, encoding: .utf8) {
+                let parsed = parseEnvContent(content)
+                if !parsed.isEmpty {
+                    return parsed
+                }
+            }
+        }
+        return [:]
+    }
+
+    private static func parseEnvContent(_ content: String) -> [String: String] {
         var result: [String: String] = [:]
         for line in content.components(separatedBy: .newlines) {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty || trimmed.hasPrefix("#") { continue }
             let parts = trimmed.split(separator: "=", maxSplits: 1).map(String.init)
             if parts.count == 2 {
-                result[parts[0].trimmingCharacters(in: .whitespaces)] = parts[1].trimmingCharacters(in: .whitespaces)
+                let key = parts[0].trimmingCharacters(in: .whitespaces)
+                var val = parts[1].trimmingCharacters(in: .whitespaces)
+                if (val.hasPrefix("\"") && val.hasSuffix("\"")) || (val.hasPrefix("'") && val.hasSuffix("'")) {
+                    val = String(val.dropFirst().dropLast())
+                }
+                result[key] = val
             }
         }
         return result

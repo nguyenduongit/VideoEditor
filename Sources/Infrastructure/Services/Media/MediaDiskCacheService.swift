@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import OSLog
 
 private let cacheLogger = Logger(subsystem: "VideoEditor", category: "MediaDiskCacheService")
@@ -57,7 +58,8 @@ public final class MediaDiskCacheService: @unchecked Sendable {
     }
 
     private func cacheDestination(for url: URL) -> URL {
-        let hash = String(format: "%08x", url.absoluteString.hashValue)
+        let digest = SHA256.hash(data: Data(url.absoluteString.utf8))
+        let hash = digest.prefix(8).map { String(format: "%02x", $0) }.joined()
         let ext = url.pathExtension.isEmpty ? "media" : url.pathExtension
         let filename = "\(hash)_\(url.lastPathComponent)"
         let sanitized = filename.hasSuffix(".\(ext)") ? filename : "\(filename).\(ext)"

@@ -56,13 +56,20 @@ extension TimelineViewModel {
         }
 
         let timeRange = CMTimeRange(start: targetStart, duration: resolvedDuration)
+        var props = BuiltInClipPropertyDefaults.properties(for: kind)
+        if let b64 = asset.bookmarkBase64 {
+            props["securityBookmark"] = .string(b64)
+        } else if let bm = try? asset.url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
+            props["securityBookmark"] = .string(bm.base64EncodedString())
+        }
         return TimelineClip(
             assetID: asset.id,
             name: asset.name,
             kind: kind,
             timeRange: timeRange,
             maxDuration: maxDuration,
-            mediaURL: asset.url
+            mediaURL: asset.url,
+            properties: props
         )
     }
 

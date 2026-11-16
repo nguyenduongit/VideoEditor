@@ -74,14 +74,16 @@ public final class TextRenderPerformanceCache: @unchecked Sendable {
         if name.lowercased() == "system" {
             resolved = isBold ? NSFont.boldSystemFont(ofSize: safeSize) : NSFont.systemFont(ofSize: safeSize)
         } else {
-            var font = NSFont(name: name, size: safeSize) ?? NSFont.systemFont(ofSize: safeSize)
-            var traits: NSFontTraitMask = []
-            if isBold { traits.insert(.boldFontMask) }
-            if isItalic { traits.insert(.italicFontMask) }
-            if !traits.isEmpty {
-                font = NSFontManager.shared.convert(font, toHaveTrait: traits)
+            let font = NSFont(name: name, size: safeSize) ?? NSFont.systemFont(ofSize: safeSize)
+            var symTraits = CTFontSymbolicTraits()
+            if isBold { symTraits.insert(.traitBold) }
+            if isItalic { symTraits.insert(.traitItalic) }
+            if !symTraits.isEmpty,
+               let modified = CTFontCreateCopyWithSymbolicTraits(font, safeSize, nil, symTraits, symTraits) {
+                resolved = modified as NSFont
+            } else {
+                resolved = font
             }
-            resolved = font
         }
 
         lock.lock()

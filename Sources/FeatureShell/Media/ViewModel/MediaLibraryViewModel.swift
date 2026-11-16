@@ -101,7 +101,9 @@ public final class MediaLibraryViewModel {
         for url in urls {
             guard !assets.contains(where: { $0.url == url }) else { continue }
             guard let type = MediaType.from(fileExtension: url.pathExtension) else { continue }
-            let asset = MediaAsset(url: url, type: type)
+            _ = url.startAccessingSecurityScopedResource()
+            let b64 = (try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil))?.base64EncodedString()
+            let asset = MediaAsset(url: url, type: type, bookmarkBase64: b64)
             assets.append(asset)
             loadThumbnail(for: asset)
             prewarmDuration(for: asset)

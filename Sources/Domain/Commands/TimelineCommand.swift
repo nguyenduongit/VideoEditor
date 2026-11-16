@@ -6,7 +6,7 @@ public enum TimelineCommand: Codable, Sendable, Equatable {
     case addClip(layerID: UUID, clip: ClipScript)
     case removeClip(clipID: UUID)
     case moveClip(clipID: UUID, targetLayerID: UUID, newStartTime: RationalTime)
-    case trimClip(clipID: UUID, newStart: RationalTime, newDuration: RationalTime, newSourceStart: RationalTime?)
+    case trimClip(clipID: UUID, newStart: RationalTime, newDuration: RationalTime, newSourceStart: RationalTime?, originalProperties: [String: PropertyValue]? = nil)
     case splitClip(clipID: UUID, atTime: RationalTime, newRightClipID: UUID? = nil)
     case updateClipProperties(clipID: UUID, properties: [String: PropertyValue])
     case setLayerStatus(layerID: UUID, isLocked: Bool?, isHidden: Bool?, isMuted: Bool?)
@@ -54,6 +54,28 @@ public enum TimelineCommand: Codable, Sendable, Equatable {
         let newStart: RationalTime
         let newDuration: RationalTime
         let newSourceStart: RationalTime?
+        let originalProperties: [String: PropertyValue]?
+
+        init(clipID: UUID, newStart: RationalTime, newDuration: RationalTime, newSourceStart: RationalTime?, originalProperties: [String: PropertyValue]? = nil) {
+            self.clipID = clipID
+            self.newStart = newStart
+            self.newDuration = newDuration
+            self.newSourceStart = newSourceStart
+            self.originalProperties = originalProperties
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case clipID, newStart, newDuration, newSourceStart, originalProperties
+        }
+
+        init(from decoder: any Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.clipID = try c.decode(UUID.self, forKey: .clipID)
+            self.newStart = try c.decode(RationalTime.self, forKey: .newStart)
+            self.newDuration = try c.decode(RationalTime.self, forKey: .newDuration)
+            self.newSourceStart = try c.decodeIfPresent(RationalTime.self, forKey: .newSourceStart)
+            self.originalProperties = try c.decodeIfPresent([String: PropertyValue].self, forKey: .originalProperties)
+        }
     }
 
     private struct SplitClipPayload: Codable {
@@ -124,7 +146,7 @@ public enum TimelineCommand: Codable, Sendable, Equatable {
             self = .moveClip(clipID: p.clipID, targetLayerID: p.targetLayerID, newStartTime: p.newStartTime)
         case .trimClip:
             let p = try container.decode(TrimClipPayload.self, forKey: .payload)
-            self = .trimClip(clipID: p.clipID, newStart: p.newStart, newDuration: p.newDuration, newSourceStart: p.newSourceStart)
+            self = .trimClip(clipID: p.clipID, newStart: p.newStart, newDuration: p.newDuration, newSourceStart: p.newSourceStart, originalProperties: p.originalProperties)
         case .splitClip:
             let p = try container.decode(SplitClipPayload.self, forKey: .payload)
             self = .splitClip(clipID: p.clipID, atTime: p.atTime, newRightClipID: p.newRightClipID)
@@ -161,9 +183,9 @@ public enum TimelineCommand: Codable, Sendable, Equatable {
         case .moveClip(let clipID, let targetLayerID, let newStartTime):
             try container.encode(Action.moveClip, forKey: .action)
             try container.encode(MoveClipPayload(clipID: clipID, targetLayerID: targetLayerID, newStartTime: newStartTime), forKey: .payload)
-        case .trimClip(let clipID, let newStart, let newDuration, let newSourceStart):
+        case .trimClip(let clipID, let newStart, let newDuration, let newSourceStart, let originalProperties):
             try container.encode(Action.trimClip, forKey: .action)
-            try container.encode(TrimClipPayload(clipID: clipID, newStart: newStart, newDuration: newDuration, newSourceStart: newSourceStart), forKey: .payload)
+            try container.encode(TrimClipPayload(clipID: clipID, newStart: newStart, newDuration: newDuration, newSourceStart: newSourceStart, originalProperties: originalProperties), forKey: .payload)
         case .splitClip(let clipID, let atTime, let newRightClipID):
             try container.encode(Action.splitClip, forKey: .action)
             try container.encode(SplitClipPayload(clipID: clipID, atTime: atTime, newRightClipID: newRightClipID), forKey: .payload)

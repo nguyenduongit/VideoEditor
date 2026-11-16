@@ -44,9 +44,11 @@ extension TextSegmentRenderer {
         )
         let corner = max(6.0, CGFloat(baseConfig.backgroundCornerRadius))
         context.saveGState()
-        let path = NSBezierPath(roundedRect: rect, xRadius: corner, yRadius: corner)
-        TextRendererEngine.parseHexColor(baseConfig.animation.highlightColorHex).setFill()
-        path.fill()
+        let cgPath = CGPath(roundedRect: rect, cornerWidth: corner, cornerHeight: corner, transform: nil)
+        let color = TextRendererEngine.parseHexColor(baseConfig.animation.highlightColorHex)
+        context.addPath(cgPath)
+        context.setFillColor(color.cgColor)
+        context.fillPath()
         context.restoreGState()
     }
 

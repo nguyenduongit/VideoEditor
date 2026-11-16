@@ -168,7 +168,7 @@ public struct TimelineTrackContentView: View {
                     isMultiSelected: selectedClipIDs.count > 1,
                     previousClipEnd: prev?.timeRange.end,
                     nextClipStart: next?.timeRange.start,
-                    snapCandidates: snapCandidatesProvider?(clip.id) ?? [],
+                    snapCandidates: selectedClipIDs.contains(clip.id) ? (snapCandidatesProvider?(clip.id) ?? []) : [],
                     beatTimes: beatTimes,
                     thumbnailService: thumbnailService,
                     waveformService: waveformService,

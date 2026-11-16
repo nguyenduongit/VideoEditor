@@ -198,7 +198,7 @@ public final class InspectorViewModel {
             let trimCmd = TimelineCommand.trimClip(clipID: clip.id, newStart: rStart, newDuration: rDur, newSourceStart: nil)
             timelineViewModel.commandExecutor?.execute(.batch(commands: [propCmd, trimCmd]))
         } else {
-            timelineViewModel.commandExecutor?.execute(propCmd)
+            timelineViewModel.commitClipProperties(clipID: clip.id, properties: liveProperties)
         }
         ensurePlayheadWithinClip(clip: clip)
         syncWithSelection()

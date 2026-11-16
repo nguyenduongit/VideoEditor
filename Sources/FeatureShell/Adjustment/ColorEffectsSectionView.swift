@@ -1,6 +1,7 @@
 import SwiftUI
 import Domain
 import DesignSystem
+import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
 #endif
@@ -206,6 +207,8 @@ public struct ColorEffectsSectionView: View {
         panel.canChooseDirectories = false
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
+            _ = url.startAccessingSecurityScopedResource()
+            defer { url.stopAccessingSecurityScopedResource() }
             if let content = try? String(contentsOf: url, encoding: .utf8),
                LUTParser.parse(fileURL: url) != nil {
                 var cfg = currentConfig

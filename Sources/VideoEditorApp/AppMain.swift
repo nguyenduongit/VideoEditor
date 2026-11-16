@@ -12,9 +12,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+private let appLogger = Logger(subsystem: "com.videoeditor.app", category: "AppMain")
+
 @main
 struct VideoEditorApp: App {
-    private static let logger = Logger(subsystem: "com.videoeditor.app", category: "AppMain")
+    private static let logger = appLogger
 
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var viewModel: ShellViewModel
@@ -163,16 +165,17 @@ struct VideoEditorApp: App {
     }
 
     private static func configureCloudRepositories(for dependencies: EditorDependencies) {
-        let adjustmentRepo = SupabaseAdjustmentPresetRepository(templateLoader: dependencies.adjustmentTemplates)
-        let textRepo = SupabaseTextPresetRepository(templateLoader: dependencies.textTemplates)
-        let animationRepo = SupabaseAnimationPresetRepository(templateLoader: dependencies.animationTemplates)
-        let effectRepo = SupabaseEffectPresetRepository(templateLoader: dependencies.effectTemplates)
-        let stickerRepo = SupabaseStickerPresetRepository(templateLoader: dependencies.stickerTemplates)
-        let transitionRepo = SupabaseTransitionPresetRepository(templateLoader: dependencies.transitionTemplates)
-        let actionRepo = SupabaseActionRepository()
-        let audioRepo = SupabaseAudioPresetRepository()
-        let stockRepo = SupabaseStockMediaRepository()
-        let favRepo = SupabaseFavoriteRepository()
+        let sharedClient = SupabaseConfig.sharedClient
+        let adjustmentRepo = SupabaseAdjustmentPresetRepository(client: sharedClient, templateLoader: dependencies.adjustmentTemplates)
+        let textRepo = SupabaseTextPresetRepository(client: sharedClient, templateLoader: dependencies.textTemplates)
+        let animationRepo = SupabaseAnimationPresetRepository(client: sharedClient, templateLoader: dependencies.animationTemplates)
+        let effectRepo = SupabaseEffectPresetRepository(client: sharedClient, templateLoader: dependencies.effectTemplates)
+        let stickerRepo = SupabaseStickerPresetRepository(client: sharedClient, templateLoader: dependencies.stickerTemplates)
+        let transitionRepo = SupabaseTransitionPresetRepository(client: sharedClient, templateLoader: dependencies.transitionTemplates)
+        let actionRepo = SupabaseActionRepository(client: sharedClient)
+        let audioRepo = SupabaseAudioPresetRepository(client: sharedClient)
+        let stockRepo = SupabaseStockMediaRepository(client: sharedClient)
+        let favRepo = SupabaseFavoriteRepository(client: sharedClient)
 
         dependencies.presetRepositories.adjustmentRepository = adjustmentRepo
         dependencies.presetRepositories.textRepository = textRepo
@@ -207,15 +210,17 @@ struct VideoEditorApp: App {
         audioRepo: SupabaseAudioPresetRepository,
         stockRepo: SupabaseStockMediaRepository
     ) async {
-        do { _ = try await adjustmentRepo.fetchPresets() } catch { logger.warning("Prefetch adjustment_presets lỗi: \(error.localizedDescription)") }
-        do { _ = try await textRepo.fetchPresets() } catch { logger.warning("Prefetch text_presets lỗi: \(error.localizedDescription)") }
-        do { _ = try await animationRepo.fetchPresets() } catch { logger.warning("Prefetch animation_presets lỗi: \(error.localizedDescription)") }
-        do { _ = try await effectRepo.fetchPresets() } catch { logger.warning("Prefetch effect_presets lỗi: \(error.localizedDescription)") }
-        do { _ = try await stickerRepo.fetchPresets() } catch { logger.warning("Prefetch sticker_presets lỗi: \(error.localizedDescription)") }
-        do { _ = try await transitionRepo.fetchPresets() } catch { logger.warning("Prefetch transition_presets lỗi: \(error.localizedDescription)") }
-        do { _ = try await actionRepo.fetchActions() } catch { logger.warning("Prefetch actions lỗi: \(error.localizedDescription)") }
-        do { _ = try await audioRepo.fetchPresets() } catch { logger.warning("Prefetch audio_presets lỗi: \(error.localizedDescription)") }
-        do { _ = try await stockRepo.fetchStockItems() } catch { logger.warning("Prefetch stock_media lỗi: \(error.localizedDescription)") }
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { do { _ = try await adjustmentRepo.fetchPresets() } catch { appLogger.warning("Prefetch adjustment_presets lỗi: \(String(describing: error))") } }
+            group.addTask { do { _ = try await textRepo.fetchPresets() } catch { appLogger.warning("Prefetch text_presets lỗi: \(String(describing: error))") } }
+            group.addTask { do { _ = try await animationRepo.fetchPresets() } catch { appLogger.warning("Prefetch animation_presets lỗi: \(String(describing: error))") } }
+            group.addTask { do { _ = try await effectRepo.fetchPresets() } catch { appLogger.warning("Prefetch effect_presets lỗi: \(String(describing: error))") } }
+            group.addTask { do { _ = try await stickerRepo.fetchPresets() } catch { appLogger.warning("Prefetch sticker_presets lỗi: \(String(describing: error))") } }
+            group.addTask { do { _ = try await transitionRepo.fetchPresets() } catch { appLogger.warning("Prefetch transition_presets lỗi: \(String(describing: error))") } }
+            group.addTask { do { _ = try await actionRepo.fetchActions() } catch { appLogger.warning("Prefetch actions lỗi: \(String(describing: error))") } }
+            group.addTask { do { _ = try await audioRepo.fetchPresets() } catch { appLogger.warning("Prefetch audio_presets lỗi: \(String(describing: error))") } }
+            group.addTask { do { _ = try await stockRepo.fetchStockItems() } catch { appLogger.warning("Prefetch stock_media lỗi: \(String(describing: error))") } }
+        }
     }
 
     private static func bindCrossModuleCallbacks(

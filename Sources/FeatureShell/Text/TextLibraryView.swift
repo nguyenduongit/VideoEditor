@@ -142,10 +142,11 @@ public struct TextLibraryView: View {
 
     private var defaultTextCard: some View {
         let isFav = SidebarFavoriteManager.shared.isFavorite(id: Self.defaultPresetID, for: "text")
+            || SidebarFavoriteManager.shared.isFavorite(id: "default", for: "text")
         return UnifiedLibraryCardItemView(
             title: "Default Text",
             isFavorite: isFav,
-            isSelected: viewModel.selectedPresetID == Self.defaultPresetID,
+            isSelected: viewModel.selectedPresetID == Self.defaultPresetID || viewModel.selectedPresetID == "default",
             onSelect: {
                 viewModel.selectDefaultPresetForPreview()
             },

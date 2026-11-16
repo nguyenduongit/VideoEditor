@@ -71,8 +71,8 @@ public final class TimelineCommandExecutor {
             return applyRemoveClip(clipID: clipID, on: vm)
         case .moveClip(let clipID, let targetLayerID, let newStartTime):
             return applyMoveClip(clipID: clipID, targetLayerID: targetLayerID, newStartTime: newStartTime, on: vm)
-        case .trimClip(let clipID, let newStart, let newDuration, let newSourceStart):
-            return applyTrimClip(clipID: clipID, newStart: newStart, newDuration: newDuration, newSourceStart: newSourceStart, on: vm)
+        case .trimClip(let clipID, let newStart, let newDuration, let newSourceStart, let originalProperties):
+            return applyTrimClip(clipID: clipID, newStart: newStart, newDuration: newDuration, newSourceStart: newSourceStart, originalProperties: originalProperties, on: vm)
         case .splitClip(let clipID, let atTime, let newRightClipID):
             return applySplitClip(clipID: clipID, atTime: atTime, newRightClipID: newRightClipID, on: vm)
         case .updateClipProperties(let clipID, let properties):
@@ -186,14 +186,20 @@ public final class TimelineCommandExecutor {
     }
 
     private func applyTrimClip(
-        clipID: UUID, newStart: RationalTime, newDuration: RationalTime, newSourceStart: RationalTime?, on vm: TimelineViewModel
+        clipID: UUID,
+        newStart: RationalTime,
+        newDuration: RationalTime,
+        newSourceStart: RationalTime?,
+        originalProperties: [String: PropertyValue]?,
+        on vm: TimelineViewModel
     ) -> TimelineCommand? {
-        for layer in vm.layers {
+        for (layerIndex, layer) in vm.layers.enumerated() {
             if let clipIndex = layer.clips.firstIndex(where: { $0.id == clipID }) {
                 let oldClip = layer.clips[clipIndex]
                 let oldStart = RationalTime(cmTime: oldClip.timeRange.start)
                 let oldDuration = RationalTime(cmTime: oldClip.timeRange.duration)
                 let oldSourceStart = RationalTime(cmTime: oldClip.sourceStartTime)
+                let oldProps = oldClip.properties
 
                 vm.trimClip(
                     clipID: clipID,
@@ -203,11 +209,16 @@ public final class TimelineCommandExecutor {
                     newSourceStart: newSourceStart?.cmTime
                 )
 
+                if let originalProperties {
+                    vm.layers[layerIndex].clips[clipIndex].properties = originalProperties
+                }
+
                 return .trimClip(
                     clipID: clipID,
                     newStart: oldStart,
                     newDuration: oldDuration,
-                    newSourceStart: oldSourceStart
+                    newSourceStart: oldSourceStart,
+                    originalProperties: oldProps
                 )
             }
         }
@@ -223,6 +234,7 @@ public final class TimelineCommandExecutor {
                 let originalStart = RationalTime(cmTime: clip.timeRange.start)
                 let originalDuration = RationalTime(cmTime: clip.timeRange.duration)
                 let originalSourceStart = RationalTime(cmTime: clip.sourceStartTime)
+                let originalProps = clip.properties
 
                 vm.layers[layerIndex].clips.removeAll { $0.id == clipID }
                 vm.layers[layerIndex].appendClip(left)
@@ -235,58 +247,12 @@ public final class TimelineCommandExecutor {
                     clipID: left.id,
                     newStart: originalStart,
                     newDuration: originalDuration,
-                    newSourceStart: originalSourceStart
+                    newSourceStart: originalSourceStart,
+                    originalProperties: originalProps
                 )
                 return .batch(commands: [undoRight, undoLeft])
             }
         }
         return nil
-    }
-
-    private func applySetLayerStatus(
-        layerID: UUID, isLocked: Bool?, isHidden: Bool?, isMuted: Bool?, on vm: TimelineViewModel
-    ) -> TimelineCommand? {
-        guard let layerIndex = vm.layers.firstIndex(where: { $0.id == layerID }) else { return nil }
-        let oldLocked = vm.layers[layerIndex].isLocked
-        let oldHidden = vm.layers[layerIndex].isHidden
-        let oldMuted = vm.layers[layerIndex].isMuted
-
-        if let isLocked { vm.layers[layerIndex].isLocked = isLocked }
-        if let isHidden, vm.layers[layerIndex].kind != .audio { vm.layers[layerIndex].isHidden = isHidden }
-        if let isMuted { vm.layers[layerIndex].isMuted = isMuted }
-
-        return .setLayerStatus(layerID: layerID, isLocked: oldLocked, isHidden: oldHidden, isMuted: oldMuted)
-    }
-
-    private func applyUpdateClipProperties(
-        clipID: UUID, properties: [String: PropertyValue], on vm: TimelineViewModel
-    ) -> TimelineCommand? {
-        for layerIndex in 0..<vm.layers.count {
-            if let clipIndex = vm.layers[layerIndex].clips.firstIndex(where: { $0.id == clipID }) {
-                let oldProperties = vm.layers[layerIndex].clips[clipIndex].properties
-                vm.layers[layerIndex].clips[clipIndex].properties = properties
-                vm.onClipsTrimmed?()
-                return .updateClipProperties(clipID: clipID, properties: oldProperties)
-            }
-        }
-        return nil
-    }
-
-    private func applySetAspectRatio(ratio: CanvasAspectRatio, on vm: TimelineViewModel) -> TimelineCommand? {
-        let oldRatio = vm.aspectRatio
-        vm.aspectRatio = ratio
-        vm.onAspectRatioChanged?(ratio)
-        return .setAspectRatio(oldRatio)
-    }
-
-    private func applyBatch(commands: [TimelineCommand], on vm: TimelineViewModel) -> TimelineCommand? {
-        var inverseCommands: [TimelineCommand] = []
-        for command in commands {
-            guard let inverse = apply(command: command, on: vm) else {
-                return nil
-            }
-            inverseCommands.append(inverse)
-        }
-        return .batch(commands: inverseCommands.reversed())
     }
 }

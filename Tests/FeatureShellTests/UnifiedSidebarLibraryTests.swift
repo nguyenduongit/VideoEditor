@@ -255,8 +255,8 @@ struct UnifiedSidebarLibraryTests {
 
         textVM.selectDefaultPresetForPreview()
         let defaultPreview = try #require(shellVM.activePreviewTextPreset)
-        #expect(defaultPreview.id == TextLibraryView.defaultPresetID)
-        #expect(textVM.selectedPresetID == TextLibraryView.defaultPresetID)
+        #expect(defaultPreview.id == textVM.defaultPreset.id)
+        #expect(textVM.selectedPresetID == textVM.defaultPreset.id)
         #expect(TextThumbnailRenderer.isDefaultStaticPreset(defaultPreview) == true)
         #expect(TextThumbnailRenderer.effectiveAnimatedConfig(for: defaultPreview).animation.isDefault == true)
 

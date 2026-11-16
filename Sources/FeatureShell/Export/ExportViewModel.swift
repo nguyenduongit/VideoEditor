@@ -145,6 +145,7 @@ public final class ExportViewModel {
         let response = panel.runModal()
         guard response == .OK, let targetURL = panel.url else { return }
 
+        _ = targetURL.startAccessingSecurityScopedResource()
         self.outputURL = targetURL
         self.status = .exporting(progress: 0.0)
         self.currentProgress = 0.0
@@ -162,6 +163,7 @@ public final class ExportViewModel {
         )
 
         activeTask = Task { [weak self, engine] in
+            defer { targetURL.stopAccessingSecurityScopedResource() }
             do {
                 try await engine.export(
                     layers: layers,

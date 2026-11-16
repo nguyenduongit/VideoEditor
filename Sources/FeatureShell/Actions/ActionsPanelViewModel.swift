@@ -49,6 +49,7 @@ public final class ActionsPanelViewModel {
 
     public let dependencies: EditorDependencies
     var dispatcher: MCPTimelineToolDispatcher?
+    var saveDebounceTask: Task<Void, Never>?
     private var presetObserver: (any NSObjectProtocol)?
 
     public init(

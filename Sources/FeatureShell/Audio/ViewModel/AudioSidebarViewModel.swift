@@ -82,7 +82,8 @@ public final class AudioSidebarViewModel {
                 timeRange: .init(
                     start: timelineViewModel?.currentTime ?? .zero,
                     duration: CMTime(seconds: durSeconds, preferredTimescale: 600)
-                )
+                ),
+                mediaURL: preset.audioURL
             )
             timelineViewModel?.addClip(clip)
         }
