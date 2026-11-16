@@ -186,12 +186,14 @@ public enum TextSegmentRenderer: Sendable {
             singleConfig.scale = 1.0
             singleConfig.rotation = 0.0
             singleConfig.opacity = 1.0
+            singleConfig.blurRadius = 0.0
 
             var evaluated = TextAnimationEvaluator.evaluate(
                 config: singleConfig, localTime: itemLocalTime,
                 duration: duration, canvasSize: canvasSize,
                 charIndex: orderIndex, charCount: visibleCount
             )
+            evaluated.config.blurRadius = evaluated.blurRadius
             if evaluated.config.opacity <= 0.005 && evaluated.overlay.trailingCursorOpacity <= 0.01 {
                 continue
             }
@@ -262,14 +264,22 @@ public enum TextSegmentRenderer: Sendable {
         context.translateBy(x: 0, y: -pivotOffsetY)
 
         if config.opacity > 0.005 {
-            renderTokenGlyphAndEchoes(
-                config: config,
-                font: font,
-                overlay: overlay,
-                tokenWidth: tokenWidth,
-                totalHeight: totalHeight,
-                in: context
-            )
+            if config.blurRadius > 0.4 {
+                context.saveGState()
+                let blurColor = TextAdvancedStyleRenderer.parseHexColor(config.textColorHex)
+                    .withAlphaComponent(CGFloat(max(0.15, min(1.0, config.opacity))))
+                context.setShadow(offset: .zero, blur: CGFloat(config.blurRadius), color: blurColor.cgColor)
+                renderTokenGlyphAndEchoes(
+                    config: config, font: font, overlay: overlay,
+                    tokenWidth: tokenWidth, totalHeight: totalHeight, in: context
+                )
+                context.restoreGState()
+            } else {
+                renderTokenGlyphAndEchoes(
+                    config: config, font: font, overlay: overlay,
+                    tokenWidth: tokenWidth, totalHeight: totalHeight, in: context
+                )
+            }
         }
 
         if overlay.trailingCursorOpacity > 0.01 {

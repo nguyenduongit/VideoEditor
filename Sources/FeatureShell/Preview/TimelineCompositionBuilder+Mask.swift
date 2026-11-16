@@ -11,7 +11,6 @@ extension TimelineCompositionBuilder {
 
     static func hasActiveMask(in layers: [TimelineLayer]) -> Bool {
         layers.contains { layer in
-            if layer.isHidden { return false }
             let overlayKinds: Set<ClipKind> = [.adjustment, .text, .effect, .sticker, .image]
             if overlayKinds.contains(layer.kind) && !layer.clips.isEmpty {
                 return true

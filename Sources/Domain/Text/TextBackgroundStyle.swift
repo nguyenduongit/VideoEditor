@@ -119,7 +119,7 @@ public struct TextBackgroundStyle: Codable, Equatable, Hashable, Sendable {
         offsetY: Double = 0.0,
         loopAsset: Bool = true,
         assetSpeed: Double = 1.0,
-        animateWithText: Bool = true
+        animateWithText: Bool = false
     ) {
         self.isEnabled = isEnabled
         self.sourceKind = sourceKind
@@ -211,7 +211,7 @@ public struct TextBackgroundStyle: Codable, Equatable, Hashable, Sendable {
             ?? (try? c.decodeIfPresent(Double.self, forKey: .init("positionY"))) ?? 0.0
         self.loopAsset = (try? c.decodeIfPresent(Bool.self, forKey: .init("loopAsset"))) ?? true
         self.assetSpeed = max(0.25, min(4.0, (try? c.decodeIfPresent(Double.self, forKey: .init("assetSpeed"))) ?? 1.0))
-        self.animateWithText = (try? c.decodeIfPresent(Bool.self, forKey: .init("animateWithText"))) ?? true
+        self.animateWithText = (try? c.decodeIfPresent(Bool.self, forKey: .init("animateWithText"))) ?? false
     }
 }
 

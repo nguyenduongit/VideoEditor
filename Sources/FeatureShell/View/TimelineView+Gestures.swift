@@ -42,7 +42,7 @@ extension TimelineView {
         }
     }
 
-    func handleClipMoveEnd(clipID: UUID) {
+    func handleClipMoveEnd(clipID: UUID, isDuplicate: Bool = false) {
         defer {
             viewModel.cleanEmptyLayers()
             viewModel.hoverLayerID = nil
@@ -51,6 +51,17 @@ extension TimelineView {
             movingSourceLayerID = nil
         }
         guard let sourceLayerID = movingSourceLayerID else { return }
+        if isDuplicate {
+            viewModel.duplicateClipViaDrag(
+                clipID: clipID,
+                from: sourceLayerID,
+                to: viewModel.hoverLayerID ?? sourceLayerID,
+                insertAtIndex: viewModel.dropBetweenIndex,
+                newStartTime: pendingStartTime
+            )
+            playheadState.seek(to: playheadState.currentTime, force: true)
+            return
+        }
         if viewModel.selectedClipIDs.count > 1 && viewModel.selectedClipIDs.contains(clipID) {
             let effectiveDelta = viewModel.clampedGroupMoveDelta(pivotClipID: clipID, proposedStart: pendingStartTime)
             viewModel.commitGroupMove(delta: effectiveDelta)

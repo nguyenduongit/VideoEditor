@@ -252,8 +252,8 @@ public struct CascadeWaveFlowScript: TextAnimationScript {
         return TextUnitDelta(
             offsetX: rem * (0.35 * em),
             offsetY: -rem * (1.1 * em) - bounce * (0.10 * em) + ease * w.y,
-            scaleX: (1.0 - rem * 0.35) + bounce * 0.08,
-            scaleY: (1.0 - rem * 0.35) + bounce * 0.08,
+            scaleX: rem * 0.65 + ease * w.scale + bounce * 0.08,
+            scaleY: rem * 0.65 + ease * w.scale + bounce * 0.08,
             rotation: rem * 14.0 + ease * w.rot,
             opacity: min(1.0, localP * 2.2),
             glowIntensityDelta: ease * w.glow + bounce * 25.0,

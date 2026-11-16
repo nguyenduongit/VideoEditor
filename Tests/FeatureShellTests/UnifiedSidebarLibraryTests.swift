@@ -62,6 +62,22 @@ struct UnifiedSidebarLibraryTests {
         #expect(addedClip?.timeRange.duration.seconds == 5.0)
     }
 
+    @Test("AdjustmentLibraryView has Default category and default adjustment identifier")
+    func testAdjustmentLibraryDefaultCategory() {
+        #expect(AdjustmentLibraryView.defaultCategory == "Default")
+        #expect(AdjustmentLibraryView.defaultPresetID == "adjustment_default_preset")
+
+        let vm = TimelineViewModel()
+        #expect(vm.layers.isEmpty)
+        let libraryVM = AdjustmentLibraryViewModel(timelineViewModel: vm)
+        libraryVM.addDefaultPresetToTimeline()
+        #expect(!vm.layers.isEmpty)
+        let addedClip = vm.layers.flatMap(\.clips).first
+        #expect(addedClip != nil)
+        #expect(addedClip?.kind == .adjustment)
+        #expect(addedClip?.name == "Adjustment Layer")
+    }
+
     @Test("Sidebar tab categories exclude 'All' and maintain assignable cases")
     func testCategoriesDoNotContainAllAcrossTabs() {
         // Text
@@ -98,7 +114,7 @@ struct UnifiedSidebarLibraryTests {
             onSelect: { didSelect = true },
             onAdd: { didAdd = true },
             onToggleFavorite: { didFavorite = true }
-        ) {
+        ) { _ in
             Color.blue
         }
 
@@ -106,6 +122,16 @@ struct UnifiedSidebarLibraryTests {
         #expect(!didAdd)
         #expect(!didFavorite)
         #expect(!didSelect)
+    }
+
+    @Test("TextAnimatedThumbnailView instantiates and renders cleanly in static and hovered states")
+    func testTextAnimatedThumbnailViewRenders() {
+        let preset = TextPreset.neonCyberGlow
+        let staticView = TextAnimatedThumbnailView(preset: preset, isHovered: false)
+        _ = staticView.body
+
+        let hoveredView = TextAnimatedThumbnailView(preset: preset, isHovered: true)
+        _ = hoveredView.body
     }
 
     @Test("DSRoundedStarAsset successfully decodes custom rounded star icon")
@@ -175,5 +201,73 @@ struct UnifiedSidebarLibraryTests {
         #expect(addedClip != nil)
         #expect(addedClip?.properties["isBeatCounter"]?.asBool == true)
         #expect(addedClip?.kind == .audio)
+    }
+
+    @Test("TextAnimatedThumbnail and Evaluator execute In, Loop and Out phases during preview")
+    func testTextAnimatedThumbnailThreePhasesExecution() {
+        let preset = TextPreset.neonCyberGlow
+        let effective = TextThumbnailRenderer.effectiveAnimatedConfig(for: preset)
+        #expect(effective.animation.hasInAnimation)
+        #expect(effective.animation.hasLoopAnimation)
+        #expect(effective.animation.hasOutAnimation)
+
+        let duration = TextThumbnailRenderer.effectiveDuration(for: preset)
+        #expect(duration == 4.0)
+
+        let frameIn = TextThumbnailRenderer.renderAnimatedFrame(
+            for: preset, localTime: 0.4, duration: duration, targetSize: CGSize(width: 120, height: 120)
+        )
+        let frameLoop = TextThumbnailRenderer.renderAnimatedFrame(
+            for: preset, localTime: 2.0, duration: duration, targetSize: CGSize(width: 120, height: 120)
+        )
+        let frameOut = TextThumbnailRenderer.renderAnimatedFrame(
+            for: preset, localTime: 3.8, duration: duration, targetSize: CGSize(width: 120, height: 120)
+        )
+        #expect(frameIn != nil)
+        #expect(frameLoop != nil)
+        #expect(frameOut != nil)
+
+        // Verify TextAnimationScript guarantees .loop even for short durations (<= in+out)
+        if let script = TextAnimationScriptRegistry.shared.script(for: "title_wave_float") {
+            var scriptAnim = TextAnimationConfiguration()
+            scriptAnim.scriptInDuration = 1.0
+            scriptAnim.scriptOutDuration = 1.0
+            let phaseMid = script.resolvePhase(anim: scriptAnim, localTime: 1.0, duration: 2.0)
+            if case .loop = phaseMid {
+                #expect(Bool(true))
+            } else {
+                #expect(Bool(false), "Script phase at midpoint of 2.0s should be .loop, got \(phaseMid)")
+            }
+        }
+    }
+
+    @MainActor
+    @Test("Text preset preview and Default Text selection state machine syncs two-way")
+    func testTextPresetPreviewAndDefaultSelectionStateMachine() throws {
+        let timelineVM = TimelineViewModel()
+        let registry = TabRegistry()
+        let shellVM = ShellViewModel(registry: registry, timelineViewModel: timelineVM, initialTabID: .text)
+        let textVM = TextLibraryViewModel(timelineViewModel: timelineVM)
+
+        textVM.selectPresetForPreview(.neonCyberGlow)
+        #expect(shellVM.activePreviewTextPreset?.id == TextPreset.neonCyberGlow.id)
+        #expect(textVM.selectedPresetID == TextPreset.neonCyberGlow.id)
+
+        textVM.selectDefaultPresetForPreview()
+        let defaultPreview = try #require(shellVM.activePreviewTextPreset)
+        #expect(defaultPreview.id == TextLibraryView.defaultPresetID)
+        #expect(textVM.selectedPresetID == TextLibraryView.defaultPresetID)
+        #expect(TextThumbnailRenderer.isDefaultStaticPreset(defaultPreview) == true)
+        #expect(TextThumbnailRenderer.effectiveAnimatedConfig(for: defaultPreview).animation.isDefault == true)
+
+        shellVM.setPreviewTextPreset(nil)
+        #expect(shellVM.activePreviewTextPreset == nil)
+        #expect(textVM.selectedPresetID == nil)
+
+        textVM.selectPresetForPreview(.neonCyberGlow)
+        textVM.addDefaultPresetToTimeline()
+        #expect(shellVM.activePreviewTextPreset == nil)
+        #expect(textVM.selectedPresetID == nil)
+        #expect(!timelineVM.layers.isEmpty)
     }
 }

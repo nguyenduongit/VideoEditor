@@ -31,6 +31,8 @@ public struct TimelineClipView: View {
     let onSavePreset: ((TimelineClip) -> Void)?
     let onSeek: ((CMTime) -> Void)?
     let onUpdateProperties: ((UUID, [String: PropertyValue], Bool) -> Void)?
+    let contextActions: TimelineClipContextActions?
+    let onDuplicateMoveEnd: (() -> Void)?
 
     @State var dragOffset: CGFloat = 0
     @State var dragY: CGFloat = 0
@@ -39,6 +41,7 @@ public struct TimelineClipView: View {
     @State var isHoveringLeftTrim: Bool = false
     @State var isHoveringRightTrim: Bool = false
     @State var isTrimming: Bool = false
+    @State var isOptionDuplicateDrag: Bool = false
 
     public init(
         clip: TimelineClip, height: CGFloat, pixelsPerSecond: CGFloat, isLocked: Bool,
@@ -57,7 +60,9 @@ public struct TimelineClipView: View {
         onSavePreset: ((TimelineClip) -> Void)? = nil,
         onMove: @escaping (CMTime, CGFloat) -> Void,
         onMoveEnd: @escaping () -> Void,
-        onUpdateProperties: ((UUID, [String: PropertyValue], Bool) -> Void)? = nil
+        onDuplicateMoveEnd: (() -> Void)? = nil,
+        onUpdateProperties: ((UUID, [String: PropertyValue], Bool) -> Void)? = nil,
+        contextActions: TimelineClipContextActions? = nil
     ) {
         self.clip = clip; self.height = height; self.pixelsPerSecond = pixelsPerSecond
         self.isLocked = isLocked; self.isMuted = isMuted; self.isSelected = isSelected
@@ -71,7 +76,9 @@ public struct TimelineClipView: View {
         self.onTrim = onTrim; self.onTrimChange = onTrimChange; self.onTrimEnd = onTrimEnd
         self.onExtractAudio = onExtractAudio; self.onSavePreset = onSavePreset
         self.onMove = onMove; self.onMoveEnd = onMoveEnd
+        self.onDuplicateMoveEnd = onDuplicateMoveEnd
         self.onUpdateProperties = onUpdateProperties
+        self.contextActions = contextActions
     }
 
     public var body: some View {
@@ -79,40 +86,45 @@ public struct TimelineClipView: View {
         let effectiveDragOffset = isSelected && groupDragOffset != 0 ? groupDragOffset : dragOffset
         let clipX = max(0, baseX + effectiveDragOffset + effectiveTrimLeft)
 
+        clipCard(clipWidth: clipWidth)
+            .background { optionDragOriginGhost(clipWidth: clipWidth, clipX: clipX) }
+            .position(x: clipX + clipWidth / 2, y: (height / 2) + dragY)
+            .zIndex(isDragging ? 100 : 1)
+    }
+
+    private func clipCard(clipWidth: CGFloat) -> some View {
         ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: DSRadius.clip)
-                .fill(clipColor.opacity(0.85))
-
+            RoundedRectangle(cornerRadius: DSRadius.clip).fill(clipColor.opacity(0.85))
             clipContent(width: clipWidth)
-
-            ClipBorderOverlayView(
-                isSelected: isSelected,
-                isHoveringLeftTrim: isHoveringLeftTrim,
-                isHoveringRightTrim: isHoveringRightTrim
-            )
+            ClipBorderOverlayView(isSelected: isSelected, isHoveringLeftTrim: isHoveringLeftTrim, isHoveringRightTrim: isHoveringRightTrim)
         }
         .frame(width: clipWidth, height: height - 4)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.clip))
-        .contentShape(Rectangle())
-        .simultaneousGesture(
-            TapGesture().onEnded {
-                let isCmd = NSEvent.modifierFlags.contains(.command)
-                onSelect(isCmd)
-            }
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.clip)
+                .stroke(isOptionDuplicateDrag && isDragging ? DSColors.toggleCyan : Color.clear, lineWidth: 1.5)
         )
-        .contextMenu {
-            clipContextMenu
-        }
+        .contentShape(Rectangle())
+        .simultaneousGesture(TapGesture().onEnded { onSelect(NSEvent.modifierFlags.contains(.command)) })
+        .contextMenu { clipContextMenu }
         .gesture(isLocked ? nil : moveGesture)
-        .position(x: clipX + clipWidth / 2, y: (height / 2) + dragY)
-        .zIndex(isDragging ? 100 : 1)
         .opacity(isDragging ? 0.88 : 1.0)
         .shadow(
             color: isDragging ? Color.black.opacity(0.5) : (isSelected ? Color.black.opacity(0.4) : Color.clear),
-            radius: isDragging ? 8 : (isSelected ? 4 : 0),
-            x: 0,
-            y: isDragging ? 4 : 1
+            radius: isDragging ? 8 : (isSelected ? 4 : 0), x: 0, y: isDragging ? 4 : 1
         )
+    }
+
+    @ViewBuilder
+    private func optionDragOriginGhost(clipWidth: CGFloat, clipX: CGFloat) -> some View {
+        if isOptionDuplicateDrag && isDragging {
+            RoundedRectangle(cornerRadius: DSRadius.clip)
+                .fill(clipColor.opacity(0.45))
+                .overlay(RoundedRectangle(cornerRadius: DSRadius.clip).stroke(DSColors.textSecondary.opacity(0.6), lineWidth: 1))
+                .frame(width: max(28, baseWidth), height: height - 4)
+                .offset(x: baseX - clipX, y: -dragY)
+                .allowsHitTesting(false)
+        }
     }
 
     private var isDragging: Bool {

@@ -56,47 +56,13 @@ public struct TimelineView: View {
         .focusEffectDisabled()
         .focused($isTimelineFocused)
         .onKeyPress { press in
-            if press.key == .delete || press.key == KeyEquivalent("\u{7f}") { viewModel.deleteSelectedClips(); return .handled }
-            if press.key == KeyEquivalent("s") || (press.key == KeyEquivalent("b") && press.modifiers.contains(.command)) {
-                viewModel.splitClips(at: playheadState.currentTime); return .handled
-            }
-            if press.key == KeyEquivalent("e") && press.modifiers.contains(.command) {
-                viewModel.extractAudio(); return .handled
-            }
-            if press.key == KeyEquivalent("m") && press.modifiers.isEmpty {
-                _ = viewModel.toggleBeatMarkerAtPlayhead(at: playheadState.currentTime)
-                return .handled
-            }
-            if press.key == KeyEquivalent("z") && press.modifiers == .command { _ = viewModel.undo(); return .handled }
-            if press.key == KeyEquivalent("z") && press.modifiers == [.command, .shift] { _ = viewModel.redo(); return .handled }
-            if press.key == .leftArrow && press.modifiers.isEmpty {
-                playheadState.stepFrame(by: -1)
-                return .handled
-            }
-            if press.key == .rightArrow && press.modifiers.isEmpty {
-                playheadState.stepFrame(by: 1)
-                return .handled
-            }
-            return .ignored
+            handleTimelineKeyPress(press)
         }
         .sheet(item: Binding(get: { viewModel.presetSaveTargetClip }, set: { viewModel.presetSaveTargetClip = $0 })) { (clip: TimelineClip) in
-            let textConfig = TextConfiguration.decode(from: clip.properties["textConfig"]?.asString ?? "") ?? TextConfiguration(content: clip.name)
-            SavePresetModalView(
-                kind: .text(config: textConfig),
-                originPresetID: clip.properties["originPresetId"]?.asString,
-                originPresetName: clip.properties["originPresetName"]?.asString,
-                dependencies: viewModel.dependencies,
-                onSaveCompleted: { newID, newName in
-                    viewModel.commitClipProperties(clipID: clip.id, properties: [
-                        "originPresetId": .string(newID),
-                        "originPresetName": .string(newName)
-                    ])
-                    viewModel.presetSaveTargetClip = nil
-                },
-                onDismiss: {
-                    viewModel.presetSaveTargetClip = nil
-                }
-            )
+            makeSavePresetSheet(for: clip)
+        }
+        .sheet(isPresented: Binding(get: { viewModel.isPasteAttributesPresented }, set: { viewModel.isPasteAttributesPresented = $0 })) {
+            makePasteAttributesSheet()
         }
     }
 
@@ -154,7 +120,8 @@ public struct TimelineView: View {
             onTogglePlayPause: { playheadState.togglePlayPause() },
             onUndo: { _ = viewModel.undo() }, onRedo: { _ = viewModel.redo() },
             onStepFrame: { playheadState.stepFrame(by: $0) },
-            onAnyClick: { viewModel.onStopPlaybackRequested?() }
+            onAnyClick: { viewModel.onStopPlaybackRequested?() },
+            onShortcutKey: { handleBridgeShortcut(chars: $0, keyCode: $1, flags: $2) }
         )
     }
 
@@ -257,6 +224,7 @@ public struct TimelineView: View {
             onTrimGroupEnded: { handleClipTrimGroupEnded(clipID: $0, isLeft: $1) },
             onMoveClip: { handleClipMoving(clipID: $0, clipKind: $1, from: layer.id, at: index, newStart: $2, dragY: $3) },
             onMoveClipEnd: { handleClipMoveEnd(clipID: $0) },
+            onDuplicateClipEnd: { handleClipMoveEnd(clipID: $0, isDuplicate: true) },
             onExtractAudio: { viewModel.extractAudio(clipID: $0) },
             onSavePreset: { viewModel.presetSaveTargetClip = $0 },
             onUpdateClipProperties: { id, props, done in
@@ -265,7 +233,8 @@ public struct TimelineView: View {
             onSelectTransition: { transitionID in
                 viewModel.selectedTransitionID = transitionID
                 viewModel.selectedClipIDs.removeAll()
-            }
+            },
+            contextActions: buildContextActions()
         )
     }
 

@@ -203,4 +203,48 @@ struct EffectIntegrationTests {
         #expect(tab?.order == 50)
         #expect(tab?.makeSidebarView() != nil)
     }
+
+    @Test("11 Danh mục EffectTemplateCategory và Beat-Sync Engine hoạt động chuẩn xác")
+    func testElevenCategoriesAndBeatSyncEngine() throws {
+        // 1. Kiểm tra đủ 11 danh mục hiển thị
+        let cats = EffectTemplateCategory.assignableCases
+        #expect(cats.count == 11)
+        #expect(!cats.contains(.all))
+        #expect(cats.contains(.basic))
+        #expect(cats.contains(.blur))
+        #expect(cats.contains(.glitch))
+        #expect(cats.contains(.light))
+        #expect(cats.contains(.retro))
+        #expect(cats.contains(.camera))
+        #expect(cats.contains(.motion))
+        #expect(cats.contains(.color))
+        #expect(cats.contains(.nature))
+        #expect(cats.contains(.artistic))
+        #expect(cats.contains(.overlay))
+
+        // 2. Kiểm tra tính toán Beat Pulse nhọn tại phách và suy giảm mượt mà
+        let pulseAtBeat = EffectEngine.calculateBeatPulse(localTime: 0.0, speed: 1.0)
+        let pulseDecaying = EffectEngine.calculateBeatPulse(localTime: 0.2, speed: 1.0)
+        let pulseAtNextBeat = EffectEngine.calculateBeatPulse(localTime: 0.5, speed: 1.0)
+        #expect(abs(pulseAtBeat - 1.0) < 0.01)
+        #expect(pulseDecaying < pulseAtBeat)
+        #expect(abs(pulseAtNextBeat - 1.0) < 0.01)
+
+        // 3. Kiểm tra Metal Compute Kernels bổ sung đã đăng ký
+        for k in BuiltInMetalShaders.creativeEffectsKernelNames {
+            #expect(BuiltInMetalShaders.allKernelNames.contains(k))
+        }
+
+        // 4. Kiểm tra render hiệu ứng với Beat-Sync mini-zoom
+        let testImage = CIImage(color: CIColor.blue).cropped(to: CGRect(x: 0, y: 0, width: 120, height: 120))
+        let beatConfig = EffectConfiguration(type: .cameraShake, intensity: 1.0, speed: 1.0, isBeatSynced: true)
+        let rendered = EffectEngine.shared.applyEffect(
+            to: testImage,
+            config: beatConfig,
+            localTime: 0.0,
+            duration: 2.0,
+            canvasSize: CGSize(width: 120, height: 120)
+        )
+        #expect(rendered.extent.width > 0)
+    }
 }

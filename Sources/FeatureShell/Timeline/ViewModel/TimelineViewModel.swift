@@ -26,6 +26,11 @@ public final class TimelineViewModel {
     public var selectedTransitionID: UUID?
     public var activeTransitionDropTarget: TransitionDropJoinTarget?
     public var presetSaveTargetClip: TimelineClip?
+    public var clipboardClips: [ClipScript] = []
+    public var attributeClipboardClip: TimelineClip?
+    public var isPasteAttributesPresented: Bool = false
+    public var pasteAttributesTargetClipIDs: Set<UUID> = []
+    public var selectedAttributeCategories: Set<ClipAttributeCategory> = []
     public var canSplit: Bool { !selectedClipIDs.isEmpty }
     public var groupMoveOffset: CGFloat = 0
     public var groupTrimLeftOffset: CGFloat = 0
@@ -44,6 +49,7 @@ public final class TimelineViewModel {
     public var onLoopRangeRequested: ((CMTimeRange?) -> Void)?
     public var onStopPlaybackRequested: (() -> Void)?
     public var onPreviewTextPreset: ((TextPreset?) -> Void)?
+    public var onPreviewTextPresetCleared: (() -> Void)?
     public var currentProjectURL: URL?
 
     public var hasClips: Bool {
@@ -92,6 +98,7 @@ public final class TimelineViewModel {
         guard let executor = commandExecutor else { return false }
         let success = executor.undo()
         if success {
+            cleanEmptyLayers()
             onClipsTrimmed?()
         }
         return success
@@ -102,6 +109,7 @@ public final class TimelineViewModel {
         guard let executor = commandExecutor else { return false }
         let success = executor.redo()
         if success {
+            cleanEmptyLayers()
             onClipsTrimmed?()
         }
         return success

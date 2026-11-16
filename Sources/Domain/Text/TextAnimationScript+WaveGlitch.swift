@@ -18,42 +18,30 @@ public struct RippleDropWaveScript: TextAnimationScript {
         let normDist = distFromCenter / maxDist
         let signDir = Double(unitIndex) >= centerIdx ? 1.0 : -1.0
 
+        let loopAt: (Double) -> (y: Double, sx: Double, sy: Double, rot: Double, track: Double) = { prog in
+            let phaseArg = prog * .pi * 2.0 - distFromCenter * 0.72, w = sin(phaseArg)
+            return (-w * (0.30 * em), 1.0 - w * 0.08, 1.0 + w * 0.14, cos(phaseArg) * 7.5 * signDir, max(0.0, w) * 0.06)
+        }
         switch phase {
         case .intro(let progress):
-            let delay = normDist * 0.44
-            let p = min(1.0, max(0.0, (progress - delay) / 0.56))
+            let p = min(1.0, max(0.0, (progress - normDist * 0.44) / 0.56))
             guard p > 0.0 else { return TextUnitDelta(offsetY: -0.75 * em, scaleX: 0.2, scaleY: 0.2, opacity: 0.0) }
-            let decay = exp(-p * 3.8)
-            let ripple = decay * sin(p * .pi * 3.5)
+            let decay = exp(-p * 3.8) * (1.0 - p), ripple = decay * sin(p * .pi * 3.5), l = loopAt(progress)
             return TextUnitDelta(
-                offsetY: -ripple * (0.52 * em),
-                scaleX: 1.0 - ripple * 0.18,
-                scaleY: 1.0 + ripple * 0.28,
-                rotation: ripple * 12.0 * signDir,
-                opacity: min(1.0, p * 4.0),
-                trackingEmDelta: max(0.0, ripple) * 0.12
+                offsetY: -ripple * (0.52 * em) + p * l.y,
+                scaleX: (1.0 - ripple * 0.18) * (1.0 - p) + p * l.sx, scaleY: (1.0 + ripple * 0.28) * (1.0 - p) + p * l.sy,
+                rotation: ripple * 12.0 * signDir + p * l.rot, opacity: min(1.0, p * 4.0),
+                trackingEmDelta: max(0.0, ripple) * 0.12 + p * l.track
             )
         case .loop(_, let cycleProgress):
-            let phaseArg = cycleProgress * .pi * 2.0 - distFromCenter * 0.72
-            let wave = sin(phaseArg)
-            let crest = max(0.0, wave)
-            return TextUnitDelta(
-                offsetY: -wave * (0.30 * em),
-                scaleX: 1.0 - wave * 0.08,
-                scaleY: 1.0 + wave * 0.14,
-                rotation: cos(phaseArg) * 7.5 * signDir,
-                opacity: 1.0,
-                trackingEmDelta: crest * 0.06
-            )
+            let l = loopAt(cycleProgress)
+            return TextUnitDelta(offsetY: l.y, scaleX: l.sx, scaleY: l.sy, rotation: l.rot, opacity: 1.0, trackingEmDelta: l.track)
         case .outro(let progress):
-            let delay = (1.0 - normDist) * 0.36
-            let p = min(1.0, max(0.0, (progress - delay) / 0.64))
-            let ease = p * p
+            let p = min(1.0, max(0.0, (progress - (1.0 - normDist) * 0.36) / 0.64))
+            let ease = p * p, stay = 1.0 - ease, l = loopAt(progress)
             return TextUnitDelta(
-                offsetY: ease * (0.65 * em),
-                scaleX: max(0.1, 1.0 - ease * 0.75),
-                scaleY: max(0.1, 1.0 - ease * 0.75),
-                opacity: 1.0 - ease
+                offsetY: stay * l.y + ease * (0.65 * em), scaleX: max(0.1, stay * l.sx + ease * 0.25),
+                scaleY: max(0.1, stay * l.sy + ease * 0.25), rotation: stay * l.rot, opacity: stay, trackingEmDelta: stay * l.track
             )
         }
     }
@@ -202,6 +190,9 @@ public struct HologramScanBeamScript: TextAnimationScript {
                 glitchIntensity: (1.0 - ease) * 65.0
             )
         case .loop(let time, let cycleProgress):
+            guard cycleProgress > 0.06 && cycleProgress < 0.94 else {
+                return TextUnitDelta(opacity: 1.0, clipRevealY: 1.0)
+            }
             let pulse = sin(cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.45)
             let microGlitch = sin(floor(time * 16.0) * 2.1 + Double(unitIndex)) > 0.84
             return TextUnitDelta(
@@ -218,7 +209,7 @@ public struct HologramScanBeamScript: TextAnimationScript {
                 scaleY: 1.0 + p * 0.25,
                 opacity: 1.0 - p,
                 clipRevealY: max(0.0, 1.0 - p),
-                echoCount: 2,
+                echoCount: p > 0.01 ? 2 : 0,
                 echoOffsetYEm: -p * 0.26,
                 glitchIntensity: p * 75.0
             )
@@ -253,7 +244,8 @@ public struct VHSTrackingDriftScript: TextAnimationScript {
                 echoOffsetXEm: -waveDrift * 0.28,
                 glitchIntensity: env * 80.0
             )
-        case .loop(let time, _):
+        case .loop(let time, let cycleProgress):
+            guard cycleProgress > 0.06 && cycleProgress < 0.94 else { return TextUnitDelta(opacity: 1.0) }
             let stepT = floor(time * 12.0)
             let burst = sin(stepT * 1.3 + Double(unitIndex) * 2.1)
             guard burst > 0.68 else { return TextUnitDelta(opacity: 1.0) }
@@ -273,7 +265,7 @@ public struct VHSTrackingDriftScript: TextAnimationScript {
                 offsetX: stepP * (1.25 * em) * dir,
                 skewX: dir * stepP * 34.0,
                 opacity: 1.0 - p,
-                echoCount: 2,
+                echoCount: p > 0.01 ? 2 : 0,
                 echoOffsetXEm: -dir * stepP * 0.30,
                 glitchIntensity: p * 88.0
             )

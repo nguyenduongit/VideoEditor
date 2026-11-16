@@ -123,6 +123,42 @@ struct VideoEditorApp: App {
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
             }
+
+            CommandMenu(String(localized: "Clip")) {
+                Button(String(localized: "Nhân đôi Clip")) {
+                    viewModel.timelineViewModel.duplicateClips()
+                }
+                .keyboardShortcut("d", modifiers: .command)
+
+                Button(String(localized: "Tách tại Playhead")) {
+                    _ = viewModel.timelineViewModel.splitClips(at: viewModel.playheadState.currentTime)
+                }
+                .keyboardShortcut("b", modifiers: .command)
+
+                Divider()
+
+                Button(String(localized: "Sao chép Thuộc tính")) {
+                    viewModel.timelineViewModel.copyAttributes()
+                }
+                .keyboardShortcut("c", modifiers: [.command, .option])
+
+                Button(String(localized: "Dán Thuộc tính...")) {
+                    viewModel.timelineViewModel.openPasteAttributesModal()
+                }
+                .keyboardShortcut("v", modifiers: [.command, .option])
+
+                Divider()
+
+                Button(String(localized: "Cắt đầu Clip tới Playhead")) {
+                    viewModel.timelineViewModel.trimSelectedClipsToPlayhead(at: viewModel.playheadState.currentTime, isStart: true)
+                }
+                .keyboardShortcut("[", modifiers: .option)
+
+                Button(String(localized: "Cắt cuối Clip tới Playhead")) {
+                    viewModel.timelineViewModel.trimSelectedClipsToPlayhead(at: viewModel.playheadState.currentTime, isStart: false)
+                }
+                .keyboardShortcut("]", modifiers: .option)
+            }
         }
     }
 

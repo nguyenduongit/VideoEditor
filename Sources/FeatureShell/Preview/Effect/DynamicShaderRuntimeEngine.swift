@@ -99,6 +99,7 @@ public final class DynamicShaderRuntimeEngine: @unchecked Sendable {
         case "$time": return localTime
         case "$intensity": return config.intensity
         case "$speed": return config.speed
+        case "$beatPulse": return config.isBeatSynced ? EffectEngine.calculateBeatPulse(localTime: localTime, speed: config.speed) : 0.0
         default:
             if token.hasPrefix("$param.") {
                 let paramID = String(token.dropFirst("$param.".count))
@@ -214,18 +215,21 @@ public final class DynamicShaderRuntimeEngine: @unchecked Sendable {
                 p0: Float(amp), p1: Float(band)
             )
         default:
-            return nil
+            return applyCreativeMetalStep(
+                step, to: image, config: config,
+                progress: progress, localTime: localTime, canvasRect: canvasRect
+            )
         }
     }
 
-    private func evalParam(
+    func evalParam(
         _ key: String, default fallback: String, step: CreativeFilterStep,
         config: EffectConfiguration, progress: Double, localTime: Double
     ) -> Double {
         evaluateExpression(step.parameterBindings[key] ?? fallback, config: config, progress: progress, localTime: localTime)
     }
 
-    private func dispatchBuiltInMetal(
+    func dispatchBuiltInMetal(
         kernelName: String, to image: CIImage, config: EffectConfiguration,
         progress: Double, localTime: Double, canvasRect: CGRect,
         p0: Float = 0, p1: Float = 0, p2: Float = 0, p3: Float = 0

@@ -87,6 +87,8 @@ public struct EffectInspectorView: View {
                 }
             )
 
+            beatSyncControl
+
             if currentConfig.type == .cinematicBlur && currentConfig.customParameters.isEmpty {
                 DSSliderWithInput(
                     title: String(localized: "Bán kính mờ"),
@@ -105,6 +107,49 @@ public struct EffectInspectorView: View {
                 )
             }
         }
+    }
+
+    private var beatSyncControl: some View {
+        HStack(spacing: DSSpacing.sm) {
+            ZStack {
+                Circle()
+                    .fill(currentConfig.isBeatSynced ? DSColors.toggleCyan.opacity(0.2) : DSColors.windowBackground)
+                    .frame(width: 28, height: 28)
+                Image(systemName: "music.note")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(currentConfig.isBeatSynced ? DSColors.toggleCyan : DSColors.textSecondary)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(String(localized: "Đồng bộ nhịp nhạc (Beat-Sync)"))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(DSColors.textPrimary)
+                Text(String(localized: "Tự động rung/nảy/mini-zoom theo nhịp beat"))
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(DSColors.textSecondary)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { currentConfig.isBeatSynced },
+                set: { val in
+                    updateConfig(key: "isBeatSynced", value: val ? 1.0 : 0.0) { $0.isBeatSynced = val }
+                    commitConfig()
+                }
+            ))
+            .toggleStyle(.switch)
+            .labelsHidden()
+        }
+        .padding(DSSpacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DSRadius.small)
+                .fill(DSColors.blockBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.small)
+                .stroke(currentConfig.isBeatSynced ? DSColors.toggleCyan.opacity(0.4) : DSColors.blockBorder, lineWidth: 1)
+        )
     }
 
     private var customParametersSection: some View {

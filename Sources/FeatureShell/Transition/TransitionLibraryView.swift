@@ -9,6 +9,7 @@ import DesignSystem
 public struct TransitionLibraryView: View {
     @Bindable private var viewModel: TransitionLibraryViewModel
     @State private var selectedCategory: String = TransitionCategory.basic.displayName
+    @State private var selectedPresetID: String?
 
     private let categories = TransitionCategory.assignableCases.map(\.displayName)
 
@@ -96,26 +97,25 @@ public struct TransitionLibraryView: View {
                         UnifiedLibraryCardItemView(
                             title: preset.name,
                             isFavorite: isFav,
+                            isSelected: selectedPresetID == preset.id,
+                            onSelect: {
+                                selectedPresetID = preset.id
+                            },
                             onAdd: {
                                 viewModel.applyTransitionToTimeline(preset)
                             },
                             onToggleFavorite: {
                                 SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "transition")
                             }
-                        ) {
-                            transitionThumbnail(for: preset)
+                        ) { isCardHovered in
+                            transitionThumbnail(for: preset, isHovered: isCardHovered)
                         }
-                        .overlay(
-                            TransitionDragBridgeView(
-                                preset: preset,
-                                onAddToTimeline: {
-                                    viewModel.applyTransitionToTimeline(preset)
-                                },
-                                onToggleFavorite: {
-                                    SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "transition")
-                                }
-                            )
-                        )
+                        .draggable({
+                            TransitionDragSessionState.shared.activePresetID = preset.id
+                            return "transition:\(preset.id)"
+                        }()) {
+                            cyanDragPreview(for: preset)
+                        }
                         .help("\(preset.name) — \(preset.description)")
                     }
                 }
@@ -124,9 +124,35 @@ public struct TransitionLibraryView: View {
         }
     }
 
+    private func cyanDragPreview(for preset: TransitionPreset) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: DSRadius.small)
+                .fill(DSColors.toggleCyan.opacity(0.85))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DSRadius.small)
+                        .stroke(Color.white.opacity(0.95), lineWidth: 1.5)
+                )
+
+            Rectangle()
+                .fill(Color.white.opacity(0.90))
+                .frame(width: 1.5, height: 32)
+
+            Circle()
+                .fill(Color.black.opacity(0.45))
+                .frame(width: 18, height: 18)
+                .overlay(
+                    Image(systemName: "hourglass")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(Color.white)
+                )
+        }
+        .frame(width: 100, height: 32)
+        .shadow(color: Color.black.opacity(0.35), radius: 3, x: 0, y: 1)
+    }
+
     @ViewBuilder
-    private func transitionThumbnail(for preset: TransitionPreset) -> some View {
-        TransitionAnimatedThumbnailView(preset: preset)
+    private func transitionThumbnail(for preset: TransitionPreset, isHovered: Bool) -> some View {
+        TransitionAnimatedThumbnailView(preset: preset, isHovered: isHovered)
     }
 
     private var emptyTemplatesView: some View {

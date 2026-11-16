@@ -187,15 +187,34 @@ public enum TextThumbnailRenderer {
         return image
     }
 
+    public static func isDefaultStaticPreset(_ preset: TextPreset) -> Bool {
+        preset.id == "default" || preset.id == "text_default_preset"
+    }
+
+    public static func effectiveDuration(for preset: TextPreset) -> Double {
+        let anim = preset.config.animation
+        if anim.hasScriptAnimation {
+            if let script = TextAnimationScriptRegistry.shared.script(for: anim.scriptId) {
+                return max(1.0, script.defaultDuration)
+            }
+            return max(1.0, anim.scriptDuration)
+        }
+        return max(1.0, preset.defaultDuration)
+    }
+
     public static func effectiveAnimatedConfig(for preset: TextPreset) -> TextConfiguration {
         var cfg = preset.config
         if cfg.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             cfg.content = preset.name
         }
-        if cfg.animation.isDefault {
+        if cfg.animation.isDefault && !isDefaultStaticPreset(preset) {
             cfg.animation = TextAnimationConfiguration(
-                inDuration: 0.75,
+                inDuration: 0.8,
+                outDuration: 0.7,
+                loopSpeed: 1.0,
+                scope: .perCharacter,
                 inManifest: AnimationPreset.inElasticJellyDrop.manifest,
+                outManifest: AnimationPreset.outPixelDisintegrate.manifest,
                 loopManifest: AnimationPreset.loopHarmonicWave.manifest
             )
         }

@@ -35,7 +35,7 @@ public struct LiquidWavePulseScript: TextAnimationScript {
             let entryDropY = (1.0 - ease) * (0.85 * em)
             let derivative = ampRatio * k * cos(targetTheta) * ease
             let tangentRot = atan(derivative) * 180.0 / .pi
-            let jelly = sin(targetTheta) * ease * 0.08
+            let jelly = sin(targetTheta) * ease * 0.09
             return TextUnitDelta(
                 offsetY: waveY + entryDropY,
                 scaleX: 1.0 - jelly * 0.5,
@@ -67,21 +67,14 @@ public struct LiquidWavePulseScript: TextAnimationScript {
             )
 
         case .outro(let progress):
-            let total = max(1, unitTotal)
-            let stagger = 0.36 / Double(total)
-            let p = min(1.0, max(0.0, (progress - Double(unitIndex) * stagger) / 0.64))
-            let ease = p * p
-            let env = 1.0 - ease
-            let theta = -charEmX * k + ease * .pi
-            let waveY = -ampRatio * em * sin(theta) * env
-            let exitDropY = ease * (0.85 * em)
-            let derivative = ampRatio * k * cos(theta) * env
+            let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.36 / Double(max(1, unitTotal)))) / 0.64))
+            let ease = p * p, env = 1.0 - ease
+            let theta = progress * .pi * 2.0 - charEmX * k, derivative = ampRatio * k * cos(theta) * env, jelly = sin(theta) * 0.09 * env
             return TextUnitDelta(
-                offsetY: waveY + exitDropY,
-                scaleX: 1.0 - ease * 0.22,
-                scaleY: 1.0 + ease * 0.16,
-                rotation: atan(derivative) * 180.0 / .pi,
-                opacity: 1.0 - ease,
+                offsetY: -ampRatio * em * sin(theta) * env + ease * (0.85 * em),
+                scaleX: 1.0 - jelly * 0.5 - ease * 0.22, scaleY: 1.0 + jelly + ease * 0.16,
+                rotation: atan(derivative) * 180.0 / .pi, opacity: env,
+                waveAmplitudeEm: ampRatio * env, waveFrequencyEm: -k, wavePhaseRadians: progress * .pi * 2.0,
                 blurRadius: ease * (0.20 * em)
             )
         }
@@ -132,7 +125,7 @@ public struct GlitchRGBPopScript: TextAnimationScript {
         case .loop(let time, let cycleProgress):
             let stepTime = floor(time * 14.0)
             let trigger = sin(stepTime * 1.7 + seed * 2.3)
-            let isGlitching = trigger > 0.72 || (cycleProgress > 0.82 && cycleProgress < 0.94)
+            let isGlitching = (cycleProgress > 0.06 && cycleProgress < 0.94) && (trigger > 0.72 || cycleProgress > 0.82)
             guard isGlitching else { return TextUnitDelta(opacity: 1.0) }
             let dir = cos(stepTime * 3.1 + seed) >= 0.0 ? 1.0 : -1.0
             return TextUnitDelta(
@@ -184,14 +177,16 @@ public struct SmoothWordGlideScript: TextAnimationScript {
             if p <= 0.0 {
                 return TextUnitDelta(offsetX: -0.55 * em, offsetY: 0.85 * em, rotation: -18.0, opacity: 0.0, blurRadius: 0.28 * em)
             }
-            let decay = exp(-p * 4.2)
+            let decay = exp(-p * 4.2) * (1.0 - p)
             let spring = 1.0 - decay * cos(p * .pi * 2.4)
+            let angle = progress * .pi * 2.0 - Double(unitIndex) * 0.75
+            let floatY = -sin(angle) * (0.16 * em), rot = cos(angle) * 3.2
             return TextUnitDelta(
                 offsetX: (1.0 - spring) * (-0.55 * em),
-                offsetY: (1.0 - spring) * (0.85 * em),
+                offsetY: (1.0 - spring) * (0.85 * em) + spring * floatY,
                 scaleX: 0.82 + 0.18 * spring,
                 scaleY: 0.82 + 0.18 * spring,
-                rotation: (1.0 - spring) * -18.0,
+                rotation: (1.0 - spring) * -18.0 + spring * rot,
                 skewX: (1.0 - spring) * -10.0,
                 opacity: min(1.0, p * 3.2),
                 blurRadius: max(0.0, (1.0 - p) * (0.26 * em))
@@ -212,12 +207,14 @@ public struct SmoothWordGlideScript: TextAnimationScript {
             let stagger = 0.35 / Double(total)
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * stagger) / 0.65))
             let ease = p * p
+            let angle = progress * .pi * 2.0 - Double(unitIndex) * 0.75
+            let floatY = -sin(angle) * (0.16 * em), rot = cos(angle) * 3.2
             return TextUnitDelta(
                 offsetX: ease * (0.50 * em),
-                offsetY: -ease * (0.80 * em),
+                offsetY: (1.0 - ease) * floatY - ease * (0.80 * em),
                 scaleX: 1.0 - ease * 0.18,
                 scaleY: 1.0 - ease * 0.18,
-                rotation: ease * 15.0,
+                rotation: (1.0 - ease) * rot + ease * 15.0,
                 opacity: 1.0 - ease,
                 blurRadius: ease * (0.26 * em)
             )

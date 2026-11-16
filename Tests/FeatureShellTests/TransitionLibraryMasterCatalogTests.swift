@@ -107,19 +107,51 @@ struct TransitionLibraryMasterCatalogTests {
         return (pixel[0], pixel[1], pixel[2])
     }
 
-    @Test("TransitionThumbnailAssetProvider loads, squares and caches real photo assets A and B")
-    func testThumbnailAssetProviderSquareAssets() {
+    @Test("TransitionThumbnailAssetProvider loads, squares and caches 3 demo asset pairs and routes categories")
+    func testThumbnailAssetProviderSquareAssets() throws {
         let provider = TransitionThumbnailAssetProvider.shared
-        _ = provider.imageA
-        _ = provider.imageB
 
-        if let nsA = provider.nsImageA {
-            #expect(nsA.size.width > 0)
-            #expect(abs(nsA.size.width - nsA.size.height) <= 1.0, "Ảnh Cảnh A phải được crop vuông 1:1")
+        // 1. Kiểm tra 3 cặp ảnh demo theo cấu hình Extensible Catalog
+        let pairIDs = [
+            TransitionDemoAssetCatalog.naturePairID,
+            TransitionDemoAssetCatalog.cityPairID,
+            TransitionDemoAssetCatalog.coastalPairID
+        ]
+        for pid in pairIDs {
+            let pair = try #require(provider.assetPair(id: pid), "Cặp ảnh demo '\(pid)' phải được nạp thành công")
+            #expect(!pair.displayName.isEmpty)
+            if let nsA = pair.nsImageA {
+                #expect(nsA.size.width > 0)
+                #expect(abs(nsA.size.width - nsA.size.height) <= 1.0, "Cảnh A của \(pid) phải được crop vuông 1:1")
+            }
+            if let nsB = pair.nsImageB {
+                #expect(nsB.size.width > 0)
+                #expect(abs(nsB.size.width - nsB.size.height) <= 1.0, "Cảnh B của \(pid) phải được crop vuông 1:1")
+            }
         }
-        if let nsB = provider.nsImageB {
-            #expect(nsB.size.width > 0)
-            #expect(abs(nsB.size.width - nsB.size.height) <= 1.0, "Ảnh Cảnh B phải được crop vuông 1:1")
+
+        // 2. Kiểm tra định tuyến danh mục chuẩn xác
+        #expect(TransitionDemoAssetCatalog.pairID(for: .basic) == "nature")
+        #expect(TransitionDemoAssetCatalog.pairID(for: .zoom) == "nature")
+        #expect(TransitionDemoAssetCatalog.pairID(for: .blur) == "nature")
+        #expect(TransitionDemoAssetCatalog.pairID(for: .slideWipe) == "city")
+        #expect(TransitionDemoAssetCatalog.pairID(for: .camera) == "city")
+        #expect(TransitionDemoAssetCatalog.pairID(for: .glitch) == "city")
+        #expect(TransitionDemoAssetCatalog.pairID(for: .light) == "coastal")
+        #expect(TransitionDemoAssetCatalog.pairID(for: .advanced3D) == "coastal")
+
+        // 3. Kiểm tra GPU transition frame sinh ra hợp lệ cho từng danh mục
+        if let fadePreset = TransitionPreset.builtInCatalog.first(where: { $0.id == "trans_basic_fade" }) {
+            let frame = provider.renderTransitionFrame(for: fadePreset, rawProgress: 0.5)
+            #expect(frame != nil)
+        }
+        if let slidePreset = TransitionPreset.builtInCatalog.first(where: { $0.id == "trans_slide_right" }) {
+            let frame = provider.renderTransitionFrame(for: slidePreset, rawProgress: 0.5)
+            #expect(frame != nil)
+        }
+        if let flashPreset = TransitionPreset.builtInCatalog.first(where: { $0.id == "trans_light_white_flash" }) {
+            let frame = provider.renderTransitionFrame(for: flashPreset, rawProgress: 0.5)
+            #expect(frame != nil)
         }
     }
 

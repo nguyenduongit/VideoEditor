@@ -108,6 +108,8 @@ private struct EffectPresetRow: Codable, Sendable {
     let name: String
     let description: String?
     let category: String
+    let type: String?
+    let preview_icon: String?
     let tags: [String]?
     let preview_badge: String?
     let config: EffectConfiguration
@@ -118,6 +120,8 @@ private struct EffectPresetRow: Codable, Sendable {
         self.name = preset.name
         self.description = preset.description
         self.category = preset.category.rawValue
+        self.type = "effect"
+        self.preview_icon = "sparkles"
         var mergedTags = preset.tags
         if let metaTag = preset.community.encodeToTag() {
             mergedTags.append(metaTag)
@@ -129,7 +133,26 @@ private struct EffectPresetRow: Codable, Sendable {
     }
 
     func toPreset() -> EffectPreset {
-        let cat = EffectTemplateCategory(rawValue: category) ?? .lightTransition
+        let cat: EffectTemplateCategory
+        if let matched = EffectTemplateCategory(rawValue: category) {
+            cat = matched
+        } else {
+            let lower = category.lowercased()
+            switch lower {
+            case "basic", "cơ bản", "basic effects": cat = .basic
+            case "blur", "làm mờ", "blur effects": cat = .blur
+            case "glitch", "glitch / distortion", "distortion", "nhiễu": cat = .glitch
+            case "light", "light effects", "ánh sáng": cat = .light
+            case "retro", "retro / vintage / film", "vintage", "film", "cinematic": cat = .retro
+            case "camera", "camera effects", "máy quay", "motionshake": cat = .camera
+            case "motion", "motion effects", "chuyển động", "partybeat": cat = .motion
+            case "color", "color effects", "màu sắc": cat = .color
+            case "particle / nature", "nature", "particles", "hạt & thiên nhiên": cat = .nature
+            case "artistic / stylize", "artistic", "stylize", "nghệ thuật": cat = .artistic
+            case "text / overlay", "overlay", "lớp phủ": cat = .overlay
+            default: cat = .basic
+            }
+        }
         let sys = is_system ?? false
         let (cleanTags, communityMeta) = CommunityMetadata.extract(from: tags, isSystem: sys)
         return EffectPreset(

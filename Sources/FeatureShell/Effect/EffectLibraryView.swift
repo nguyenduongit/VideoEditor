@@ -2,13 +2,14 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Left Sidebar view for the Visual Effects Library.
-/// Features a 100pt vertical category sidebar, 2-column square card grid,
-/// top-right 26pt Favorites button, and bottom-right 26pt Add button.
-/// Complies with AGENTS.md rules (File <= 300 lines, View body <= 40 lines).
+/// Bảng Thư viện Hiệu ứng thị giác (Effects Library) ở thanh Sidebar bên trái.
+/// Gồm 11 danh mục chuẩn quốc tế, lưới 2 cột thẻ hiệu ứng, nút Yêu thích góc trên và nút Thêm góc dưới.
+/// Hỗ trợ Thumbnail động 2.0s kết xuất trực tiếp bằng Hybrid GPU Engine khi hover chuột.
+/// Tuân thủ AGENTS.md (File <= 300 dòng, View body <= 40 dòng).
 public struct EffectLibraryView: View {
     @Bindable private var viewModel: EffectLibraryViewModel
-    @State private var selectedCategory: String = EffectTemplateCategory.lightTransition.displayName
+    @State private var selectedCategory: String = EffectTemplateCategory.basic.displayName
+    @State private var selectedPresetID: String?
 
     private let categories = EffectTemplateCategory.assignableCases.map(\.displayName)
 
@@ -22,19 +23,24 @@ public struct EffectLibraryView: View {
     }
 
     private var displayedPresets: [EffectPreset] {
+        let trimmed = viewModel.searchQuery.trimmingCharacters(in: .whitespaces)
         let base: [EffectPreset]
         if selectedCategory == SidebarFavoriteManager.favoritesCategory {
             let favs = SidebarFavoriteManager.shared.favorites(for: "effect")
             base = viewModel.templatePresets.filter { favs.contains($0.id) }
+        } else if !trimmed.isEmpty {
+            base = viewModel.templatePresets
+        } else if let cat = EffectTemplateCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
+            base = viewModel.templatePresets.filter { $0.category == cat }
         } else {
-            if let cat = EffectTemplateCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
-                base = viewModel.templatePresets.filter { $0.category == cat }
-            } else {
-                base = viewModel.templatePresets
-            }
+            base = viewModel.templatePresets
         }
-        guard !viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return base }
-        return base.filter { $0.name.localizedCaseInsensitiveContains(viewModel.searchQuery) }
+        guard !trimmed.isEmpty else { return base }
+        return base.filter {
+            $0.name.localizedCaseInsensitiveContains(trimmed)
+                || $0.description.localizedCaseInsensitiveContains(trimmed)
+                || $0.tags.contains { $0.localizedCaseInsensitiveContains(trimmed) }
+        }
     }
 
     public var body: some View {
@@ -80,45 +86,23 @@ public struct EffectLibraryView: View {
                         UnifiedLibraryCardItemView(
                             title: preset.name,
                             isFavorite: isFav,
+                            isSelected: selectedPresetID == preset.id,
+                            onSelect: {
+                                selectedPresetID = preset.id
+                            },
                             onAdd: {
                                 viewModel.addPresetToTimeline(preset)
                             },
                             onToggleFavorite: {
                                 SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "effect")
                             }
-                        ) {
-                            effectThumbnail(for: preset)
+                        ) { isCardHovered in
+                            EffectAnimatedThumbnailView(preset: preset, isHovered: isCardHovered)
                         }
                     }
                 }
                 .padding(DSSpacing.sm)
             }
-        }
-    }
-
-    @ViewBuilder
-    private func effectThumbnail(for preset: EffectPreset) -> some View {
-        ZStack {
-            LinearGradient(
-                colors: [DSColors.windowBackground, DSColors.clipEffect.opacity(0.3)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            Image(systemName: effectIcon(for: preset))
-                .font(.system(size: 26, weight: .semibold))
-                .foregroundStyle(DSColors.clipEffect)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func effectIcon(for preset: EffectPreset) -> String {
-        switch preset.category {
-        case .lightTransition: return "wand.and.stars"
-        case .partyBeat: return "bolt.fill"
-        case .cinematic: return "camera.filters"
-        case .motionShake: return "waveform.path.ecg"
-        default: return "sparkles"
         }
     }
 

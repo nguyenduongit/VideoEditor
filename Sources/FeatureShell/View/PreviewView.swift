@@ -4,6 +4,7 @@ import DesignSystem
 
 public struct PreviewView: View {
     private let viewModel: ShellViewModel
+    @State private var presetPreviewStartDate: Date = Date()
 
     public init(viewModel: ShellViewModel) {
         self.viewModel = viewModel
@@ -71,6 +72,8 @@ public struct PreviewView: View {
         let theme = TextThumbnailRenderer.computeTheme(for: preset.config)
         let baseSize = viewModel.aspectRatio.renderSize
         let previewCanvasSize = CGSize(width: baseSize.width * 0.5, height: baseSize.height * 0.5)
+        let isStatic = TextThumbnailRenderer.isDefaultStaticPreset(preset)
+            || TextThumbnailRenderer.effectiveAnimatedConfig(for: preset).animation.isDefault
 
         return ZStack {
             LinearGradient(
@@ -78,43 +81,63 @@ public struct PreviewView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            SwiftUI.TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
-                let cycle = max(2.2, min(4.0, preset.defaultDuration))
-                let t = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycle)
+            if isStatic {
                 if let frame = TextThumbnailRenderer.renderCanvasPreviewFrame(
                     for: preset,
-                    localTime: t,
-                    duration: cycle,
+                    localTime: 0.0,
+                    duration: preset.defaultDuration,
                     canvasSize: previewCanvasSize
                 ) {
                     Image(nsImage: frame)
                         .resizable()
                         .scaledToFit()
                 }
-            }
-            VStack {
-                HStack(spacing: DSSpacing.xs) {
-                    Image(systemName: "eye.fill")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(DSColors.toggleCyan)
-                    Text("Preset Preview: \(preset.name)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Color.white)
-                    Spacer()
-                    Button("Close") {
-                        viewModel.setPreviewTextPreset(nil)
+            } else {
+                SwiftUI.TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
+                    let cycle = TextThumbnailRenderer.effectiveDuration(for: preset)
+                    let elapsed = max(0.0, context.date.timeIntervalSince(presetPreviewStartDate))
+                    let t = elapsed.truncatingRemainder(dividingBy: cycle)
+                    if let frame = TextThumbnailRenderer.renderCanvasPreviewFrame(
+                        for: preset,
+                        localTime: t,
+                        duration: cycle,
+                        canvasSize: previewCanvasSize
+                    ) {
+                        Image(nsImage: frame)
+                            .resizable()
+                            .scaledToFit()
                     }
-                    .buttonStyle(.plain)
+                }
+            }
+            textPresetPreviewBadge(name: preset.name)
+        }
+        .onAppear { presetPreviewStartDate = Date() }
+        .onChange(of: preset.id) { _, _ in presetPreviewStartDate = Date() }
+    }
+
+    private func textPresetPreviewBadge(name: String) -> some View {
+        VStack {
+            HStack(spacing: DSSpacing.xs) {
+                Image(systemName: "eye.fill")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(DSColors.toggleCyan)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.black.opacity(0.65))
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
-                .padding(DSSpacing.sm)
+                Text("Preset Preview: \(name)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Color.white)
                 Spacer()
+                Button("Close") {
+                    viewModel.setPreviewTextPreset(nil)
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(DSColors.toggleCyan)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color.black.opacity(0.65))
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
+            .padding(DSSpacing.sm)
+            Spacer()
         }
     }
 

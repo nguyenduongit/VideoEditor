@@ -10,6 +10,7 @@ import DesignSystem
 public struct StickerLibraryView: View {
     @Bindable private var viewModel: StickerLibraryViewModel
     @State private var selectedCategory: String = StickerCategory.emoji.displayName
+    @State private var selectedPresetID: String?
 
     private let categories = StickerCategory.assignableCases.map(\.displayName)
 
@@ -23,19 +24,26 @@ public struct StickerLibraryView: View {
     }
 
     private var displayedPresets: [StickerPreset] {
+        let trimmedQuery = viewModel.searchQuery.trimmingCharacters(in: .whitespaces)
+        let matchesQuery: (StickerPreset) -> Bool = { preset in
+            preset.name.localizedCaseInsensitiveContains(trimmedQuery)
+                || preset.description.localizedCaseInsensitiveContains(trimmedQuery)
+                || preset.tags.contains { $0.localizedCaseInsensitiveContains(trimmedQuery) }
+        }
+        if !trimmedQuery.isEmpty && selectedCategory != SidebarFavoriteManager.favoritesCategory {
+            return viewModel.templatePresets.filter(matchesQuery)
+        }
         let base: [StickerPreset]
         if selectedCategory == SidebarFavoriteManager.favoritesCategory {
             let favs = SidebarFavoriteManager.shared.favorites(for: "sticker")
             base = viewModel.templatePresets.filter { favs.contains($0.id) }
+        } else if let cat = StickerCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
+            base = viewModel.templatePresets.filter { $0.category == cat }
         } else {
-            if let cat = StickerCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
-                base = viewModel.templatePresets.filter { $0.category == cat }
-            } else {
-                base = viewModel.templatePresets
-            }
+            base = viewModel.templatePresets
         }
-        guard !viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return base }
-        return base.filter { $0.name.localizedCaseInsensitiveContains(viewModel.searchQuery) }
+        guard !trimmedQuery.isEmpty else { return base }
+        return base.filter(matchesQuery)
     }
 
     public var body: some View {
@@ -87,6 +95,10 @@ public struct StickerLibraryView: View {
                         UnifiedLibraryCardItemView(
                             title: preset.name,
                             isFavorite: isFav,
+                            isSelected: selectedPresetID == preset.id,
+                            onSelect: {
+                                selectedPresetID = preset.id
+                            },
                             onAdd: {
                                 viewModel.addStickerToTimeline(preset)
                             },

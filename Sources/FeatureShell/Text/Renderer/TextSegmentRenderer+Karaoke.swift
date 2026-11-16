@@ -114,7 +114,7 @@ extension TextSegmentRenderer {
         if abs(evaluated.overlay.trackingEmDelta) > 0.001 {
             evaluated.config.positionX += (Double(orderIndex) - centerIdx) * evaluated.overlay.trackingEmDelta * em
         }
-        if abs(evaluated.overlay.waveAmplitudeEm) > 0.001 {
+        if !baseConfig.animation.hasScriptAnimation, abs(evaluated.overlay.waveAmplitudeEm) > 0.001 {
             let amp = evaluated.overlay.waveAmplitudeEm
             let freq = evaluated.overlay.waveFrequencyEm
             let phase = evaluated.overlay.wavePhaseRadians

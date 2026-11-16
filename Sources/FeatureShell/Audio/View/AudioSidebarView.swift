@@ -8,6 +8,7 @@ import DesignSystem
 /// Complies with AGENTS.md rules (File <= 300 lines, View body <= 40 lines).
 public struct AudioSidebarView: View {
     @State private var viewModel: AudioSidebarViewModel
+    @State private var selectedPresetID: String?
 
     private let columns = [
         GridItem(.flexible(), spacing: DSSpacing.sm),
@@ -60,6 +61,10 @@ public struct AudioSidebarView: View {
                     UnifiedLibraryCardItemView(
                         title: item.name,
                         isFavorite: isFav,
+                        isSelected: selectedPresetID == item.id,
+                        onSelect: {
+                            selectedPresetID = item.id
+                        },
                         onAdd: {
                             viewModel.addPresetToTimeline(item)
                         },

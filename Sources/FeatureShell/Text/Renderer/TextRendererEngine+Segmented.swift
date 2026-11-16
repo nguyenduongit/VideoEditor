@@ -46,6 +46,9 @@ extension TextRendererEngine {
             }
         }
         if config.animation.scope != .wholeBlock { return true }
+        if let manifest = config.animation.loopManifest, manifest.defaultScope != .wholeBlock { return true }
+        if let manifest = config.animation.inManifest, manifest.defaultScope != .wholeBlock { return true }
+        if let manifest = config.animation.outManifest, manifest.defaultScope != .wholeBlock { return true }
         return Self.isKineticTypographyAnimation(config.animation)
     }
 
@@ -73,6 +76,12 @@ extension TextRendererEngine {
             effectiveScope = script.scope
         } else if config.animation.scope != .wholeBlock {
             effectiveScope = config.animation.scope
+        } else if let manifest = config.animation.loopManifest, manifest.defaultScope != .wholeBlock {
+            effectiveScope = manifest.defaultScope
+        } else if let manifest = config.animation.inManifest, manifest.defaultScope != .wholeBlock {
+            effectiveScope = manifest.defaultScope
+        } else if let manifest = config.animation.outManifest, manifest.defaultScope != .wholeBlock {
+            effectiveScope = manifest.defaultScope
         } else {
             effectiveScope = config.content.count > 50 ? .perWord : .perCharacter
         }
@@ -118,14 +127,15 @@ extension TextRendererEngine {
         )
         return TextShaderFilterEngine.applyFilters(
             to: ciImage,
-            blurRadius: globalEval.blurRadius,
+            blurRadius: config.blurRadius,
             hueAngle: globalEval.hueAngle,
             pixelateScale: globalEval.pixelateScale,
             rgbSplitIntensity: globalEval.rgbSplitIntensity,
             overlay: globalEval.overlay,
             lightSweepIntensity: config.animation.lightSweepIntensity,
             shadow: globalEval.config.shadow,
-            glow: globalEval.config.glow
+            glow: globalEval.config.glow,
+            noiseIntensity: config.noiseIntensity
         )
     }
     #endif

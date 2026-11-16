@@ -26,10 +26,12 @@ public struct TimelineTrackContentView: View {
     private let onTrimGroupEnded: ((UUID, Bool) -> Void)?
     private let onMoveClip: (UUID, ClipKind, CMTime, CGFloat) -> Void
     private let onMoveEnd: (UUID) -> Void
+    private let onDuplicateClipEnd: ((UUID) -> Void)?
     private let onExtractAudio: ((UUID) -> Void)?
     private let onSavePreset: ((TimelineClip) -> Void)?
     private let onUpdateClipProperties: ((UUID, [String: PropertyValue], Bool) -> Void)?
     private let onSelectTransition: ((UUID) -> Void)?
+    private let contextActions: TimelineClipContextActions?
     private let selectedTransitionID: UUID?
     private let activeTransitionDropTarget: TransitionDropJoinTarget?
 
@@ -59,10 +61,12 @@ public struct TimelineTrackContentView: View {
         onTrimGroupEnded: ((UUID, Bool) -> Void)? = nil,
         onMoveClip: @escaping (UUID, ClipKind, CMTime, CGFloat) -> Void,
         onMoveClipEnd: @escaping (UUID) -> Void,
+        onDuplicateClipEnd: ((UUID) -> Void)? = nil,
         onExtractAudio: ((UUID) -> Void)? = nil,
         onSavePreset: ((TimelineClip) -> Void)? = nil,
         onUpdateClipProperties: ((UUID, [String: PropertyValue], Bool) -> Void)? = nil,
-        onSelectTransition: ((UUID) -> Void)? = nil
+        onSelectTransition: ((UUID) -> Void)? = nil,
+        contextActions: TimelineClipContextActions? = nil
     ) {
         self.layer = layer
         self.height = height
@@ -76,8 +80,10 @@ public struct TimelineTrackContentView: View {
         self.groupTrimRightOffset = groupTrimRightOffset
         self.snapCandidatesProvider = snapCandidatesProvider
         self.beatTimes = beatTimes
+        self.onDuplicateClipEnd = onDuplicateClipEnd
         self.onExtractAudio = onExtractAudio
         self.onSavePreset = onSavePreset
+        self.contextActions = contextActions
         self.selectedTransitionID = selectedTransitionID
         self.activeTransitionDropTarget = activeTransitionDropTarget
         if !selectedClipIDs.isEmpty {
@@ -189,7 +195,11 @@ public struct TimelineTrackContentView: View {
                     onMoveEnd: {
                         onMoveEnd(clip.id)
                     },
-                    onUpdateProperties: onUpdateClipProperties
+                    onDuplicateMoveEnd: {
+                        onDuplicateClipEnd?(clip.id)
+                    },
+                    onUpdateProperties: onUpdateClipProperties,
+                    contextActions: contextActions
                 )
             }
 

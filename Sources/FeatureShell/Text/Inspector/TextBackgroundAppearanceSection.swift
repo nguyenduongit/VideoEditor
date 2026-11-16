@@ -113,14 +113,6 @@ public struct TextBackgroundLayoutSection: View {
                 ),
                 onEditingChanged: { if !$0 { onUpdate(config, true) } }
             )
-
-            DSToggleRow(
-                title: "Animate with Text",
-                isOn: Binding(
-                    get: { bg.animateWithText },
-                    set: { var u = config; u.background.animateWithText = $0; onUpdate(u, true) }
-                )
-            )
         }
         .padding(DSSpacing.md)
         .background(DSColors.blockBackground)

@@ -36,19 +36,21 @@ public struct MetalEffectUniforms: Sendable, Equatable {
 /// Kho mã nguồn Metal Shading Language (MSL) tích hợp sẵn cho Lõi Metal Compute Pipeline (6 Effect + 8 Dual-Texture Transition).
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng).
 public enum BuiltInMetalShaders {
-    public static let allKernelNames: [String] = [
-        "metal_cyber_glitch", "metal_vhs_retro", "metal_thermal_vision",
-        "metal_pixel_arcade", "metal_halftone_dots", "metal_shockwave_ripple",
-        "metal_transition_dissolve", "metal_transition_push",
-        "metal_transition_whip_pan", "metal_transition_zoom_blur",
-        "metal_transition_cross_warp", "metal_transition_glitch_slice",
-        "metal_transition_light_leak", "metal_transition_geometric_wipe",
-        "metal_grading_hsl", "metal_grading_wheels",
-        "metal_grading_rgb_curves", "metal_grading_film_grain"
-    ]
+    public static var allKernelNames: [String] {
+        [
+            "metal_cyber_glitch", "metal_vhs_retro", "metal_thermal_vision",
+            "metal_pixel_arcade", "metal_halftone_dots", "metal_shockwave_ripple",
+            "metal_transition_dissolve", "metal_transition_push",
+            "metal_transition_whip_pan", "metal_transition_zoom_blur",
+            "metal_transition_cross_warp", "metal_transition_glitch_slice",
+            "metal_transition_light_leak", "metal_transition_geometric_wipe",
+            "metal_grading_hsl", "metal_grading_wheels",
+            "metal_grading_rgb_curves", "metal_grading_film_grain"
+        ] + creativeEffectsKernelNames + natureParticlesKernelNames
+    }
 
     public static var librarySource: String {
-        effectLibrarySource + "\n" + transitionLibrarySource + "\n" + gradingLibrarySource
+        effectLibrarySource + "\n" + transitionLibrarySource + "\n" + gradingLibrarySource + "\n" + creativeEffectsSource + "\n" + natureParticlesSource
     }
 
     public static let effectLibrarySource: String = """

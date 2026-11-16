@@ -1,13 +1,14 @@
 import Foundation
 
 /// Cấu hình tham số và thuật toán động của một clip Hiệu ứng thị giác (Effect Layer).
-/// Hỗ trợ cả 5 hiệu ứng cơ bản lẫn Gói Sáng Tạo Mở (`customParameters` + `filterPipeline` + `CIColorKernel`).
-/// Tuân thủ AGENTS.md R2.3 (thuần Domain, chỉ import Foundation) và R3.1 (File <= 300 dòng).
+/// Hỗ trợ cả 5 hiệu ứng cơ bản, Gói Sáng Tạo Mở (`customParameters` + `filterPipeline`), và Tự động bắt nhịp nhạc (`isBeatSynced`).
+/// Tuân thủ AGENTS.md R2.3 (thuần Domain, chỉ import Foundation) và R3.1 (File <= 300 dòng, Hàm <= 50 dòng).
 public struct EffectConfiguration: Codable, Sendable, Equatable {
     public var type: EffectType
     public var intensity: Double
     public var speed: Double
     public var blurRadius: Double
+    public var isBeatSynced: Bool
     public var customParameters: [CustomParameterDescriptor]
     public var parameterValues: [String: Double]
     public var filterPipeline: [CreativeFilterStep]
@@ -17,6 +18,7 @@ public struct EffectConfiguration: Codable, Sendable, Equatable {
         intensity: Double = 1.0,
         speed: Double = 1.0,
         blurRadius: Double = 24.0,
+        isBeatSynced: Bool = false,
         customParameters: [CustomParameterDescriptor] = [],
         parameterValues: [String: Double] = [:],
         filterPipeline: [CreativeFilterStep] = []
@@ -26,6 +28,7 @@ public struct EffectConfiguration: Codable, Sendable, Equatable {
         self.intensity = max(0.0, min(1.0, norm))
         self.speed = max(0.1, min(3.0, speed))
         self.blurRadius = max(1.0, min(100.0, blurRadius))
+        self.isBeatSynced = isBeatSynced
         self.customParameters = customParameters
         var mergedValues = parameterValues
         for param in customParameters where mergedValues[param.id] == nil {
@@ -43,6 +46,7 @@ public struct EffectConfiguration: Codable, Sendable, Equatable {
         self.intensity = max(0.0, min(1.0, norm))
         self.speed = max(0.1, min(3.0, (try? container.decode(Double.self, forKey: .speed)) ?? 1.0))
         self.blurRadius = max(1.0, min(100.0, (try? container.decode(Double.self, forKey: .blurRadius)) ?? 24.0))
+        self.isBeatSynced = (try? container.decodeIfPresent(Bool.self, forKey: .isBeatSynced)) ?? false
         let params = (try? container.decodeIfPresent([CustomParameterDescriptor].self, forKey: .customParameters)) ?? []
         self.customParameters = params
         var values = (try? container.decodeIfPresent([String: Double].self, forKey: .parameterValues)) ?? [:]

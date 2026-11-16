@@ -137,4 +137,13 @@ public final class AdjustmentLibraryViewModel {
             originPresetID: preset.id == "default" ? nil : preset.id
         )
     }
+
+    /// Thêm một clip Adjustment Layer mặc định vào timeline
+    public func addDefaultPresetToTimeline() {
+        guard let timelineViewModel else { return }
+        timelineViewModel.addAdjustmentClip(
+            named: "Adjustment Layer",
+            config: AdjustmentConfiguration()
+        )
+    }
 }

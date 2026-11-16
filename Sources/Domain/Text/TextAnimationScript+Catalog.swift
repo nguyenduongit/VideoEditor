@@ -49,7 +49,7 @@ public struct TypewriterCursorScript: TextAnimationScript {
             )
         } else {
             let isLastChar = unitIndex == total - 1
-            let postBlink = isLastChar && sin((progress - typingSpan) * .pi * 14.0) >= 0.0
+            let postBlink = isLastChar && cos((1.0 - progress) * .pi * 6.0) >= -0.1
             return TextUnitDelta(opacity: 1.0, trailingCursorOpacity: postBlink ? 1.0 : 0.0)
         }
     }
@@ -90,51 +90,57 @@ public struct KineticDropGlowScript: TextAnimationScript {
         let em = max(16.0, base.fontSize)
         switch phase {
         case .intro(let progress):
-            return evaluateIntro(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
+            let raw = evaluateIntro(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
+            guard progress > 0.72 else { return raw }
+            let t = (progress - 0.72) / 0.28, s = t * t * (3.0 - 2.0 * t)
+            return blendKinetic(from: raw, to: loopDelta(cycleProgress: progress, em: em, unitIndex: unitIndex), t: s)
         case .loop(_, let cycleProgress):
-            let phaseAngle = cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.55
-            let wave = sin(phaseAngle)
-            let hop = max(0.0, wave)
-            return TextUnitDelta(
-                offsetY: -hop * (0.18 * em),
-                scaleX: 1.0 - hop * 0.06 + max(0.0, -wave) * 0.05,
-                scaleY: 1.0 + hop * 0.08 - max(0.0, -wave) * 0.04,
-                rotation: cos(phaseAngle) * 3.5,
-                opacity: 1.0,
-                glowIntensityDelta: hop * 20.0
-            )
+            return loopDelta(cycleProgress: cycleProgress, em: em, unitIndex: unitIndex)
         case .outro(let progress):
-            return evaluateOutro(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
+            let raw = evaluateOutro(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
+            let localP = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.35 / Double(max(1, unitTotal)))) / 0.65))
+            return blendKinetic(from: loopDelta(cycleProgress: progress, em: em, unitIndex: unitIndex), to: raw, t: localP)
         }
+    }
+
+    private func loopDelta(cycleProgress: Double, em: Double, unitIndex: Int) -> TextUnitDelta {
+        let phaseAngle = cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.55
+        let wave = sin(phaseAngle), hop = max(0.0, wave)
+        return TextUnitDelta(
+            offsetY: -hop * (0.18 * em), scaleX: 1.0 - hop * 0.06 + max(0.0, -wave) * 0.05,
+            scaleY: 1.0 + hop * 0.08 - max(0.0, -wave) * 0.04, rotation: cos(phaseAngle) * 3.5,
+            opacity: 1.0, glowIntensityDelta: hop * 20.0
+        )
+    }
+
+    private func blendKinetic(from a: TextUnitDelta, to b: TextUnitDelta, t: Double) -> TextUnitDelta {
+        let k = max(0.0, min(1.0, t)), inv = 1.0 - k
+        return TextUnitDelta(
+            offsetX: inv * a.offsetX + k * b.offsetX, offsetY: inv * a.offsetY + k * b.offsetY,
+            scaleX: inv * a.scaleX + k * b.scaleX, scaleY: inv * a.scaleY + k * b.scaleY,
+            rotation: inv * a.rotation + k * b.rotation, opacity: inv * a.opacity + k * b.opacity,
+            glowIntensityDelta: inv * a.glowIntensityDelta + k * b.glowIntensityDelta
+        )
     }
 
     private func evaluateIntro(progress: Double, em: Double, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
         if unitIndex == 0 { return evaluateAnchorCharIntro(progress: progress, em: em) }
-        let tailCount = max(1, unitTotal - 1)
-        let tailIdx = Double(unitIndex - 1)
-        let normTail = tailIdx / Double(max(1, tailCount - 1))
-        let spawnTime = 0.05 + tailIdx * (0.20 / Double(tailCount))
+        let tailCount = max(1, unitTotal - 1), tailIdx = Double(unitIndex - 1)
+        let normTail = tailIdx / Double(max(1, tailCount - 1)), spawnTime = 0.05 + tailIdx * (0.20 / Double(tailCount))
         guard progress >= spawnTime else { return TextUnitDelta(opacity: 0.0) }
-
         let apexY = -(1.18 + sin(normTail * .pi) * 0.42 - normTail * 0.18) * em
-        let apexX = (-0.24 + normTail * 0.36) * em
-        let apexRot = -18.0 + normTail * 48.0
+        let apexX = (-0.24 + normTail * 0.36) * em, apexRot = -18.0 + normTail * 48.0
         let dropStart = 0.42 + tailIdx * (0.26 / Double(tailCount))
-
         if progress < dropStart {
             let tossP = min(1.0, (progress - spawnTime) / max(0.05, dropStart - spawnTime))
-            let easeOut = 1.0 - pow(1.0 - tossP, 3.0)
-            let curX = (-0.65 * em) + (apexX + 0.65 * em) * easeOut
-            let curY = (0.75 * em) + (apexY - 0.75 * em) * sin(tossP * .pi * 0.5)
-            let curRot = (1.0 - easeOut) * 58.0 + apexRot * easeOut
-            let popScale = 0.50 + 0.55 * sin(min(1.0, tossP * 1.35) * .pi * 0.5)
+            let easeOut = 1.0 - pow(1.0 - tossP, 3.0), popScale = 0.50 + 0.55 * sin(min(1.0, tossP * 1.35) * .pi * 0.5)
             return TextUnitDelta(
-                offsetX: curX, offsetY: curY, scaleX: popScale, scaleY: popScale,
-                rotation: curRot, opacity: min(1.0, tossP * 4.5), glowIntensityDelta: 24.0
+                offsetX: (-0.65 * em) + (apexX + 0.65 * em) * easeOut, offsetY: (0.75 * em) + (apexY - 0.75 * em) * sin(tossP * .pi * 0.5),
+                scaleX: popScale, scaleY: popScale, rotation: (1.0 - easeOut) * 58.0 + apexRot * easeOut,
+                opacity: min(1.0, tossP * 4.5), glowIntensityDelta: 24.0
             )
         }
-        let dropP = min(1.0, (progress - dropStart) / max(0.18, 0.98 - dropStart))
-        return evaluateDropToBaseline(dropP: dropP, em: em, apexX: apexX, apexY: apexY, apexRot: apexRot)
+        return evaluateDropToBaseline(dropP: min(1.0, (progress - dropStart) / max(0.18, 0.98 - dropStart)), em: em, apexX: apexX, apexY: apexY, apexRot: apexRot)
     }
 
     private func evaluateAnchorCharIntro(progress: Double, em: Double) -> TextUnitDelta {

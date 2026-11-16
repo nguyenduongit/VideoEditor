@@ -16,14 +16,21 @@ extension TimelineClipView {
         guard dragOffset != 0 || dragY != 0 || (!isHoveringLeftTrim && !isHoveringRightTrim) else { return }
         guard !isLocked else { return }
 
+        if dragOffset == 0 && dragY == 0 {
+            isOptionDuplicateDrag = NSEvent.modifierFlags.contains(.option)
+        } else if NSEvent.modifierFlags.contains(.option) {
+            isOptionDuplicateDrag = true
+        }
         if !isSelected { onSelect(false) }
-        let rawDx = value.translation.width
+
+        let isShiftVerticalLock = NSEvent.modifierFlags.contains(.shift) && abs(value.translation.height) >= 15
+        let rawDx = isShiftVerticalLock ? 0 : value.translation.width
         dragY = value.translation.height
         let deltaSeconds = Double(rawDx / pixelsPerSecond)
         let currentStartSec = CMTimeGetSeconds(clip.timeRange.start)
         var rawStartSec = max(0, currentStartSec + deltaSeconds)
 
-        if abs(dragY) < 15 && groupDragOffset == 0 {
+        if !isOptionDuplicateDrag && abs(dragY) < 15 && groupDragOffset == 0 {
             if let prevEnd = previousClipEnd { rawStartSec = max(rawStartSec, CMTimeGetSeconds(prevEnd)) }
             if let nextStart = nextClipStart {
                 let maxStartSec = max(0, CMTimeGetSeconds(nextStart) - CMTimeGetSeconds(clip.timeRange.duration))
@@ -37,9 +44,9 @@ extension TimelineClipView {
             proposedStart: rawStart, duration: clip.timeRange.duration,
             candidates: snapCandidates, threshold: threshold
         )
-        var effectiveStart = didSnap ? snappedStart : TimeRational.snapToFrame(time: rawStart)
+        var effectiveStart = isShiftVerticalLock ? clip.timeRange.start : (didSnap ? snappedStart : TimeRational.snapToFrame(time: rawStart))
 
-        if abs(dragY) < 15 && groupDragOffset == 0 {
+        if !isOptionDuplicateDrag && abs(dragY) < 15 && groupDragOffset == 0 {
             if let prevEnd = previousClipEnd, effectiveStart < prevEnd { effectiveStart = prevEnd }
             if let nextStart = nextClipStart {
                 let maxStart = CMTimeSubtract(nextStart, clip.timeRange.duration)
@@ -47,17 +54,22 @@ extension TimelineClipView {
             }
         }
 
-        let effectiveDx = CGFloat(CMTimeGetSeconds(effectiveStart) - currentStartSec) * pixelsPerSecond
-        dragOffset = effectiveDx
+        dragOffset = CGFloat(CMTimeGetSeconds(effectiveStart) - currentStartSec) * pixelsPerSecond
         onMove(effectiveStart, dragY)
     }
 
     func handleMoveEnded(value: DragGesture.Value) {
         guard !isLocked else { return }
+        let shouldDuplicate = isOptionDuplicateDrag || NSEvent.modifierFlags.contains(.option)
         defer {
             dragOffset = 0
             dragY = 0
-            onMoveEnd()
+            isOptionDuplicateDrag = false
+            if shouldDuplicate, let onDuplicateMoveEnd {
+                onDuplicateMoveEnd()
+            } else {
+                onMoveEnd()
+            }
         }
         if !isSelected { onSelect(false) }
     }

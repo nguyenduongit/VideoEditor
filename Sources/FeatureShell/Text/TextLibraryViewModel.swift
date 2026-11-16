@@ -8,6 +8,8 @@ import Domain
 @Observable
 @MainActor
 public final class TextLibraryViewModel {
+    public static let defaultPresetID = "text_default_preset"
+
     public enum SubTab: String, CaseIterable, Sendable {
         case `default` = "Default"
         case templates = "Presets"
@@ -35,6 +37,9 @@ public final class TextLibraryViewModel {
             self.templatePresets = []
         }
         setupNotificationObserver()
+        timelineViewModel?.onPreviewTextPresetCleared = { [weak self] in
+            self?.selectedPresetID = nil
+        }
         syncPresetsFromSupabase()
     }
 
@@ -57,14 +62,22 @@ public final class TextLibraryViewModel {
     }
 
     public var defaultPreset: TextPreset {
-        .default
+        TextPreset(
+            id: Self.defaultPresetID,
+            name: "Default Text",
+            description: "Standard single-line text title",
+            category: .title,
+            defaultDuration: 5.0,
+            config: TextPreset.default.config,
+            isSystem: true
+        )
     }
 
     /// Danh sách toàn bộ mẫu chữ hiển thị với item Mặc định ở vị trí đầu tiên (khi chọn Tất cả và không tìm kiếm)
     public var filteredPresetsWithDefaultFirst: [TextPreset] {
         let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         if selectedCategory == .all && query.isEmpty {
-            let withoutDefault = filteredTemplatePresets.filter { $0.id != defaultPreset.id }
+            let withoutDefault = filteredTemplatePresets.filter { $0.id != "default" && $0.id != Self.defaultPresetID }
             return [defaultPreset] + withoutDefault
         }
         return filteredTemplatePresets
@@ -123,10 +136,27 @@ public final class TextLibraryViewModel {
         timelineViewModel?.onPreviewTextPreset?(preset)
     }
 
-    public func addPresetToTimeline(_ preset: TextPreset) {
+    public func selectDefaultPresetForPreview() {
+        selectPresetForPreview(defaultPreset)
+    }
+
+    public func clearPreviewSelection() {
         selectedPresetID = nil
         timelineViewModel?.onPreviewTextPreset?(nil)
+    }
+
+    public func addPresetToTimeline(_ preset: TextPreset) {
+        clearPreviewSelection()
         guard let timelineViewModel else { return }
         timelineViewModel.addTextPreset(preset)
+    }
+
+    public func addDefaultPresetToTimeline() {
+        clearPreviewSelection()
+        timelineViewModel?.addTextClip(
+            named: "Default Text",
+            config: TextConfiguration(),
+            durationSeconds: 5.0
+        )
     }
 }

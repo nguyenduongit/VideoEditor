@@ -7,10 +7,14 @@ import DesignSystem
 /// top-right 26pt Favorites button, and bottom-right 26pt Add button.
 /// Complies with AGENTS.md rules (File <= 300 lines, View body <= 40 lines).
 public struct AdjustmentLibraryView: View {
-    @Bindable private var viewModel: AdjustmentLibraryViewModel
-    @State private var selectedCategory: String = AdjustmentTemplateCategory.cinematic.displayName
+    public static let defaultCategory = "Default"
+    public static let defaultPresetID = "adjustment_default_preset"
 
-    private let categories = AdjustmentTemplateCategory.assignableCases.map(\.displayName)
+    @Bindable private var viewModel: AdjustmentLibraryViewModel
+    @State private var selectedCategory: String = Self.defaultCategory
+    @State private var selectedPresetID: String?
+
+    private let categories = [Self.defaultCategory] + AdjustmentTemplateCategory.assignableCases.map(\.displayName)
 
     private let columns = [
         GridItem(.flexible(), spacing: DSSpacing.sm),
@@ -22,19 +26,27 @@ public struct AdjustmentLibraryView: View {
     }
 
     private var displayedPresets: [AdjustmentPreset] {
+        let trimmed = viewModel.searchQuery.trimmingCharacters(in: .whitespaces)
+        let nonDefault = viewModel.templatePresets.filter { $0.id != "default" && $0.id != Self.defaultPresetID }
         let base: [AdjustmentPreset]
         if selectedCategory == SidebarFavoriteManager.favoritesCategory {
             let favs = SidebarFavoriteManager.shared.favorites(for: "adjustment")
-            base = viewModel.templatePresets.filter { favs.contains($0.id) }
+            base = nonDefault.filter { favs.contains($0.id) }
+        } else if !trimmed.isEmpty {
+            base = nonDefault
+        } else if selectedCategory == Self.defaultCategory {
+            base = []
+        } else if let cat = AdjustmentTemplateCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
+            base = nonDefault.filter { $0.category == cat }
         } else {
-            if let cat = AdjustmentTemplateCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
-                base = viewModel.templatePresets.filter { $0.category == cat }
-            } else {
-                base = viewModel.templatePresets
-            }
+            base = nonDefault
         }
-        guard !viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return base }
-        return base.filter { $0.name.localizedCaseInsensitiveContains(viewModel.searchQuery) }
+        guard !trimmed.isEmpty else { return base }
+        return base.filter {
+            $0.name.localizedCaseInsensitiveContains(trimmed)
+                || $0.description.localizedCaseInsensitiveContains(trimmed)
+                || $0.tags.contains { $0.localizedCaseInsensitiveContains(trimmed) }
+        }
     }
 
     public var body: some View {
@@ -71,15 +83,35 @@ public struct AdjustmentLibraryView: View {
     private var contentScrollView: some View {
         DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
             let presets = displayedPresets
-            if presets.isEmpty {
+            let isDefaultSelected = selectedCategory == Self.defaultCategory
+            let isFavSelected = selectedCategory == SidebarFavoriteManager.favoritesCategory
+            let isDefaultFav = SidebarFavoriteManager.shared.isFavorite(id: Self.defaultPresetID, for: "adjustment")
+                || SidebarFavoriteManager.shared.isFavorite(id: "default", for: "adjustment")
+            let trimmedSearch = viewModel.searchQuery.trimmingCharacters(in: .whitespaces)
+            let matchesSearch = trimmedSearch.isEmpty
+                || "Default Adjustment".localizedCaseInsensitiveContains(trimmedSearch)
+                || "Adjustment Layer".localizedCaseInsensitiveContains(trimmedSearch)
+                || "Mặc định".localizedCaseInsensitiveContains(trimmedSearch)
+            let showDefaultCard = ((isDefaultSelected || (isFavSelected && isDefaultFav)) && matchesSearch)
+                || (!trimmedSearch.isEmpty && matchesSearch && !isFavSelected)
+
+            if !showDefaultCard && presets.isEmpty {
                 emptyTemplatesView
             } else {
                 LazyVGrid(columns: columns, spacing: DSSpacing.sm) {
+                    if showDefaultCard {
+                        defaultAdjustmentCard
+                    }
+
                     ForEach(presets) { preset in
                         let isFav = SidebarFavoriteManager.shared.isFavorite(id: preset.id, for: "adjustment")
                         UnifiedLibraryCardItemView(
                             title: preset.name,
                             isFavorite: isFav,
+                            isSelected: selectedPresetID == preset.id,
+                            onSelect: {
+                                selectedPresetID = preset.id
+                            },
                             onAdd: {
                                 viewModel.addPresetToTimeline(preset)
                             },
@@ -94,6 +126,46 @@ public struct AdjustmentLibraryView: View {
                 .padding(DSSpacing.sm)
             }
         }
+    }
+
+    private var defaultAdjustmentCard: some View {
+        let isFav = SidebarFavoriteManager.shared.isFavorite(id: Self.defaultPresetID, for: "adjustment")
+            || SidebarFavoriteManager.shared.isFavorite(id: "default", for: "adjustment")
+        return UnifiedLibraryCardItemView(
+            title: "Default Adjustment",
+            isFavorite: isFav,
+            isSelected: selectedPresetID == Self.defaultPresetID,
+            onSelect: {
+                selectedPresetID = Self.defaultPresetID
+            },
+            onAdd: {
+                viewModel.addDefaultPresetToTimeline()
+            },
+            onToggleFavorite: {
+                SidebarFavoriteManager.shared.toggleFavorite(id: Self.defaultPresetID, for: "adjustment")
+            }
+        ) {
+            defaultThumbnailView
+        }
+    }
+
+    private var defaultThumbnailView: some View {
+        VStack(spacing: 4) {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 26, weight: .bold))
+                .foregroundStyle(DSColors.clipAdjustment)
+            Text("Default")
+                .font(.system(size: 9.5, weight: .medium))
+                .foregroundStyle(DSColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            LinearGradient(
+                colors: [DSColors.windowBackground, DSColors.blockBackground],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
     }
 
     @ViewBuilder

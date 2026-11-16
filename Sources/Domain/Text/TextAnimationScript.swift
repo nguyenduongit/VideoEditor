@@ -151,17 +151,15 @@ extension TextAnimationScript {
     ) -> TextScriptPhase {
         let safeDur = max(0.1, duration)
         let t = max(0.0, min(safeDur, localTime))
-        let inD = anim.scriptInDuration
-        let outD = anim.scriptOutDuration
-        if safeDur <= (inD + outD) {
-            let scale = safeDur / max(0.001, inD + outD)
-            let inEff = inD * scale
-            if t < inEff {
-                return .intro(progress: t / max(0.001, inEff))
-            }
-            return .outro(progress: (t - inEff) / max(0.001, safeDur - inEff))
+        let rawIn = max(0.0, anim.scriptInDuration), rawOut = max(0.0, anim.scriptOutDuration)
+        let inD: Double, outD: Double
+        if (rawIn + rawOut) >= (safeDur * 0.6) {
+            let scale = (safeDur * 0.5) / max(0.001, rawIn + rawOut)
+            inD = rawIn * scale; outD = rawOut * scale
+        } else {
+            inD = rawIn; outD = rawOut
         }
-        let outStart = safeDur - outD
+        let outStart = max(inD, safeDur - outD)
         if t < inD {
             return .intro(progress: t / max(0.001, inD))
         } else if t < outStart {

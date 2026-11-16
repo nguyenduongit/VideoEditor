@@ -96,7 +96,8 @@ public final class TextRendererEngine: Sendable {
                 overlay: evaluated.overlay,
                 lightSweepIntensity: config.animation.lightSweepIntensity,
                 shadow: evaluated.config.shadow,
-                glow: evaluated.config.glow
+                glow: evaluated.config.glow,
+                noiseIntensity: config.noiseIntensity
             )
         } else {
             textImage = nil
@@ -125,36 +126,22 @@ public final class TextRendererEngine: Sendable {
     ) -> CIImage? {
         guard baseConfig.background.isEnabled else { return textImage }
         let rawGlyphBounds = measureCoreGlyphBounds(for: baseConfig)
+        let envelopeBounds = measureBackgroundEnvelopeBounds(for: baseConfig)
         let maxSafeW = CGFloat(TextAutoFitter.maxSafeWidth(for: canvasSize))
         let safeguard: CGFloat = (rawGlyphBounds.width > maxSafeW && rawGlyphBounds.width > 0)
             ? (maxSafeW / rawGlyphBounds.width)
             : 1.0
 
-        let bgAnchor = baseConfig.background.animateWithText ? evaluated.config : baseConfig
-        let bgOverlay = baseConfig.background.animateWithText ? evaluated.overlay : TextTransformOverlay()
-
-        guard var bgImg = TextCompositeLayerRenderer.renderBackground(
+        guard let bgImg = TextCompositeLayerRenderer.renderBackground(
             background: baseConfig.background,
-            anchorConfig: bgAnchor,
-            overlay: bgOverlay,
-            textRawSize: rawGlyphBounds,
+            anchorConfig: baseConfig,
+            overlay: TextTransformOverlay(),
+            textRawSize: envelopeBounds,
             safeguardScale: safeguard,
             canvasSize: canvasSize,
             localTime: localTime
         ) else {
             return textImage
-        }
-
-        if baseConfig.background.animateWithText {
-            bgImg = TextShaderFilterEngine.applyFilters(
-                to: bgImg,
-                blurRadius: evaluated.blurRadius,
-                hueAngle: evaluated.hueAngle,
-                pixelateScale: evaluated.pixelateScale,
-                rgbSplitIntensity: evaluated.rgbSplitIntensity,
-                overlay: evaluated.overlay,
-                lightSweepIntensity: 0.0
-            )
         }
 
         guard let fgText = textImage else { return bgImg }

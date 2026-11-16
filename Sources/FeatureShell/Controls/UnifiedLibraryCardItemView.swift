@@ -17,12 +17,40 @@ public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
     private let onAdd: () -> Void
     private let onToggleFavorite: () -> Void
     private let onDelete: () -> Void
-    private let thumbnail: () -> Thumbnail
+    private let thumbnail: (Bool) -> Thumbnail
 
     @State private var localIsHovered: Bool = false
 
     private var isHovered: Bool {
         externalIsHovered ?? localIsHovered
+    }
+
+    public init(
+        title: String,
+        isFavorite: Bool,
+        isSelected: Bool = false,
+        showsFavoriteButton: Bool = true,
+        showsDeleteButton: Bool = false,
+        showsAddButton: Bool = true,
+        isHovered: Bool? = nil,
+        onSelect: @escaping () -> Void = {},
+        onAdd: @escaping () -> Void = {},
+        onToggleFavorite: @escaping () -> Void = {},
+        onDelete: @escaping () -> Void = {},
+        @ViewBuilder thumbnail: @escaping (Bool) -> Thumbnail
+    ) {
+        self.title = title
+        self.isFavorite = isFavorite
+        self.isSelected = isSelected
+        self.showsFavoriteButton = showsFavoriteButton
+        self.showsDeleteButton = showsDeleteButton
+        self.showsAddButton = showsAddButton
+        self.externalIsHovered = isHovered
+        self.onSelect = onSelect
+        self.onAdd = onAdd
+        self.onToggleFavorite = onToggleFavorite
+        self.onDelete = onDelete
+        self.thumbnail = thumbnail
     }
 
     public init(
@@ -50,7 +78,7 @@ public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
         self.onAdd = onAdd
         self.onToggleFavorite = onToggleFavorite
         self.onDelete = onDelete
-        self.thumbnail = thumbnail
+        self.thumbnail = { _ in thumbnail() }
     }
 
     public var body: some View {
@@ -67,7 +95,7 @@ public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
             Color.clear
                 .aspectRatio(1, contentMode: .fit)
                 .overlay(
-                    thumbnail()
+                    thumbnail(isHovered)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
                 )

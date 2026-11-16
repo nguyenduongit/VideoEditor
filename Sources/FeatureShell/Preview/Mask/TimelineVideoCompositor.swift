@@ -88,8 +88,62 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
         }
 
         let finalCanvas = canvas.composited(over: CIImage(color: CIColor.black).cropped(to: outputRect))
-        ciContext.render(finalCanvas, to: dstPixelBuffer, bounds: outputRect, colorSpace: CGColorSpaceCreateDeviceRGB())
+        let primarySrcBuffer = primarySourcePixelBuffer(from: asyncVideoCompositionRequest, instruction: instruction)
+        Self.renderPreservingColorSpace(
+            ciContext: ciContext,
+            image: finalCanvas,
+            sourcePixelBuffer: primarySrcBuffer,
+            destinationPixelBuffer: dstPixelBuffer,
+            bounds: outputRect
+        )
         asyncVideoCompositionRequest.finish(withComposedVideoFrame: dstPixelBuffer)
+    }
+
+    private func primarySourcePixelBuffer(
+        from request: AVAsynchronousVideoCompositionRequest,
+        instruction: TimelineCustomVideoCompositionInstruction
+    ) -> CVPixelBuffer? {
+        for info in instruction.layerInfos {
+            if info.trackID != kCMPersistentTrackID_Invalid,
+               let buffer = request.sourceFrame(byTrackID: info.trackID) {
+                return buffer
+            }
+            if let transFromID = info.activeTransition?.fromLayerInfo.trackID,
+               transFromID != kCMPersistentTrackID_Invalid,
+               let buffer = request.sourceFrame(byTrackID: transFromID) {
+                return buffer
+            }
+        }
+        return nil
+    }
+
+    static func renderPreservingColorSpace(
+        ciContext: CIContext,
+        image: CIImage,
+        sourcePixelBuffer: CVPixelBuffer?,
+        destinationPixelBuffer: CVPixelBuffer,
+        bounds: CGRect
+    ) {
+        if let src = sourcePixelBuffer {
+            let keys: [CFString] = [
+                kCVImageBufferColorPrimariesKey,
+                kCVImageBufferTransferFunctionKey,
+                kCVImageBufferYCbCrMatrixKey
+            ]
+            for key in keys {
+                if let value = CVBufferCopyAttachment(src, key, nil) {
+                    CVBufferSetAttachment(destinationPixelBuffer, key, value, .shouldPropagate)
+                }
+            }
+        }
+        let srcCS = sourcePixelBuffer.flatMap { CVImageBufferGetColorSpace($0)?.takeUnretainedValue() }
+        let dstCS = CVImageBufferGetColorSpace(destinationPixelBuffer)?.takeUnretainedValue()
+        let candidateCS = (srcCS?.model == .rgb ? srcCS : nil) ?? (dstCS?.model == .rgb ? dstCS : nil)
+        let outputColorSpace = candidateCS
+            ?? CGColorSpace(name: CGColorSpace.itur_709)
+            ?? CGColorSpaceCreateDeviceRGB()
+        CVBufferSetAttachment(destinationPixelBuffer, kCVImageBufferCGColorSpaceKey, outputColorSpace, .shouldPropagate)
+        ciContext.render(image, to: destinationPixelBuffer, bounds: bounds, colorSpace: outputColorSpace)
     }
 
     func storeCachedFrame(_ image: CIImage, for trackID: CMPersistentTrackID) {

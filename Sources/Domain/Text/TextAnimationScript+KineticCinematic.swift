@@ -12,31 +12,31 @@ public struct PopUpHinge3DScript: TextAnimationScript {
 
     public func evaluatePhase(base: TextConfiguration, phase: TextScriptPhase, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
         let total = max(1, unitTotal)
+        let loopAt: (Double) -> (sx: Double, sy: Double, skew: Double) = { prog in
+            let a = prog * .pi * 2.0 - Double(unitIndex) * 0.52, b = max(0.0, sin(a))
+            return (1.0 - b * 0.10, 1.0 + b * 0.22, cos(a) * b * 10.0)
+        }
         switch phase {
         case .intro(let progress):
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.45 / Double(total))) / 0.55))
             guard p > 0.0 else { return TextUnitDelta(scaleY: 0.04, opacity: 0.0, anchorOverride: .bottom) }
-            let decay = exp(-p * 4.2)
-            let stand = 1.0 - decay * cos(p * .pi * 3.0)
-            let swingSkew = decay * cos(p * .pi * 3.0) * 28.0
+            let decay = exp(-p * 4.2) * (1.0 - p), stand = 1.0 - decay * cos(p * .pi * 3.0)
+            let swingSkew = decay * cos(p * .pi * 3.0) * 28.0, l = loopAt(progress)
             return TextUnitDelta(
-                scaleX: max(0.2, 1.0 - (stand - 1.0) * 0.35), scaleY: max(0.06, stand),
-                skewX: swingSkew, opacity: min(1.0, p * 4.0), anchorOverride: .bottom,
+                scaleX: (1.0 - p) * max(0.2, 1.0 - (stand - 1.0) * 0.35) + p * l.sx,
+                scaleY: (1.0 - p) * max(0.06, stand) + p * l.sy,
+                skewX: swingSkew + p * l.skew, opacity: min(1.0, p * 4.0), anchorOverride: .bottom,
                 glowIntensityDelta: max(0.0, stand - 1.0) * 40.0
             )
         case .loop(_, let cycleProgress):
-            let angle = cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.52
-            let bounce = max(0.0, sin(angle))
-            return TextUnitDelta(
-                scaleX: 1.0 - bounce * 0.10, scaleY: 1.0 + bounce * 0.22,
-                skewX: cos(angle) * bounce * 10.0, opacity: 1.0, anchorOverride: .bottom
-            )
+            let l = loopAt(cycleProgress)
+            return TextUnitDelta(scaleX: l.sx, scaleY: l.sy, skewX: l.skew, opacity: 1.0, anchorOverride: .bottom)
         case .outro(let progress):
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.38 / Double(total))) / 0.62))
-            let ease = p * p
+            let ease = p * p, stay = 1.0 - ease, l = loopAt(progress)
             return TextUnitDelta(
-                scaleX: 1.0 + ease * 0.20, scaleY: max(0.04, 1.0 - ease * 0.96),
-                skewX: -ease * 26.0, opacity: 1.0 - ease, anchorOverride: .bottom
+                scaleX: stay * l.sx + ease * 1.20, scaleY: max(0.04, stay * l.sy + ease * 0.04),
+                skewX: stay * l.skew - ease * 26.0, opacity: stay, anchorOverride: .bottom
             )
         }
     }

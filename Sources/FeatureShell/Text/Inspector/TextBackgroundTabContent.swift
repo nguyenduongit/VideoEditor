@@ -1,16 +1,13 @@
 import SwiftUI
-import AppKit
-import OSLog
-import UniformTypeIdentifiers
 import Domain
 import DesignSystem
-
-private let bgLogger = Logger(subsystem: "VideoEditor", category: "TextBackgroundTabContent")
 
 /// Tab `"Background"` chuyên nghiệp cho Module `Text` với 3 Subtab: `Source` · `Layout` · `Style`.
 public struct TextBackgroundTabContent: View {
     @Bindable private var viewModel: InspectorViewModel
     @State private var selectedSubtab: Subtab = .source
+
+    private static let supportedSources: [TextBackgroundSourceKind] = [.solid, .linearGradient, .radialGradient]
 
     public enum Subtab: String, CaseIterable, Identifiable {
         case source = "Source", layout = "Layout", style = "Style"
@@ -89,34 +86,28 @@ public struct TextBackgroundTabContent: View {
                 .foregroundStyle(DSColors.textSecondary)
 
             Picker("Background Source", selection: Binding(
-                get: { bg.sourceKind },
+                get: { Self.supportedSources.contains(bg.sourceKind) ? bg.sourceKind : .solid },
                 set: { kind in
                     var cfg = currentConfig
                     cfg.background.sourceKind = kind
-                    if kind == .inlineSVG && cfg.background.svgMarkup.isEmpty {
-                        cfg.background.svgMarkup = Self.defaultBadgeSVG
-                    }
                     updateConfig(cfg, true)
                 }
             )) {
-                ForEach(TextBackgroundSourceKind.allCases) { Text($0.displayName).tag($0) }
+                ForEach(Self.supportedSources) { Text($0.displayName).tag($0) }
             }
             .pickerStyle(.menu)
             .labelsHidden()
 
             switch bg.sourceKind {
-            case .solid:
+            case .linearGradient, .radialGradient:
+                gradientSourceControls(bg: bg)
+            default:
                 TextColorSwatchesRow(title: "Background Color", selectedHex: bg.solidColorHex, allowNone: true) { hex in
                     var cfg = currentConfig
+                    cfg.background.sourceKind = .solid
                     cfg.background.solidColorHex = hex.uppercased() == "NONE" ? "NONE" : hex
                     updateConfig(cfg, true)
                 }
-            case .linearGradient, .radialGradient:
-                gradientSourceControls(bg: bg)
-            case .inlineSVG:
-                svgSourceControls(bg: bg)
-            case .animatedAsset:
-                animatedAssetControls(bg: bg)
             }
 
             Divider().background(DSColors.blockBorder)
@@ -195,100 +186,10 @@ public struct TextBackgroundTabContent: View {
         }
     }
 
-    private func svgSourceControls(bg: TextBackgroundStyle) -> some View {
-        VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            HStack(spacing: DSSpacing.xs) {
-                Button("Import SVG...") { pickSVGFile() }
-                    .font(.system(size: 11, weight: .medium))
-                Button("Ribbon Template") {
-                    var cfg = currentConfig; cfg.background.svgMarkup = Self.defaultBadgeSVG; updateConfig(cfg, true)
-                }
-                .font(.system(size: 11))
-            }
-            DSTextField(
-                title: "Inline SVG Markup",
-                text: Binding(
-                    get: { bg.svgMarkup },
-                    set: { var cfg = currentConfig; cfg.background.svgMarkup = $0; updateConfig(cfg, false) }
-                ),
-                onCommit: { updateConfig(currentConfig, true) }
-            )
-        }
-    }
-
-    private func animatedAssetControls(bg: TextBackgroundStyle) -> some View {
-        VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            HStack(spacing: DSSpacing.xs) {
-                Button("Choose Image / GIF / APNG...") { pickAnimatedImageFile() }
-                    .font(.system(size: 11, weight: .medium))
-                Spacer()
-            }
-            DSTextField(
-                title: "File Path or URL",
-                text: Binding(
-                    get: { bg.assetPathOrURL },
-                    set: { var cfg = currentConfig; cfg.background.assetPathOrURL = $0; updateConfig(cfg, false) }
-                ),
-                onCommit: { updateConfig(currentConfig, true) }
-            )
-            Picker("Content Fit", selection: Binding(
-                get: { bg.contentFitMode },
-                set: { var cfg = currentConfig; cfg.background.contentFitMode = $0; updateConfig(cfg, true) }
-            )) {
-                ForEach(TextBackgroundContentFitMode.allCases) { Text($0.displayName).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-
-            DSToggleRow(
-                title: "Loop Animation",
-                isOn: Binding(
-                    get: { bg.loopAsset },
-                    set: { var cfg = currentConfig; cfg.background.loopAsset = $0; updateConfig(cfg, true) }
-                )
-            )
-            DSSliderWithInput(
-                title: "Playback Speed",
-                value: Binding(
-                    get: { bg.assetSpeed },
-                    set: { var cfg = currentConfig; cfg.background.assetSpeed = $0; updateConfig(cfg, false) }
-                ),
-                range: 0.25...4.0, step: 0.05, defaultValue: 1.0, unit: "x",
-                onEditingChanged: { if !$0 { updateConfig(currentConfig, true) } }
-            )
-        }
-    }
-
-    private func pickSVGFile() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true; panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [.svg]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            var cfg = currentConfig
-            cfg.background.svgMarkup = try String(contentsOf: url, encoding: .utf8)
-            updateConfig(cfg, true)
-        } catch {
-            bgLogger.error("Failed to read SVG file \(url.path): \(error.localizedDescription)")
-        }
-    }
-
-    private func pickAnimatedImageFile() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true; panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [.png, .gif, .jpeg, .webP]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        var cfg = currentConfig; cfg.background.assetPathOrURL = url.path; updateConfig(cfg, true)
-    }
-
     private var currentConfig: TextConfiguration { viewModel.textConfiguration }
     private func updateConfig(_ updated: TextConfiguration, _ commit: Bool) {
         var u = updated
         u.background.isEnabled = true
         viewModel.updateTextConfiguration(u, commit: commit)
     }
-
-    private static let defaultBadgeSVG = """
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 96"><rect x="6" y="8" width="308" height="80" rx="22" fill="#EF4444" stroke="#FFFFFF" stroke-width="5"/></svg>
-    """
 }

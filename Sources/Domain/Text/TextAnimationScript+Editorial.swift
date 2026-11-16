@@ -129,31 +129,22 @@ public struct CurtainBaselineRiseScript: TextAnimationScript {
     public func evaluatePhase(base: TextConfiguration, phase: TextScriptPhase, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
         let em = max(16.0, base.fontSize)
         let total = max(1, unitTotal)
+        let phaseOffset = Double(unitIndex) * 0.6
         switch phase {
         case .intro(let progress):
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.42 / Double(total))) / 0.58))
             guard p > 0.0 else { return TextUnitDelta(opacity: 0.0, clipRevealY: 0.0) }
             let ease = 1.0 - pow(1.0 - p, 3.6)
-            return TextUnitDelta(
-                offsetY: (1.0 - ease) * (0.68 * em),
-                opacity: min(1.0, p * 4.5),
-                clipRevealY: ease
-            )
+            let wY = -sin(progress * .pi * 2.0 - phaseOffset) * (0.05 * em)
+            return TextUnitDelta(offsetY: (1.0 - ease) * (0.68 * em) + ease * wY, opacity: min(1.0, p * 4.5), clipRevealY: ease)
         case .loop(_, let cycleProgress):
-            let gentle = sin(cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.6)
-            return TextUnitDelta(
-                offsetY: -gentle * (0.05 * em),
-                opacity: 1.0,
-                clipRevealY: 1.0
-            )
+            let gentle = sin(cycleProgress * .pi * 2.0 - phaseOffset)
+            return TextUnitDelta(offsetY: -gentle * (0.05 * em), opacity: 1.0, clipRevealY: 1.0)
         case .outro(let progress):
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.36 / Double(total))) / 0.64))
             let ease = pow(p, 2.4)
-            return TextUnitDelta(
-                offsetY: ease * (0.65 * em),
-                opacity: 1.0 - ease,
-                clipRevealY: max(0.0, 1.0 - ease)
-            )
+            let wY = -sin(progress * .pi * 2.0 - phaseOffset) * (0.05 * em)
+            return TextUnitDelta(offsetY: (1.0 - ease) * wY + ease * (0.65 * em), opacity: 1.0 - ease, clipRevealY: max(0.0, 1.0 - ease))
         }
     }
 }
@@ -213,39 +204,23 @@ public struct SoftBreatheCascadeScript: TextAnimationScript {
     public func evaluatePhase(base: TextConfiguration, phase: TextScriptPhase, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
         let em = max(16.0, base.fontSize)
         let total = max(1, unitTotal)
+        let breatheAt: (Double) -> (y: Double, scale: Double) = { prog in
+            let b = (1.0 + sin(prog * .pi * 2.0 - Double(unitIndex) * 0.65)) * 0.5
+            return (-b * (0.08 * em), 1.0 + b * 0.05)
+        }
         switch phase {
         case .intro(let progress):
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.45 / Double(total))) / 0.55))
             guard p > 0.0 else { return TextUnitDelta(offsetY: 0.32 * em, scaleX: 0.90, scaleY: 0.90, opacity: 0.0, blurRadius: 0.30 * em) }
-            let ease = 1.0 - pow(1.0 - p, 3.0)
-            let scale = 0.90 + 0.10 * ease
-            return TextUnitDelta(
-                offsetY: (1.0 - ease) * (0.32 * em),
-                scaleX: scale,
-                scaleY: scale,
-                opacity: ease,
-                blurRadius: (1.0 - ease) * (0.28 * em)
-            )
+            let ease = 1.0 - pow(1.0 - p, 3.0), b = breatheAt(progress), s = (1.0 - ease) * 0.90 + ease * b.scale
+            return TextUnitDelta(offsetY: (1.0 - ease) * (0.32 * em) + ease * b.y, scaleX: s, scaleY: s, opacity: ease, blurRadius: (1.0 - ease) * (0.28 * em))
         case .loop(_, let cycleProgress):
-            let angle = cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.65
-            let breathe = (1.0 + sin(angle)) * 0.5
-            let scale = 1.0 + breathe * 0.05
-            return TextUnitDelta(
-                offsetY: -breathe * (0.08 * em),
-                scaleX: scale,
-                scaleY: scale,
-                opacity: 1.0
-            )
+            let b = breatheAt(cycleProgress)
+            return TextUnitDelta(offsetY: b.y, scaleX: b.scale, scaleY: b.scale, opacity: 1.0)
         case .outro(let progress):
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.38 / Double(total))) / 0.62))
-            let ease = p * p
-            return TextUnitDelta(
-                offsetY: -ease * (0.28 * em),
-                scaleX: 1.0 + ease * 0.08,
-                scaleY: 1.0 + ease * 0.08,
-                opacity: 1.0 - ease,
-                blurRadius: ease * (0.26 * em)
-            )
+            let ease = p * p, stay = 1.0 - ease, b = breatheAt(progress), s = stay * b.scale + ease * 1.08
+            return TextUnitDelta(offsetY: stay * b.y - ease * (0.28 * em), scaleX: s, scaleY: s, opacity: stay, blurRadius: ease * (0.26 * em))
         }
     }
 }
@@ -268,29 +243,18 @@ public struct FlipCounterRollScript: TextAnimationScript {
         case .intro(let progress):
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.46 / Double(total))) / 0.54))
             guard p > 0.0 else { return TextUnitDelta(opacity: 0.0, clipRevealY: 0.0) }
-            let decay = exp(-p * 4.4)
+            let decay = exp(-p * 4.4) * (1.0 - p)
             let roll = 1.0 - decay * cos(p * .pi * 2.6)
-            return TextUnitDelta(
-                offsetY: (1.0 - roll) * dir * (0.75 * em),
-                scaleY: 0.85 + 0.15 * min(1.0, p * 2.0),
-                opacity: min(1.0, p * 4.5),
-                clipRevealY: min(1.0, p * 1.4)
-            )
+            let lY = sin(progress * .pi * 2.0 - Double(unitIndex) * 0.45) * (0.06 * em) * dir
+            return TextUnitDelta(offsetY: (1.0 - roll) * dir * (0.75 * em) + p * lY, scaleY: 0.85 + 0.15 * min(1.0, p * 2.0), opacity: min(1.0, p * 4.5), clipRevealY: min(1.0, p * 1.4))
         case .loop(_, let cycleProgress):
             let tick = sin(cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.45)
-            return TextUnitDelta(
-                offsetY: tick * (0.06 * em) * dir,
-                opacity: 1.0,
-                clipRevealY: 1.0
-            )
+            return TextUnitDelta(offsetY: tick * (0.06 * em) * dir, opacity: 1.0, clipRevealY: 1.0)
         case .outro(let progress):
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.40 / Double(total))) / 0.60))
             let ease = p * p
-            return TextUnitDelta(
-                offsetY: -dir * ease * (0.72 * em),
-                opacity: 1.0 - ease,
-                clipRevealY: max(0.0, 1.0 - ease)
-            )
+            let lY = sin(progress * .pi * 2.0 - Double(unitIndex) * 0.45) * (0.06 * em) * dir
+            return TextUnitDelta(offsetY: (1.0 - ease) * lY - dir * ease * (0.72 * em), opacity: 1.0 - ease, clipRevealY: max(0.0, 1.0 - ease))
         }
     }
 }

@@ -26,21 +26,27 @@ public struct TextLibraryView: View {
     }
 
     private var displayedPresets: [TextPreset] {
+        let trimmed = viewModel.searchQuery.trimmingCharacters(in: .whitespaces)
+        let nonDefault = viewModel.templatePresets.filter { $0.id != "default" && $0.id != Self.defaultPresetID }
         let base: [TextPreset]
         if selectedCategory == SidebarFavoriteManager.favoritesCategory {
             let favs = SidebarFavoriteManager.shared.favorites(for: "text")
-            base = viewModel.templatePresets.filter { favs.contains($0.id) }
+            base = nonDefault.filter { favs.contains($0.id) }
+        } else if !trimmed.isEmpty {
+            base = nonDefault
         } else if selectedCategory == Self.defaultCategory {
             base = []
+        } else if let cat = TextTemplateCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
+            base = nonDefault.filter { $0.category == cat }
         } else {
-            if let cat = TextTemplateCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
-                base = viewModel.templatePresets.filter { $0.category == cat }
-            } else {
-                base = viewModel.templatePresets
-            }
+            base = nonDefault
         }
-        guard !viewModel.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return base }
-        return base.filter { $0.name.localizedCaseInsensitiveContains(viewModel.searchQuery) }
+        guard !trimmed.isEmpty else { return base }
+        return base.filter {
+            $0.name.localizedCaseInsensitiveContains(trimmed)
+                || $0.description.localizedCaseInsensitiveContains(trimmed)
+                || $0.tags.contains { $0.localizedCaseInsensitiveContains(trimmed) }
+        }
     }
 
     public var body: some View {
@@ -87,7 +93,13 @@ public struct TextLibraryView: View {
                 let isDefaultSelected = selectedCategory == Self.defaultCategory
                 let isFavSelected = selectedCategory == SidebarFavoriteManager.favoritesCategory
                 let isDefaultFav = SidebarFavoriteManager.shared.isFavorite(id: Self.defaultPresetID, for: "text")
-                let showDefaultCard = isDefaultSelected || (isFavSelected && isDefaultFav)
+                    || SidebarFavoriteManager.shared.isFavorite(id: "default", for: "text")
+                let trimmedSearch = viewModel.searchQuery.trimmingCharacters(in: .whitespaces)
+                let matchesSearch = trimmedSearch.isEmpty
+                    || "Default Text".localizedCaseInsensitiveContains(trimmedSearch)
+                    || "Text".localizedCaseInsensitiveContains(trimmedSearch)
+                let showDefaultCard = ((isDefaultSelected || (isFavSelected && isDefaultFav)) && matchesSearch)
+                    || (!trimmedSearch.isEmpty && matchesSearch && !isFavSelected)
 
                 VStack(spacing: 0) {
                     if !showDefaultCard && presets.isEmpty {
@@ -109,8 +121,8 @@ public struct TextLibraryView: View {
                                     onToggleFavorite: {
                                         SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "text")
                                     }
-                                ) {
-                                    textThumbnailView(for: preset)
+                                ) { isCardHovered in
+                                    TextAnimatedThumbnailView(preset: preset, isHovered: isCardHovered)
                                 }
                             }
                         }
@@ -122,7 +134,7 @@ public struct TextLibraryView: View {
                 .frame(maxWidth: .infinity, minHeight: geo.size.height)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    viewModel.selectedPresetID = nil
+                    viewModel.clearPreviewSelection()
                 }
             }
         }
@@ -135,14 +147,10 @@ public struct TextLibraryView: View {
             isFavorite: isFav,
             isSelected: viewModel.selectedPresetID == Self.defaultPresetID,
             onSelect: {
-                viewModel.selectedPresetID = Self.defaultPresetID
+                viewModel.selectDefaultPresetForPreview()
             },
             onAdd: {
-                viewModel.timelineViewModel?.addTextClip(
-                    named: "Default Text",
-                    config: TextConfiguration(),
-                    durationSeconds: 5.0
-                )
+                viewModel.addDefaultPresetToTimeline()
             },
             onToggleFavorite: {
                 SidebarFavoriteManager.shared.toggleFavorite(id: Self.defaultPresetID, for: "text")
@@ -171,23 +179,6 @@ public struct TextLibraryView: View {
         )
     }
 
-    @ViewBuilder
-    private func textThumbnailView(for preset: TextPreset) -> some View {
-        if let img = TextThumbnailRenderer.renderThumbnail(for: preset) {
-            Image(nsImage: img)
-                .resizable()
-                .scaledToFit()
-                .padding(DSSpacing.xs)
-        } else {
-            VStack {
-                Text("Aa")
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundStyle(DSColors.textPrimary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(DSColors.windowBackground)
-        }
-    }
 
     private var emptyTemplatesView: some View {
         VStack(spacing: DSSpacing.sm) {

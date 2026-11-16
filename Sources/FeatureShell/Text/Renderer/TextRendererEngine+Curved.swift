@@ -53,7 +53,8 @@ public enum TextCurvedPathBuilder: Sendable {
         let rawWidth = CGFloat(CTLineGetTypographicBounds(ctLine, &ascent, &descent, &leading))
         let totalWidth = max(1.0, rawWidth)
         let lineHeight = max(8.0, ascent + descent + leading)
-        let baselineOffset = -(ascent - descent) / 2.0
+        let capH = font.capHeight > 1.0 ? font.capHeight : (ascent - descent)
+        let baselineOffset = -capH / 2.0
 
         let combined = CGMutablePath()
         var emojis: [EmojiGlyphDraw] = []

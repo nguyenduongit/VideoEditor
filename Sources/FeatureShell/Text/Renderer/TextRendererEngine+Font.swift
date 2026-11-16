@@ -34,13 +34,106 @@ extension TextRendererEngine {
         #endif
     }
 
+    /// Đo vùng bao giới hạn cực đại (Envelope Bounds) mà Text + Style (Glow/Shadow) + Biên độ Animation có thể chạm tới.
+    public func measureBackgroundEnvelopeBounds(for config: TextConfiguration) -> CGSize {
+        let core = measureCoreGlyphBounds(for: config)
+        guard core.width > 0, core.height > 0 else { return .zero }
+
+        let glowExpand = config.glow.isActive ? CGFloat(config.glow.range * 0.85) : 0.0
+        let shadowExpandX = config.shadow.isActive ? CGFloat(abs(config.shadow.offsetX) + config.shadow.blur * 0.5) : 0.0
+        let shadowExpandY = config.shadow.isActive ? CGFloat(abs(config.shadow.offsetY) + config.shadow.blur * 0.5) : 0.0
+        let animEnv = measureAnimationEnvelopeDelta(for: config, em: max(16.0, config.fontSize))
+
+        let envW = core.width * CGFloat(animEnv.sx) + CGFloat(animEnv.dx * 2.0) + (glowExpand + shadowExpandX) * 2.0
+        let envH = core.height * CGFloat(animEnv.sy) + CGFloat(animEnv.dy * 2.0) + (glowExpand + shadowExpandY) * 2.0
+        return CGSize(width: ceil(max(16.0, envW)), height: ceil(max(16.0, envH)))
+    }
+
+    private func measureAnimationEnvelopeDelta(
+        for config: TextConfiguration,
+        em: Double
+    ) -> (dx: Double, dy: Double, sx: Double, sy: Double) {
+        if config.animation.hasScriptAnimation,
+           let script = TextAnimationScriptRegistry.shared.script(for: config.animation.scriptId) {
+            return measureScriptEnvelopeDelta(for: config, script: script, em: em)
+        }
+        guard !config.animation.isDefault else { return (0.0, 0.0, 1.0, 1.0) }
+        return measureLegacyEnvelopeDelta(for: config, em: em)
+    }
+
+    private func measureScriptEnvelopeDelta(
+        for config: TextConfiguration,
+        script: any TextAnimationScript,
+        em: Double
+    ) -> (dx: Double, dy: Double, sx: Double, sy: Double) {
+        let unitTotal = max(1, min(12, config.content.count))
+        let sampleIndices = Array(Set([0, unitTotal / 2, max(0, unitTotal - 1)]))
+        let boundForBg = config.background.isActive && !config.background.animateWithText
+        var phases: [TextScriptPhase] = (0..<8).map { let c = Double($0) / 8.0; return .loop(time: c, cycleProgress: c) }
+        phases += [0.20, 0.40, 0.60, 0.75, 0.90].map { .intro(progress: $0) }
+        phases += [0.10, 0.25, 0.40, 0.60, 0.80].map { .outro(progress: $0) }
+
+        var maxDx = 0.0, maxDy = 0.0, maxSX = 1.0, maxSY = 1.0
+        for phase in phases {
+            for uIdx in sampleIndices {
+                let d = script.evaluatePhase(base: config, phase: phase, unitIndex: uIdx, unitTotal: unitTotal)
+                guard d.opacity > 0.10 else { continue }
+                let (effDx, effDy) = boundForBg
+                    ? TextAnimationEvaluator.boundOffsetForFixedBackground(dx: d.offsetX, dy: d.offsetY, em: em)
+                    : (d.offsetX, d.offsetY)
+                let rot = rotationEnvelopeExpansion(degrees: d.rotation, scaleX: d.scaleX, scaleY: d.scaleY, em: em)
+                let trackDx = abs(d.trackingEmDelta) * em * Double(unitTotal) * 0.5
+                let cursorDx = d.trailingCursorOpacity > 0.01 ? em * 0.18 : 0.0
+                let dx = abs(effDx) + trackDx + rot.x + cursorDx
+                let dy = abs(effDy) + rot.y
+                maxDx = max(maxDx, dx); maxDy = max(maxDy, dy)
+                maxSX = max(maxSX, d.scaleX); maxSY = max(maxSY, d.scaleY)
+            }
+        }
+        return (min(em * 1.25, maxDx), min(em * 1.0, maxDy), min(1.35, max(1.0, maxSX)), min(1.35, max(1.0, maxSY)))
+    }
+
+    private func measureLegacyEnvelopeDelta(
+        for config: TextConfiguration,
+        em: Double
+    ) -> (dx: Double, dy: Double, sx: Double, sy: Double) {
+        let unitTotal = max(1, min(12, config.content.count))
+        let sampleIndices = Array(Set([0, unitTotal / 2, max(0, unitTotal - 1)]))
+        let canvas = CGSize(width: 1920, height: 1080)
+        var maxDx = 0.0, maxDy = 0.0, maxSX = 1.0, maxSY = 1.0
+        for t in [0.3, 0.7, 1.5, 2.2, 2.8, 4.3, 4.7] {
+            for uIdx in sampleIndices {
+                let ev = TextAnimationEvaluator.evaluate(
+                    config: config, localTime: t, duration: 5.0, canvasSize: canvas, charIndex: uIdx, charCount: unitTotal
+                )
+                guard ev.config.opacity > 0.10 else { continue }
+                let rot = rotationEnvelopeExpansion(
+                    degrees: ev.config.rotation - config.rotation, scaleX: ev.overlay.scaleX, scaleY: ev.overlay.scaleY, em: em
+                )
+                maxDx = max(maxDx, abs(ev.config.positionX - config.positionX) + rot.x)
+                maxDy = max(maxDy, abs(ev.config.positionY - config.positionY) + rot.y)
+                maxSX = max(maxSX, ev.overlay.scaleX * (ev.config.scale / max(0.01, config.scale)))
+                maxSY = max(maxSY, ev.overlay.scaleY * (ev.config.scale / max(0.01, config.scale)))
+            }
+        }
+        return (min(em * 1.25, maxDx), min(em * 1.0, maxDy), min(1.35, max(1.0, maxSX)), min(1.35, max(1.0, maxSY)))
+    }
+
+    private func rotationEnvelopeExpansion(
+        degrees: Double, scaleX: Double, scaleY: Double, em: Double
+    ) -> (x: Double, y: Double) {
+        let rad = abs(degrees) * .pi / 180.0
+        return (em * 0.45 * max(1.0, scaleY) * sin(rad), em * 0.35 * max(1.0, scaleX) * sin(rad))
+    }
+
     /// Đo tổng kích thước bounding box hiển thị (bao gồm cả hộp `Background` nếu đang bật) cho khung kéo thả trên Preview.
     public func measureSize(for config: TextConfiguration, canvasSize: CGSize) -> CGSize {
         guard !config.content.isEmpty else { return .zero }
-        var size = measureCoreGlyphBounds(for: config)
+        let coreBounds = measureCoreGlyphBounds(for: config)
+        var size = config.background.isEnabled ? measureBackgroundEnvelopeBounds(for: config) : coreBounds
         let maxSafeW = CGFloat(TextAutoFitter.maxSafeWidth(for: canvasSize))
-        if size.width > maxSafeW && size.width > 0 {
-            let ratio = maxSafeW / size.width
+        if coreBounds.width > maxSafeW && coreBounds.width > 0 {
+            let ratio = maxSafeW / coreBounds.width
             size.width *= ratio
             size.height *= ratio
         }
@@ -68,27 +161,16 @@ extension TextRendererEngine {
         if config.background.isEnabled && config.background.blendMode != .normal {
             var textOnlyCfg = config
             textOnlyCfg.background.isEnabled = false
-            let evaluated = TextAnimationEvaluator.evaluate(
-                config: config, localTime: localTime, duration: duration, canvasSize: canvasSize
-            )
-            let rawBounds = measureCoreGlyphBounds(for: config)
+            let coreBounds = measureCoreGlyphBounds(for: config)
+            let envelopeBounds = measureBackgroundEnvelopeBounds(for: config)
             let maxSafeW = CGFloat(TextAutoFitter.maxSafeWidth(for: canvasSize))
-            let safeguard: CGFloat = (rawBounds.width > maxSafeW && rawBounds.width > 0) ? (maxSafeW / rawBounds.width) : 1.0
-            let anchor = config.background.animateWithText ? evaluated.config : config
-            let overlay = config.background.animateWithText ? evaluated.overlay : TextTransformOverlay()
+            let safeguard: CGFloat = (coreBounds.width > maxSafeW && coreBounds.width > 0) ? (maxSafeW / coreBounds.width) : 1.0
 
             var result = canvas
-            if var bgImg = TextCompositeLayerRenderer.renderBackground(
-                background: config.background, anchorConfig: anchor, overlay: overlay,
-                textRawSize: rawBounds, safeguardScale: safeguard, canvasSize: canvasSize, localTime: localTime
+            if let bgImg = TextCompositeLayerRenderer.renderBackground(
+                background: config.background, anchorConfig: config, overlay: TextTransformOverlay(),
+                textRawSize: envelopeBounds, safeguardScale: safeguard, canvasSize: canvasSize, localTime: localTime
             ) {
-                if config.background.animateWithText {
-                    bgImg = TextShaderFilterEngine.applyFilters(
-                        to: bgImg, blurRadius: evaluated.blurRadius, hueAngle: evaluated.hueAngle,
-                        pixelateScale: evaluated.pixelateScale, rgbSplitIntensity: evaluated.rgbSplitIntensity,
-                        overlay: evaluated.overlay, lightSweepIntensity: 0.0
-                    )
-                }
                 result = TextCompositeLayerRenderer.blend(
                     layerImage: bgImg, over: result, mode: config.background.blendMode
                 ).cropped(to: CGRect(origin: .zero, size: canvasSize))

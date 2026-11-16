@@ -14,7 +14,8 @@ public enum TextShaderFilterEngine: Sendable {
         rgbSplitIntensity: Double,
         overlay: TextTransformOverlay,
         shadow: TextShadowStyle = TextShadowStyle(),
-        glow: TextGlowStyle = TextGlowStyle()
+        glow: TextGlowStyle = TextGlowStyle(),
+        noiseIntensity: Double = 0.0
     ) -> Bool {
         abs(overlay.perspectiveX) > 0.01 ||
         abs(overlay.perspectiveY) > 0.01 ||
@@ -26,6 +27,7 @@ public enum TextShaderFilterEngine: Sendable {
         abs(hueAngle) > 0.001 ||
         pixelateScale > 1.0 ||
         rgbSplitIntensity > 0.01 ||
+        noiseIntensity > 0.1 ||
         (shadow.isEnabled && shadow.opacity > 0.5 && shadow.colorHex.uppercased() != "NONE") ||
         (glow.isEnabled && glow.intensity > 0.5 && glow.range > 0.2 && glow.colorHex.uppercased() != "NONE")
     }
@@ -40,7 +42,8 @@ public enum TextShaderFilterEngine: Sendable {
         overlay: TextTransformOverlay = TextTransformOverlay(),
         lightSweepIntensity: Double = 0.65,
         shadow: TextShadowStyle = TextShadowStyle(),
-        glow: TextGlowStyle = TextGlowStyle()
+        glow: TextGlowStyle = TextGlowStyle(),
+        noiseIntensity: Double = 0.0
     ) -> CIImage {
         guard hasActiveFilters(
             blurRadius: blurRadius,
@@ -49,7 +52,8 @@ public enum TextShaderFilterEngine: Sendable {
             rgbSplitIntensity: rgbSplitIntensity,
             overlay: overlay,
             shadow: shadow,
-            glow: glow
+            glow: glow,
+            noiseIntensity: noiseIntensity
         ) else {
             return image
         }
@@ -84,6 +88,9 @@ public enum TextShaderFilterEngine: Sendable {
         }
         if rgbSplitIntensity > 0.01 {
             result = applyRGBSplit(to: result, offset: rgbSplitIntensity)
+        }
+        if noiseIntensity > 0.1 {
+            result = applyNoiseGrain(to: result, intensity: noiseIntensity, extent: canvasExtent)
         }
 
         return result.cropped(to: canvasExtent)

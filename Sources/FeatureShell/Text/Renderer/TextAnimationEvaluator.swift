@@ -116,8 +116,9 @@ public enum TextAnimationEvaluator {
             overlay.lightSweepPhase = (t * max(0.4, anim.loopSpeed) * 0.7).truncatingRemainder(dividingBy: 1.0)
         }
 
+        let (inDuration, outDuration, outStart) = resolveEffectiveTiming(anim: anim, safeDur: safeDur)
+
         // 1. Hiệu ứng Vào (In Animation)
-        let inDuration = anim.hasInAnimation ? anim.inDuration : 0.0
         if anim.hasInAnimation, t < inDuration {
             let progress = min(1.0, max(0.0, t / max(0.05, inDuration)))
             if let manifest = anim.inManifest {
@@ -141,8 +142,6 @@ public enum TextAnimationEvaluator {
         }
 
         // 2. Hiệu ứng Ra (Out Animation)
-        let outDuration = anim.hasOutAnimation ? anim.outDuration : 0.0
-        let outStart = max(inDuration, safeDur - outDuration)
         if anim.hasOutAnimation, t > outStart {
             let progress = min(1.0, max(0.0, (safeDur - t) / max(0.05, outDuration)))
             if let manifest = anim.outManifest {
@@ -169,7 +168,10 @@ public enum TextAnimationEvaluator {
             let blend = calculateLoopBlend(t: t, inEnd: inDuration, outStart: outStart)
             if blend > 0.001 {
                 let loopTime = max(0.0, t - inDuration)
-                let phase = loopTime * anim.loopSpeed * 2.0 * .pi
+                let charPhaseOffset = (charCount > 1 && anim.scope != .wholeBlock)
+                    ? Double(charIndex) * 0.45
+                    : 0.0
+                let phase = loopTime * anim.loopSpeed * 2.0 * .pi + charPhaseOffset
                 if let manifest = anim.loopManifest {
                     let vars = OpenAnimationRuntimeEngine.Variables(
                         progress: 1.0, phase: phase, blend: blend, anim: anim, manifest: manifest,
@@ -188,6 +190,12 @@ public enum TextAnimationEvaluator {
             }
         }
 
+        if config.background.isActive && !config.background.animateWithText {
+            let b = boundOffsetForFixedBackground(
+                dx: evaluated.positionX - config.positionX, dy: evaluated.positionY - config.positionY, em: max(16.0, config.fontSize)
+            )
+            evaluated.positionX = config.positionX + b.dx; evaluated.positionY = config.positionY + b.dy
+        }
         if !anim.isMotionBlurEnabled { overlay.motionBlurRadius = 0.0 }
         return EvaluationResult(
             config: evaluated, blurRadius: blur, hueAngle: hue,
@@ -208,8 +216,10 @@ public enum TextAnimationEvaluator {
         let phase = script.resolvePhase(anim: baseConfig.animation, localTime: t, duration: totalDuration)
         let delta = script.evaluatePhase(base: baseConfig, phase: phase, unitIndex: charIndex, unitTotal: charCount)
 
-        evaluated.positionX += delta.offsetX
-        evaluated.positionY += delta.offsetY
+        let bounded = (baseConfig.background.isActive && !baseConfig.background.animateWithText)
+            ? boundOffsetForFixedBackground(dx: delta.offsetX, dy: delta.offsetY, em: max(16.0, baseConfig.fontSize))
+            : (dx: delta.offsetX, dy: delta.offsetY)
+        evaluated.positionX += bounded.dx; evaluated.positionY += bounded.dy
         overlay.scaleX *= delta.scaleX
         overlay.scaleY *= delta.scaleY
         evaluated.skewX += delta.skewX
@@ -226,9 +236,7 @@ public enum TextAnimationEvaluator {
         overlay.echoCount = delta.echoCount
         overlay.echoOffsetXEm = delta.echoOffsetXEm
         overlay.echoOffsetYEm = delta.echoOffsetYEm
-        if let anchorOverride = delta.anchorOverride {
-            evaluated.animation.anchorPoint = anchorOverride
-        }
+        if let anchorOverride = delta.anchorOverride { evaluated.animation.anchorPoint = anchorOverride }
 
         // Bảo toàn 100% Fill (Solid/Gradient) và Dual Stroke của người dùng;
         // chỉ điều biến tương đối Glow/Shadow khi người dùng đã chủ động bật trong Style.
@@ -246,11 +254,28 @@ public enum TextAnimationEvaluator {
         )
     }
 
-    private static func calculateLoopBlend(t: Double, inEnd: Double, outStart: Double) -> Double {
-        if t < inEnd || t > outStart {
-            return 0.0
+    private static func resolveEffectiveTiming(
+        anim: TextAnimationConfiguration, safeDur: Double
+    ) -> (inDuration: Double, outDuration: Double, outStart: Double) {
+        let rawIn = anim.hasInAnimation ? anim.inDuration : 0.0
+        let rawOut = anim.hasOutAnimation ? anim.outDuration : 0.0
+        let inDuration: Double, outDuration: Double
+        if anim.hasLoopAnimation && (rawIn + rawOut) > (safeDur * 0.6) {
+            let scale = (safeDur * 0.5) / max(0.001, rawIn + rawOut)
+            inDuration = rawIn * scale; outDuration = rawOut * scale
+        } else if (rawIn + rawOut) > safeDur {
+            let scale = safeDur / max(0.001, rawIn + rawOut)
+            inDuration = rawIn * scale; outDuration = rawOut * scale
+        } else {
+            inDuration = rawIn; outDuration = rawOut
         }
-        let fadeWindow = 0.12
+        let outStart = max(inDuration, safeDur - outDuration)
+        return (inDuration, outDuration, outStart)
+    }
+
+    private static func calculateLoopBlend(t: Double, inEnd: Double, outStart: Double) -> Double {
+        if t < inEnd || t > outStart { return 0.0 }
+        let fadeWindow = min(0.12, max(0.01, (outStart - inEnd) * 0.2))
         var blend = 1.0
         if inEnd > 0.0, t < inEnd + fadeWindow {
             blend = min(blend, (t - inEnd) / fadeWindow)
@@ -259,5 +284,10 @@ public enum TextAnimationEvaluator {
             blend = min(blend, (outStart - t) / fadeWindow)
         }
         return max(0.0, min(1.0, blend))
+    }
+
+    public static func boundOffsetForFixedBackground(dx: Double, dy: Double, em: Double) -> (dx: Double, dy: Double) {
+        let maxDx = em * 0.48, maxDy = em * 0.36
+        return (maxDx > 0 ? maxDx * tanh(dx / maxDx) : dx, maxDy > 0 ? maxDy * tanh(dy / maxDy) : dy)
     }
 }

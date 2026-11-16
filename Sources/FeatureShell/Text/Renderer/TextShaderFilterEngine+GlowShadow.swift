@@ -151,4 +151,28 @@ extension TextShaderFilterEngine {
         }
         return image.composited(over: glowLayer).cropped(to: extent)
     }
+
+    /// Phủ hạt nhiễu quang học (Film Grain / Noise) lên bề mặt chữ trên GPU CoreImage
+    public static func applyNoiseGrain(to image: CIImage, intensity: Double, extent: CGRect) -> CIImage {
+        guard intensity > 0.1, !extent.isEmpty, !extent.isInfinite,
+              let noise = CIFilter(name: "CIRandomGenerator")?.outputImage?.cropped(to: extent) else {
+            return image
+        }
+        let alpha = CGFloat(min(1.0, max(0.0, intensity / 100.0)) * 0.35)
+        guard let monoFilter = CIFilter(name: "CIColorMatrix", parameters: [
+            kCIInputImageKey: noise,
+            "inputRVector": CIVector(x: 0.33, y: 0.33, z: 0.33, w: 0),
+            "inputGVector": CIVector(x: 0.33, y: 0.33, z: 0.33, w: 0),
+            "inputBVector": CIVector(x: 0.33, y: 0.33, z: 0.33, w: 0),
+            "inputAVector": CIVector(x: 0, y: 0, z: 0, w: alpha),
+            "inputBiasVector": CIVector(x: 0, y: 0, z: 0, w: 0)
+        ]), let monoNoise = monoFilter.outputImage,
+        let atop = CIFilter(name: "CISourceAtopCompositing", parameters: [
+            kCIInputImageKey: monoNoise,
+            kCIInputBackgroundImageKey: image
+        ])?.outputImage else {
+            return image
+        }
+        return atop.cropped(to: extent)
+    }
 }

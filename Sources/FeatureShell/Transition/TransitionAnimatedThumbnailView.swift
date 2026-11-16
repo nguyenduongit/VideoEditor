@@ -11,12 +11,18 @@ public struct TransitionAnimatedThumbnailView: View {
     public static let hoverDurationSeconds: Double = 2.0
 
     let preset: TransitionPreset
+    let externalIsHovered: Bool?
 
-    @State private var isHovered: Bool = false
+    @State private var localIsHovered: Bool = false
     @State private var hoverStartDate: Date = Date()
 
-    public init(preset: TransitionPreset) {
+    private var isHovered: Bool {
+        externalIsHovered ?? localIsHovered
+    }
+
+    public init(preset: TransitionPreset, isHovered: Bool? = nil) {
         self.preset = preset
+        self.externalIsHovered = isHovered
     }
 
     public var body: some View {
@@ -33,7 +39,12 @@ public struct TransitionAnimatedThumbnailView: View {
             if hovering {
                 hoverStartDate = Date()
             }
-            isHovered = hovering
+            localIsHovered = hovering
+        }
+        .onChange(of: isHovered) { _, hovering in
+            if hovering {
+                hoverStartDate = Date()
+            }
         }
     }
 
@@ -66,7 +77,7 @@ public struct TransitionAnimatedThumbnailView: View {
     }
 
     private var sceneAView: some View {
-        TransitionThumbnailAssetProvider.shared.imageA
+        TransitionThumbnailAssetProvider.shared.imageA(for: preset.category)
             .resizable()
             .scaledToFill()
     }

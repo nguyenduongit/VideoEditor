@@ -7,7 +7,17 @@ import Domain
 /// Sử dụng CoreImage và Metal tối ưu xử lý khung hình thời gian thực 60fps.
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, Hàm <= 50 dòng) và R4.3 (đơn nhiệm).
 public final class EffectEngine: Sendable {
+    public static let shared = EffectEngine()
+
     public init() {}
+
+    /// Tính toán xung nhịp dao động điều hòa (Harmonic Beat Pulse) tự động bắt nhịp âm thanh (120 BPM cơ sở).
+    /// Sinh đỉnh nhọn tại đầu mỗi phách nhạc và suy giảm mũ mềm mại tạo hiệu ứng nảy / mini-zoom.
+    public static func calculateBeatPulse(localTime: Double, speed: Double = 1.0) -> Double {
+        let period = max(0.2, 0.5 / max(0.1, speed))
+        let phase = localTime.truncatingRemainder(dividingBy: period) / period
+        return pow(max(0.0, 1.0 - phase), 2.8)
+    }
 
     /// Áp dụng hiệu ứng lên khung hình `image` tại thời điểm `localTime` với thời lượng `duration`.
     public func applyEffect(
@@ -40,7 +50,14 @@ public final class EffectEngine: Sendable {
         case .cinematicBlur:
             return applyCinematicBlur(to: image, blurRadius: config.blurRadius, intensity: config.intensity, canvasRect: canvasRect)
         case .cameraShake:
-            return applyCameraShake(to: image, localTime: localTime, speed: config.speed, intensity: config.intensity, canvasSize: canvasSize)
+            return applyCameraShake(
+                to: image,
+                localTime: localTime,
+                speed: config.speed,
+                intensity: config.intensity,
+                isBeatSynced: config.isBeatSynced,
+                canvasSize: canvasSize
+            )
         }
     }
 
@@ -102,11 +119,19 @@ public final class EffectEngine: Sendable {
             .cropped(to: canvasRect)
     }
 
-    private func applyCameraShake(to image: CIImage, localTime: Double, speed: Double, intensity: Double, canvasSize: CGSize) -> CIImage {
+    private func applyCameraShake(
+        to image: CIImage,
+        localTime: Double,
+        speed: Double,
+        intensity: Double,
+        isBeatSynced: Bool = false,
+        canvasSize: CGSize
+    ) -> CIImage {
         let norm = intensity > 1.0 ? (intensity / 100.0) : intensity
         guard norm > 0.01 else { return image }
+        let beatPulse = isBeatSynced ? Self.calculateBeatPulse(localTime: localTime, speed: speed) : 0.0
         let factor = localTime * speed * 30.0
-        let amp = 14.0 * norm
+        let amp = 14.0 * norm * (1.0 + 0.8 * beatPulse)
 
         let dx = CGFloat(sin(factor) * amp)
         let dy = CGFloat(cos(factor * 1.15) * (amp * 0.75))
@@ -115,10 +140,11 @@ public final class EffectEngine: Sendable {
         let cx = canvasSize.width / 2.0
         let cy = canvasSize.height / 2.0
 
+        let zoomBase = 1.05 + 0.10 * beatPulse * norm
         var transform = CGAffineTransform.identity
         transform = transform.translatedBy(x: cx + dx, y: cy + dy)
         transform = transform.rotated(by: angle)
-        transform = transform.scaledBy(x: 1.05, y: 1.05)
+        transform = transform.scaledBy(x: zoomBase, y: zoomBase)
         transform = transform.translatedBy(x: -cx, y: -cy)
 
         return image.clampedToExtent().transformed(by: transform).cropped(to: CGRect(origin: .zero, size: canvasSize))

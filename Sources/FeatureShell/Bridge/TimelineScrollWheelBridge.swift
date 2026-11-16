@@ -11,6 +11,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
     private let onRedo: () -> Void
     private let onStepFrame: ((Int64) -> Void)?
     private let onAnyClick: (() -> Void)?
+    private let onShortcutKey: ((String?, UInt16, NSEvent.ModifierFlags) -> Bool)?
 
     public init(
         onCmdScrollWheel: @escaping (CGFloat, CGFloat) -> Void,
@@ -21,7 +22,8 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         onUndo: @escaping () -> Void = {},
         onRedo: @escaping () -> Void = {},
         onStepFrame: ((Int64) -> Void)? = nil,
-        onAnyClick: (() -> Void)? = nil
+        onAnyClick: (() -> Void)? = nil,
+        onShortcutKey: ((String?, UInt16, NSEvent.ModifierFlags) -> Bool)? = nil
     ) {
         self.onCmdScrollWheel = onCmdScrollWheel
         self.onResetZoom = onResetZoom
@@ -32,6 +34,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         self.onRedo = onRedo
         self.onStepFrame = onStepFrame
         self.onAnyClick = onAnyClick
+        self.onShortcutKey = onShortcutKey
     }
 
     public func makeNSView(context: Context) -> TimelineScrollWheelNSView {
@@ -45,6 +48,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         view.onRedo = onRedo
         view.onStepFrame = onStepFrame
         view.onAnyClick = onAnyClick
+        view.onShortcutKey = onShortcutKey
         return view
     }
 
@@ -58,6 +62,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         nsView.onRedo = onRedo
         nsView.onStepFrame = onStepFrame
         nsView.onAnyClick = onAnyClick
+        nsView.onShortcutKey = onShortcutKey
     }
 
     public static func dismantleNSView(_ nsView: TimelineScrollWheelNSView, coordinator: ()) {
@@ -75,6 +80,7 @@ public final class TimelineScrollWheelNSView: NSView {
     public var onRedo: (() -> Void)?
     public var onStepFrame: ((Int64) -> Void)?
     public var onAnyClick: (() -> Void)?
+    public var onShortcutKey: ((String?, UInt16, NSEvent.ModifierFlags) -> Bool)?
     private var eventMonitor: Any?
 
     override public init(frame frameRect: NSRect) {
@@ -110,11 +116,14 @@ public final class TimelineScrollWheelNSView: NSView {
         }
     }
 
+    private var isEditingTextInput: Bool {
+        guard let responder = window?.firstResponder else { return false }
+        return responder is NSTextView || responder is NSTextField
+    }
+
     private func handleKeyDown(event: NSEvent, flags: NSEvent.ModifierFlags) -> NSEvent? {
         if event.keyCode == 49 {
-            if let window = self.window, let responder = window.firstResponder, responder is NSTextView {
-                return event
-            }
+            guard !(window?.firstResponder is NSTextView) else { return event }
             onTogglePlayPause?()
             return nil
         }
@@ -125,16 +134,12 @@ public final class TimelineScrollWheelNSView: NSView {
         let isZ = chars == "z" || event.keyCode == 6
 
         if isCmd && !isShift && isZ {
-            if let window = self.window, let responder = window.firstResponder, (responder is NSTextView || responder is NSTextField) {
-                return event
-            }
+            guard !isEditingTextInput else { return event }
             onUndo?()
             return nil
         }
         if isCmd && isShift && isZ {
-            if let window = self.window, let responder = window.firstResponder, (responder is NSTextView || responder is NSTextField) {
-                return event
-            }
+            guard !isEditingTextInput else { return event }
             onRedo?()
             return nil
         }
@@ -153,11 +158,12 @@ public final class TimelineScrollWheelNSView: NSView {
 
         let userModifiers = flags.intersection([.command, .shift, .option, .control])
         if userModifiers.isEmpty && (event.keyCode == 123 || event.keyCode == 124) {
-            if let window = self.window, let responder = window.firstResponder, (responder is NSTextView || responder is NSTextField) {
-                return event
-            }
-            let step: Int64 = event.keyCode == 123 ? -1 : 1
-            onStepFrame?(step)
+            guard !isEditingTextInput else { return event }
+            onStepFrame?(event.keyCode == 123 ? -1 : 1)
+            return nil
+        }
+
+        if !isEditingTextInput, onShortcutKey?(chars, event.keyCode, flags) == true {
             return nil
         }
 

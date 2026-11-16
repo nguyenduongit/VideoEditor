@@ -5,7 +5,7 @@ import Domain
 import SwiftUI
 
 /// Nhà cung cấp hình ảnh thật & kết xuất khung hình chuyển cảnh GPU dùng cho Thumbnail động khi hover.
-/// Nạp và lưu cache 2 hình ảnh (Biển Đảo & Núi Hoa) đã crop vuông 1:1 trong bộ nhớ RAM một lần duy nhất,
+/// Nạp và lưu cache các cặp hình ảnh demo đã crop vuông 1:1 theo danh mục trong bộ nhớ RAM một lần duy nhất,
 /// đồng thời gọi trực tiếp `DynamicShaderRuntimeEngine.shared.executeTransition` (cùng thuật toán Metal Compute Kernel với Timeline).
 /// Tuân thủ AGENTS.md R1 (File <= 300 dòng, Hàm <= 50 dòng), R6 (Sendable, Concurrency Safe).
 public final class TransitionThumbnailAssetProvider: @unchecked Sendable {
@@ -13,37 +13,50 @@ public final class TransitionThumbnailAssetProvider: @unchecked Sendable {
 
     public static let thumbnailPixelSize = CGSize(width: 180, height: 180)
 
-    public let imageA: Image
-    public let imageB: Image
-    public let nsImageA: NSImage?
-    public let nsImageB: NSImage?
-    public let ciImageA: CIImage
-    public let ciImageB: CIImage
+    private let pairsByID: [String: TransitionDemoAssetPair]
+    private let defaultPair: TransitionDemoAssetPair
+
+    // MARK: - Backward Compatibility Properties (Defaults to Nature Pair)
+
+    public var imageA: Image { defaultPair.imageA }
+    public var imageB: Image { defaultPair.imageB }
+    public var nsImageA: NSImage? { defaultPair.nsImageA }
+    public var nsImageB: NSImage? { defaultPair.nsImageB }
+    public var ciImageA: CIImage { defaultPair.ciImageA }
+    public var ciImageB: CIImage { defaultPair.ciImageB }
 
     private init() {
-        let (nsA, imgA) = Self.loadSquareAsset(
-            named: "scene_a_sea_square",
-            fallbackOriginal: "scene_a_sea",
-            verticalFocus: 0.5,
-            fallbackColor: .indigo
-        )
-        let (nsB, imgB) = Self.loadSquareAsset(
-            named: "scene_b_mountain_square",
-            fallbackOriginal: "scene_b_mountain",
-            verticalFocus: 0.55,
-            fallbackColor: .orange
-        )
-        self.nsImageA = nsA
-        self.imageA = imgA
-        self.nsImageB = nsB
-        self.imageB = imgB
-        self.ciImageA = Self.makeScaledCIImage(from: nsA, targetSize: Self.thumbnailPixelSize, fallbackColor: CIColor(red: 0.15, green: 0.45, blue: 0.85))
-        self.ciImageB = Self.makeScaledCIImage(from: nsB, targetSize: Self.thumbnailPixelSize, fallbackColor: CIColor(red: 0.35, green: 0.65, blue: 0.25))
+        var loaded: [String: TransitionDemoAssetPair] = [:]
+        for desc in TransitionDemoAssetCatalog.builtInDescriptors {
+            let pair = Self.loadAssetPair(descriptor: desc, targetSize: Self.thumbnailPixelSize)
+            loaded[desc.id] = pair
+        }
+        self.pairsByID = loaded
+        self.defaultPair = loaded[TransitionDemoAssetCatalog.naturePairID]
+            ?? loaded.values.first
+            ?? Self.makeFallbackSolidPair(id: "fallback", name: "Fallback")
+    }
+
+    /// Lấy cặp ảnh demo được gán cho một danh mục chuyển cảnh cụ thể.
+    public func assetPair(for category: TransitionCategory) -> TransitionDemoAssetPair {
+        let id = TransitionDemoAssetCatalog.pairID(for: category)
+        return pairsByID[id] ?? defaultPair
+    }
+
+    /// Lấy ảnh tĩnh Cảnh A đại diện ban đầu cho thumbnail của một danh mục.
+    public func imageA(for category: TransitionCategory) -> Image {
+        assetPair(for: category).imageA
+    }
+
+    /// Lấy cặp ảnh theo ID trực tiếp (phục vụ kiểm thử hoặc tùy biến đặc thù).
+    public func assetPair(id: String) -> TransitionDemoAssetPair? {
+        pairsByID[id]
     }
 
     /// Thực thi chính thuật toán chuyển cảnh GPU Metal Compute Kernel của `preset` tại tiến độ `rawProgress` (0.0 -> 1.0)
-    /// giữa Ảnh 1 (`ciImageA`) và Ảnh 2 (`ciImageB`).
+    /// giữa Cảnh 1 và Cảnh 2 thuộc đúng cặp ảnh demo của danh mục chuyển cảnh đó.
     public func renderTransitionFrame(for preset: TransitionPreset, rawProgress: Double) -> CGImage? {
+        let pair = assetPair(for: preset.category)
         let size = Self.thumbnailPixelSize
         let rect = CGRect(origin: .zero, size: size)
         let clampedRaw = max(0.0, min(1.0, rawProgress))
@@ -57,8 +70,8 @@ public final class TransitionThumbnailAssetProvider: @unchecked Sendable {
                 customMetalSource: preset.customMetalSource
             )
             outCI = DynamicShaderRuntimeEngine.shared.executeTransition(
-                from: ciImageA,
-                to: ciImageB,
+                from: pair.ciImageA,
+                to: pair.ciImageB,
                 kernelName: preset.shaderType.metalKernelName,
                 customSource: preset.customMetalSource,
                 progress: easedProgress,
@@ -66,12 +79,45 @@ public final class TransitionThumbnailAssetProvider: @unchecked Sendable {
                 canvasSize: size
             ).cropped(to: rect)
         } else {
-            let fadedFrom = TextSVGAndAssetCache.applyPremultipliedOpacity(1.0 - easedProgress, to: ciImageA)
-            let fadedTo = TextSVGAndAssetCache.applyPremultipliedOpacity(easedProgress, to: ciImageB)
+            let fadedFrom = TextSVGAndAssetCache.applyPremultipliedOpacity(1.0 - easedProgress, to: pair.ciImageA)
+            let fadedTo = TextSVGAndAssetCache.applyPremultipliedOpacity(easedProgress, to: pair.ciImageB)
             outCI = fadedTo.composited(over: fadedFrom).cropped(to: rect)
         }
 
         return MetalComputeRuntimeEngine.shared.renderCGImage(from: outCI, rect: rect)
+    }
+
+    // MARK: - Asset Pair Loader
+
+    private static func loadAssetPair(
+        descriptor: TransitionDemoPairDescriptor,
+        targetSize: CGSize
+    ) -> TransitionDemoAssetPair {
+        let (nsA, imgA) = loadSquareAsset(
+            named: descriptor.squareNameA,
+            fallbackOriginal: descriptor.originalNameA,
+            verticalFocus: descriptor.verticalFocusA,
+            fallbackColor: descriptor.fallbackColorA.swiftUIColor
+        )
+        let (nsB, imgB) = loadSquareAsset(
+            named: descriptor.squareNameB,
+            fallbackOriginal: descriptor.originalNameB,
+            verticalFocus: descriptor.verticalFocusB,
+            fallbackColor: descriptor.fallbackColorB.swiftUIColor
+        )
+        let ciA = makeScaledCIImage(from: nsA, targetSize: targetSize, fallbackColor: descriptor.fallbackColorA.ciColor)
+        let ciB = makeScaledCIImage(from: nsB, targetSize: targetSize, fallbackColor: descriptor.fallbackColorB.ciColor)
+
+        return TransitionDemoAssetPair(
+            id: descriptor.id,
+            displayName: descriptor.displayName,
+            imageA: imgA,
+            imageB: imgB,
+            nsImageA: nsA,
+            nsImageB: nsB,
+            ciImageA: ciA,
+            ciImageB: ciB
+        )
     }
 
     // MARK: - Asset Loading & Pre-scaling Helpers
@@ -169,5 +215,22 @@ public final class TransitionThumbnailAssetProvider: @unchecked Sendable {
         NSRect(origin: .zero, size: size).fill()
         img.unlockFocus()
         return img
+    }
+
+    private static func makeFallbackSolidPair(id: String, name: String) -> TransitionDemoAssetPair {
+        let ns = createSolidSquare(color: .indigo)
+        let img = Image(nsImage: ns)
+        let rect = CGRect(origin: .zero, size: thumbnailPixelSize)
+        let ci = CIImage(color: CIColor(red: 0.2, green: 0.3, blue: 0.7)).cropped(to: rect)
+        return TransitionDemoAssetPair(
+            id: id,
+            displayName: name,
+            imageA: img,
+            imageB: img,
+            nsImageA: ns,
+            nsImageB: ns,
+            ciImageA: ci,
+            ciImageB: ci
+        )
     }
 }
