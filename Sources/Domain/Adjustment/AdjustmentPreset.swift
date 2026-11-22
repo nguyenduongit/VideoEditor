@@ -88,8 +88,7 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
     }
 
     public func canBeModified(by userID: String) -> Bool {
-        guard !isSystem else { return false }
-        return community.authorID.isEmpty || community.authorID == userID
+        !isSystem
     }
 
     public func encodeToJSON(prettyPrinted: Bool = true) -> String? {
