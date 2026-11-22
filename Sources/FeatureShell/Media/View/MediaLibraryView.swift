@@ -65,7 +65,6 @@ public struct MediaLibraryView: View {
             searchPlaceholder: "Search files...",
             categories: categories,
             selectedCategory: $selectedCategory,
-            favoritesCount: SidebarFavoriteManager.shared.favorites(for: "media").count,
             trailingAction: trailingHeaderAction
         ) {
             contentArea
@@ -202,12 +201,13 @@ public struct MediaLibraryView: View {
 
     private func stockAssetCard(_ stock: StockMediaItem) -> some View {
         let isFav = SidebarFavoriteManager.shared.isFavorite(id: stock.id, for: "media")
+        let asset = MediaAsset(url: stock.mediaURL, name: stock.name, type: stock.type)
         return UnifiedLibraryCardItemView(
             title: stock.name,
             isFavorite: isFav,
             showsFavoriteButton: true,
+            dragPayload: .media(asset),
             onAdd: {
-                let asset = MediaAsset(url: stock.mediaURL, name: stock.name, type: stock.type)
                 viewModel.addAssetToTimeline(asset)
             },
             onToggleFavorite: { SidebarFavoriteManager.shared.toggleFavorite(id: stock.id, for: "media") }

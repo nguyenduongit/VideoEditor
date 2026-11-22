@@ -52,18 +52,18 @@ public struct ColorWheelControlView: View {
                         .foregroundStyle(DSColors.textSecondary)
                 }
                 .buttonStyle(.plain)
-                .help("Đặt lại về mặc định")
+                .help("Reset to default")
             }
         }
     }
 
     private var wheelArea: some View {
         ZStack {
-            // Vòng tròn quang phổ màu HSL
+            // Vòng tròn quang phổ màu HSL (ngược chiều kim đồng hồ: 0°=Red, +60°=Yellow, +120°=Green, 180°=Cyan, -120°=Blue, -60°=Purple)
             Circle()
                 .fill(
                     AngularGradient(
-                        colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red],
+                        colors: [.red, .purple, .blue, .cyan, .green, .yellow, .red],
                         center: .center
                     )
                 )

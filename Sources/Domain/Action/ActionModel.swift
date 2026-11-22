@@ -1,6 +1,6 @@
 import Foundation
 
-/// Định nghĩa một tác vụ dựng phim đơn lẻ (Atomic Workflow Task).
+/// Định nghĩa một tác vụ dựng phim đơn lẻ (Atomic Workflow Task) ánh xạ 1:1 với công cụ hệ thống.
 /// Tuân thủ AGENTS.md R2.3 (thuần Domain, chỉ import Foundation).
 public struct WorkflowTaskItem: Identifiable, Codable, Equatable, Sendable {
     public let id: String
@@ -17,42 +17,70 @@ public struct WorkflowTaskItem: Identifiable, Codable, Equatable, Sendable {
         self.description = description
     }
 
-    /// Toàn bộ các tác vụ đơn lẻ có sẵn trong hệ thống.
+    /// All built-in atomic workflow tasks (100% Tool Parity with Timeline & Inspector).
     public static let allTasks: [WorkflowTaskItem] = [
         WorkflowTaskItem(
             id: "syncAudio",
-            name: "Đồng bộ nhịp & Cắt thừa",
-            badge: "🎵 Khớp beat",
-            icon: "waveform.path.badge.plus",
-            description: "Khớp beat sóng nhạc, tắt tiếng gốc, cắt gọn 2 đầu clip"
+            name: "Sync Audio",
+            badge: "🎵 Sync",
+            icon: "waveform.badge.magnifyingglass",
+            description: "Analyze audio waveforms and align Audio track timing to Video"
+        ),
+        WorkflowTaskItem(
+            id: "autoTrim",
+            name: "Auto Trim",
+            badge: "✂️ Auto Trim",
+            icon: "timeline.selection",
+            description: "Trim excess head and tail segments outside the overlapping range of Video & Audio"
+        ),
+        WorkflowTaskItem(
+            id: "shiftToStart",
+            name: "Compact Backward",
+            badge: "⏮ Compact",
+            icon: "backward.end.alt.fill",
+            description: "Compact selected clips backward toward preceding clip or 00:00"
+        ),
+        WorkflowTaskItem(
+            id: "muteVideo",
+            name: "Mute Video Track",
+            badge: "🔇 Mute",
+            icon: "speaker.slash.fill",
+            description: "Mute original audio of video tracks when using external music"
+        ),
+        WorkflowTaskItem(
+            id: "markBeats",
+            name: "Auto Beat",
+            badge: "🥁 Beat",
+            icon: "metronome.fill",
+            description: "Automatically analyze audio rhythm and place beat markers"
         ),
         WorkflowTaskItem(
             id: "autoColor",
-            name: "Phủ màu tự động",
-            badge: "🎨 Phủ màu",
+            name: "Auto Adjustment",
+            badge: "🎨 Auto Grade",
             icon: "paintpalette.fill",
-            description: "Cân bằng sáng tối và phủ màu trong trẻo toàn timeline"
+            description: "Balance exposure, contrast, and apply an Auto Adjustment layer"
         ),
         WorkflowTaskItem(
             id: "aspect916",
-            name: "Đổi tỷ lệ 9:16",
+            name: "Switch to 9:16",
             badge: "📐 9:16",
             icon: "aspectratio",
-            description: "Chuyển khổ canvas sang 9:16 cho TikTok / Reels / Shorts"
+            description: "Switch canvas aspect ratio to 9:16 for TikTok / Reels / Shorts"
         ),
         WorkflowTaskItem(
             id: "addTitle",
-            name: "Thêm chữ tiêu đề",
-            badge: "🔤 Tiêu đề",
+            name: "Add Title",
+            badge: "🔤 Title",
             icon: "textformat",
-            description: "Tạo 1 clip text mở đầu với hoạt ảnh nghệ thuật"
+            description: "Insert a styled title clip from presets with motion animation"
         ),
         WorkflowTaskItem(
             id: "visionFraming",
-            name: "Căn giữa khung hình",
-            badge: "🎯 Bố cục",
+            name: "Auto Framing (AI)",
+            badge: "🎯 Reframe",
             icon: "person.fill.viewfinder",
-            description: "Tự động nhận diện chủ thể và căn chỉnh theo tỷ lệ 1/3"
+            description: "Detect subject via Vision and apply Auto-Pan framing"
         )
     ]
 
@@ -61,7 +89,7 @@ public struct WorkflowTaskItem: Identifiable, Codable, Equatable, Sendable {
     }
 }
 
-/// Đại diện cho một Action tổng hợp gồm chuỗi nhiều Task chạy liên hoàn.
+/// Đại diện cho một Action tổng hợp gồm chuỗi nhiều công cụ hệ thống chạy liên hoàn theo kịch bản (Script).
 /// Tuân thủ AGENTS.md R2.3 (thuần Domain, chỉ import Foundation).
 public struct CustomAction: Identifiable, Codable, Equatable, Sendable {
     public let id: String

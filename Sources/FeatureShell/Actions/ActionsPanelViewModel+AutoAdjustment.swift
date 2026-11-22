@@ -2,12 +2,12 @@ import Foundation
 import Domain
 
 extension ActionsPanelViewModel {
-    /// Tính toán thông số màu động dựa trên phân tích quang phổ thực tế từ khung hình video trên timeline.
-    /// Sử dụng `AutoColorEngine` từ tầng Domain (tuân thủ R2.3, R3.1).
-    public func computeDynamicAutoColorJSON(dispatcher: MCPTimelineToolDispatcher) async throws -> String {
+    /// Tính toán thông số cân chỉnh tự động dựa trên phân tích quang phổ thực tế từ khung hình video trên timeline.
+    /// Sử dụng `AutoAdjustmentEngine` từ tầng Domain (tuân thủ AGENTS.md Ubiquitous Language & SRP).
+    public func computeDynamicAutoAdjustmentJSON(dispatcher: MCPTimelineToolDispatcher) async throws -> String {
         guard let firstVideoClip = timelineViewModel?.layers.flatMap(\.clips).first(where: { $0.kind == .video && $0.mediaURL != nil }) else {
             throw AppError.resourceNotFound(
-                String(localized: "Chưa có clip video trên Timeline để phân tích màu sắc. Vui lòng thêm video vào Timeline trước.")
+                String(localized: "No video clip found on the Timeline to analyze color. Please add a video first.")
             )
         }
 
@@ -19,26 +19,37 @@ extension ActionsPanelViewModel {
         guard let data = telemetryStr.data(using: .utf8),
               let telemetry = try? JSONDecoder().decode(ColorTelemetryProfile.self, from: data) else {
             throw AppError.executionFailed(
-                String(localized: "Không thể phân tích quang phổ màu sắc từ khung hình video.")
+                String(localized: "Unable to analyze color spectrum from video frame.")
             )
         }
 
-        let result = AutoColorEngine().computeAdjustment(from: telemetry)
-        let dict = makeAutoColorAdjustmentDict(from: result)
+        let result = AutoAdjustmentEngine().computeAdjustment(from: telemetry)
+        let dict = makeAutoAdjustmentDict(from: result)
         guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
               let jsonString = String(data: jsonData, encoding: .utf8) else {
             throw AppError.executionFailed(
-                String(localized: "Không thể khởi tạo cấu hình màu sắc.")
+                String(localized: "Unable to initialize color adjustment configuration.")
             )
         }
         return jsonString
     }
 
-    private func makeAutoColorAdjustmentDict(from result: AutoColorAdjustmentResult) -> [String: Any] {
+    /// Tương thích ngược với tên gọi cũ
+    @inlinable
+    public func computeDynamicAutoColorJSON(dispatcher: MCPTimelineToolDispatcher) async throws -> String {
+        try await computeDynamicAutoAdjustmentJSON(dispatcher: dispatcher)
+    }
+
+    private func makeAutoAdjustmentDict(from result: AutoAdjustmentResult) -> [String: Any] {
         let basic = result.basic
-        return [
+        let fullConfig = AdjustmentConfiguration(
+            basic: basic,
+            hsl: result.hsl,
+            effects: EffectsGradingParameters(sharpenAmount: result.sharpenAmount)
+        )
+        var dict: [String: Any] = [
             "kind": "adjustment",
-            "name": String(localized: "Cân chỉnh màu tự động"),
+            "name": String(localized: "Auto Adjustment"),
             "startTimeSeconds": 0.0,
             "exposure": Int(basic.exposure),
             "contrast": Int(basic.contrast),
@@ -52,5 +63,9 @@ extension ActionsPanelViewModel {
             "tint": Int(basic.tint),
             "sharpenAmount": Int(result.sharpenAmount)
         ]
+        if let configJSON = fullConfig.encodeToJSON() {
+            dict["adjustmentConfigJSON"] = configJSON
+        }
+        return dict
     }
 }

@@ -42,7 +42,7 @@ public final class SupabaseStockMediaRepository: StockMediaRepositoryProtocol, @
             }
             return currentCatalog()
         } catch {
-            stockRepoLogger.warning("Không thể tải stock_items từ Supabase, dùng cache: \(error.localizedDescription)")
+            stockRepoLogger.warning("Failed to fetch stock_items from Supabase, falling back to cache: \(error.localizedDescription)")
             return currentCatalog()
         }
     }

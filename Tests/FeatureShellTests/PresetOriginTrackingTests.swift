@@ -15,7 +15,7 @@ struct PresetOriginTrackingTests {
         cfg.basic.contrast = 20
 
         vm.addAdjustmentClip(
-            named: "Điện ảnh",
+            named: "Cinematic",
             config: cfg,
             originPresetID: "cinematic_teal_orange"
         )
@@ -23,7 +23,7 @@ struct PresetOriginTrackingTests {
         let clip = vm.layers.flatMap(\.clips).first(where: { $0.kind == .adjustment })
         #expect(clip != nil)
         #expect(clip?.properties["originPresetId"]?.asString == "cinematic_teal_orange")
-        #expect(clip?.properties["originPresetName"]?.asString == "Điện ảnh")
+        #expect(clip?.properties["originPresetName"]?.asString == "Cinematic")
     }
 
     @Test("Adding text preset attaches originPresetId and originPresetName to clip properties")
@@ -33,7 +33,7 @@ struct PresetOriginTrackingTests {
         let preset = TextPreset(
             id: "preset_karaoke_neon",
             name: "Neon Karaoke",
-            description: "Mẫu chữ neon",
+            description: "Neon text preset",
             category: .cyber,
             config: TextConfiguration(content: "HELLO WORLD"),
             isSystem: true

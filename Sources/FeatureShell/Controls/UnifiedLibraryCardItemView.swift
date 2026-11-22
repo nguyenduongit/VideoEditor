@@ -3,7 +3,7 @@ import DesignSystem
 
 /// Card component displaying 1 item in the unified 2-column Left Sidebar grid.
 /// Features a 1:1 square thumbnail, title label below, top-right 26pt Favorites (★) button,
-/// and bottom-right 26pt Add (+) button.
+/// bottom-right 26pt Add (+) button, and unified AppKit drag-to-timeline bridge when `dragPayload` is provided.
 /// Complies with AGENTS.md rules (File <= 300 lines, View body <= 40 lines).
 public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
     private let title: String
@@ -13,6 +13,7 @@ public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
     private let showsDeleteButton: Bool
     private let showsAddButton: Bool
     private let externalIsHovered: Bool?
+    private let dragPayload: TimelineDragPayload?
     private let onSelect: () -> Void
     private let onAdd: () -> Void
     private let onToggleFavorite: () -> Void
@@ -33,6 +34,7 @@ public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
         showsDeleteButton: Bool = false,
         showsAddButton: Bool = true,
         isHovered: Bool? = nil,
+        dragPayload: TimelineDragPayload? = nil,
         onSelect: @escaping () -> Void = {},
         onAdd: @escaping () -> Void = {},
         onToggleFavorite: @escaping () -> Void = {},
@@ -46,6 +48,7 @@ public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
         self.showsDeleteButton = showsDeleteButton
         self.showsAddButton = showsAddButton
         self.externalIsHovered = isHovered
+        self.dragPayload = dragPayload
         self.onSelect = onSelect
         self.onAdd = onAdd
         self.onToggleFavorite = onToggleFavorite
@@ -61,6 +64,7 @@ public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
         showsDeleteButton: Bool = false,
         showsAddButton: Bool = true,
         isHovered: Bool? = nil,
+        dragPayload: TimelineDragPayload? = nil,
         onSelect: @escaping () -> Void = {},
         onAdd: @escaping () -> Void = {},
         onToggleFavorite: @escaping () -> Void = {},
@@ -74,6 +78,7 @@ public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
         self.showsDeleteButton = showsDeleteButton
         self.showsAddButton = showsAddButton
         self.externalIsHovered = isHovered
+        self.dragPayload = dragPayload
         self.onSelect = onSelect
         self.onAdd = onAdd
         self.onToggleFavorite = onToggleFavorite
@@ -88,6 +93,18 @@ public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
         }
         .frame(maxWidth: .infinity)
         .onHover { localIsHovered = $0 }
+        .overlay {
+            if let dragPayload {
+                MediaAssetDragBridgeView(
+                    payload: dragPayload,
+                    onSelect: { _ in onSelect() },
+                    onAddToTimeline: showsAddButton ? onAdd : nil,
+                    onDelete: showsDeleteButton ? onDelete : nil,
+                    onToggleFavorite: showsFavoriteButton ? onToggleFavorite : nil,
+                    onHover: { localIsHovered = $0 }
+                )
+            }
+        }
     }
 
     private var thumbnailContainer: some View {
@@ -116,7 +133,9 @@ public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
             if showsFavoriteButton && (isHovered || isFavorite) {
                 favoriteButtonOverlay
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
-            } else if showsDeleteButton && isHovered {
+            }
+
+            if showsDeleteButton && isHovered {
                 deleteButtonOverlay
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
@@ -132,7 +151,6 @@ public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
     private var deleteButtonOverlay: some View {
         VStack {
             HStack {
-                Spacer()
                 Button(action: onDelete) {
                     ZStack {
                         Circle()
@@ -148,6 +166,7 @@ public struct UnifiedLibraryCardItemView<Thumbnail: View>: View {
                 }
                 .buttonStyle(.plain)
                 .help("Delete")
+                Spacer()
             }
             Spacer()
         }

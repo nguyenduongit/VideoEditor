@@ -120,11 +120,7 @@ private struct AdjustmentPresetRow: Codable, Sendable {
         self.name = preset.name
         self.description = preset.description
         self.category = preset.category.rawValue
-        var mergedTags = preset.tags
-        if let metaTag = preset.community.encodeToTag() {
-            mergedTags.append(metaTag)
-        }
-        self.tags = mergedTags
+        self.tags = preset.tags
         self.preview_badge = preset.previewBadge
         self.preview_colors_hex = preset.previewColorsHex
         self.config = preset.config
@@ -132,7 +128,7 @@ private struct AdjustmentPresetRow: Codable, Sendable {
     }
 
     func toPreset() -> AdjustmentPreset {
-        let cat = AdjustmentTemplateCategory(rawValue: category) ?? .cinematic
+        let cat = AdjustmentTemplateCategory.resolve(categoryString: category)
         let sys = is_system ?? false
         let (cleanTags, communityMeta) = CommunityMetadata.extract(from: tags, isSystem: sys)
         return AdjustmentPreset(

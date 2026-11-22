@@ -70,7 +70,7 @@ public struct DSKeyframeControl: View {
                 icon: "chevron.left",
                 isEnabled: hasKeyframesOnTrack && canGoPrevious,
                 isHovering: $isHoveringPrev,
-                help: "Lùi 1 Keyframe",
+                help: "Previous Keyframe",
                 action: onPreviousKeyframe
             )
 
@@ -80,7 +80,7 @@ public struct DSKeyframeControl: View {
                 icon: "chevron.right",
                 isEnabled: hasKeyframesOnTrack && canGoNext,
                 isHovering: $isHoveringNext,
-                help: "Tới 1 Keyframe",
+                help: "Next Keyframe",
                 action: onNextKeyframe
             )
         }
@@ -101,7 +101,7 @@ public struct DSKeyframeControl: View {
         }
         .buttonStyle(.plain)
         .onHover { isHoveringDiamond = $0 }
-        .help(isAtKeyframe ? "Xoá Keyframe tại vị trí Playhead (Chuột phải để chọn đường cong)" : "Thêm Keyframe tại vị trí Playhead")
+        .help(isAtKeyframe ? "Remove Keyframe at Playhead (Right-click for interpolation curve)" : "Add Keyframe at Playhead")
     }
 
     @ViewBuilder
@@ -170,7 +170,7 @@ public struct DSKeyframeControl: View {
     @ViewBuilder
     private var keyframeContextMenu: some View {
         if !curveOptions.isEmpty {
-            Section("Đường cong nội suy (Interpolation)") {
+            Section("Interpolation Curve") {
                 ForEach(curveOptions) { opt in
                     Button {
                         onSelectCurve?(opt.id)
@@ -190,7 +190,7 @@ public struct DSKeyframeControl: View {
             Button(role: .destructive) {
                 onClearAllKeyframes()
             } label: {
-                Label("Xoá toàn bộ Keyframe của mục này", systemImage: "trash")
+                Label("Clear All Keyframes", systemImage: "trash")
             }
         }
     }

@@ -4,7 +4,7 @@ import Foundation
 public struct QuantumTeleportFlickerScript: TextAnimationScript {
     public let id = "quantum_teleport_flicker"
     public let displayName = "Quantum Teleport"
-    public let description = "Ký tự nhảy lượng tử giữa các tọa độ phân mảnh kèm bóng ma Echo trước khi khóa vị trí"
+    public let description = "Characters teleport across fragmented coordinates with echo trails before locking"
     public let category = TextAnimationCategory.glitch
     public let scope = TextAnimationScope.perCharacter
 
@@ -71,7 +71,7 @@ public struct QuantumTeleportFlickerScript: TextAnimationScript {
 public struct CyberShutterSliceScript: TextAnimationScript {
     public let id = "cyber_shutter_slice"
     public let displayName = "Cyber Shutter"
-    public let description = "Từng chữ mở mặt nạ cửa chớp ngang bậc thang kèm xung giật RGB hiện đại"
+    public let description = "Stepped horizontal shutter mask reveals characters with modern RGB pulses"
     public let category = TextAnimationCategory.glitch
     public let scope = TextAnimationScope.perCharacter
 
@@ -120,7 +120,7 @@ public struct CyberShutterSliceScript: TextAnimationScript {
 public struct CurtainBaselineRiseScript: TextAnimationScript {
     public let id = "curtain_baseline_rise"
     public let displayName = "Curtain Rise"
-    public let description = "Từng từ trồi mượt từ dưới đường cắt mặt nạ vô hình chuẩn phim tài liệu và Keynote"
+    public let description = "Clean Keynote-style word rise emerging smoothly from an invisible baseline mask"
     public let category = TextAnimationCategory.slide
     public let scope = TextAnimationScope.perWord
 
@@ -153,7 +153,7 @@ public struct CurtainBaselineRiseScript: TextAnimationScript {
 public struct ShutterBlindRevealScript: TextAnimationScript {
     public let id = "shutter_blind_reveal"
     public let displayName = "Shutter Blind"
-    public let description = "Từng ký tự mở ngang như lá cửa chớp từ trái sang phải cực kỳ sắc nét và tinh gọn"
+    public let description = "Architectural left-to-right shutter blind reveal per character"
     public let category = TextAnimationCategory.editorial
     public let scope = TextAnimationScope.perCharacter
 
@@ -195,7 +195,7 @@ public struct ShutterBlindRevealScript: TextAnimationScript {
 public struct SoftBreatheCascadeScript: TextAnimationScript {
     public let id = "soft_breathe_cascade"
     public let displayName = "Soft Breathe"
-    public let description = "Từng từ hiện lên qua lớp sương mờ quang học siêu êm kèm nhịp thở giãn nhẹ thanh lịch"
+    public let description = "Words emerge through silky optical mist with an understated breathing expand"
     public let category = TextAnimationCategory.fade
     public let scope = TextAnimationScope.perWord
 
@@ -229,7 +229,7 @@ public struct SoftBreatheCascadeScript: TextAnimationScript {
 public struct FlipCounterRollScript: TextAnimationScript {
     public let id = "flip_counter_roll"
     public let displayName = "Flip Roll"
-    public let description = "Từng chữ cuộn dọc trong khe mặt nạ kèm nhịp nảy cơ học như bảng đồng hồ đếm số"
+    public let description = "Mechanical odometer vertical roll inside a clipped slit with crisp bounce"
     public let category = TextAnimationCategory.typewriter
     public let scope = TextAnimationScope.perCharacter
 

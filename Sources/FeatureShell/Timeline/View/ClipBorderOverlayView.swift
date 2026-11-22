@@ -19,12 +19,12 @@ public struct ClipBorderOverlayView: View {
 
     @ViewBuilder
     public var body: some View {
-        if isSelected {
-            let baseLineWidth: CGFloat = 1.5
-            let baseStrokeColor: Color = Color.white
+        if isSelected || isHoveringLeftTrim || isHoveringRightTrim {
+            let baseLineWidth: CGFloat = isSelected ? 1.5 : 1.0
+            let baseStrokeColor: Color = isSelected ? Color.white : Color.white.opacity(0.45)
             let endCapWidth: CGFloat = 3.5
-            let leftCapColor: Color = isHoveringLeftTrim ? Color.white : Color.white.opacity(0.85)
-            let rightCapColor: Color = isHoveringRightTrim ? Color.white : Color.white.opacity(0.85)
+            let leftCapColor: Color = isHoveringLeftTrim ? Color.white : (isSelected ? Color.white.opacity(0.85) : Color.clear)
+            let rightCapColor: Color = isHoveringRightTrim ? Color.white : (isSelected ? Color.white.opacity(0.85) : Color.clear)
 
             ZStack {
                 HStack(spacing: 0) {

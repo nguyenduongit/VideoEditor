@@ -50,9 +50,9 @@ extension BuiltInMetalShaders {
         float minC = min(rgb.r, min(rgb.g, rgb.b));
         float delta = maxC - minC;
         float lum = (maxC + minC) * 0.5;
-        if (delta < 0.001 || lum < 0.005 || lum > 0.995) { outTex.write(s, gid); return; }
+        if (delta < 0.001 || lum < 0.003 || lum > 0.997) { outTex.write(s, gid); return; }
         float sat = lum > 0.5 ? delta / max(0.0001, 2.0 - maxC - minC) : delta / max(0.0001, maxC + minC);
-        if (sat < 0.03) { outTex.write(s, gid); return; }
+        if (sat < 0.015) { outTex.write(s, gid); return; }
 
         float hue = 0.0;
         if (rgb.r == maxC) {
@@ -65,16 +65,17 @@ extension BuiltInMetalShaders {
         }
         hue /= 6.0;
 
+        // 8 dải màu phủ kín 360° không có vùng chết (Red, Orange, Yellow, Green, Cyan, Blue, Purple, Magenta)
         const float centers[8] = { 0.0, 0.0833, 0.1667, 0.3333, 0.5000, 0.6667, 0.7917, 0.9028 };
-        const float widths[8]  = { 0.075, 0.065, 0.065, 0.110, 0.090, 0.090, 0.080, 0.080 };
+        const float widths[8]  = { 0.115, 0.095, 0.125, 0.170, 0.170, 0.155, 0.135, 0.125 };
 
         float totalH = 0.0, totalS = 0.0, totalL = 0.0, totalW = 0.0;
         for (int i = 0; i < 8; i++) {
             float d = abs(hue - centers[i]);
             if (d > 0.5) d = 1.0 - d;
             if (d < widths[i]) {
-                float c = cos((d / widths[i]) * 1.57079632679);
-                float w = c * c;
+                float u = d / widths[i];
+                float w = (1.0 - u * u) * (1.0 - u * u);
                 totalH += params[i] * w;
                 totalS += params[8 + i] * w;
                 totalL += params[16 + i] * w;
@@ -83,11 +84,24 @@ extension BuiltInMetalShaders {
         }
         if (totalW < 0.001) { outTex.write(s, gid); return; }
 
-        float satRoll = smoothstep(0.03, 0.15, sat);
-        hue = fract(hue + totalH * satRoll * 0.15);
+        float normFactor = 1.0 / max(1.0, totalW);
+        totalH *= normFactor;
+        totalS *= normFactor;
+        totalL *= normFactor;
+
+        float satRoll = smoothstep(0.015, 0.10, sat);
+        hue = fract(hue + totalH * satRoll * 0.34);
         if (hue < 0.0) hue += 1.0;
-        sat = clamp(sat * (1.0 + totalS * satRoll), 0.0, 1.0);
-        lum = clamp(lum + totalL * satRoll * 0.35, 0.0, 1.0);
+
+        float dSat = totalS * satRoll;
+        sat = dSat >= 0.0
+            ? clamp(sat + dSat * (1.0 - sat * 0.30) * 0.85, 0.0, 1.0)
+            : clamp(sat * (1.0 + dSat), 0.0, 1.0);
+
+        float dLum = totalL * satRoll;
+        lum = dLum >= 0.0
+            ? clamp(lum + dLum * (1.0 - lum * 0.25) * 0.68, 0.0, 1.0)
+            : clamp(lum * (1.0 + dLum * 0.78), 0.0, 1.0);
 
         float q = lum < 0.5 ? lum * (1.0 + sat) : lum + sat - lum * sat;
         float p = 2.0 * lum - q;
@@ -112,15 +126,19 @@ extension BuiltInMetalShaders {
         float3 rgb = clamp(s.rgb / s.a, 0.0, 1.0);
         float luma = dot(rgb, float3(0.2126, 0.7152, 0.0722));
 
-        float wLift = clamp(1.0 - luma, 0.0, 1.0);
-        rgb += (float3(params[0], params[1], params[2]) + float3(params[3])) * wLift;
+        float3 liftVec  = float3(params[0], params[1], params[2]) + float3(params[3]);
+        float3 gammaVec = float3(params[4], params[5], params[6]) + float3(params[7]);
+        float3 gainVec  = float3(params[8], params[9], params[10]) + float3(params[11]);
 
-        float diff = luma - 0.5;
-        float wGamma = clamp(1.0 - 4.0 * diff * diff, 0.0, 1.0);
-        rgb += (float3(params[4], params[5], params[6]) + float3(params[7])) * wGamma;
+        // ASC-CDL & DaVinci Resolve hybrid Lift (Shadows) / Gamma (Midtones) / Gain (Highlights)
+        float invLuma = clamp(1.0 - luma, 0.0, 1.0);
+        float wLift = invLuma * (0.35 + 0.65 * invLuma);
+        float wGamma = 0.25 + 0.75 * sin(clamp(luma, 0.0, 1.0) * 3.14159265359);
+        float wGain = luma * (0.35 + 0.65 * luma);
 
-        float wGain = clamp(luma, 0.0, 1.0);
-        rgb += (float3(params[8], params[9], params[10]) + float3(params[11])) * wGain;
+        rgb += liftVec * wLift;
+        rgb = rgb * max(float3(0.05), float3(1.0) + gainVec * 0.85) + gainVec * 0.45 * wGain;
+        rgb += gammaVec * wGamma;
 
         outTex.write(float4(clamp(rgb, 0.0, 1.0) * s.a, s.a), gid);
     }
@@ -159,8 +177,8 @@ extension BuiltInMetalShaders {
         float2 samplePos = floor(float2(gid) / cell);
         float n = hash12(samplePos + float2(19.37, 73.91)) - 0.5;
         float luma = dot(rgb, float3(0.2126, 0.7152, 0.0722));
-        float filmMask = 1.0 - 0.45 * luma * luma;
-        rgb = clamp(rgb + float3(n * strength * 0.28 * filmMask), 0.0, 1.0);
+        float filmMask = 1.0 - 0.40 * luma * luma;
+        rgb = clamp(rgb + float3(n * strength * 0.55 * filmMask), 0.0, 1.0);
         outTex.write(float4(rgb * s.a, s.a), gid);
     }
     """

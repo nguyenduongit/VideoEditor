@@ -39,10 +39,7 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
     public func handleToolCallAsync(toolName: String, argumentsJSON: String = "{}") async throws -> String {
         if toolName == ToolName.syncAudio.rawValue {
             let assets = mediaLibraryViewModel?.assets ?? []
-            let data = argumentsJSON.data(using: .utf8) ?? Data("{}".utf8)
-            let dict = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any]) ?? [:]
-            let muteVideo = (dict["muteVideo"] as? Bool) ?? true
-            let res = await scriptEngine.currentViewModel.performAISyncAudio(availableAssets: assets, muteVideo: muteVideo)
+            let res = await scriptEngine.currentViewModel.performAISyncAudio(availableAssets: assets)
             let status = res.isSuccess ? "success" : "error"
             return "{\"status\":\"\(status)\",\"message\":\"\(res.message)\"}"
         }
@@ -151,7 +148,7 @@ public final class MCPTimelineToolDispatcher: MCPServerDelegate {
             start: clip.sourceStartTime,
             duration: clip.timeRange.duration
         ) else {
-            throw AppError.executionFailed("Không thể trích xuất khung hình video từ tệp media: \(mediaURL.lastPathComponent)")
+            throw AppError.executionFailed("Unable to extract video frame from media file: \(mediaURL.lastPathComponent)")
         }
 
         let resData = try JSONEncoder().encode(telemetry)

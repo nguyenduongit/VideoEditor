@@ -41,9 +41,9 @@ public final class SecurityScopedBookmarkService: SecurityScopedBookmarkServiceP
         let success = url.startAccessingSecurityScopedResource()
         if success {
             activeURLs.insert(url)
-            Self.logger.debug("Bắt đầu truy cập security-scoped: \(url.lastPathComponent, privacy: .public)")
+            Self.logger.debug("Started security-scoped access: \(url.lastPathComponent, privacy: .public)")
         } else {
-            Self.logger.warning("Không thể kích hoạt security-scoped cho: \(url.path, privacy: .public)")
+            Self.logger.warning("Failed to start security-scoped access for: \(url.path, privacy: .public)")
         }
         return success
     }
@@ -55,7 +55,7 @@ public final class SecurityScopedBookmarkService: SecurityScopedBookmarkServiceP
         if activeURLs.contains(url) {
             url.stopAccessingSecurityScopedResource()
             activeURLs.remove(url)
-            Self.logger.debug("Dừng truy cập security-scoped: \(url.lastPathComponent, privacy: .public)")
+            Self.logger.debug("Stopped security-scoped access: \(url.lastPathComponent, privacy: .public)")
         }
     }
 }

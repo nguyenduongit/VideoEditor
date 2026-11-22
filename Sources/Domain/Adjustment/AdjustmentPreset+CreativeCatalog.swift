@@ -9,7 +9,7 @@ extension AdjustmentPreset {
     public static let kodak2383FilmPrint = AdjustmentPreset(
         id: "creative_color_kodak_2383",
         name: "Kodak 2383 Film Print",
-        description: "Giả lập nhựa phim điện ảnh Kodak Vision3 2383 với đường cong S-Curve và hạt bạc 35mm",
+        description: "Emulates Kodak Vision3 2383 cinema film stock with an S-curve contrast and 35mm silver grain",
         category: .filmVintage,
         tags: ["kodak", "2383", "film", "cinema", "35mm"],
         previewBadge: "35MM FILM",
@@ -40,7 +40,7 @@ extension AdjustmentPreset {
     public static let blockbusterTealOrange = AdjustmentPreset(
         id: "creative_color_teal_orange",
         name: "Blockbuster Teal & Orange",
-        description: "Tương phản Lạnh/Ấm chuẩn phim hành động Hollywood, tách biệt hoàn toàn tông da",
+        description: "Hollywood action cool/warm color contrast with clean skin tone separation",
         category: .cinematic,
         tags: ["teal", "orange", "hollywood", "blockbuster"],
         previewBadge: "HOLLYWOOD",
@@ -71,7 +71,7 @@ extension AdjustmentPreset {
     public static let fujiEternaSoftVintage = AdjustmentPreset(
         id: "creative_color_fuji_eterna",
         name: "Fuji Eterna Soft Vintage",
-        description: "Chất màu phim Nhật Bản dịu nhẹ, nâng vùng tối mờ sương và xanh lá Ngọc Bích",
+        description: "Soft Japanese cinema stock with lifted hazy shadows and jade green highlights",
         category: .filmVintage,
         tags: ["fuji", "eterna", "vintage", "japan", "soft"],
         previewBadge: "FUJIFILM",
@@ -101,7 +101,7 @@ extension AdjustmentPreset {
     public static let cyberpunkNeonNight = AdjustmentPreset(
         id: "creative_color_cyberpunk_neon",
         name: "Cyberpunk Neon Night",
-        description: "Đẩy lệch quang phổ sang tím Magenta và xanh điện Cyan cho cảnh phố đêm Neon",
+        description: "Shifts spectrum toward Magenta and electric Cyan for neon night city scenes",
         category: .cyberNeon,
         tags: ["cyberpunk", "neon", "night", "magenta", "cyan"],
         previewBadge: "NEON 2077",
@@ -133,7 +133,7 @@ extension AdjustmentPreset {
     public static let tokyoPastelVlog = AdjustmentPreset(
         id: "creative_color_tokyo_pastel",
         name: "Tokyo Pastel Vlog",
-        description: "Trong trẻo, sáng mịn, làm hồng hào tông da và bầu trời xanh Pastel nhẹ nhàng",
+        description: "Clean and airy look with rosy skin tones and gentle pastel blue skies",
         category: .portraitVlog,
         tags: ["pastel", "tokyo", "vlog", "portrait", "clean"],
         previewBadge: "AIRY VLOG",
@@ -164,7 +164,7 @@ extension AdjustmentPreset {
     public static let silverHalideNoir = AdjustmentPreset(
         id: "creative_color_silver_noir",
         name: "Silver Halide Noir (B&W)",
-        description: "Đen trắng tương phản cao chuẩn phim nhựa Ilford HP5 với kết cấu hạt bạc rõ nét",
+        description: "High-contrast black & white look inspired by Ilford HP5 film with crisp silver grain",
         category: .moodyMono,
         tags: ["bw", "noir", "monochrome", "ilford", "silver"],
         previewBadge: "MONO NOIR",

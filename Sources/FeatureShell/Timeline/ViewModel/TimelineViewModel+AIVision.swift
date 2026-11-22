@@ -67,7 +67,7 @@ extension TimelineViewModel {
 
         guard let videoClip = allClips.first(where: { $0.kind == .video }),
               let mediaURL = videoClip.mediaURL else {
-            return (false, "Không tìm thấy clip Video trên Timeline hoặc trong Media Library để phân tích nhân vật.")
+            return (false, "No video clip found on the Timeline or in the Media Library for subject analysis.")
         }
 
         let speed = max(0.01, videoClip.properties["speed"]?.asNumber ?? 1.0)
@@ -118,7 +118,7 @@ extension TimelineViewModel {
         }
 
         guard let latestClip = clip(by: videoClip.id) else {
-            return (false, "Clip Video không còn tồn tại trên Timeline.")
+            return (false, "Video clip no longer exists on the Timeline.")
         }
 
         let lines = AutoPanEngine.representativeBodyLines(from: keyframes) ?? (waistY: 0.48, ankleY: 0.82)
@@ -199,9 +199,9 @@ extension TimelineViewModel {
         let waistPct = Int((lines.waistY * 100.0).rounded())
         let anklePct = Int((lines.ankleY * 100.0).rounded())
         let summary = String(
-            format: "Đã phân tích Vision (%d mẫu): Căn tâm AutoPan=%@, Chiều cao nhân vật ~%d%% khung hình (Scale %.2fx, Line Thắt lưng %d%%, Line Mắt cá %d%%), Hệ số kéo dài chân cân đối %.2fx (bám mượt tiến/lùi).",
+            format: "Vision analysis (%d samples): AutoPan=%@, Subject height ~%d%% of frame (Scale %.2fx, Waist Line %d%%, Ankle Line %d%%), Balanced Leg Stretch %.2fx (dynamic forward/backward tracking).",
             keyframes.count,
-            request.enableAutoPan ? "Bật" : "Tắt",
+            request.enableAutoPan ? "On" : "Off",
             bodyPct,
             finalUserScale,
             waistPct,

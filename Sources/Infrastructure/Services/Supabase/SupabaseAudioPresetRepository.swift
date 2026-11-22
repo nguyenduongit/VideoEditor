@@ -37,7 +37,7 @@ public final class SupabaseAudioPresetRepository: AudioPresetRepositoryProtocol,
             updateCatalog(merged)
             return currentCatalog()
         } catch {
-            audioRepoLogger.warning("Không thể tải audio_items từ Supabase, dùng cache: \(error.localizedDescription)")
+            audioRepoLogger.warning("Failed to fetch audio_items from Supabase, falling back to cache: \(error.localizedDescription)")
             return currentCatalog()
         }
     }

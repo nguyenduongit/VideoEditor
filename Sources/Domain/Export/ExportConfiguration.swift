@@ -43,8 +43,8 @@ public enum ExportFrameRate: Int, CaseIterable, Sendable, Codable {
 
 /// Lựa chọn chuẩn mã hóa (Codec).
 public enum ExportCodec: String, CaseIterable, Sendable, Codable {
-    case h264 = "H.264 (Tương thích cao)"
-    case hevc = "HEVC / H.265 (Tiết kiệm dung lượng)"
+    case h264 = "H.264 (High Compatibility)"
+    case hevc = "HEVC / H.265 (Compact Size)"
 
     public var isHEVC: Bool {
         self == .hevc
@@ -54,7 +54,7 @@ public enum ExportCodec: String, CaseIterable, Sendable, Codable {
 /// Loại nội dung cần xuất: Toàn bộ video hoặc chỉ âm thanh (Audio Only).
 public enum ExportMediaType: String, CaseIterable, Identifiable, Sendable, Codable {
     case video = "Video (MP4)"
-    case audio = "Âm thanh (Audio Only)"
+    case audio = "Audio Only"
 
     public var id: String { rawValue }
     public var title: String { rawValue }
@@ -62,7 +62,7 @@ public enum ExportMediaType: String, CaseIterable, Identifiable, Sendable, Codab
 
 /// Lựa chọn định dạng âm thanh khi xuất Audio Only.
 public enum ExportAudioFormat: String, CaseIterable, Identifiable, Sendable, Codable {
-    case m4a = "M4A (AAC - Khuyên dùng)"
+    case m4a = "M4A (AAC - Recommended)"
     case wav = "WAV (Lossless 48kHz)"
 
     public var id: String { rawValue }

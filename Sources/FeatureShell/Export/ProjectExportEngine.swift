@@ -93,7 +93,7 @@ public final class ProjectExportEngine {
             throw NSError(
                 domain: "ProjectExportEngine",
                 code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "Không thể khởi tạo phiên xuất video với preset \(presetName)."]
+                userInfo: [NSLocalizedDescriptionKey: "Failed to create video export session with preset \(presetName)."]
             )
         }
 
@@ -132,7 +132,7 @@ public final class ProjectExportEngine {
         }
 
         // 7. Chạy xuất file
-        Self.logger.notice("Bắt đầu xuất video tới: \(outputURL.path, privacy: .public)")
+        Self.logger.notice("Starting video export to: \(outputURL.path, privacy: .public)")
         await withCheckedContinuation { continuation in
             session.exportAsynchronously {
                 continuation.resume()
@@ -144,7 +144,7 @@ public final class ProjectExportEngine {
         }
 
         if let error = session.error {
-            Self.logger.error("Lỗi xuất video: \(error.localizedDescription, privacy: .public)")
+            Self.logger.error("Video export error: \(error.localizedDescription, privacy: .public)")
             throw error
         }
 
@@ -154,12 +154,12 @@ public final class ProjectExportEngine {
             }
             try FileManager.default.moveItem(at: tempOutputURL, to: outputURL)
             onProgress(1.0)
-            Self.logger.notice("Xuất video thành công: \(outputURL.path, privacy: .public)")
+            Self.logger.notice("Video export succeeded: \(outputURL.path, privacy: .public)")
         } else {
             throw NSError(
                 domain: "ProjectExportEngine",
                 code: -2,
-                userInfo: [NSLocalizedDescriptionKey: "Xuất video không hoàn tất (Status: \(session.status.rawValue))."]
+                userInfo: [NSLocalizedDescriptionKey: "Video export did not complete (Status: \(session.status.rawValue))."]
             )
         }
     }

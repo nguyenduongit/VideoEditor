@@ -8,12 +8,6 @@ import Domain
 @Observable
 @MainActor
 public final class AdjustmentLibraryViewModel {
-    public enum SubTab: String, CaseIterable, Sendable {
-        case `default` = "Mặc định"
-        case templates = "Presets"
-    }
-
-    public var selectedSubTab: SubTab = .default
     public var selectedCategory: AdjustmentTemplateCategory = .all
     public var searchQuery: String = ""
     public private(set) var templatePresets: [AdjustmentPreset] = []
@@ -98,7 +92,6 @@ public final class AdjustmentLibraryViewModel {
             let query = trimmed.lowercased()
             if preset.name.lowercased().contains(query) { return true }
             if preset.description.lowercased().contains(query) { return true }
-            if preset.community.authorName.lowercased().contains(query) { return true }
             return preset.tags.contains { $0.lowercased().contains(query) }
         }
     }

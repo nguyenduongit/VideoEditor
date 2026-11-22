@@ -55,7 +55,6 @@ public struct AdjustmentLibraryView: View {
             searchPlaceholder: "Search color presets...",
             categories: categories,
             selectedCategory: $selectedCategory,
-            favoritesCount: SidebarFavoriteManager.shared.favorites(for: "adjustment").count,
             trailingAction: AnyView(reloadButton)
         ) {
             contentScrollView
@@ -91,7 +90,7 @@ public struct AdjustmentLibraryView: View {
             let matchesSearch = trimmedSearch.isEmpty
                 || "Default Adjustment".localizedCaseInsensitiveContains(trimmedSearch)
                 || "Adjustment Layer".localizedCaseInsensitiveContains(trimmedSearch)
-                || "Mặc định".localizedCaseInsensitiveContains(trimmedSearch)
+                || "Default".localizedCaseInsensitiveContains(trimmedSearch)
             let showDefaultCard = ((isDefaultSelected || (isFavSelected && isDefaultFav)) && matchesSearch)
                 || (!trimmedSearch.isEmpty && matchesSearch && !isFavSelected)
 
@@ -109,6 +108,8 @@ public struct AdjustmentLibraryView: View {
                             title: preset.name,
                             isFavorite: isFav,
                             isSelected: selectedPresetID == preset.id,
+                            showsDeleteButton: !preset.isSystem,
+                            dragPayload: .adjustment(preset),
                             onSelect: {
                                 selectedPresetID = preset.id
                             },
@@ -117,6 +118,9 @@ public struct AdjustmentLibraryView: View {
                             },
                             onToggleFavorite: {
                                 SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "adjustment")
+                            },
+                            onDelete: {
+                                viewModel.deletePreset(preset)
                             }
                         ) {
                             adjustmentThumbnail(for: preset)
@@ -135,6 +139,7 @@ public struct AdjustmentLibraryView: View {
             title: "Default Adjustment",
             isFavorite: isFav,
             isSelected: selectedPresetID == Self.defaultPresetID,
+            dragPayload: .defaultAdjustment,
             onSelect: {
                 selectedPresetID = Self.defaultPresetID
             },
@@ -171,7 +176,11 @@ public struct AdjustmentLibraryView: View {
     @ViewBuilder
     private func adjustmentThumbnail(for preset: AdjustmentPreset) -> some View {
         ZStack {
-            if preset.previewColorsHex.count >= 2 {
+            if let rendered = viewModel.thumbnailRenderer.thumbnail(for: preset) {
+                Image(nsImage: rendered)
+                    .resizable()
+                    .scaledToFill()
+            } else if preset.previewColorsHex.count >= 2 {
                 LinearGradient(
                     colors: preset.previewColorsHex.compactMap { Color(hex: $0) },
                     startPoint: .topLeading,
@@ -185,9 +194,22 @@ public struct AdjustmentLibraryView: View {
                 )
             }
 
-            Image(systemName: "slider.horizontal.3")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(Color.white.opacity(0.9))
+            if let badge = preset.previewBadge, !badge.isEmpty {
+                VStack {
+                    HStack {
+                        Text(badge)
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.black.opacity(0.55))
+                            .clipShape(Capsule())
+                        Spacer()
+                    }
+                    Spacer()
+                }
+                .padding(6)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

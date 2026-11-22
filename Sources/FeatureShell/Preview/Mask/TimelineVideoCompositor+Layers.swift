@@ -244,11 +244,9 @@ extension TimelineVideoCompositor {
             let fSrc = CGAffineTransform(a: 1.0, b: 0.0, c: 0.0, d: -1.0, tx: 0.0, ty: rawH)
             let fScale = CGAffineTransform(scaleX: sx, y: sy)
             let fDst = CGAffineTransform(a: 1.0, b: 0.0, c: 0.0, d: -1.0, tx: 0.0, ty: outputSize.height)
-            let transformed = rawImage.transformed(by: fSrc.concatenating(info.transform).concatenating(fScale).concatenating(fDst))
-            storeCachedFrame(transformed, for: info.trackID)
-            return transformed
+            return rawImage.transformed(by: fSrc.concatenating(info.transform).concatenating(fScale).concatenating(fDst))
         }
-        return loadCachedFrame(for: info.trackID)
+        return nil
     }
 
     func renderActiveTransition(

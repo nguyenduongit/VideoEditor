@@ -33,15 +33,15 @@ public struct UnifiedColorInspectorView: View {
             Group {
                 switch selectedSubTab {
                 case .basic:
-                    ColorBasicSectionView(viewModel: viewModel)
+                    AdjustmentBasicSectionView(viewModel: viewModel)
                 case .hsl:
-                    AdjustmentHSLTabContent(viewModel: viewModel)
+                    AdjustmentHSLSectionView(viewModel: viewModel)
                 case .wheels:
-                    ColorWheelsSectionView(viewModel: viewModel)
+                    AdjustmentWheelsSectionView(viewModel: viewModel)
                 case .curves:
                     curvesSection
                 case .effects:
-                    ColorEffectsSectionView(viewModel: viewModel)
+                    AdjustmentEffectsSectionView(viewModel: viewModel)
                 }
             }
             .opacity(currentConfig.isEnabled ? 1.0 : 0.45)

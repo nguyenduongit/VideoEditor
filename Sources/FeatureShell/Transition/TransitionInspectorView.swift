@@ -39,7 +39,7 @@ public struct TransitionInspectorView: View {
                 Text(transition.name)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(DSColors.textPrimary)
-                Text("Hiệu ứng chuyển cảnh · Căn giữa vết cắt")
+                Text("Transition Effect · Centered on Cut")
                     .font(.system(size: 10))
                     .foregroundStyle(DSColors.textSecondary)
             }
@@ -53,12 +53,12 @@ public struct TransitionInspectorView: View {
 
     private func durationSection(_ transition: CutTransition) -> some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            Text("THỜI LƯỢNG")
+            Text("DURATION")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
 
             DSSliderWithInput(
-                title: "Thời gian",
+                title: "Duration",
                 value: Binding(
                     get: { transition.duration.seconds },
                     set: { viewModel.updateTransitionDuration($0, commit: false) }
@@ -84,7 +84,7 @@ public struct TransitionInspectorView: View {
             Image(systemName: "hourglass")
                 .font(.system(size: 26))
                 .foregroundStyle(DSColors.textSecondary.opacity(0.45))
-            Text("Chọn một điểm nối chuyển cảnh trên Timeline")
+            Text("Select a cut transition on the Timeline")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(DSColors.textSecondary)
             Spacer(minLength: 40)

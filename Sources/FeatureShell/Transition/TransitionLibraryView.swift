@@ -51,7 +51,6 @@ public struct TransitionLibraryView: View {
             searchPlaceholder: "Search transitions...",
             categories: categories,
             selectedCategory: $selectedCategory,
-            favoritesCount: SidebarFavoriteManager.shared.favorites(for: "transition").count,
             trailingAction: AnyView(reloadButton)
         ) {
             contentScrollView
@@ -68,7 +67,6 @@ public struct TransitionLibraryView: View {
         let size = LibraryScaffoldView<EmptyView>.searchControlHeight
         return Button(action: {
             viewModel.reloadTemplates()
-            Task { await viewModel.syncFromRemoteIfAvailable(force: true) }
         }) {
             ZStack {
                 RoundedRectangle(cornerRadius: DSRadius.small)
@@ -98,6 +96,7 @@ public struct TransitionLibraryView: View {
                             title: preset.name,
                             isFavorite: isFav,
                             isSelected: selectedPresetID == preset.id,
+                            dragPayload: .transition(preset),
                             onSelect: {
                                 selectedPresetID = preset.id
                             },
@@ -110,44 +109,12 @@ public struct TransitionLibraryView: View {
                         ) { isCardHovered in
                             transitionThumbnail(for: preset, isHovered: isCardHovered)
                         }
-                        .draggable({
-                            TransitionDragSessionState.shared.activePresetID = preset.id
-                            return "transition:\(preset.id)"
-                        }()) {
-                            cyanDragPreview(for: preset)
-                        }
                         .help("\(preset.name) — \(preset.description)")
                     }
                 }
                 .padding(DSSpacing.sm)
             }
         }
-    }
-
-    private func cyanDragPreview(for preset: TransitionPreset) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: DSRadius.small)
-                .fill(DSColors.toggleCyan.opacity(0.85))
-                .overlay(
-                    RoundedRectangle(cornerRadius: DSRadius.small)
-                        .stroke(Color.white.opacity(0.95), lineWidth: 1.5)
-                )
-
-            Rectangle()
-                .fill(Color.white.opacity(0.90))
-                .frame(width: 1.5, height: 32)
-
-            Circle()
-                .fill(Color.black.opacity(0.45))
-                .frame(width: 18, height: 18)
-                .overlay(
-                    Image(systemName: "hourglass")
-                        .font(.system(size: 8.5, weight: .bold))
-                        .foregroundStyle(Color.white)
-                )
-        }
-        .frame(width: 100, height: 32)
-        .shadow(color: Color.black.opacity(0.35), radius: 3, x: 0, y: 1)
     }
 
     @ViewBuilder

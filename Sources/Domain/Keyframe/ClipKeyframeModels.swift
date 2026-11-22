@@ -13,12 +13,12 @@ public enum KeyframeInterpolation: String, Codable, Sendable, CaseIterable, Hash
 
     public var displayName: String {
         switch self {
-        case .linear: return "Tuyến tính (Linear)"
-        case .smooth: return "Mượt (Smooth Ease)"
-        case .easeIn: return "Tăng tốc (Ease In)"
-        case .easeOut: return "Giảm tốc (Ease Out)"
-        case .spring: return "Đàn hồi (Spring)"
-        case .hold: return "Giữ bậc thang (Hold)"
+        case .linear: return "Linear"
+        case .smooth: return "Smooth Ease"
+        case .easeIn: return "Ease In"
+        case .easeOut: return "Ease Out"
+        case .spring: return "Spring"
+        case .hold: return "Hold"
         }
     }
 

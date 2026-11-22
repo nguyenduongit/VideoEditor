@@ -7,9 +7,8 @@ import AppKit
 #endif
 
 /// Bảng điều khiển hiệu ứng chất liệu & 3D LUT: 3D LUT (.cube), Vignette, Film Grain, Sharpen.
-/// Đặt tên 100% bằng tiếng Anh ngắn gọn, không lồng subtab.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
-public struct ColorEffectsSectionView: View {
+/// Tuân thủ AGENTS.md (1 File = 1 Primary Type, Ubiquitous Language, Hàm <= 50 dòng).
+public struct AdjustmentEffectsSectionView: View {
     @Bindable var viewModel: InspectorViewModel
 
     public init(viewModel: InspectorViewModel) {
@@ -280,3 +279,6 @@ public struct ColorEffectsSectionView: View {
         }
     }
 }
+
+/// Tương thích ngược với tên gọi cũ
+public typealias ColorEffectsSectionView = AdjustmentEffectsSectionView

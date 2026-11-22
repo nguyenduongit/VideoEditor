@@ -51,7 +51,7 @@ public final class SupabaseTransitionPresetRepository: TransitionPresetRepositor
                 do {
                     try await seedSystemCatalogSafely(preserving: fetched)
                 } catch {
-                    transitionRepoLogger.warning("Seed an toàn transition_presets bỏ qua do lỗi mạng/bảng: \(error.localizedDescription)")
+                    transitionRepoLogger.warning("Safe seed of transition_presets skipped due to network/table error: \(error.localizedDescription)")
                     templateLoader.setInMemoryTemplates(systemCatalog + fetched.filter { !$0.isSystem })
                 }
                 return templateLoader.loadAllTemplates()
@@ -60,7 +60,7 @@ public final class SupabaseTransitionPresetRepository: TransitionPresetRepositor
             templateLoader.setInMemoryTemplates(fetched)
             return templateLoader.loadAllTemplates()
         } catch {
-            transitionRepoLogger.warning("Không thể tải transition_presets từ Supabase, dùng cache nội bộ: \(error.localizedDescription)")
+            transitionRepoLogger.warning("Failed to fetch transition_presets from Supabase, falling back to local cache: \(error.localizedDescription)")
             return templateLoader.loadAllTemplates()
         }
     }
@@ -162,11 +162,7 @@ private struct TransitionPresetRow: Codable, Sendable {
         self.description = preset.description
         self.category = preset.category.rawValue
         self.shader_type = preset.shaderType.rawValue
-        var mergedTags = preset.tags
-        if let metaTag = preset.community.encodeToTag() {
-            mergedTags.append(metaTag)
-        }
-        self.tags = mergedTags
+        self.tags = preset.tags
         self.default_duration = preset.defaultDuration
         self.icon_name = preset.iconName
         self.config = TransitionPresetPayload(

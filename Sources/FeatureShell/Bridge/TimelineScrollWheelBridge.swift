@@ -12,6 +12,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
     private let onStepFrame: ((Int64) -> Void)?
     private let onAnyClick: (() -> Void)?
     private let onShortcutKey: ((String?, UInt16, NSEvent.ModifierFlags) -> Bool)?
+    private let onModifierFlagsChanged: ((NSEvent.ModifierFlags) -> Void)?
 
     public init(
         onCmdScrollWheel: @escaping (CGFloat, CGFloat) -> Void,
@@ -23,7 +24,8 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         onRedo: @escaping () -> Void = {},
         onStepFrame: ((Int64) -> Void)? = nil,
         onAnyClick: (() -> Void)? = nil,
-        onShortcutKey: ((String?, UInt16, NSEvent.ModifierFlags) -> Bool)? = nil
+        onShortcutKey: ((String?, UInt16, NSEvent.ModifierFlags) -> Bool)? = nil,
+        onModifierFlagsChanged: ((NSEvent.ModifierFlags) -> Void)? = nil
     ) {
         self.onCmdScrollWheel = onCmdScrollWheel
         self.onResetZoom = onResetZoom
@@ -35,6 +37,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         self.onStepFrame = onStepFrame
         self.onAnyClick = onAnyClick
         self.onShortcutKey = onShortcutKey
+        self.onModifierFlagsChanged = onModifierFlagsChanged
     }
 
     public func makeNSView(context: Context) -> TimelineScrollWheelNSView {
@@ -49,6 +52,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         view.onStepFrame = onStepFrame
         view.onAnyClick = onAnyClick
         view.onShortcutKey = onShortcutKey
+        view.onModifierFlagsChanged = onModifierFlagsChanged
         return view
     }
 
@@ -63,6 +67,7 @@ public struct TimelineScrollWheelBridge: NSViewRepresentable {
         nsView.onStepFrame = onStepFrame
         nsView.onAnyClick = onAnyClick
         nsView.onShortcutKey = onShortcutKey
+        nsView.onModifierFlagsChanged = onModifierFlagsChanged
     }
 
     public static func dismantleNSView(_ nsView: TimelineScrollWheelNSView, coordinator: ()) {
@@ -81,6 +86,7 @@ public final class TimelineScrollWheelNSView: NSView {
     public var onStepFrame: ((Int64) -> Void)?
     public var onAnyClick: (() -> Void)?
     public var onShortcutKey: ((String?, UInt16, NSEvent.ModifierFlags) -> Bool)?
+    public var onModifierFlagsChanged: ((NSEvent.ModifierFlags) -> Void)?
     private var eventMonitor: Any?
 
     override public init(frame frameRect: NSRect) {
@@ -97,11 +103,18 @@ public final class TimelineScrollWheelNSView: NSView {
 
     private func setupMonitor() {
         guard eventMonitor == nil else { return }
-        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel, .keyDown, .leftMouseDown, .rightMouseDown]) { [weak self] event in
+        eventMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.scrollWheel, .keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown]
+        ) { [weak self] event in
             guard let self, let window = self.window, event.window == window else {
                 return event
             }
+            if event.type == .flagsChanged {
+                self.onModifierFlagsChanged?(event.modifierFlags)
+                return event
+            }
             if event.type == .leftMouseDown || event.type == .rightMouseDown {
+                self.onModifierFlagsChanged?(event.modifierFlags)
                 self.onAnyClick?()
                 return event
             }

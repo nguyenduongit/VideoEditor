@@ -9,9 +9,6 @@ extension TimelinePlaybackEngine {
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             Task { @MainActor [weak self] in
                 guard let self, !self.isResyncingComposition, !self.isSeeking else { return }
-                if self.isPlaybackActive && self.player.rate == 0 {
-                    self.player.play()
-                }
                 guard self.player.rate != 0 else { return }
                 if let range = self.loopRange, range.duration > .zero {
                     if time >= range.end {
@@ -26,30 +23,6 @@ extension TimelinePlaybackEngine {
     }
 
     func setupPlayerObservers() {
-        rateObserver = player.observe(\.rate, options: [.new]) { [weak self] player, _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.isPlaybackActive, !self.isSeeking, !self.isResyncingComposition else { return }
-                if player.rate == 0 && player.timeControlStatus == .paused {
-                    if let range = self.loopRange, range.duration > .zero {
-                        self.seek(to: range.start)
-                        self.onTimeUpdate?(range.start)
-                    }
-                    self.player.play()
-                }
-            }
-        }
-        statusObserver = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.isPlaybackActive, !self.isSeeking, !self.isResyncingComposition else { return }
-                if player.timeControlStatus == .paused {
-                    if let range = self.loopRange, range.duration > .zero {
-                        self.seek(to: range.start)
-                        self.onTimeUpdate?(range.start)
-                    }
-                    self.player.play()
-                }
-            }
-        }
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: nil,
@@ -61,6 +34,8 @@ extension TimelinePlaybackEngine {
                     self.seek(to: range.start)
                     self.onTimeUpdate?(range.start)
                     self.player.play()
+                } else {
+                    self.onPlaybackEnded?()
                 }
             }
         }
@@ -86,11 +61,5 @@ extension TimelinePlaybackEngine {
     func resumeIfActive() {
         guard isPlaybackActive else { return }
         player.play()
-        Task { @MainActor [weak self] in
-            guard let self, self.isPlaybackActive else { return }
-            if self.player.rate == 0 {
-                self.player.play()
-            }
-        }
     }
 }

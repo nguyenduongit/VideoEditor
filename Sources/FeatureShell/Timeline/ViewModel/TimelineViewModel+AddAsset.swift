@@ -9,6 +9,62 @@ extension TimelineViewModel {
         addAssets([asset], at: time)
     }
 
+    /// Thực thi thêm bất kỳ loại tài nguyên nào được kéo thả từ Sidebar vào đúng mốc thời gian `dropTime`.
+    public func addDroppedPayload(_ payload: TimelineDragPayload, at dropTime: CMTime) {
+        switch payload {
+        case .media(let asset):
+            addAsset(asset, at: dropTime)
+        case .audio(let preset):
+            if preset.id == "audio_dance_beat" {
+                _ = addDanceBeatCounter(named: preset.name, at: dropTime)
+            } else {
+                let targetStart = TimeRational.snapToFrame(time: dropTime)
+                let durSeconds = preset.duration > 0 ? preset.duration : 5.0
+                let frames = max(15, Int64(round(durSeconds * Double(TimeRational.defaultFPS))))
+                let duration = CMTime(value: frames, timescale: TimeRational.defaultFPS)
+                let clip = TimelineClip(
+                    name: preset.name,
+                    kind: .audio,
+                    timeRange: CMTimeRange(start: targetStart, duration: duration),
+                    mediaURL: preset.audioURL
+                )
+                var simulatedLayers = layers
+                let layerID = allocateLayerID(for: clip, in: &simulatedLayers)
+                applyAddedClips([(clip, layerID)])
+                selectedClipIDs = [clip.id]
+            }
+        case .text(let preset):
+            onPreviewTextPreset?(nil)
+            onPreviewTextPresetCleared?()
+            addTextPreset(preset, at: dropTime)
+        case .defaultText:
+            onPreviewTextPreset?(nil)
+            onPreviewTextPresetCleared?()
+            addTextClip(named: "Default Text", config: TextConfiguration(), durationSeconds: 5.0, at: dropTime)
+        case .sticker(let preset):
+            addStickerPreset(preset, at: dropTime)
+        case .effect(let preset):
+            addEffectClip(
+                named: preset.name,
+                config: preset.config,
+                durationSeconds: preset.defaultDuration,
+                originPresetID: preset.isSystem ? nil : preset.id,
+                at: dropTime
+            )
+        case .adjustment(let preset):
+            addAdjustmentClip(
+                named: preset.name,
+                config: preset.config,
+                originPresetID: preset.id == "default" ? nil : preset.id,
+                at: dropTime
+            )
+        case .defaultAdjustment:
+            addAdjustmentClip(named: "Adjustment Layer", config: AdjustmentConfiguration(), at: dropTime)
+        case .transition, .transitionID:
+            break
+        }
+    }
+
     /// Adds multiple assets to the timeline at the given time or currentTime,
     /// automatically assigning each clip to an appropriate layer (avoiding collisions)
     /// and grouping the operation into a single undo/redo batch command.

@@ -16,7 +16,7 @@ public enum SupabaseConfig {
         let urlString = env["SUPABASE_URL"] ?? envFile["SUPABASE_URL"] ?? ""
         let key = env["SUPABASE_PUBLISHABLE_KEY"] ?? envFile["SUPABASE_PUBLISHABLE_KEY"] ?? ""
         guard let url = URL(string: urlString), !urlString.isEmpty, !key.isEmpty else {
-            logger.error("Thiếu SUPABASE_URL hoặc SUPABASE_PUBLISHABLE_KEY (env hoặc .env); bỏ qua đồng bộ online")
+            logger.error("Missing SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY (env or .env); skipping online sync")
             return nil
         }
 

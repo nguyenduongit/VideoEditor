@@ -4,7 +4,7 @@ import Foundation
 public struct RippleDropWaveScript: TextAnimationScript {
     public let id = "ripple_drop_wave"
     public let displayName = "Ripple Drop"
-    public let description = "Sóng đồng tâm lan tỏa từ ký tự chính giữa ra hai biên như giọt nước chạm mặt hồ"
+    public let description = "Concentric ripple expands outward from center like a drop hitting water"
     public let category = TextAnimationCategory.wave
     public let scope = TextAnimationScope.perCharacter
 
@@ -51,7 +51,7 @@ public struct RippleDropWaveScript: TextAnimationScript {
 public struct DNAHelixTwistScript: TextAnimationScript {
     public let id = "dna_helix_twist"
     public let displayName = "DNA Helix Wave"
-    public let description = "Hai chuỗi sóng sin ngược pha đan xoắn không gian 3D kèm phóng to chiều sâu"
+    public let description = "Counter-phase double sine helix weaving in 3D space with depth scaling"
     public let category = TextAnimationCategory.wave
     public let scope = TextAnimationScope.perCharacter
 
@@ -106,7 +106,7 @@ public struct DNAHelixTwistScript: TextAnimationScript {
 public struct JellyTrampolineWaveScript: TextAnimationScript {
     public let id = "jelly_trampoline_wave"
     public let displayName = "Jelly Trampoline"
-    public let description = "Sóng nhún đàn hồi neo chân chữ với hiệu ứng vươn cao ở đỉnh sóng và nén dẹt ở chân sóng"
+    public let description = "Bottom-anchored spring bounce stretching tall at peaks and squashing low"
     public let category = TextAnimationCategory.wave
     public let scope = TextAnimationScope.perCharacter
 
@@ -166,7 +166,7 @@ public struct JellyTrampolineWaveScript: TextAnimationScript {
 public struct HologramScanBeamScript: TextAnimationScript {
     public let id = "hologram_scan_beam"
     public let displayName = "Hologram Scan"
-    public let description = "Quét mở tia Hologram từ chân lên đỉnh kèm bóng mờ chuyển động dọc và tách màu quang học"
+    public let description = "Bottom-to-top laser hologram scan with vertical ghosting and color split"
     public let category = TextAnimationCategory.glitch
     public let scope = TextAnimationScope.perCharacter
 
@@ -221,7 +221,7 @@ public struct HologramScanBeamScript: TextAnimationScript {
 public struct VHSTrackingDriftScript: TextAnimationScript {
     public let id = "vhs_tracking_drift"
     public let displayName = "VHS Drift"
-    public let description = "Trôi lệch ngang kiểu băng từ VHS cổ điển kèm nghiêng lát cắt và bóng ma đuổi ngang"
+    public let description = "Classic VHS horizontal tracking drift with skewed slices and trailing ghosts"
     public let category = TextAnimationCategory.glitch
     public let scope = TextAnimationScope.perWord
 

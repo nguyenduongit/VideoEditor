@@ -35,7 +35,7 @@ public struct CustomParameterDescriptor: Codable, Sendable, Equatable, Hashable,
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
-        self.title = (try? c.decodeIfPresent(String.self, forKey: .title)) ?? "Tham số"
+        self.title = (try? c.decodeIfPresent(String.self, forKey: .title)) ?? "Parameter"
         let minV = (try? c.decodeIfPresent(Double.self, forKey: .minValue)) ?? 0.0
         let maxV = (try? c.decodeIfPresent(Double.self, forKey: .maxValue)) ?? 1.0
         let safeMin = min(minV, maxV)

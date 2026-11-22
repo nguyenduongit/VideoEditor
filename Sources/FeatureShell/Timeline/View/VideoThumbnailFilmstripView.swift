@@ -41,12 +41,21 @@ public struct VideoThumbnailFilmstripView: View {
         self.height = height
         self.isMuted = isMuted
 
-        let key = "\(clip.id)_\(Int(width))_\(resolvedStart.value)_\(clip.timeRange.duration.value)"
+        let slotCount = Self.resolveSlotCount(for: clip, width: width, height: height)
+        let key = "\(clip.id)_\(slotCount)_\(resolvedStart.value)"
         self._thumbnails = State(initialValue: FilmstripMemoryCache.cache[key] ?? [:])
     }
 
+    private static func resolveSlotCount(for clip: TimelineClip, width: CGFloat, height: CGFloat) -> Int {
+        let hasWaveform = clip.kind.presentation.hasWaveform
+        let thumbHeight = hasWaveform ? DSSize.clipFilmstripHeight : max(10, height)
+        let thumbWidth = max(24.0, thumbHeight * (16.0 / 9.0))
+        return max(1, Int(ceil(width / thumbWidth)))
+    }
+
     private var filmstripCacheKey: String {
-        "\(clip.id)_\(Int(width))_\(activeSourceStartTime.value)_\(clip.timeRange.duration.value)"
+        let slotCount = Self.resolveSlotCount(for: clip, width: width, height: height)
+        return "\(clip.id)_\(slotCount)_\(activeSourceStartTime.value)"
     }
 
     public var body: some View {
@@ -130,6 +139,7 @@ public struct VideoThumbnailFilmstripView: View {
         let inSec = clip.properties["fadeIn"]?.asNumber ?? 0.0
         let outSec = clip.properties["fadeOut"]?.asNumber ?? 0.0
         let speed = clip.properties["speed"]?.asNumber ?? 1.0
+        let volume = clip.properties["volume"]?.asNumber ?? 1.0
         return AudioWaveformView(
             url: clip.mediaURL,
             service: waveformService,
@@ -139,7 +149,8 @@ public struct VideoThumbnailFilmstripView: View {
             fadeIn: inSec,
             fadeOut: outSec,
             clipDuration: clip.timeRange.duration,
-            speed: speed
+            speed: speed,
+            volume: volume
         )
         .opacity(isAudioMuted ? 0.35 : 1.0)
         .animation(.easeInOut(duration: 0.2), value: isAudioMuted)

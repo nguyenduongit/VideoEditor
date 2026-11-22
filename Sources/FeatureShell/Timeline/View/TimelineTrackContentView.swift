@@ -34,6 +34,7 @@ public struct TimelineTrackContentView: View {
     private let contextActions: TimelineClipContextActions?
     private let selectedTransitionID: UUID?
     private let activeTransitionDropTarget: TransitionDropJoinTarget?
+    private let modifierState: TimelineModifierState?
 
     public init(
         layer: TimelineLayer,
@@ -66,7 +67,8 @@ public struct TimelineTrackContentView: View {
         onSavePreset: ((TimelineClip) -> Void)? = nil,
         onUpdateClipProperties: ((UUID, [String: PropertyValue], Bool) -> Void)? = nil,
         onSelectTransition: ((UUID) -> Void)? = nil,
-        contextActions: TimelineClipContextActions? = nil
+        contextActions: TimelineClipContextActions? = nil,
+        modifierState: TimelineModifierState? = nil
     ) {
         self.layer = layer
         self.height = height
@@ -84,6 +86,7 @@ public struct TimelineTrackContentView: View {
         self.onExtractAudio = onExtractAudio
         self.onSavePreset = onSavePreset
         self.contextActions = contextActions
+        self.modifierState = modifierState
         self.selectedTransitionID = selectedTransitionID
         self.activeTransitionDropTarget = activeTransitionDropTarget
         if !selectedClipIDs.isEmpty {
@@ -199,7 +202,8 @@ public struct TimelineTrackContentView: View {
                         onDuplicateClipEnd?(clip.id)
                     },
                     onUpdateProperties: onUpdateClipProperties,
-                    contextActions: contextActions
+                    contextActions: contextActions,
+                    modifierState: modifierState
                 )
             }
 

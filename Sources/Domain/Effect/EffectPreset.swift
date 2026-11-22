@@ -3,7 +3,7 @@ import Foundation
 /// 11 Danh mục chuẩn phân loại mẫu Hiệu ứng thị giác (Video Effect Categories) đồng bộ với Supabase.
 /// Tuân thủ AGENTS.md (Pure Domain, Sendable, Codable, File <= 300 dòng).
 public enum EffectTemplateCategory: String, Codable, Sendable, CaseIterable, Identifiable {
-    case all = "Tất cả"
+    case all = "All"
     case basic = "Basic"
     case blur = "Blur"
     case glitch = "Glitch / Distortion"
@@ -131,7 +131,7 @@ public struct EffectPreset: Identifiable, Codable, Sendable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
         self.schemaVersion = (try? c.decodeIfPresent(Int.self, forKey: .schemaVersion)) ?? 1
-        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Hiệu ứng"
+        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Effect"
         self.description = (try? c.decodeIfPresent(String.self, forKey: .description)) ?? ""
         self.category = (try? c.decodeIfPresent(EffectTemplateCategory.self, forKey: .category)) ?? .basic
         self.tags = (try? c.decodeIfPresent([String].self, forKey: .tags)) ?? []
@@ -145,8 +145,7 @@ public struct EffectPreset: Identifiable, Codable, Sendable, Equatable {
     }
 
     public func canBeModified(by userID: String) -> Bool {
-        guard !isSystem else { return false }
-        return community.authorID.isEmpty || community.authorID == userID
+        !isSystem
     }
 
     public func encodeToJSON(prettyPrinted: Bool = true) -> String? {

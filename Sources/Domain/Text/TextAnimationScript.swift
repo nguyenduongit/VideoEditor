@@ -193,7 +193,7 @@ extension TextAnimationScript {
 public struct TitleWaveFloatScript: TextAnimationScript {
     public let id = "title_wave_float"
     public let displayName = "Wave Float"
-    public let description = "Chữ bay từ ngoài vào giữa màn hình, nhấp nhô lượn sóng liên tục từng ký tự rồi bay ra mượt mà"
+    public let description = "Text flies into center, ripples in a continuous character wave, then exits smoothly"
     public let category = TextAnimationCategory.wave
     public let loopCycleDuration: Double = 1.0
     public let scope = TextAnimationScope.perCharacter

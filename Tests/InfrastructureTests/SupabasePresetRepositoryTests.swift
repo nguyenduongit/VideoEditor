@@ -217,9 +217,18 @@ struct SupabasePresetRepositoryTests {
         #expect(!afterDelete.contains(where: { $0.id == "stock_custom_drone" }))
     }
 
-    @Test("Favorite Repository manages and synchronizes tab favorites deterministically")
+    @Test("Favorite Repository maps all 7 library tabs directly to item tables and manages favorites deterministically")
     func testFavoriteRepositoryOperations() async throws {
-        let repo = SupabaseFavoriteRepository(client: nil, customClientID: "test_device_unit_tests")
+        #expect(SupabaseFavoriteRepository.tableName(for: "media") == "stock_media")
+        #expect(SupabaseFavoriteRepository.tableName(for: "audio") == "audio_presets")
+        #expect(SupabaseFavoriteRepository.tableName(for: "text") == "text_presets")
+        #expect(SupabaseFavoriteRepository.tableName(for: "effect") == "effect_presets")
+        #expect(SupabaseFavoriteRepository.tableName(for: "transition") == "transition_presets")
+        #expect(SupabaseFavoriteRepository.tableName(for: "adjustment") == "adjustment_presets")
+        #expect(SupabaseFavoriteRepository.tableName(for: "sticker") == "sticker_presets")
+        #expect(SupabaseFavoriteRepository.tableName(for: "unknown") == nil)
+
+        let repo = SupabaseFavoriteRepository(client: nil)
         let tab = "audio"
 
         try await repo.addFavorite(id: "item_fav_1", for: tab)

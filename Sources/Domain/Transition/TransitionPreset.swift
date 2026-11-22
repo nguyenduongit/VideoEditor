@@ -65,7 +65,7 @@ public struct TransitionPreset: Identifiable, Codable, Sendable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
         self.schemaVersion = (try? c.decodeIfPresent(Int.self, forKey: .schemaVersion)) ?? 2
-        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Chuyển cảnh"
+        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Transition"
         self.description = (try? c.decodeIfPresent(String.self, forKey: .description)) ?? ""
         self.category = (try? c.decodeIfPresent(TransitionCategory.self, forKey: .category)) ?? .basic
         self.tags = (try? c.decodeIfPresent([String].self, forKey: .tags)) ?? []

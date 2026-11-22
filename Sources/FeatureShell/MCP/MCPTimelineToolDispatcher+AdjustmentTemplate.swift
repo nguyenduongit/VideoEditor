@@ -9,7 +9,7 @@ extension MCPTimelineToolDispatcher {
         let updateExisting = (dict["updateExisting"] as? Bool) ?? false
 
         var cfg = AdjustmentConfiguration()
-        var clipTitle = "Tùy chỉnh Màu AI"
+        var clipTitle = "AI Color Adjustment"
 
         if let templateId = dict["templateId"] as? String, !templateId.isEmpty {
             let query = templateId.lowercased()
@@ -65,6 +65,10 @@ extension MCPTimelineToolDispatcher {
     }
 
     private func applyAdjustmentOverrides(from dict: [String: Any], to cfg: inout AdjustmentConfiguration) {
+        if let fullJSON = dict["adjustmentConfigJSON"] as? String,
+           let decoded = AdjustmentConfiguration.decode(from: fullJSON) {
+            cfg = decoded
+        }
         func num(_ key: String) -> Float? {
             (dict[key] as? NSNumber)?.floatValue ?? (dict[key] as? Double).map(Float.init)
         }

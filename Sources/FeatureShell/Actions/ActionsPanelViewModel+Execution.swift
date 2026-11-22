@@ -6,7 +6,7 @@ extension ActionsPanelViewModel {
         guard !isProcessing, !selectedTaskIDs.isEmpty else { return }
         prepareDispatcher()
         guard let dispatcher else {
-            errorMessage = "Chưa kết nối được với Timeline."
+            errorMessage = "Not connected to Timeline."
             return
         }
 
@@ -22,7 +22,7 @@ extension ActionsPanelViewModel {
         } else {
             orderedTasks = tasks.filter { selectedTaskIDs.contains($0.id) }
         }
-        statusMessage = "Đang thực thi \(orderedTasks.count) tác vụ..."
+        statusMessage = "Running \(orderedTasks.count) tasks..."
         let startTime = CFAbsoluteTimeGetCurrent()
 
         Task {
@@ -40,7 +40,7 @@ extension ActionsPanelViewModel {
             }
             await seekPlayheadToStart(dispatcher: dispatcher)
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-            self.statusMessage = String(format: "✓ Đã hoàn thành %d/%d tác vụ (%.2fs)", completedCount, orderedTasks.count, elapsed)
+            self.statusMessage = String(format: "✓ Completed %d/%d tasks (%.2fs)", completedCount, orderedTasks.count, elapsed)
             self.isProcessing = false
         }
     }
@@ -58,10 +58,30 @@ extension ActionsPanelViewModel {
         case "syncAudio":
             _ = try await dispatcher.handleToolCallAsync(
                 toolName: "timeline_sync_audio",
-                argumentsJSON: "{\"muteVideo\": true, \"trimExcessTail\": true}"
+                argumentsJSON: "{}"
             )
-        case "autoColor":
-            let colorJSON = try await computeDynamicAutoColorJSON(dispatcher: dispatcher)
+        case "autoTrim":
+            _ = try await dispatcher.handleToolCallAsync(
+                toolName: "timeline_edit_clip",
+                argumentsJSON: "{\"operation\": \"autoTrim\"}"
+            )
+        case "shiftToStart":
+            _ = try await dispatcher.handleToolCallAsync(
+                toolName: "timeline_edit_clip",
+                argumentsJSON: "{\"operation\": \"shiftToStart\"}"
+            )
+        case "muteVideo":
+            _ = try await dispatcher.handleToolCallAsync(
+                toolName: "timeline_edit_clip",
+                argumentsJSON: "{\"operation\": \"muteVideo\"}"
+            )
+        case "markBeats":
+            _ = try await dispatcher.handleToolCallAsync(
+                toolName: "timeline_edit_clip",
+                argumentsJSON: "{\"operation\": \"markBeats\", \"mode\": \"major\"}"
+            )
+        case "autoColor", "autoAdjustment":
+            let colorJSON = try await computeDynamicAutoAdjustmentJSON(dispatcher: dispatcher)
             _ = try await dispatcher.handleToolCallAsync(
                 toolName: "timeline_apply_template",
                 argumentsJSON: colorJSON
@@ -72,7 +92,7 @@ extension ActionsPanelViewModel {
                 argumentsJSON: "{\"operation\": \"setAspectRatio\", \"aspectRatio\": \"9:16\"}"
             )
         case "addTitle":
-            let content = titleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Tiêu đề video" : titleText
+            let content = titleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Video Title" : titleText
             let resolvedID = availableTextPresets.first(where: {
                 $0.id.caseInsensitiveCompare(titlePresetID) == .orderedSame ||
                 $0.name.caseInsensitiveCompare(titlePresetID) == .orderedSame

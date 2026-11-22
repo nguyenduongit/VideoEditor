@@ -18,7 +18,6 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
     let effectEngine = EffectEngine()
     let proceduralEngine = ProceduralRenderEngine.shared
     let frameCacheLock = NSLock()
-    var lastFrameByTrackID: [CMPersistentTrackID: CIImage] = [:]
     var rawStillImageCache: [URL: CIImage] = [:]
 
     public var sourcePixelBufferAttributes: [String: any Sendable]? {
@@ -41,10 +40,23 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
     }
 
     public override init() {
-        self.ciContext = CIContext(options: [
-            .useSoftwareRenderer: false,
-            .cacheIntermediates: false
-        ])
+        if let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() {
+            let rgbSpace = CGColorSpaceCreateDeviceRGB()
+            self.ciContext = CIContext(
+                mtlCommandQueue: queue,
+                options: [
+                    .workingColorSpace: rgbSpace,
+                    .outputColorSpace: rgbSpace,
+                    .useSoftwareRenderer: false,
+                    .cacheIntermediates: false
+                ]
+            )
+        } else {
+            self.ciContext = CIContext(options: [
+                .useSoftwareRenderer: false,
+                .cacheIntermediates: false
+            ])
+        }
         super.init()
     }
 
@@ -70,7 +82,7 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
         let sx = outputSize.width / max(1.0, logicalSize.width)
         let sy = outputSize.height / max(1.0, logicalSize.height)
         let outputRect = CGRect(origin: .zero, size: outputSize)
-        var canvas = CIImage(color: CIColor(red: 0, green: 0, blue: 0, alpha: 0)).cropped(to: outputRect)
+        var canvas = CIImage(color: CIColor.black).cropped(to: outputRect)
         let compTime = asyncVideoCompositionRequest.compositionTime
 
         for rawInfo in instruction.layerInfos.reversed() {
@@ -87,11 +99,10 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
             )
         }
 
-        let finalCanvas = canvas.composited(over: CIImage(color: CIColor.black).cropped(to: outputRect))
         let primarySrcBuffer = primarySourcePixelBuffer(from: asyncVideoCompositionRequest, instruction: instruction)
         Self.renderPreservingColorSpace(
             ciContext: ciContext,
-            image: finalCanvas,
+            image: canvas,
             sourcePixelBuffer: primarySrcBuffer,
             destinationPixelBuffer: dstPixelBuffer,
             bounds: outputRect
@@ -144,18 +155,6 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
             ?? CGColorSpaceCreateDeviceRGB()
         CVBufferSetAttachment(destinationPixelBuffer, kCVImageBufferCGColorSpaceKey, outputColorSpace, .shouldPropagate)
         ciContext.render(image, to: destinationPixelBuffer, bounds: bounds, colorSpace: outputColorSpace)
-    }
-
-    func storeCachedFrame(_ image: CIImage, for trackID: CMPersistentTrackID) {
-        frameCacheLock.lock()
-        lastFrameByTrackID[trackID] = image
-        frameCacheLock.unlock()
-    }
-
-    func loadCachedFrame(for trackID: CMPersistentTrackID) -> CIImage? {
-        frameCacheLock.lock()
-        defer { frameCacheLock.unlock() }
-        return lastFrameByTrackID[trackID]
     }
 
     func loadRawStillImage(for url: URL) -> CIImage? {

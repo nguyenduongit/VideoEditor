@@ -17,7 +17,7 @@ struct AdjustmentIntegrationTests {
         config.hsl.orange.saturation = 20.0
         let preset = AdjustmentPreset(
             id: "cinematic",
-            name: "Điện ảnh",
+            name: "Cinematic",
             description: "Test preset",
             config: config
         )
@@ -34,7 +34,7 @@ struct AdjustmentIntegrationTests {
 
         let clip = layer.clips[0]
         #expect(clip.kind == .adjustment)
-        #expect(clip.name == "Điện ảnh")
+        #expect(clip.name == "Cinematic")
 
         let configStr = clip.properties["adjustmentConfig"]?.asString
         #expect(configStr != nil)
@@ -292,5 +292,45 @@ struct AdjustmentIntegrationTests {
         let deps = EditorDependencies(adjustmentTemplates: loader)
         let libraryVM = AdjustmentLibraryViewModel(dependencies: deps)
         #expect(libraryVM.defaultPreset.id == "default")
+    }
+
+    @Test("ColorGradingEngine accurately shifts Temp/Tint, bidirectional Black/White, and Color Wheels")
+    func testColorGradingMathematicalAccuracy() {
+        let rect = CGRect(x: 0, y: 0, width: 32, height: 32)
+        let engine = ColorGradingEngine()
+        let ciCtx = CIContext(options: [.useSoftwareRenderer: false])
+        func sampleRGB(_ img: CIImage) -> (r: Double, g: Double, b: Double) {
+            var px = [UInt8](repeating: 0, count: 4)
+            ciCtx.render(img, toBitmap: &px, rowBytes: 4, bounds: CGRect(x: 16, y: 16, width: 1, height: 1), format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
+            return (Double(px[0]) / 255.0, Double(px[1]) / 255.0, Double(px[2]) / 255.0)
+        }
+
+        let midGray = CIImage(color: CIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)).cropped(to: rect)
+        // 1. +Temp warms strongly (R - B > 0.18 at temp=50), -Temp cools strongly (B - R > 0.18 at temp=-50)
+        let warm = sampleRGB(engine.applyGrading(to: midGray, config: AdjustmentConfiguration(basic: BasicGradingParameters(temp: 50))))
+        let cool = sampleRGB(engine.applyGrading(to: midGray, config: AdjustmentConfiguration(basic: BasicGradingParameters(temp: -50))))
+        #expect(warm.r - warm.b > 0.18 && cool.b - cool.r > 0.18)
+
+        // 2. +Tint shifts Magenta strongly (R - G > 0.12), -Tint shifts Green strongly (G - R > 0.12)
+        let mag = sampleRGB(engine.applyGrading(to: midGray, config: AdjustmentConfiguration(basic: BasicGradingParameters(tint: 50))))
+        let grn = sampleRGB(engine.applyGrading(to: midGray, config: AdjustmentConfiguration(basic: BasicGradingParameters(tint: -50))))
+        #expect(mag.r - mag.g > 0.12 && grn.g - grn.r > 0.12)
+
+        // 3. Bidirectional Black (-60 crushes darks, +60 lifts darks) & White (+60 boosts brights, -60 dims brights)
+        let darkImg = CIImage(color: CIColor(red: 0.15, green: 0.15, blue: 0.15, alpha: 1.0)).cropped(to: rect)
+        let crushed = sampleRGB(engine.applyGrading(to: darkImg, config: AdjustmentConfiguration(basic: BasicGradingParameters(black: -60))))
+        let lifted = sampleRGB(engine.applyGrading(to: darkImg, config: AdjustmentConfiguration(basic: BasicGradingParameters(black: 60))))
+        #expect(crushed.r < 0.08 && lifted.r > 0.24)
+
+        let brightImg = CIImage(color: CIColor(red: 0.85, green: 0.85, blue: 0.85, alpha: 1.0)).cropped(to: rect)
+        let boosted = sampleRGB(engine.applyGrading(to: brightImg, config: AdjustmentConfiguration(basic: BasicGradingParameters(white: 60))))
+        let dimmed = sampleRGB(engine.applyGrading(to: brightImg, config: AdjustmentConfiguration(basic: BasicGradingParameters(white: -60))))
+        #expect(boosted.r > 0.92 && dimmed.r < 0.76)
+
+        // 4. Color wheel polar conversion: Top-Left (-x, +y) is Green (dG > 0.25), Bottom-Left (-x, -y) is Blue/Teal (dB > 0.25)
+        let greenVec = ColorGradingEngine.wheelOffsetToRGBLuma(ColorWheelOffset(x: -0.5, y: 0.866), scale: 0.78, lumaScale: 1.0 / 95.0)
+        let blueVec = ColorGradingEngine.wheelOffsetToRGBLuma(ColorWheelOffset(x: -0.5, y: -0.866), scale: 0.78, lumaScale: 1.0 / 95.0)
+        #expect(greenVec[1] > 0.25 && greenVec[0] < 0 && greenVec[2] < 0)
+        #expect(blueVec[2] > 0.25 && blueVec[0] < 0)
     }
 }

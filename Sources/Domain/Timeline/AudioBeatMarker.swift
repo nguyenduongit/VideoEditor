@@ -19,9 +19,9 @@ public enum AudioBeatDetectionMode: String, Codable, Sendable, Hashable, CaseIte
     public var displayName: String {
         switch self {
         case .majorOnly:
-            return "Nhịp 1 (Phách mạnh)"
+            return "Beat 1 (Strong Beats)"
         case .allBeats:
-            return "Nhịp 2 (Chi tiết)"
+            return "Beat 2 (All Beats)"
         }
     }
 }

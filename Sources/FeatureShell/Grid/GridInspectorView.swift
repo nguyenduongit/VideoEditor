@@ -82,7 +82,7 @@ public struct GridInspectorView: View {
                 commitConfig()
             }
         )
-        return DSToggleRow(title: "Bật kéo dài chân", isOn: binding)
+        return DSToggleRow(title: "Enable Leg Stretch", isOn: binding)
     }
 
     private var dynamicLinesToggleRow: some View {
@@ -96,7 +96,7 @@ public struct GridInspectorView: View {
                 commitConfig()
             }
         )
-        return DSToggleRow(title: "Tự động bám tiến/lùi (AI)", isOn: binding)
+        return DSToggleRow(title: "AI Dynamic Tracking", isOn: binding)
     }
 
     private var legStretchRatioSlider: some View {
@@ -108,7 +108,7 @@ public struct GridInspectorView: View {
             }
         )
         return DSSliderWithInput(
-            title: "Hệ số kéo dài",
+            title: "Stretch Ratio",
             value: binding,
             range: GridSliceEngine.minLegStretchRatio...GridSliceEngine.maxLegStretchRatio,
             step: 0.01,
@@ -131,7 +131,7 @@ public struct GridInspectorView: View {
             }
         )
         return DSSliderWithInput(
-            title: "Line Thắt lưng",
+            title: "Waist Line",
             value: binding,
             range: 0.08...0.80,
             step: 0.01,
@@ -154,7 +154,7 @@ public struct GridInspectorView: View {
             }
         )
         return DSSliderWithInput(
-            title: "Line Mắt cá",
+            title: "Ankle Line",
             value: binding,
             range: 0.20...0.95,
             step: 0.01,
@@ -169,8 +169,8 @@ public struct GridInspectorView: View {
 
     private var descriptionNote: some View {
         Text(hasVisionBodyLines && localConfig.isDynamicLines
-             ? "2 đường Thắt lưng & Mắt cá đang tự động trượt mượt theo bước tiến/lùi của nhân vật với hệ số kéo dài không đổi (0.9x – 1.3x)."
-             : "Chia khung hình thành 3 khối ngang (Thân trên - Chân - Mặt đất) và điều chỉnh chiều cao khối giữa trong khoảng 0.9x – 1.3x.")
+             ? "Waist & Ankle lines are smoothly tracking the subject forward and backward at a constant stretch ratio (0.9x – 1.3x)."
+             : "Splits the frame into 3 horizontal zones (Upper Body - Legs - Ground) and scales the middle zone between 0.9x – 1.3x.")
             .font(.system(size: 11))
             .foregroundStyle(DSColors.textSecondary)
             .lineSpacing(2)

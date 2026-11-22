@@ -35,7 +35,7 @@ public final class MetalComputeRuntimeEngine: @unchecked Sendable {
             self.device = nil
             self.commandQueue = nil
             self.ciContext = nil
-            logger.error("Không thể khởi tạo MTLDevice hoặc MTLCommandQueue trên hệ thống này.")
+            logger.error("Unable to initialize MTLDevice or MTLCommandQueue on this system.")
             return
         }
 
@@ -74,7 +74,7 @@ public final class MetalComputeRuntimeEngine: @unchecked Sendable {
             options.fastMathEnabled = true
             let library = try device.makeLibrary(source: source, options: options)
             guard let function = library.makeFunction(name: kernelName) else {
-                logger.error("Không tìm thấy hàm kernel '\(kernelName, privacy: .public)' trong MSL source.")
+                logger.error("Kernel function '\(kernelName, privacy: .public)' not found in MSL source.")
                 return nil
             }
             let state = try device.makeComputePipelineState(function: function)
@@ -83,7 +83,7 @@ public final class MetalComputeRuntimeEngine: @unchecked Sendable {
             lock.unlock()
             return state
         } catch {
-            logger.error("Lỗi biên dịch JIT Metal kernel '\(kernelName, privacy: .public)': \(error.localizedDescription, privacy: .public)")
+            logger.error("JIT Metal kernel '\(kernelName, privacy: .public)' compilation error: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
@@ -122,7 +122,7 @@ public final class MetalComputeRuntimeEngine: @unchecked Sendable {
         encoder.endEncoding()
 
         cmdBuffer.commit()
-        cmdBuffer.waitUntilScheduled()
+        cmdBuffer.waitUntilCompleted()
         return makeOutputCIImage(from: outTex, localRect: localRect, targetRect: canvasRect) ?? image
     }
 
@@ -161,7 +161,7 @@ public final class MetalComputeRuntimeEngine: @unchecked Sendable {
         encoder.endEncoding()
 
         cmdBuffer.commit()
-        cmdBuffer.waitUntilScheduled()
+        cmdBuffer.waitUntilCompleted()
         return makeOutputCIImage(from: outTex, localRect: localRect, targetRect: canvasRect) ?? image
     }
 
@@ -207,7 +207,7 @@ public final class MetalComputeRuntimeEngine: @unchecked Sendable {
         encoder.endEncoding()
 
         cmdBuffer.commit()
-        cmdBuffer.waitUntilScheduled()
+        cmdBuffer.waitUntilCompleted()
         return makeOutputCIImage(from: outTex, localRect: localRect, targetRect: canvasRect) ?? toImage
     }
 

@@ -8,8 +8,8 @@ public struct TimelineView: View {
     let playheadState: TimelinePlayheadState
     let onTimelineActivated: (() -> Void)?
     @State var movingClipID: UUID?
-    @State var movingSourceLayerID: UUID?
-    @State var pendingStartTime: CMTime = .zero
+    @State var dragSession = TimelineDragSessionBox()
+    @State var modifierState = TimelineModifierState()
     @State var scrollOffset: CGFloat = 0
     @State var verticalScrollOffset: CGFloat = 0
     @State var enclosingScrollView: NSScrollView?
@@ -37,12 +37,22 @@ public struct TimelineView: View {
                     zoomPercentageText: viewModel.zoomPercentageText, canSplit: viewModel.canSplit,
                     canExtractAudio: viewModel.canExtractAudio,
                     canSyncAudio: viewModel.canSyncAudio, isSyncingAudio: viewModel.isSyncingAudio,
+                    canAutoTrim: viewModel.canAutoTrim,
+                    canCompactBackward: viewModel.canCompactBackward,
                     canMarkBeats: viewModel.canMarkBeats, isDetectingBeats: viewModel.isDetectingBeats,
                     hasBeats: viewModel.selectedClipHasBeats, activeBeatMode: viewModel.selectedClipBeatMode,
                     onZoomIn: { viewModel.zoomIn() }, onZoomOut: { viewModel.zoomOut() },
                     onResetZoom: { viewModel.resetZoom() }, onSplit: { viewModel.splitClips(at: playheadState.currentTime) },
                     onExtractAudio: { viewModel.extractAudio() },
                     onSyncAudio: { viewModel.syncSelectedAudio() },
+                    onAutoTrim: {
+                        _ = viewModel.autoTrimOverlapClips()
+                        playheadState.seek(to: playheadState.currentTime, force: true)
+                    },
+                    onCompactBackward: {
+                        _ = viewModel.compactSelectedClipsBackward()
+                        playheadState.seek(to: playheadState.currentTime, force: true)
+                    },
                     onAutoMarkBeats: { mode in viewModel.autoMarkBeats(mode: mode) },
                     onToggleBeatAtPlayhead: { viewModel.toggleBeatMarkerAtPlayhead(at: playheadState.currentTime) },
                     onClearBeats: { viewModel.clearSelectedBeatMarkers() }
@@ -121,7 +131,13 @@ public struct TimelineView: View {
             onUndo: { _ = viewModel.undo() }, onRedo: { _ = viewModel.redo() },
             onStepFrame: { playheadState.stepFrame(by: $0) },
             onAnyClick: { viewModel.onStopPlaybackRequested?() },
-            onShortcutKey: { handleBridgeShortcut(chars: $0, keyCode: $1, flags: $2) }
+            onShortcutKey: { handleBridgeShortcut(chars: $0, keyCode: $1, flags: $2) },
+            onModifierFlagsChanged: { flags in
+                let opt = flags.contains(.option)
+                if modifierState.isOptionPressed != opt {
+                    modifierState.isOptionPressed = opt
+                }
+            }
         )
     }
 
@@ -234,7 +250,8 @@ public struct TimelineView: View {
                 viewModel.selectedTransitionID = transitionID
                 viewModel.selectedClipIDs.removeAll()
             },
-            contextActions: buildContextActions()
+            contextActions: buildContextActions(),
+            modifierState: modifierState
         )
     }
 

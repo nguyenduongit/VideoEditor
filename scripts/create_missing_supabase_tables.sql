@@ -1,8 +1,9 @@
 -- ==============================================================================
--- TẠO CÁC BẢNG SUPABASE CÒN THIẾU CHO VIDEO EDITOR
--- Lưu ý: Các bảng audio_items, stock_items, text_presets, effect_presets,
+-- TẠO CÁC BẢNG SUPABASE CÒN THIẾU CHO VIDEO EDITOR (MÔ HÌNH SINGLE-USER)
+-- Lưu ý: Các bảng audio_presets, stock_media, text_presets, effect_presets,
 -- adjustment_presets, animation_presets đã có sẵn trên Supabase của bạn.
--- Script này CHỈ tạo 3 bảng còn thiếu: sticker_presets, transition_presets, user_favorites.
+-- Trạng thái Favorites được lưu trực tiếp bằng cột `is_favorite` trên từng bảng Library
+-- thay cho bảng trung gian `user_favorites`.
 -- ==============================================================================
 
 -- 1. BẢNG STICKER PRESETS (Nhãn dán Vector SVG & Animated SVG)
@@ -18,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.sticker_presets (
     system_symbol_fallback TEXT,
     config JSONB NOT NULL,
     is_system BOOLEAN DEFAULT false,
+    is_favorite BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -54,6 +56,7 @@ CREATE TABLE IF NOT EXISTS public.transition_presets (
     icon_name TEXT,
     config JSONB NOT NULL,
     is_system BOOLEAN DEFAULT false,
+    is_favorite BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -78,30 +81,13 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_transition_presets_category ON public.transition_presets(category);
 CREATE INDEX IF NOT EXISTS idx_transition_presets_is_system ON public.transition_presets(is_system);
 
--- 3. BẢNG USER FAVORITES (Bảng trung gian quản lý danh sách Yêu thích của người dùng cho cả 7 tab)
-CREATE TABLE IF NOT EXISTS public.user_favorites (
-    user_id TEXT NOT NULL,
-    tab TEXT NOT NULL,
-    item_id TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    PRIMARY KEY (user_id, tab, item_id)
-);
+-- 3. BỔ SUNG CỘT `is_favorite` TRỰC TIẾP TRÊN 7 BẢNG LIBRARY & XÓA BẢNG `user_favorites`
+ALTER TABLE public.stock_media ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.audio_presets ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.text_presets ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.effect_presets ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.transition_presets ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.adjustment_presets ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.sticker_presets ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT false;
 
-ALTER TABLE public.user_favorites ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_favorites' AND policyname = 'Public select user_favorites') THEN
-        CREATE POLICY "Public select user_favorites" ON public.user_favorites FOR SELECT TO public USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_favorites' AND policyname = 'Public insert user_favorites') THEN
-        CREATE POLICY "Public insert user_favorites" ON public.user_favorites FOR INSERT TO public WITH CHECK (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_favorites' AND policyname = 'Public update user_favorites') THEN
-        CREATE POLICY "Public update user_favorites" ON public.user_favorites FOR UPDATE TO public USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_favorites' AND policyname = 'Public delete user_favorites') THEN
-        CREATE POLICY "Public delete user_favorites" ON public.user_favorites FOR DELETE TO public USING (true);
-    END IF;
-END $$;
-
-CREATE INDEX IF NOT EXISTS idx_user_favorites_user_tab ON public.user_favorites(user_id, tab);
+DROP TABLE IF EXISTS public.user_favorites;

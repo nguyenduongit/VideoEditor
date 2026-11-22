@@ -47,7 +47,7 @@ extension ProjectExportEngine {
             throw NSError(
                 domain: "ProjectExportEngine",
                 code: -10,
-                userInfo: [NSLocalizedDescriptionKey: "Không thể khởi tạo phiên xuất âm thanh M4A."]
+                userInfo: [NSLocalizedDescriptionKey: "Failed to create M4A audio export session."]
             )
         }
 
@@ -83,7 +83,7 @@ extension ProjectExportEngine {
             try? FileManager.default.removeItem(at: tempURL)
         }
 
-        Self.audioLogger.notice("Bắt đầu xuất âm thanh M4A tới: \(outputURL.path, privacy: .public)")
+        Self.audioLogger.notice("Starting M4A audio export to: \(outputURL.path, privacy: .public)")
         await withCheckedContinuation { continuation in
             session.exportAsynchronously { continuation.resume() }
         }
@@ -92,7 +92,7 @@ extension ProjectExportEngine {
             throw CancellationError()
         }
         if let error = session.error {
-            Self.audioLogger.error("Lỗi xuất M4A: \(error.localizedDescription, privacy: .public)")
+            Self.audioLogger.error("M4A export error: \(error.localizedDescription, privacy: .public)")
             throw error
         }
 
@@ -102,12 +102,12 @@ extension ProjectExportEngine {
             }
             try FileManager.default.moveItem(at: tempURL, to: outputURL)
             onProgress(1.0)
-            Self.audioLogger.notice("Xuất M4A thành công: \(outputURL.path, privacy: .public)")
+            Self.audioLogger.notice("M4A export succeeded: \(outputURL.path, privacy: .public)")
         } else {
             throw NSError(
                 domain: "ProjectExportEngine",
                 code: -11,
-                userInfo: [NSLocalizedDescriptionKey: "Xuất M4A không hoàn tất (Status: \(session.status.rawValue))."]
+                userInfo: [NSLocalizedDescriptionKey: "M4A export did not complete (Status: \(session.status.rawValue))."]
             )
         }
     }
@@ -130,7 +130,7 @@ extension ProjectExportEngine {
         let readerOutput = AVAssetReaderAudioMixOutput(audioTracks: audioTracks, audioSettings: nil)
         readerOutput.audioMix = audioMix
         guard reader.canAdd(readerOutput) else {
-            throw NSError(domain: "ProjectExportEngine", code: -20, userInfo: [NSLocalizedDescriptionKey: "Không thể thêm AudioMixOutput vào AVAssetReader."])
+            throw NSError(domain: "ProjectExportEngine", code: -20, userInfo: [NSLocalizedDescriptionKey: "Failed to add AudioMixOutput to AVAssetReader."])
         }
         reader.add(readerOutput)
 
@@ -147,7 +147,7 @@ extension ProjectExportEngine {
         let writerInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
         writerInput.expectsMediaDataInRealTime = false
         guard writer.canAdd(writerInput) else {
-            throw NSError(domain: "ProjectExportEngine", code: -21, userInfo: [NSLocalizedDescriptionKey: "Không thể thêm AudioInput vào AVAssetWriter."])
+            throw NSError(domain: "ProjectExportEngine", code: -21, userInfo: [NSLocalizedDescriptionKey: "Failed to add AudioInput to AVAssetWriter."])
         }
         writer.add(writerInput)
 
@@ -198,14 +198,14 @@ extension ProjectExportEngine {
             throw CancellationError()
         }
         if reader.status == .failed {
-            throw reader.error ?? NSError(domain: "ProjectExportEngine", code: -22, userInfo: [NSLocalizedDescriptionKey: "Lỗi đọc audio khi xuất WAV."])
+            throw reader.error ?? NSError(domain: "ProjectExportEngine", code: -22, userInfo: [NSLocalizedDescriptionKey: "Failed to read audio samples during WAV export."])
         }
 
         await writer.finishWriting()
 
         if isCancelled { throw CancellationError() }
         if writer.status == .failed {
-            throw writer.error ?? NSError(domain: "ProjectExportEngine", code: -23, userInfo: [NSLocalizedDescriptionKey: "Lỗi ghi file WAV."])
+            throw writer.error ?? NSError(domain: "ProjectExportEngine", code: -23, userInfo: [NSLocalizedDescriptionKey: "Failed to write WAV file."])
         }
 
         if FileManager.default.fileExists(atPath: outputURL.path) {
@@ -213,7 +213,7 @@ extension ProjectExportEngine {
         }
         try FileManager.default.moveItem(at: tempURL, to: outputURL)
         onProgress(1.0)
-        Self.audioLogger.notice("Xuất WAV thành công: \(outputURL.path, privacy: .public)")
+        Self.audioLogger.notice("WAV export succeeded: \(outputURL.path, privacy: .public)")
     }
 }
 

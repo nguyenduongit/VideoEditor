@@ -5,11 +5,11 @@ import DesignSystem
 import AppKit
 #endif
 
-/// Tab HSL cho đối tượng Adjustment Layer với 8 dải màu và công cụ Eyedropper.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
-public struct AdjustmentHSLTabContent: View {
+/// Bảng điều khiển màu HSL cho đối tượng Adjustment Layer với 8 dải màu và công cụ Eyedropper.
+/// Tuân thủ AGENTS.md (1 File = 1 Primary Type, Ubiquitous Language, Hàm <= 50 dòng).
+public struct AdjustmentHSLSectionView: View {
     @Bindable private var viewModel: InspectorViewModel
-    @State private var selectedChannelIndex: Int = 1 // Mặc định: Orange (như ảnh mẫu)
+    @State private var selectedChannelIndex: Int = 1 // Mặc định: Orange
 
     private struct ColorInfo {
         let name: String
@@ -63,7 +63,7 @@ public struct AdjustmentHSLTabContent: View {
             }
         }
         .buttonStyle(.plain)
-        .help("Chọn màu trực tiếp trên màn hình")
+        .help("Pick color directly from screen")
     }
 
     private func colorCircleButton(index: Int) -> some View {
@@ -217,3 +217,6 @@ public struct AdjustmentHSLTabContent: View {
         #endif
     }
 }
+
+/// Tương thích ngược với tên gọi cũ
+public typealias AdjustmentHSLTabContent = AdjustmentHSLSectionView

@@ -60,11 +60,10 @@ public final class EffectLibraryViewModel {
 
     /// Danh sách EffectPreset đã lọc theo danh mục, từ khóa tìm kiếm và sắp xếp cộng đồng
     public var filteredPresets: [EffectPreset] {
-        let currentAuthor = CommunityIdentity.currentAuthorID
         let filtered = templatePresets.filter { preset in
             let matchesCategory = selectedCategory == .all || preset.category == selectedCategory
             guard matchesCategory else { return false }
-            if selectedSort == .mine && preset.community.authorID != currentAuthor {
+            if selectedSort == .mine && preset.isSystem {
                 return false
             }
             let trimmed = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -72,7 +71,6 @@ public final class EffectLibraryViewModel {
             let query = trimmed.lowercased()
             if preset.name.lowercased().contains(query) { return true }
             if preset.description.lowercased().contains(query) { return true }
-            if preset.community.authorName.lowercased().contains(query) { return true }
             return preset.tags.contains { $0.lowercased().contains(query) }
         }
 
@@ -115,18 +113,6 @@ public final class EffectLibraryViewModel {
             durationSeconds: preset.defaultDuration,
             originPresetID: preset.isSystem ? nil : preset.id
         )
-        incrementDownloadCount(for: preset)
-    }
-
-    public func incrementDownloadCount(for preset: EffectPreset) {
-        var updated = preset
-        updated.community.downloadsCount += 1
-        dependencies.effectTemplates.updateInMemoryPreset(updated)
-        templatePresets = dependencies.effectTemplates.loadAllTemplates()
-        guard !preset.isSystem else { return }
-        Task {
-            try? await dependencies.presetRepositories.effectRepository?.savePreset(updated)
-        }
     }
 
     public func deletePreset(_ preset: EffectPreset) {

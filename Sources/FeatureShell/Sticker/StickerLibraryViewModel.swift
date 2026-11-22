@@ -60,7 +60,7 @@ public final class StickerLibraryViewModel {
             let fetched = try await repo.fetchPresets()
             templatePresets = fetched
         } catch {
-            stickerLibraryLogger.error("Đồng bộ StickerPresets từ Supabase thất bại: \(error.localizedDescription)")
+            stickerLibraryLogger.error("Failed to sync StickerPresets from Supabase: \(error.localizedDescription)")
             templatePresets = dependencies.stickerTemplates.loadAllTemplates()
         }
     }

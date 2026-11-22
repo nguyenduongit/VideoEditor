@@ -36,7 +36,7 @@ public final class MediaDiskCacheService: @unchecked Sendable {
         let destination = cacheDestination(for: remoteURL)
         let (tempURL, _) = try await URLSession.shared.download(from: remoteURL)
         try storeDownloadedItem(from: tempURL, to: destination)
-        cacheLogger.info("Đã cache thành công tài nguyên từ \(remoteURL.lastPathComponent) vào đĩa.")
+        cacheLogger.info("Successfully cached asset from \(remoteURL.lastPathComponent) to disk.")
         return destination
     }
 

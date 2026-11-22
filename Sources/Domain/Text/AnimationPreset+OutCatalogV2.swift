@@ -11,7 +11,7 @@ extension AnimationPreset {
 
     public static let outSoftSink = AnimationPreset(
         id: "v2_out_soft_sink", name: "Soft Sink",
-        description: "Trôi nhẹ xuống dưới êm ái kết hợp mờ dần bằng Exponential Ease-In",
+        description: "Drifts downward gently while fading out with exponential ease-in",
         phase: .outAnimation, tags: ["soft", "sink", "smooth", "minimal"], previewBadge: "SMOOTH",
         manifest: CreativeAnimationManifest(
             id: "v2_out_soft_sink", name: "Soft Sink", iconName: "arrow.down.circle",
@@ -24,7 +24,7 @@ extension AnimationPreset {
 
     public static let outBlurOut = AnimationPreset(
         id: "v2_out_blur_out", name: "Blur Out",
-        description: "Dòng chữ tan biến dần vào hiệu ứng nhòe mờ điện ảnh sâu lắng",
+        description: "Dissolves seamlessly into deep cinematic optical blur",
         phase: .outAnimation, tags: ["blur", "fade", "cinematic"], previewBadge: "CINEMA",
         manifest: CreativeAnimationManifest(
             id: "v2_out_blur_out", name: "Blur Out", iconName: "camera.filters",
@@ -37,7 +37,7 @@ extension AnimationPreset {
 
     public static let outZoomAway = AnimationPreset(
         id: "v2_out_zoom_away", name: "Zoom Away",
-        description: "Phóng to vút về phía trước màn hình kèm hiệu ứng mờ tan biến",
+        description: "Rushes forward toward the camera with fading motion blur",
         phase: .outAnimation, tags: ["zoom", "rush", "impact"], previewBadge: "ZOOM",
         manifest: CreativeAnimationManifest(
             id: "v2_out_zoom_away", name: "Zoom Away", iconName: "plus.magnifyingglass",
@@ -51,7 +51,7 @@ extension AnimationPreset {
 
     public static let outShrinkPop = AnimationPreset(
         id: "v2_out_shrink_pop", name: "Shrink Pop",
-        description: "Từng ký tự co nhỏ lại và biến mất với gia tốc nảy lùi",
+        description: "Characters shrink down and disappear with an anticipate bounce",
         phase: .outAnimation, tags: ["shrink", "pop", "back"], previewBadge: "POP",
         manifest: CreativeAnimationManifest(
             id: "v2_out_shrink_pop", name: "Shrink Pop", iconName: "arrow.down.right.and.arrow.up.left",
@@ -64,7 +64,7 @@ extension AnimationPreset {
 
     public static let outFlipAway = AnimationPreset(
         id: "v2_out_flip_away", name: "Flip Away",
-        description: "Lật 3D quanh trục dọc 90 độ quay đi và tan biến",
+        description: "Turns 90 degrees around the vertical axis and vanishes",
         phase: .outAnimation, tags: ["flip", "3d", "card"], previewBadge: "3D FLIP",
         manifest: CreativeAnimationManifest(
             id: "v2_out_flip_away", name: "Flip Away", iconName: "rotate.3d",
@@ -77,7 +77,7 @@ extension AnimationPreset {
 
     public static let outScatterExplode = AnimationPreset(
         id: "v2_out_scatter_explode", name: "Scatter Explode",
-        description: "Các ký tự phát nổ phân tán văng ra các hướng ngẫu nhiên",
+        description: "Characters scatter outward explosively in random trajectories",
         phase: .outAnimation, tags: ["scatter", "explode", "particle"], previewBadge: "EXPLODE",
         manifest: CreativeAnimationManifest(
             id: "v2_out_scatter_explode", name: "Scatter Explode", iconName: "sparkles",
@@ -91,7 +91,7 @@ extension AnimationPreset {
 
     public static let outTrackingCollapse = AnimationPreset(
         id: "v2_out_tracking_collapse", name: "Tracking Collapse",
-        description: "Các ký tự co rút khoảng cách dồn chặt về trung tâm",
+        description: "Letter spacing collapses inward toward the center while fading",
         phase: .outAnimation, tags: ["tracking", "collapse", "spacing"], previewBadge: "TRACKING",
         manifest: CreativeAnimationManifest(
             id: "v2_out_tracking_collapse", name: "Tracking Collapse", iconName: "arrow.right.and.line.vertical.and.arrow.left",
@@ -104,7 +104,7 @@ extension AnimationPreset {
 
     public static let outWipeOut = AnimationPreset(
         id: "v2_out_wipe_out", name: "Wipe Out",
-        description: "Mặt nạ quét tuyến tính đóng dần dòng chữ từ trái sang phải",
+        description: "Linear mask sweeps closed across the line from left to right",
         phase: .outAnimation, tags: ["wipe", "linear", "mask"], previewBadge: "WIPE",
         manifest: CreativeAnimationManifest(
             id: "v2_out_wipe_out", name: "Wipe Out", iconName: "square.righthalf.filled",
@@ -117,7 +117,7 @@ extension AnimationPreset {
 
     public static let outGlowBurn = AnimationPreset(
         id: "v2_out_glow_burn", name: "Glow Burn",
-        description: "Hào quang neon lóe sáng chói lòa rồi vụt tắt vào bóng tối",
+        description: "Neon halo flares brightly before burning out into darkness",
         phase: .outAnimation, tags: ["glow", "burn", "neon", "flare"], previewBadge: "NEON",
         manifest: CreativeAnimationManifest(
             id: "v2_out_glow_burn", name: "Glow Burn", iconName: "sun.max.fill",
@@ -130,7 +130,7 @@ extension AnimationPreset {
 
     public static let outBackspace = AnimationPreset(
         id: "v2_out_backspace", name: "Backspace",
-        description: "Xóa lùi từng ký tự từ phải sang trái theo thứ tự ngược",
+        description: "Deletes characters sequentially in reverse from right to left",
         phase: .outAnimation, tags: ["backspace", "delete", "retro"], previewBadge: "TYPE",
         manifest: CreativeAnimationManifest(
             id: "v2_out_backspace", name: "Backspace", iconName: "delete.left",

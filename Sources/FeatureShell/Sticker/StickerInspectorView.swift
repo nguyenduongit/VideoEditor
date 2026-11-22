@@ -40,14 +40,14 @@ public struct StickerInspectorView: View {
             }
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(viewModel.selectedClip?.name ?? "Nhãn dán")
+                Text(viewModel.selectedClip?.name ?? "Sticker")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(DSColors.textPrimary)
                     .lineLimit(1)
 
                 HStack(spacing: 6) {
                     if isAnimatedSticker {
-                        Text(String(localized: "ĐỘNG"))
+                        Text(String(localized: "ANIMATED"))
                             .font(.system(size: 9.5, weight: .bold))
                             .foregroundStyle(DSColors.toggleCyan)
                             .padding(.horizontal, 6)
@@ -55,7 +55,7 @@ public struct StickerInspectorView: View {
                             .background(DSColors.toggleCyan.opacity(0.15))
                             .clipShape(Capsule())
                     } else {
-                        Text(String(localized: "TĨNH"))
+                        Text(String(localized: "STATIC"))
                             .font(.system(size: 9.5, weight: .bold))
                             .foregroundStyle(DSColors.textSecondary)
                             .padding(.horizontal, 6)
@@ -79,7 +79,7 @@ public struct StickerInspectorView: View {
 
     private var transformSection: some View {
         VStack(alignment: .leading, spacing: DSSpacing.md) {
-            Text(String(localized: "BỐ CỤC (TRANSFORM)"))
+            Text(String(localized: "TRANSFORM"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
 
@@ -98,7 +98,7 @@ public struct StickerInspectorView: View {
             )
 
             DSPositionControl(
-                title: "Vị trí",
+                title: "Position",
                 xValue: Binding(
                     get: { viewModel.liveNumber(for: "positionX", default: 0.0) },
                     set: { viewModel.updateLiveValue(key: "positionX", value: $0) }
@@ -113,7 +113,7 @@ public struct StickerInspectorView: View {
             )
 
             DSRotationControl(
-                title: "Xoay",
+                title: "Rotation",
                 angle: Binding(
                     get: { viewModel.liveNumber(for: "rotation", default: 0.0) },
                     set: { viewModel.updateLiveValue(key: "rotation", value: $0) }
@@ -124,7 +124,7 @@ public struct StickerInspectorView: View {
             )
 
             DSSliderWithInput(
-                title: "Độ mờ",
+                title: "Opacity",
                 value: Binding(
                     get: { viewModel.liveNumber(for: "opacity", default: 1.0) },
                     set: { viewModel.updateLiveValue(key: "opacity", value: $0) }
@@ -149,7 +149,7 @@ public struct StickerInspectorView: View {
         let cfg = currentConfig
         return HStack(spacing: DSSpacing.sm) {
             flipButton(
-                title: "Lật ngang",
+                title: "Flip Horizontal",
                 icon: "arrow.left.and.right.righttriangle.left.righttriangle.right",
                 isActive: cfg.flipHorizontal
             ) {
@@ -159,7 +159,7 @@ public struct StickerInspectorView: View {
             }
 
             flipButton(
-                title: "Lật dọc",
+                title: "Flip Vertical",
                 icon: "arrow.up.and.down.righttriangle.up.righttriangle.down",
                 isActive: cfg.flipVertical
             ) {

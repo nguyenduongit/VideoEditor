@@ -49,7 +49,6 @@ public struct EffectLibraryView: View {
             searchPlaceholder: "Search effects, tags...",
             categories: categories,
             selectedCategory: $selectedCategory,
-            favoritesCount: SidebarFavoriteManager.shared.favorites(for: "effect").count,
             trailingAction: AnyView(reloadButton)
         ) {
             contentScrollView
@@ -87,6 +86,8 @@ public struct EffectLibraryView: View {
                             title: preset.name,
                             isFavorite: isFav,
                             isSelected: selectedPresetID == preset.id,
+                            showsDeleteButton: !preset.isSystem,
+                            dragPayload: .effect(preset),
                             onSelect: {
                                 selectedPresetID = preset.id
                             },
@@ -95,6 +96,9 @@ public struct EffectLibraryView: View {
                             },
                             onToggleFavorite: {
                                 SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "effect")
+                            },
+                            onDelete: {
+                                viewModel.deletePreset(preset)
                             }
                         ) { isCardHovered in
                             EffectAnimatedThumbnailView(preset: preset, isHovered: isCardHovered)

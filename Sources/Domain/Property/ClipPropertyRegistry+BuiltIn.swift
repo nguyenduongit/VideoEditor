@@ -14,7 +14,7 @@ extension ClipPropertyRegistry {
     var stickerDescriptors: [PropertyDescriptor] {
         transformDescriptors(tab: "Sticker", subtab: "Sticker", includeUniform: true)
             + blendDescriptors(tab: "Sticker", subtab: "Sticker") + [
-            PropertyDescriptor(id: "speed", title: "Tốc độ", tab: "Sticker", group: "Sticker",
+            PropertyDescriptor(id: "speed", title: "Speed", tab: "Sticker", group: "Sticker",
                                control: .slider(min: 0.25, max: 4.0, step: 0.05, unit: "x"), defaultValue: .number(1.0))
         ]
     }
@@ -45,14 +45,6 @@ extension ClipPropertyRegistry {
                 group: "Audio",
                 control: .slider(min: -1.0, max: 1.0, step: 0.01, unit: "%"),
                 defaultValue: .number(0.0)
-            ),
-            PropertyDescriptor(
-                id: "isBeatCounter",
-                title: "Beat Counter",
-                tab: "Audio",
-                group: "Audio",
-                control: .toggle,
-                defaultValue: .bool(false)
             )
         ] + speedGroupDescriptors(tab: "Audio", subtab: "Speed")
     }
@@ -124,7 +116,7 @@ extension ClipPropertyRegistry {
                 tab: tab,
                 subtab: subtab,
                 group: "Audio",
-                control: .slider(min: 0.0, max: 2.0, step: 0.01, unit: "%"),
+                control: .slider(min: 0.0, max: 4.0, step: 0.01, unit: "%"),
                 defaultValue: .number(1.0)
             ),
             PropertyDescriptor(

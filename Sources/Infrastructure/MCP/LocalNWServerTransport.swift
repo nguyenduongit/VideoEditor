@@ -151,7 +151,7 @@ public final class LocalNWServerTransport: @unchecked Sendable, MCPServerTranspo
             if let content, !content.isEmpty {
                 var buf = self.receiveBuffers[connID, default: Data()]
                 if buf.count + content.count > Self.maxBufferBytes {
-                    self.logger.error("MCP payload vượt quá giới hạn 16MB, đóng kết nối.")
+                    self.logger.error("MCP payload exceeds 16MB limit, closing connection.")
                     self.receiveBuffers.removeValue(forKey: connID)
                     connection.cancel()
                     return
@@ -181,7 +181,7 @@ public final class LocalNWServerTransport: @unchecked Sendable, MCPServerTranspo
             guard let parsed = Self.extractCompleteHTTPMessage(from: &buffer) else { return }
             receiveBuffers[connID] = buffer
             if !parsed.isAuthorized {
-                logger.warning("Chặn request MCP HTTP không hợp lệ: \(parsed.rejectionReason ?? "Unknown")")
+                logger.warning("Blocked unauthorized MCP HTTP request: \(parsed.rejectionReason ?? "Unknown")")
                 sendHTTPForbidden(parsed.rejectionReason ?? "Forbidden", on: connection)
                 return
             }

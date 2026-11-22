@@ -54,7 +54,7 @@ public struct AIInspectorView: View {
             }
 
             DSCollapsibleSection(
-                title: "Kéo dài chân",
+                title: "Leg Stretch",
                 defaultExpanded: true,
                 onReset: { resetLegStretch() }
             ) {
@@ -96,7 +96,7 @@ public struct AIInspectorView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
             } else if isAnalyzing {
-                Text(String(localized: "Đang quét..."))
+                Text(String(localized: "Scanning..."))
                     .font(.system(size: 11))
                     .foregroundStyle(DSColors.toggleCyan)
             }
@@ -107,7 +107,7 @@ public struct AIInspectorView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 16))
                     .foregroundStyle(Color(red: 0.18, green: 0.8, blue: 0.35))
-                    .help(String(localized: "Đã phân tích hoàn tất"))
+                    .help(String(localized: "Analysis complete"))
             }
         }
         .padding(.horizontal, DSSpacing.sm)
@@ -131,7 +131,7 @@ public struct AIInspectorView: View {
                 commitAutoPanConfig(updated)
             }
         )
-        return DSToggleRow(title: "Bật Auto Pan", isOn: binding)
+        return DSToggleRow(title: "Enable Auto Pan", isOn: binding)
     }
 
     private var smoothnessSlider: some View {
@@ -144,7 +144,7 @@ public struct AIInspectorView: View {
             }
         )
         return DSSliderWithInput(
-            title: "Độ mượt mà",
+            title: "Smoothness",
             value: binding,
             range: 0.0...1.0,
             step: 0.05,
@@ -161,7 +161,7 @@ public struct AIInspectorView: View {
     }
 
     private var autoPanDescriptionNote: some View {
-        Text(String(localized: "Tự động căn giữa nhân vật theo trục ngang (X). Camera chỉ lia trong phạm vi khung hình gốc để không lộ viền đen."))
+        Text(String(localized: "Automatically centers the subject along the horizontal axis (X). Camera pans strictly within the original frame bounds without exposing black edges."))
             .font(.system(size: 11))
             .foregroundStyle(DSColors.textSecondary)
             .lineSpacing(2)

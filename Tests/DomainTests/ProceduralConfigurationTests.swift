@@ -8,10 +8,10 @@ struct ProceduralConfigurationTests {
     func testProceduralTypeCoverage() {
         #expect(ProceduralType.allCases.count == 12)
         let categories = Set(ProceduralType.allCases.map { $0.category })
-        #expect(categories.contains("Màu nền & Phông"))
-        #expect(categories.contains("Nền chuyển động"))
-        #expect(categories.contains("Lớp phủ điện ảnh"))
-        #expect(categories.contains("Thị giác & Hiệu ứng"))
+        #expect(categories.contains("Solid & Backdrops"))
+        #expect(categories.contains("Animated Backgrounds"))
+        #expect(categories.contains("Film Overlays"))
+        #expect(categories.contains("Visuals & Effects"))
     }
 
     @Test("Overlays default to screen blend mode")

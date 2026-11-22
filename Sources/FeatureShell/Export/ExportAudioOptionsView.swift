@@ -11,11 +11,11 @@ public struct ExportAudioOptionsView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            Text(String(localized: "CẤU HÌNH ÂM THANH"))
+            Text(String(localized: "AUDIO SETTINGS"))
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(DSColors.textSecondary)
 
-            settingRow(title: String(localized: "Định dạng")) {
+            settingRow(title: String(localized: "Format")) {
                 DSDropdown(
                     selection: $viewModel.audioFormat,
                     titleKeyPath: \.title,
@@ -23,13 +23,13 @@ public struct ExportAudioOptionsView: View {
                 )
             }
 
-            settingRow(title: String(localized: "Kênh âm thanh")) {
-                Text(String(localized: "Stereo (2 kênh)"))
+            settingRow(title: String(localized: "Channels")) {
+                Text(String(localized: "Stereo (2 channels)"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
             }
 
-            settingRow(title: String(localized: "Tần số lấy mẫu")) {
+            settingRow(title: String(localized: "Sample Rate")) {
                 Text("48.000 Hz")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)

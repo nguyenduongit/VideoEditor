@@ -2,28 +2,42 @@ import Foundation
 
 /// Danh mục phân loại Nhãn dán (Sticker Category)
 public enum StickerCategory: String, Codable, Sendable, CaseIterable, Identifiable {
-    case all = "Tất cả"
-    case emoji = "Emoji & Biểu cảm"
-    case natureHoliday = "Thiên nhiên & Lễ hội"
-    case social = "Mạng xã hội"
-    case arrow = "Mũi tên & Chỉ dẫn"
-    case badge = "Huy hiệu & Đồ họa"
+    case all = "All"
+    case emoji = "Emoji & Faces"
+    case natureHoliday = "Nature & Holidays"
+    case social = "Social & Vlog"
+    case arrow = "Arrows"
+    case badge = "Badges & Graphics"
 
     public var id: String { rawValue }
 
     public var displayName: String {
-        switch self {
-        case .all: return "All"
-        case .emoji: return "Emoji & Faces"
-        case .natureHoliday: return "Nature & Holidays"
-        case .social: return "Social & Vlog"
-        case .arrow: return "Arrows"
-        case .badge: return "Badges & Graphics"
-        }
+        rawValue
     }
 
     public static var assignableCases: [StickerCategory] {
         [.emoji, .natureHoliday, .social, .arrow, .badge]
+    }
+
+    public static func resolve(categoryString: String) -> StickerCategory {
+        if let matched = StickerCategory(rawValue: categoryString) {
+            return matched
+        }
+        switch categoryString.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "all", "tất cả": return .all
+        case "emoji & faces", "emoji & biểu cảm": return .emoji
+        case "nature & holidays", "thiên nhiên & lễ hội": return .natureHoliday
+        case "social & vlog", "mạng xã hội": return .social
+        case "arrows", "mũi tên & chỉ dẫn": return .arrow
+        case "badges & graphics", "huy hiệu & đồ họa": return .badge
+        default: return .emoji
+        }
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        self = Self.resolve(categoryString: raw)
     }
 }
 
@@ -115,8 +129,8 @@ public struct StickerPreset: Identifiable, Codable, Sendable, Equatable {
     public static let builtInCatalog: [StickerPreset] = [
         StickerPreset(
             id: "sticker_animated_flower_leaf",
-            name: "Hoa Lá Động (SVG)",
-            description: "Cây hoa lá đung đưa và cánh hoa rơi hoạt họa bằng vector SVG thuần CSS",
+            name: "Animated Flower & Leaves (SVG)",
+            description: "Swaying plant and falling petals animated with pure CSS vector SVG",
             category: .natureHoliday,
             format: .svg,
             tags: ["flower", "leaf", "nature", "animated", "svg", "css"],
@@ -138,8 +152,8 @@ public struct StickerPreset: Identifiable, Codable, Sendable, Equatable {
         ),
         StickerPreset(
             id: "sticker_animated_xmas_tree",
-            name: "Cây Thông Noel (SVG)",
-            description: "Cây thông Noel đung đưa, đèn led nhấp nháy nhiều màu và tuyết rơi hoạt họa bằng vector SVG thuần CSS",
+            name: "Christmas Tree (SVG)",
+            description: "Swaying Christmas tree with blinking multicolor lights and falling snow in CSS SVG",
             category: .natureHoliday,
             format: .svg,
             tags: ["xmas", "tree", "christmas", "holiday", "noel", "animated", "svg"],

@@ -53,7 +53,7 @@ public struct DanceBeatCounterStripView: View {
         HStack {
             Image(systemName: "figure.dance")
                 .font(.system(size: 10))
-            Text("Dance Beat Counter (Nhịp 8)")
+            Text("Dance Beat Counter (8-Count)")
                 .font(.system(size: 9.5, weight: .medium))
         }
         .foregroundStyle(DSColors.textSecondary.opacity(0.7))

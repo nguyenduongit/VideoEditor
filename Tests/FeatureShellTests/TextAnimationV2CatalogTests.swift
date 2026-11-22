@@ -210,7 +210,7 @@ struct TextAnimationV2CatalogTests {
 
     @Test("Preset D3184CD8 with Glow and heavy Shadow renders with strictly bounded extent and 60fps budget")
     func testPresetD3184CD8RenderingPerformanceAndBoundedExtent() {
-        var cfg = TextConfiguration(content: "Văn bản")
+        var cfg = TextConfiguration(content: "Text")
         cfg.fontSize = 48.0
         cfg.scale = 6.89
         cfg.isBold = true

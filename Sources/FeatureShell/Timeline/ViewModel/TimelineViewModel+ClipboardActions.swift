@@ -111,6 +111,32 @@ extension TimelineViewModel {
         executeAddCommands([.addClip(layerID: resolvedLayerID, clip: dupScript)], newClipIDs: [newID])
     }
 
+    public func duplicateSelectedClipsViaDrag(delta: CMTime) {
+        var targets: [(clip: TimelineClip, layerID: UUID)] = []
+        for layer in layers where !layer.isLocked {
+            for clip in layer.clips where selectedClipIDs.contains(clip.id) {
+                targets.append((clip, layer.id))
+            }
+        }
+        guard !targets.isEmpty else { return }
+
+        var occupiedByLayer = Dictionary(uniqueKeysWithValues: layers.map { ($0.id, $0.clips.map(\.timeRange)) })
+        var addCommands: [TimelineCommand] = []
+        var duplicatedIDs: [UUID] = []
+
+        for item in targets {
+            let proposedStart = CMTimeMaximum(.zero, TimeRational.snapToFrame(time: CMTimeAdd(item.clip.timeRange.start, delta)))
+            let range = CMTimeRange(start: proposedStart, duration: item.clip.timeRange.duration)
+            let newID = UUID()
+            let dupScript = makeCopiedScript(from: ClipScript(from: item.clip), newID: newID, newStart: proposedStart)
+            let targetLayerID = findAvailableLayerID(for: item.clip.kind, range: range, occupiedByLayer: &occupiedByLayer)
+            addCommands.append(.addClip(layerID: targetLayerID, clip: dupScript))
+            duplicatedIDs.append(newID)
+        }
+
+        executeAddCommands(addCommands, newClipIDs: duplicatedIDs)
+    }
+
     public func copyAttributes(from clipID: UUID? = nil) {
         let targets = resolveActionClips(targetClipID: clipID, requireUnlocked: false)
         guard let first = targets.first else { return }

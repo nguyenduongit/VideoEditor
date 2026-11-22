@@ -122,11 +122,7 @@ private struct EffectPresetRow: Codable, Sendable {
         self.category = preset.category.rawValue
         self.type = "effect"
         self.preview_icon = "sparkles"
-        var mergedTags = preset.tags
-        if let metaTag = preset.community.encodeToTag() {
-            mergedTags.append(metaTag)
-        }
-        self.tags = mergedTags
+        self.tags = preset.tags
         self.preview_badge = preset.previewBadge
         self.config = preset.config
         self.is_system = preset.isSystem

@@ -9,14 +9,18 @@ import CoreImage
 @MainActor
 struct ActionsPanelTests {
 
-    @Test("ActionsPanelViewModel initializes with empty default actions and 5 standard tasks")
+    @Test("ActionsPanelViewModel initializes with empty default actions and 9 atomic system tool tasks")
     func testInitialization() {
         let viewModel = ActionsPanelViewModel()
         #expect(viewModel.actions.isEmpty)
         #expect(viewModel.selectedActionID == nil)
 
-        #expect(viewModel.tasks.count == 5)
+        #expect(viewModel.tasks.count == 9)
         #expect(viewModel.tasks.contains { $0.id == "syncAudio" })
+        #expect(viewModel.tasks.contains { $0.id == "autoTrim" })
+        #expect(viewModel.tasks.contains { $0.id == "shiftToStart" })
+        #expect(viewModel.tasks.contains { $0.id == "muteVideo" })
+        #expect(viewModel.tasks.contains { $0.id == "markBeats" })
         #expect(viewModel.tasks.contains { $0.id == "autoColor" })
         #expect(viewModel.tasks.contains { $0.id == "aspect916" })
         #expect(viewModel.tasks.contains { $0.id == "addTitle" })
@@ -150,8 +154,8 @@ struct ActionsPanelTests {
         #expect(timelineVM.currentTime == .zero)
     }
 
-    @Test("computeDynamicAutoColorJSON produces calibrated JSON with exposure and shadow offsets")
-    func testComputeDynamicAutoColorJSON() async throws {
+    @Test("computeDynamicAutoAdjustmentJSON produces calibrated JSON with exposure and shadow offsets")
+    func testComputeDynamicAutoAdjustmentJSON() async throws {
         let timelineVM = TimelineViewModel()
         let validVideoURL = ProceduralAssetProvider.shared.blackVideoURL()
         let clip = TimelineClip(
@@ -166,15 +170,15 @@ struct ActionsPanelTests {
         let engine = TimelineScriptEngine(viewModel: timelineVM)
         let dispatcher = MCPTimelineToolDispatcher(scriptEngine: engine)
 
-        let json = try await viewModel.computeDynamicAutoColorJSON(dispatcher: dispatcher)
+        let json = try await viewModel.computeDynamicAutoAdjustmentJSON(dispatcher: dispatcher)
         guard let data = json.data(using: .utf8),
               let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            Issue.record("Failed to parse AutoColor JSON")
+            Issue.record("Failed to parse AutoAdjustment JSON")
             return
         }
 
         #expect(dict["kind"] as? String == "adjustment")
-        // Dark procedural video -> AutoColorEngine boosts exposure (> 0) and shadow (> 0)
+        // Dark procedural video -> AutoAdjustmentEngine boosts exposure (> 0) and shadow (> 0)
         let exposure = try #require(dict["exposure"] as? Int)
         let shadow = try #require(dict["shadow"] as? Int)
         #expect(exposure >= 5)
@@ -198,8 +202,8 @@ struct ActionsPanelTests {
         #expect(telemetry.shadowClippingRatio == 0.0)
     }
 
-    @Test("computeDynamicAutoColorJSON throws when video file does not exist")
-    func testComputeDynamicAutoColorJSONThrowsOnUnreadableFile() async {
+    @Test("computeDynamicAutoAdjustmentJSON throws when video file does not exist")
+    func testComputeDynamicAutoAdjustmentJSONThrowsOnUnreadableFile() async {
         let timelineVM = TimelineViewModel()
         let clip = TimelineClip(
             name: "Missing Clip",
@@ -214,19 +218,19 @@ struct ActionsPanelTests {
         let dispatcher = MCPTimelineToolDispatcher(scriptEngine: engine)
 
         await #expect(throws: AppError.self) {
-            _ = try await viewModel.computeDynamicAutoColorJSON(dispatcher: dispatcher)
+            _ = try await viewModel.computeDynamicAutoAdjustmentJSON(dispatcher: dispatcher)
         }
     }
 
-    @Test("computeDynamicAutoColorJSON throws when timeline has no video clip")
-    func testComputeDynamicAutoColorJSONThrowsWhenEmpty() async {
+    @Test("computeDynamicAutoAdjustmentJSON throws when timeline has no video clip")
+    func testComputeDynamicAutoAdjustmentJSONThrowsWhenEmpty() async {
         let timelineVM = TimelineViewModel()
         let viewModel = ActionsPanelViewModel(timelineViewModel: timelineVM)
         let engine = TimelineScriptEngine(viewModel: timelineVM)
         let dispatcher = MCPTimelineToolDispatcher(scriptEngine: engine)
 
         await #expect(throws: AppError.self) {
-            _ = try await viewModel.computeDynamicAutoColorJSON(dispatcher: dispatcher)
+            _ = try await viewModel.computeDynamicAutoAdjustmentJSON(dispatcher: dispatcher)
         }
     }
 
@@ -250,6 +254,25 @@ struct ActionsPanelTests {
 
         viewModel.cycleAction(forward: false)
         #expect(viewModel.selectedActionID == "a3")
+    }
+
+    @Test("AutoAdjustmentEngine adaptively transforms warm outdoor daylight telemetry into Clean Airy Daylight style")
+    func testAutoAdjustmentEngineAdaptiveCleanAiryDaylightConvergence() {
+        let warmOutdoorTelemetry = ColorTelemetryProfile(
+            averageLuma: 0.5688, blackPoint: 0.2274, whitePoint: 0.9805, dynamicRange: 0.7531,
+            shadowClippingRatio: 0.0, highlightClippingRatio: 0.02,
+            meanRed: 0.5916, meanGreen: 0.5702, meanBlue: 0.4882,
+            dominantCast: "warm", suggestedTempOffset: -15.5, suggestedTintOffset: -4.5,
+            averageSaturation: 0.2851
+        )
+        let result = AutoAdjustmentEngine().computeAdjustment(from: warmOutdoorTelemetry)
+        let basic = result.basic
+
+        #expect(basic.temp <= -12 && basic.tint <= -2)
+        #expect(basic.exposure >= 3 && basic.brilliance >= 4 && basic.shadow >= 12 && basic.black >= 6)
+        #expect(basic.highlight <= -6 && basic.white >= 3)
+        #expect(basic.saturation <= -5 && !result.hsl.isNeutral)
+        #expect(result.hsl.orange.luminance > 0 && result.hsl.yellow.hue > 0)
     }
 }
 

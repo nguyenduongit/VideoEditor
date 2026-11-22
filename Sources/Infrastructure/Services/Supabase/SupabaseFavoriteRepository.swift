@@ -5,54 +5,59 @@ import Supabase
 
 private let favRepoLogger = Logger(subsystem: "VideoEditor", category: "SupabaseFavoriteRepository")
 
-/// Kho lưu trữ đồng bộ mục Yêu thích (Favorites) của người dùng qua Supabase Database (`user_favorites`).
-/// Sử dụng Client ID ẩn danh (Device UUID) khi chưa đăng nhập, hỗ trợ SWR và phản hồi tức thì.
+/// Kho lưu trữ đồng bộ mục Yêu thích (Favorites) cho ứng dụng cá nhân (Single-User).
+/// Đọc và cập nhật trực tiếp cột `is_favorite` trên chính bảng tài nguyên của từng tab Library trên Supabase,
+/// loại bỏ hoàn toàn bảng trung gian `user_favorites`.
 /// Tuân thủ AGENTS.md (Pure Domain Protocol implementation, Sendable, File <= 300 dòng).
 public final class SupabaseFavoriteRepository: FavoriteRepositoryProtocol, @unchecked Sendable {
     private let client: SupabaseClient?
-    private let tableName = "user_favorites"
     private let lock = NSLock()
     private var inMemoryFavorites: [String: Set<String>] = [:]
-    private let clientID: String
 
-    public init(
-        client: SupabaseClient? = SupabaseConfig.makeClient(),
-        customClientID: String? = nil
-    ) {
+    public init(client: SupabaseClient? = SupabaseConfig.makeClient()) {
         self.client = client
-        if let customClientID {
-            self.clientID = customClientID
-        } else {
-            let key = "com.videoeditor.client_device_uuid"
-            if let saved = UserDefaults.standard.string(forKey: key) {
-                self.clientID = saved
-            } else {
-                let newID = UUID().uuidString
-                UserDefaults.standard.set(newID, forKey: key)
-                self.clientID = newID
-            }
+    }
+
+    /// Ánh xạ tên tab Sidebar trái sang tên bảng Supabase tương ứng.
+    public static func tableName(for tab: String) -> String? {
+        switch tab {
+        case "media":
+            return "stock_media"
+        case "audio":
+            return "audio_presets"
+        case "text":
+            return "text_presets"
+        case "effect":
+            return "effect_presets"
+        case "transition":
+            return "transition_presets"
+        case "adjustment":
+            return "adjustment_presets"
+        case "sticker":
+            return "sticker_presets"
+        default:
+            return nil
         }
     }
 
     public func fetchFavorites(for tab: String) async throws -> Set<String> {
-        guard let client else {
+        guard let table = Self.tableName(for: tab), let client else {
             return currentFavorites(for: tab)
         }
 
         do {
-            let rows: [UserFavoriteRow] = try await client
-                .from(tableName)
-                .select()
-                .eq("user_id", value: clientID)
-                .eq("tab", value: tab)
+            let rows: [FavoriteItemIDRow] = try await client
+                .from(table)
+                .select("id")
+                .eq("is_favorite", value: true)
                 .execute()
                 .value
 
-            let itemIDs = Set(rows.map(\.item_id))
+            let itemIDs = Set(rows.map(\.id))
             setInMemoryFavorites(itemIDs, for: tab)
             return itemIDs
         } catch {
-            favRepoLogger.warning("Không thể tải favorites từ Supabase cho tab '\(tab)': \(error.localizedDescription)")
+            favRepoLogger.warning("Failed to fetch is_favorite from table '\(table)' for tab '\(tab)': \(error.localizedDescription)")
             return currentFavorites(for: tab)
         }
     }
@@ -60,29 +65,30 @@ public final class SupabaseFavoriteRepository: FavoriteRepositoryProtocol, @unch
     public func addFavorite(id: String, for tab: String) async throws {
         addToInMemory(id: id, for: tab)
 
-        guard let client else { return }
-        let row = UserFavoriteRow(user_id: clientID, tab: tab, item_id: id)
+        guard let table = Self.tableName(for: tab), let client else { return }
         do {
-            try await client.from(tableName).upsert(row).execute()
+            try await client
+                .from(table)
+                .update(FavoriteTogglePayload(is_favorite: true))
+                .eq("id", value: id)
+                .execute()
         } catch {
-            favRepoLogger.error("Lỗi khi thêm favorite lên Supabase: \(error.localizedDescription)")
+            favRepoLogger.error("Failed to set is_favorite=true on table '\(table)': \(error.localizedDescription)")
         }
     }
 
     public func removeFavorite(id: String, for tab: String) async throws {
         removeFromInMemory(id: id, for: tab)
 
-        guard let client else { return }
+        guard let table = Self.tableName(for: tab), let client else { return }
         do {
             try await client
-                .from(tableName)
-                .delete()
-                .eq("user_id", value: clientID)
-                .eq("tab", value: tab)
-                .eq("item_id", value: id)
+                .from(table)
+                .update(FavoriteTogglePayload(is_favorite: false))
+                .eq("id", value: id)
                 .execute()
         } catch {
-            favRepoLogger.error("Lỗi khi xóa favorite trên Supabase: \(error.localizedDescription)")
+            favRepoLogger.error("Failed to clear is_favorite=false on table '\(table)': \(error.localizedDescription)")
         }
     }
 
@@ -117,11 +123,12 @@ public final class SupabaseFavoriteRepository: FavoriteRepositoryProtocol, @unch
     }
 }
 
-// MARK: - Supabase DTO Row
+// MARK: - Supabase DTO Rows
 
-private struct UserFavoriteRow: Codable, Sendable {
-    let user_id: String
-    let tab: String
-    let item_id: String
+private struct FavoriteItemIDRow: Codable, Sendable {
+    let id: String
 }
 
+private struct FavoriteTogglePayload: Codable, Sendable {
+    let is_favorite: Bool
+}

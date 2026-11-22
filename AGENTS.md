@@ -1,8 +1,8 @@
 # BỘ HIẾN PHÁP PHÁT TRIỂN DỰ ÁN SWIFT MACOS DESKTOP (AGENTS.md)
 # THE SWIFT MACOS DESKTOP AGENT CONSTITUTION
 
-> **Mục tiêu tối thượng:** Kiến trúc mô-đun hóa triệt để, Component hóa giao diện 4 cấp độ có giới hạn cứng, 100% Protocol-first, Hiệu năng mượt mà chuẩn macOS Native (60/120fps), Kỷ luật thực thi Agent tuyệt đối, Không "vibe-code", Không cẩu thả.
-> **Phiên bản:** 1.0 (Production-Grade Master Specification)
+> **Mục tiêu tối thượng:** Kiến trúc mô-đun hóa triệt để, Nguyên tắc đơn nhiệm theo file (Single Responsibility), Ngôn ngữ chung thống nhất (Ubiquitous Language), Component hóa giao diện 4 cấp độ, 100% Protocol-first, Hiệu năng mượt mà chuẩn macOS Native (60/120fps), Kỷ luật thực thi Agent tuyệt đối, Không "vibe-code", Không cẩu thả.
+> **Phiên bản:** 2.0 (Single Responsibility & Ubiquitous Language Master Specification)
 > **Nền tảng mục tiêu:** macOS 14.0+ (Sonoma, Sequoia), Swift 6 (Strict Concurrency Complete), SwiftUI & AppKit Hybrid khi cần thiết.
 
 ---
@@ -87,23 +87,43 @@ Danh sách ADR ngoại lệ (docs/adr/): []
 
 # PHẦN I: LÕI KỸ THUẬT NỀN TẢNG (CORE PRINCIPLES)
 
-## ĐIỀU 1: GIỚI HẠN KÍCH THƯỚC TRẦN CỨNG & TÁI SỬ DỤNG
-* **Trần cứng file & hàm:**
-  * File code: ≤ **300 dòng**.
-  * Hàm/Phương thức: ≤ **50 dòng**.
-  * SwiftUI View `body`: ≤ **40 dòng**.
-  * Lồng khối (nesting): ≤ **3 cấp** (dùng early `guard` để làm phẳng code).
-  * Vượt trần: Bắt buộc tách file, tách subview, hoặc tách UseCase. Với code cũ có sẵn vượt trần: báo cáo, không tự ý tách nếu không có lệnh refactor.
-* **Quy tắc Tái sử dụng:**
-  * **Trước khi viết** helper, modifier, hoặc control mới: tìm trong thư mục `UIComponents/` và `Shared/`.
-  * Đã có logic tương đương: dùng lại, cấm tạo bản sao (`.copy()`, `2`).
-  * Thay đổi hiện tại cần ở từ 2 nơi trở lên: viết **một lần** ở module dùng chung phù hợp.
+## ĐIỀU 1: NGUYÊN TẮC ĐƠN NHIỆM THEO FILE (SRP) & QUY CHUẨN TÁCH FILE
+* **Quy tắc 1 Primary Type (Một kiểu dữ liệu chính duy nhất):**
+  * Mỗi file code `.swift` chỉ đại diện cho **đúng một trách nhiệm cốt lõi** và chứa duy nhất một Primary Type (`struct`, `class`, `actor`, `enum`, hoặc `protocol`) có mức truy cập `public` hoặc `internal`.
+  * **Tên file bắt buộc phải trùng khớp 100% với tên Primary Type** (Ví dụ: `AutoAdjustmentEngine.swift` chứa `struct AutoAdjustmentEngine`). Cấm gộp 2 đối tượng độc lập vào cùng một file.
+* **Tính gắn kết nội bộ (Private / Fileprivate Cohesion):**
+  * Cho phép các subview, extension, helper struct hoặc enum phụ trợ được viết chung trong cùng file nếu mang quyền truy cập `private` hoặc `fileprivate` và **phục vụ độc quyền** cho Primary Type của file đó.
+  * Không ép tách file khi các subview mang tính cục bộ (Single-use), tránh làm phân mảnh và rác cây thư mục.
+* **Tiêu chuẩn bắt buộc tách file mới (Khi nào tách?):**
+  1. **Tái sử dụng (Rule of Three):** Khi một subview/helper bắt đầu được sử dụng ở từ 2 màn hình/file khác nhau trở lên, bắt buộc tách thành file riêng ở thư mục `Components/` hoặc `UIComponents/`.
+  2. **Ranh giới tầng (Layer Boundary):** File vi phạm ranh giới kiến trúc (ví dụ: View tự gọi URLSession/I/O, hoặc tự parse JSON nặng) bắt buộc tách logic sang Service/ViewModel.
+  3. **Generic Controls (Cấp 1):** Mọi control dùng chung toàn app phải nằm riêng trong `UIComponents/Controls/`.
+  4. **Kiểm thử độc lập (Testability):** Toàn bộ ViewModel, Command, Engine, Repository cần file riêng để viết Unit Test độc lập.
+* **Giới hạn hàm, View body & lồng khối:**
+  * **Hàm/Phương thức:** ≤ **50 dòng** (tập trung thực hiện 1 hành động duy nhất).
+  * **SwiftUI View `body`:** ≤ **40 dòng** (bắt buộc phân rã thành các subview/computed properties `private var ...: some View` hoặc `private struct ...: View` nội bộ trong file).
+  * **Lồng khối (nesting):** ≤ **3 cấp** (dùng early `guard` để làm phẳng code).
 
-## ĐIỀU 2: KHÔNG HARDCODE & QUẢN LÝ STATE
-* Không dùng chuỗi/số trôi nổi (magic numbers/strings). Gom vào `enum`, hằng số tĩnh có kiểu (`enum Metric`, `enum AppConstant`).
-* Chuỗi hiển thị giao diện Desktop: Dùng `String(localized: ...)` hoặc String Catalog.
-* **State cục bộ trước:** Giữ `@State` ở component gần nhất; chỉ nâng lên `@Observable` ViewModel khi có từ 2 component con khác nhánh cần dùng chung.
-* **Một nguồn sự thật duy nhất (Single Source of Truth):** Không lưu cùng một dữ liệu ở cả ViewModel và View rồi đồng bộ thủ công. Dữ liệu suy ra được thì dùng computed property.
+## ĐIỀU 2: NGÔN NGỮ THỐNG NHẤT (UBIQUITOUS LANGUAGE) & QUY CHUẨN ĐẶT TÊN
+* **Nguyên tắc "Một Khái Niệm - Một Danh Từ Duy Nhất" (Single Concept - Single Term):**
+  * Tuyệt đối cấm hiện tượng trôi dạt thuật ngữ (Terminology Drift). Mỗi khái niệm nghiệp vụ phải được định danh thống nhất xuyên suốt từ Domain -> ViewModel -> View -> chuỗi Localization.
+  * *Ví dụ vi phạm:* Cấm tình trạng một nơi gọi là `AutoColor`, nơi khác gọi là `AutoAdjustment`, giao diện lại để `Auto Balance`. Tất cả phải thống nhất theo thuật ngữ chuẩn (ví dụ: `AutoAdjustmentEngine`, `AutoAdjustmentResult`, `applyAutoAdjustment()`).
+* **Tiêu chuẩn đặt tên theo Hậu tố Trách nhiệm (Suffix Standards):**
+  * `*Screen`: Màn hình hoàn chỉnh / Cửa sổ lớn (Cấp 3 - nơi duy nhất sở hữu ViewModel).
+  * `*View`: Khối giao diện nghiệp vụ (Cấp 2) hoặc View component tổng thể.
+  * `*Control` / `*Slider` / `*Field` / `*Button` / `*Row`: Generic UI Controls (Cấp 1).
+  * `*ViewModel`: Quản lý trạng thái và luồng dữ liệu cho màn hình/tính năng.
+  * `*State`: Struct/Enum định nghĩa trạng thái dữ liệu thuần.
+  * `*Command`: Thao tác nghiệp vụ có thể Undo/Redo.
+  * `*RepositoryProtocol` (Domain) & `*Repository` (Infrastructure): Quản lý lưu trữ/truy xuất dữ liệu.
+  * `*ServiceProtocol` (Domain) & `*Service` (Infrastructure): Giao tiếp phần cứng / OS / Bên ngoài.
+* **Quy chuẩn đặt tên Hàm và Biến:**
+  * **Hàm thực hiện hành động:** Bắt đầu bằng động từ mệnh lệnh rõ ràng (`applyAdjustment`, `loadPreset`, `exportTimeline`). Tuyệt đối cấm các tên mơ hồ, vô nghĩa: `process()`, `handle()`, `doAction()`, `manage()`.
+  * **Biến trạng thái Boolean:** Bắt buộc bắt đầu bằng tiền tố `is`, `has`, `should`, `can` (ví dụ: `isLoading`, `hasUnsavedChanges`, `canUndo`, `shouldAutoPlay`).
+* **Không hardcode & Quản lý State:**
+  * Gom chuỗi/số trôi nổi (magic numbers/strings) vào `enum`, hằng số tĩnh có kiểu (`enum Metric`, `enum AppConstant`).
+  * Chuỗi hiển thị giao diện Desktop: Dùng `String(localized: ...)` hoặc String Catalog.
+  * **Một nguồn sự thật duy nhất (Single Source of Truth):** Không lưu cùng một dữ liệu ở cả ViewModel và View rồi đồng bộ thủ công. Dữ liệu suy ra được thì dùng computed property.
 
 ## ĐIỀU 3: XỬ LÝ LỖI KHÔNG CHE GIẤU (FAIL FAST & LOUD)
 * Mọi I/O file, xử lý dữ liệu nặng, mã hóa, network đều phải có xử lý lỗi tường minh.
@@ -311,7 +331,7 @@ public enum ViewState<T: Sendable>: Sendable {
 # PHẦN VI: BỘ CÔNG CỤ ÉP BUỘC KỶ LUẬT (CI & LINTING)
 
 1. **SwiftLint Cưỡng chế:**
-   * Giới hạn file: Cảnh báo ở 200 dòng, Lỗi ở 300 dòng.
+   * Cấu hình `file_length`: Cảnh báo ở 600 dòng, Lỗi ở 1000 dòng (ngăn ngừa triệt để God File nhưng cho phép các private subviews/extensions nội bộ nằm chung file theo quy tắc SRP).
    * Giới hạn hàm: Cảnh báo ở 40 dòng, Lỗi ở 50 dòng.
    * Cấm `force_cast`, `force_try`, `force_unwrapping`.
 2. **Build Flags Bắt buộc:**
@@ -321,7 +341,9 @@ public enum ViewState<T: Sendable>: Sendable {
    Một nhiệm vụ của Agent chỉ được coi là hoàn tất khi:
    - [ ] Build thành công không có Warning mới (`swift build`).
    - [ ] Unit Test liên quan chạy qua 100% (`swift test`).
-   - [ ] Không có file mới nào vượt trần 300 dòng hoặc hàm vượt 50 dòng.
+   - [ ] Tuân thủ nguyên tắc 1 File = 1 Primary Type (tên file khớp 100% với tên Primary Type).
+   - [ ] Tuân thủ Ngôn ngữ chung thống nhất (Ubiquitous Language) xuyên suốt từ Domain ra UI.
+   - [ ] Hàm không vượt 50 dòng, SwiftUI View body không vượt 40 dòng.
    - [ ] Báo cáo đúng định dạng Phụ lục B kèm **output nguyên văn của lệnh build/test**.
 
 ---
@@ -391,7 +413,7 @@ Agent sau khi hoàn thành nhiệm vụ bắt buộc phải báo cáo theo đị
   - `Modules/UIComponents/Controls/SearchField.swift` (Cấp 1)
   - `Modules/Features/FeatureEditor/Components/DocumentRowView.swift` (Cấp 2)
   - `Modules/Features/FeatureEditor/Screens/EditorScreen.swift` (Cấp 3)
-- [x] Kiểm tra trần kích thước: File lớn nhất: 142 dòng (<= 300), Hàm dài nhất: 28 dòng (<= 50).
+- [x] Kiểm tra kiến trúc & đơn nhiệm: 1 File = 1 Primary Type, không có hàm vượt 50 dòng, thuật ngữ thống nhất (Ubiquitous Language).
 
 ### 2. KẾT QUẢ KIỂM CHỨNG THỰC TẾ (VERIFICATION OUTPUT)
 Lệnh đã chạy: `swift test`

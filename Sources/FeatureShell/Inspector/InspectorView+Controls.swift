@@ -186,7 +186,7 @@ extension InspectorView {
                 flipButton(
                     icon: "arrow.left.and.right.righttriangle.left.righttriangle.right",
                     isActive: viewModel.liveBool(for: horizontalID, default: false),
-                    help: "Lật ngang"
+                    help: "Flip Horizontal"
                 ) {
                     let cur = viewModel.liveBool(for: horizontalID, default: false)
                     viewModel.updateLiveBool(key: horizontalID, value: !cur)
@@ -194,7 +194,7 @@ extension InspectorView {
                 flipButton(
                     icon: "arrow.up.and.down.righttriangle.up.righttriangle.down",
                     isActive: viewModel.liveBool(for: verticalID, default: false),
-                    help: "Lật dọc"
+                    help: "Flip Vertical"
                 ) {
                     let cur = viewModel.liveBool(for: verticalID, default: false)
                     viewModel.updateLiveBool(key: verticalID, value: !cur)

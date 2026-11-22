@@ -14,7 +14,7 @@ struct ExportAudioOnlyTests {
         #expect(mediaTypes[0] == .video)
         #expect(mediaTypes[1] == .audio)
         #expect(ExportMediaType.video.id == "Video (MP4)")
-        #expect(ExportMediaType.audio.id == "Âm thanh (Audio Only)")
+        #expect(ExportMediaType.audio.id == "Audio Only")
 
         let audioFormats = ExportAudioFormat.allCases
         #expect(audioFormats.count == 2)

@@ -142,4 +142,25 @@ struct MediaAssetDragSourceTests {
         #expect(!addCalled)
         #expect(!selectCalled)
     }
+
+    @Test func testClickOnTopRightInvokesOnToggleFavoriteWhenConfigured() throws {
+        let (view, window) = makeView(width: 100, height: 120)
+        var favCalled = false
+        var selectCalled = false
+
+        view.onToggleFavorite = { favCalled = true }
+        view.onSelect = { _ in selectCalled = true }
+
+        let insidePoint = NSPoint(x: 85, y: 15)
+        let downEvent = try #require(makeMouseEvent(type: .leftMouseDown, locationInView: insidePoint, view: view, window: window))
+        let upEvent = try #require(makeMouseEvent(type: .leftMouseUp, locationInView: insidePoint, view: view, window: window))
+
+        view.mouseDown(with: downEvent)
+        #expect(!selectCalled)
+        #expect(!favCalled)
+
+        view.mouseUp(with: upEvent)
+        #expect(favCalled)
+        #expect(!selectCalled)
+    }
 }

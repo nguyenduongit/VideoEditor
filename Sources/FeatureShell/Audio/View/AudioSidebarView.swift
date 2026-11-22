@@ -28,7 +28,6 @@ public struct AudioSidebarView: View {
             searchPlaceholder: "Search audio, tools...",
             categories: viewModel.categories,
             selectedCategory: $viewModel.selectedCategory,
-            favoritesCount: SidebarFavoriteManager.shared.favorites(for: "audio").count,
             trailingAction: AnyView(reloadButton)
         ) {
             contentScrollView
@@ -62,6 +61,7 @@ public struct AudioSidebarView: View {
                         title: item.name,
                         isFavorite: isFav,
                         isSelected: selectedPresetID == item.id,
+                        dragPayload: .audio(item),
                         onSelect: {
                             selectedPresetID = item.id
                         },

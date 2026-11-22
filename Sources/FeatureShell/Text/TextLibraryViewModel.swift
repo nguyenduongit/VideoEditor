@@ -10,12 +10,6 @@ import Domain
 public final class TextLibraryViewModel {
     public static let defaultPresetID = "default"
 
-    public enum SubTab: String, CaseIterable, Sendable {
-        case `default` = "Default"
-        case templates = "Presets"
-    }
-
-    public var selectedSubTab: SubTab = .default
     public var selectedCategory: TextTemplateCategory = .all
     public var searchQuery: String = ""
     public var selectedPresetID: String?
@@ -97,9 +91,8 @@ public final class TextLibraryViewModel {
             let inName = preset.name.lowercased().contains(query)
             let inDesc = preset.description.lowercased().contains(query)
             let inContent = preset.config.content.lowercased().contains(query)
-            let inAuthor = preset.community.authorName.lowercased().contains(query)
             let inTags = preset.tags.contains { $0.lowercased().contains(query) }
-            return inName || inDesc || inContent || inAuthor || inTags
+            return inName || inDesc || inContent || inTags
         }
     }
 

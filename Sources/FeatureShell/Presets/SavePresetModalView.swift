@@ -2,7 +2,7 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Hộp thoại popover/sheet đóng góp Preset mới lên Kho Thư viện Cộng đồng Mở (Text, Adjustment, Effect).
+/// Hộp thoại popover lưu Preset cá nhân (Text, Adjustment, Effect) lên Supabase của bạn.
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
 public struct SavePresetModalView: View {
     public enum PresetKind {
@@ -18,7 +18,6 @@ public struct SavePresetModalView: View {
     public let onDismiss: () -> Void
 
     @State private var name: String = ""
-    @State private var authorName: String = CommunityIdentity.currentAuthorName
     @State private var tagsInput: String = ""
     @State private var description: String = ""
     @State private var selectedAdjustmentCategory: AdjustmentTemplateCategory = .cinematic
@@ -43,7 +42,7 @@ public struct SavePresetModalView: View {
         self.dependencies = dependencies
         self.onSaveCompleted = onSaveCompleted
         self.onDismiss = onDismiss
-        _name = State(initialValue: originPresetName ?? "Preset của tôi")
+        _name = State(initialValue: originPresetName ?? "My Preset")
     }
 
     public var body: some View {
@@ -65,9 +64,9 @@ public struct SavePresetModalView: View {
 
     private var headerView: some View {
         HStack {
-            Image(systemName: "globe.asia.australia.fill")
+            Image(systemName: "square.and.arrow.down.fill")
                 .foregroundStyle(DSColors.accent)
-            Text(originPresetID != nil ? String(localized: "Đóng góp Bản Remix Mới") : String(localized: "Đóng góp lên Kho Cộng đồng"))
+            Text(originPresetID != nil ? String(localized: "Save Preset Copy") : String(localized: "Save as Preset"))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
             Spacer()
@@ -82,18 +81,18 @@ public struct SavePresetModalView: View {
 
     private var inputFormView: some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            labeledTextField(title: "Tên Preset", placeholder: "Nhập tên preset...", text: $name)
+            labeledTextField(title: "Preset Name", placeholder: "Enter preset name...", text: $name)
             HStack(spacing: DSSpacing.sm) {
-                labeledTextField(title: "Tác giả đóng góp", placeholder: "Tên của bạn...", text: $authorName)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(String(localized: "Danh mục"))
+                    Text(String(localized: "Category"))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(DSColors.textSecondary)
                     categoryPicker
                 }
+                Spacer(minLength: 0)
             }
-            labeledTextField(title: "Từ khóa (cách nhau dấu phẩy)", placeholder: "vlog, cinematic, neon...", text: $tagsInput)
-            labeledTextField(title: "Ghi chú / Mô tả (tùy chọn)", placeholder: "Mô tả ngắn phong cách...", text: $description)
+            labeledTextField(title: "Tags (comma-separated)", placeholder: "vlog, cinematic, neon...", text: $tagsInput)
+            labeledTextField(title: "Notes / Description (optional)", placeholder: "Short style description...", text: $description)
         }
     }
 
@@ -115,9 +114,9 @@ public struct SavePresetModalView: View {
         switch kind {
         case .adjustment:
             DSDropdown(
-                selectedTitle: selectedAdjustmentCategory.rawValue,
-                options: AdjustmentTemplateCategory.allCases.filter { $0 != .all }.map {
-                    DSDropdownOption(id: $0.rawValue, title: $0.rawValue)
+                selectedTitle: selectedAdjustmentCategory.displayName,
+                options: AdjustmentTemplateCategory.assignableCases.map {
+                    DSDropdownOption(id: $0.rawValue, title: $0.displayName)
                 },
                 onSelect: { val in
                     if let cat = AdjustmentTemplateCategory(rawValue: val) {
@@ -127,9 +126,9 @@ public struct SavePresetModalView: View {
             )
         case .text:
             DSDropdown(
-                selectedTitle: selectedTextCategory.rawValue,
+                selectedTitle: selectedTextCategory.displayName,
                 options: TextTemplateCategory.assignableCases.map {
-                    DSDropdownOption(id: $0.rawValue, title: $0.rawValue)
+                    DSDropdownOption(id: $0.rawValue, title: $0.displayName)
                 },
                 onSelect: { val in
                     if let cat = TextTemplateCategory(rawValue: val) {
@@ -139,9 +138,9 @@ public struct SavePresetModalView: View {
             )
         case .effect:
             DSDropdown(
-                selectedTitle: selectedEffectCategory.rawValue,
+                selectedTitle: selectedEffectCategory.displayName,
                 options: EffectTemplateCategory.assignableCases.map {
-                    DSDropdownOption(id: $0.rawValue, title: $0.rawValue)
+                    DSDropdownOption(id: $0.rawValue, title: $0.displayName)
                 },
                 onSelect: { val in
                     if let cat = EffectTemplateCategory(rawValue: val) {
@@ -154,7 +153,7 @@ public struct SavePresetModalView: View {
 
     private var actionButtonsView: some View {
         HStack(spacing: DSSpacing.sm) {
-            Button(String(localized: "Hủy"), action: onDismiss)
+            Button(String(localized: "Cancel"), action: onDismiss)
                 .buttonStyle(.plain)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
@@ -170,7 +169,7 @@ public struct SavePresetModalView: View {
                     } else {
                         Image(systemName: "icloud.and.arrow.up")
                     }
-                    Text(String(localized: "Chia sẻ lên Thư viện"))
+                    Text(String(localized: "Save Preset"))
                 }
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Color.white)
@@ -197,15 +196,9 @@ public struct SavePresetModalView: View {
         guard !trimmedName.isEmpty else { return }
         isSaving = true
         errorMessage = nil
-        CommunityIdentity.currentAuthorName = authorName
         let newID = UUID().uuidString
         let tags = parsedTags(trimmedName: trimmedName)
-        let communityMeta = CommunityMetadata(
-            authorID: CommunityIdentity.currentAuthorID,
-            authorName: CommunityIdentity.currentAuthorName,
-            downloadsCount: 1,
-            createdAtTimestamp: Date().timeIntervalSince1970
-        )
+        let communityMeta: CommunityMetadata? = nil
 
         Task {
             do {
@@ -243,7 +236,7 @@ public struct SavePresetModalView: View {
             } catch {
                 await MainActor.run {
                     isSaving = false
-                    errorMessage = "Lỗi lưu Supabase: \(error.localizedDescription)"
+                    errorMessage = "Supabase save error: \(error.localizedDescription)"
                 }
             }
         }

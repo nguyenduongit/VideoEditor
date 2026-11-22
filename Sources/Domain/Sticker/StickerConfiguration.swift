@@ -16,9 +16,9 @@ public enum StickerFormat: String, Codable, Sendable, CaseIterable, Identifiable
     public var displayName: String {
         switch self {
         case .svg: return "Vector SVG"
-        case .png: return "Ảnh PNG"
-        case .gif: return "Ảnh động GIF"
-        case .apng: return "Ảnh động APNG"
+        case .png: return "PNG Image"
+        case .gif: return "Animated GIF"
+        case .apng: return "Animated APNG"
         }
     }
 }
@@ -32,9 +32,9 @@ public enum StickerLoopMode: String, Codable, Sendable, CaseIterable, Identifiab
     public var displayName: String {
         switch self {
         case .loop:
-            return "Lặp vô tận (Loop)"
+            return "Loop Forever"
         case .playOnce:
-            return "Chạy 1 lần (Once)"
+            return "Play Once"
         }
     }
 }

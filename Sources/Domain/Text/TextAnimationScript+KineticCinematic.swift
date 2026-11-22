@@ -4,7 +4,7 @@ import Foundation
 public struct PopUpHinge3DScript: TextAnimationScript {
     public let id = "pop_up_hinge_3d"
     public let displayName = "Hinge 3D Pop"
-    public let description = "Từng chữ bật dựng đứng từ mặt đất theo bản lề đáy kèm biến dạng phối cảnh 3D"
+    public let description = "Characters hinge upward from the bottom baseline with 3D perspective depth"
     public let category = TextAnimationCategory.pop
     public let scope = TextAnimationScope.perCharacter
 
@@ -46,7 +46,7 @@ public struct PopUpHinge3DScript: TextAnimationScript {
 public struct WhipEchoSlamScript: TextAnimationScript {
     public let id = "whip_echo_slam"
     public let displayName = "Whip Echo Slam"
-    public let description = "Từng từ lao vút từ hai biên kèm bóng ma chuyển động (Echo Trail) và nảy chấn động"
+    public let description = "Words slam in from opposite edges with motion echo trails and impact bounce"
     public let category = TextAnimationCategory.kinetic
     public let scope = TextAnimationScope.perWord
 
@@ -94,7 +94,7 @@ public struct WhipEchoSlamScript: TextAnimationScript {
 public struct TornadoSpiralPopScript: TextAnimationScript {
     public let id = "tornado_spiral_pop"
     public let displayName = "Tornado Spiral"
-    public let description = "Chữ xoáy lốc 360° bung tỏa từ tâm ra hai bên kèm quỹ đạo орbit năng động"
+    public let description = "360-degree tornado swirl bursting outward from center with dynamic orbit"
     public let category = TextAnimationCategory.kinetic
     public let scope = TextAnimationScope.perCharacter
 
@@ -152,7 +152,7 @@ public struct TornadoSpiralPopScript: TextAnimationScript {
 public struct TrailerTrackingExpandScript: TextAnimationScript {
     public let id = "trailer_tracking_expand"
     public let displayName = "Tracking Slide"
-    public let description = "Hội tụ khoảng cách chữ từ xa vào tâm kèm lấy nét ống kính và nhịp thở giãn chữ điện ảnh"
+    public let description = "Trailer tracking converges into focus with subtle cinematic letter expansion"
     public let category = TextAnimationCategory.slide
     public let scope = TextAnimationScope.perCharacter
 
@@ -199,7 +199,7 @@ public struct TrailerTrackingExpandScript: TextAnimationScript {
 public struct PendulumHingeSwingScript: TextAnimationScript {
     public let id = "pendulum_hinge_swing"
     public let displayName = "Pendulum Swing"
-    public let description = "Từng chữ treo trên bản lề đỉnh đung đưa như con lắc đồng hồ cổ điển"
+    public let description = "Characters hang from a top hinge and sway like classic clock pendulums"
     public let category = TextAnimationCategory.cinematic
     public let scope = TextAnimationScope.perCharacter
 
@@ -248,7 +248,7 @@ public struct PendulumHingeSwingScript: TextAnimationScript {
 public struct AnamorphicSplitRevealScript: TextAnimationScript {
     public let id = "anamorphic_split_reveal"
     public let displayName = "Split Mask Reveal"
-    public let description = "Chữ trồi lên qua mặt nạ cắt ngang vô hình đan xen trên dưới chuẩn danh đề điện ảnh"
+    public let description = "Alternating top-and-bottom mask reveal styled for cinema title sequences"
     public let category = TextAnimationCategory.cinematic
     public let scope = TextAnimationScope.perCharacter
 

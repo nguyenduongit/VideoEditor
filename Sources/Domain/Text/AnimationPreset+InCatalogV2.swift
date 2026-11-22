@@ -12,7 +12,7 @@ extension AnimationPreset {
 
     public static let inSoftRise = AnimationPreset(
         id: "v2_in_soft_rise", name: "Soft Rise",
-        description: "Từng từ trôi nhẹ từ dưới lên êm ái với gia tốc Exponential Ease-Out",
+        description: "Words drift smoothly upward from below with exponential ease-out",
         phase: .inAnimation, tags: ["soft", "rise", "smooth", "minimal"], previewBadge: "SMOOTH",
         manifest: CreativeAnimationManifest(
             id: "v2_in_soft_rise", name: "Soft Rise", iconName: "arrow.up.circle",
@@ -25,7 +25,7 @@ extension AnimationPreset {
 
     public static let inBlurFocus = AnimationPreset(
         id: "v2_in_blur_focus", name: "Blur Focus",
-        description: "Toàn khối chữ lấy nét sắc nét từ hiệu ứng mờ nhòe điện ảnh",
+        description: "Whole text block pulls into sharp focus from cinematic optical blur",
         phase: .inAnimation, tags: ["blur", "focus", "cinematic"], previewBadge: "CINEMA",
         manifest: CreativeAnimationManifest(
             id: "v2_in_blur_focus", name: "Blur Focus", iconName: "camera.filters",
@@ -39,7 +39,7 @@ extension AnimationPreset {
 
     public static let inPopUp = AnimationPreset(
         id: "v2_in_pop_up", name: "Pop Up",
-        description: "Từng ký tự nảy vươn lên vượt ngưỡng rồi co về vị trí chuẩn cực nảy",
+        description: "Each character overshoots upward and snaps back into place",
         phase: .inAnimation, tags: ["pop", "bounce", "back"], previewBadge: "BOUNCE",
         manifest: CreativeAnimationManifest(
             id: "v2_in_pop_up", name: "Pop Up", iconName: "arrow.up.left.and.arrow.down.right",
@@ -52,7 +52,7 @@ extension AnimationPreset {
 
     public static let inZoomPunch = AnimationPreset(
         id: "v2_in_zoom_punch", name: "Zoom Punch",
-        description: "Phóng to đột ngột từ 2.2x lao về 1.0x kèm vệt mờ chuyển động mạnh mẽ",
+        description: "High-impact 2.2x slam to 1.0x with directional motion blur",
         phase: .inAnimation, tags: ["punch", "zoom", "impact"], previewBadge: "IMPACT",
         manifest: CreativeAnimationManifest(
             id: "v2_in_zoom_punch", name: "Zoom Punch", iconName: "plus.magnifyingglass",
@@ -66,7 +66,7 @@ extension AnimationPreset {
 
     public static let inElasticSlide = AnimationPreset(
         id: "v2_in_elastic_slide", name: "Elastic Slide",
-        description: "Trượt ngang đàn hồi theo từng từ với đường cong dao động lò xo",
+        description: "Horizontal spring oscillation per word into position",
         phase: .inAnimation, tags: ["elastic", "slide", "kinetic"], previewBadge: "ELASTIC",
         manifest: CreativeAnimationManifest(
             id: "v2_in_elastic_slide", name: "Elastic Slide", iconName: "arrow.right.to.line.compact",
@@ -79,7 +79,7 @@ extension AnimationPreset {
 
     public static let inFlip3D = AnimationPreset(
         id: "v2_in_flip_3d", name: "3D Card Flip",
-        description: "Từng ký tự lật 3D quanh trục dọc từ 90 độ về góc thẳng",
+        description: "Characters flip 90 degrees into alignment around the vertical axis",
         phase: .inAnimation, tags: ["flip", "3d", "card"], previewBadge: "3D FLIP",
         manifest: CreativeAnimationManifest(
             id: "v2_in_flip_3d", name: "3D Card Flip", iconName: "rotate.3d",
@@ -92,7 +92,7 @@ extension AnimationPreset {
 
     public static let inRandomPop = AnimationPreset(
         id: "v2_in_random_pop", name: "Random Pop",
-        description: "Các ký tự xuất hiện ngẫu nhiên không theo thứ tự thẳng",
+        description: "Characters pop in unpredictably in randomized order",
         phase: .inAnimation, tags: ["random", "pop", "scatter"], previewBadge: "RANDOM",
         manifest: CreativeAnimationManifest(
             id: "v2_in_random_pop", name: "Random Pop", iconName: "dice",
@@ -105,7 +105,7 @@ extension AnimationPreset {
 
     public static let inWaveRise = AnimationPreset(
         id: "v2_in_wave_rise", name: "Wave Rise",
-        description: "Nhô cao lượn sóng từ trái qua phải theo pha ký tự",
+        description: "Undulating left-to-right staggered vertical rise across characters",
         phase: .inAnimation, tags: ["wave", "rise", "stagger"], previewBadge: "WAVE",
         manifest: CreativeAnimationManifest(
             id: "v2_in_wave_rise", name: "Wave Rise", iconName: "water.waves.and.arrow.up",
@@ -118,7 +118,7 @@ extension AnimationPreset {
 
     public static let inScatterAssemble = AnimationPreset(
         id: "v2_in_scatter_assemble", name: "Scatter Assemble",
-        description: "Ký tự phân tán từ các hướng ngẫu nhiên hội tụ về vị trí chuẩn",
+        description: "Scattered characters converge dynamically from random directions",
         phase: .inAnimation, tags: ["scatter", "assemble", "particle"], previewBadge: "SCATTER",
         manifest: CreativeAnimationManifest(
             id: "v2_in_scatter_assemble", name: "Scatter Assemble", iconName: "bubbles.and.sparkles",
@@ -132,7 +132,7 @@ extension AnimationPreset {
 
     public static let inTrackingIn = AnimationPreset(
         id: "v2_in_tracking_in", name: "Tracking In",
-        description: "Khoảng cách ký tự từ rộng co về tiêu chuẩn kết hợp mờ dần",
+        description: "Wide character spacing tightens smoothly while fading in",
         phase: .inAnimation, tags: ["tracking", "spacing", "cinematic"], previewBadge: "TRACKING",
         manifest: CreativeAnimationManifest(
             id: "v2_in_tracking_in", name: "Tracking In", iconName: "arrow.left.and.line.vertical.and.arrow.right",
@@ -145,7 +145,7 @@ extension AnimationPreset {
 
     public static let inWipeReveal = AnimationPreset(
         id: "v2_in_wipe_reveal", name: "Wipe Reveal",
-        description: "Mặt nạ quét tuyến tính mở dòng chữ từ trái sang phải mượt mà",
+        description: "Smooth linear mask sweeps horizontally from left to right",
         phase: .inAnimation, tags: ["wipe", "reveal", "linear"], previewBadge: "WIPE",
         manifest: CreativeAnimationManifest(
             id: "v2_in_wipe_reveal", name: "Wipe Reveal", iconName: "square.lefthalf.filled",
@@ -158,7 +158,7 @@ extension AnimationPreset {
 
     public static let inGlowIgnite = AnimationPreset(
         id: "v2_in_glow_ignite", name: "Glow Ignite",
-        description: "Hào quang neon bùng cháy sáng chói rồi ổn định về độ sáng tiêu chuẩn",
+        description: "Bright neon flare ignites and settles to standard glow intensity",
         phase: .inAnimation, tags: ["glow", "ignite", "neon", "flash"], previewBadge: "NEON",
         manifest: CreativeAnimationManifest(
             id: "v2_in_glow_ignite", name: "Glow Ignite", iconName: "sun.max.fill",
@@ -171,7 +171,7 @@ extension AnimationPreset {
 
     public static let inTypewriter = AnimationPreset(
         id: "v2_in_typewriter", name: "Typewriter",
-        description: "Hiệu ứng máy đánh chữ xuất hiện từng ký tự kinh điển",
+        description: "Classic character-by-character typewriter reveal",
         phase: .inAnimation, tags: ["typewriter", "classic", "retro"], previewBadge: "TYPE",
         manifest: CreativeAnimationManifest(
             id: "v2_in_typewriter", name: "Typewriter", iconName: "keyboard",
@@ -184,7 +184,7 @@ extension AnimationPreset {
 
     public static let inScrambleDecode = AnimationPreset(
         id: "v2_in_scramble_decode", name: "Scramble Decode",
-        description: "Giải mã ký tự số hạt pixel hội tụ về dòng chữ chuẩn",
+        description: "Digital pixel grains decode and coalesce into clean typography",
         phase: .inAnimation, tags: ["scramble", "decode", "cyber", "matrix"], previewBadge: "CYBER",
         manifest: CreativeAnimationManifest(
             id: "v2_in_scramble_decode", name: "Scramble Decode", iconName: "lock.open.fill",

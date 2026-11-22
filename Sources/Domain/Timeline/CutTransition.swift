@@ -10,11 +10,11 @@ public enum TransitionAlignment: String, Codable, Sendable, CaseIterable, Hashab
     public var displayName: String {
         switch self {
         case .center:
-            return "Ở giữa"
+            return "Center"
         case .startOnCut:
-            return "Từ vết cắt"
+            return "Start at Cut"
         case .endOnCut:
-            return "Đến vết cắt"
+            return "End at Cut"
         }
     }
 }
@@ -31,11 +31,11 @@ public enum TransitionEasing: String, Codable, Sendable, CaseIterable, Identifia
 
     public var displayName: String {
         switch self {
-        case .linear: return "Đều (Linear)"
-        case .easeIn: return "Nhanh dần (Ease In)"
-        case .easeOut: return "Chậm dần (Ease Out)"
-        case .easeInOut: return "Mượt hai đầu (Ease In-Out)"
-        case .cubicBezier: return "Động lực (Cubic Punch)"
+        case .linear: return "Linear"
+        case .easeIn: return "Ease In"
+        case .easeOut: return "Ease Out"
+        case .easeInOut: return "Ease In-Out"
+        case .cubicBezier: return "Cubic Punch"
         }
     }
 
@@ -76,15 +76,15 @@ public enum TransitionShaderType: String, Codable, Sendable, CaseIterable, Hasha
 
     public var displayName: String {
         switch self {
-        case .dissolve: return "Hòa tan (Dissolve)"
-        case .directionalPush: return "Đẩy khung hình (Push)"
-        case .whipPanLeft: return "Whip Pan Trái"
-        case .whipPanRight: return "Whip Pan Phải"
+        case .dissolve: return "Dissolve"
+        case .directionalPush: return "Directional Push"
+        case .whipPanLeft: return "Whip Pan Left"
+        case .whipPanRight: return "Whip Pan Right"
         case .zoomBlur: return "Zoom Blur"
-        case .crossWarp: return "Uốn sóng (Cross Warp)"
+        case .crossWarp: return "Cross Warp"
         case .glitchWipe: return "Glitch Slice"
-        case .lightLeak: return "Vệt sáng (Light Leak)"
-        case .geometricWipe: return "Hình học (Geometric Wipe)"
+        case .lightLeak: return "Light Leak"
+        case .geometricWipe: return "Geometric Wipe"
         }
     }
 
@@ -152,7 +152,7 @@ public struct CutTransition: Identifiable, Codable, Sendable, Hashable, Equatabl
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = (try? c.decode(UUID.self, forKey: .id)) ?? UUID()
         self.presetID = (try? c.decode(String.self, forKey: .presetID)) ?? "dissolve_default"
-        self.name = (try? c.decode(String.self, forKey: .name)) ?? "Chuyển cảnh"
+        self.name = (try? c.decode(String.self, forKey: .name)) ?? "Transition"
         self.leadingClipID = try c.decode(UUID.self, forKey: .leadingClipID)
         self.trailingClipID = try c.decode(UUID.self, forKey: .trailingClipID)
         self.duration = (try? c.decode(RationalTime.self, forKey: .duration))

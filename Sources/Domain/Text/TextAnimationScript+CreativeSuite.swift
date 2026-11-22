@@ -4,7 +4,7 @@ import Foundation
 public struct SoftGlowFadeScript: TextAnimationScript {
     public let id = "fade_soft_glow"
     public let displayName = "Soft Glow"
-    public let description = "Chữ hiện dần từ độ mờ ảo kèm ánh hào quang dịu nhẹ, thở tuần hoàn 1.0s và tan biến vào nền"
+    public let description = "Fades in softly with gentle aura, breathes in a 1.0s cycle, then dissolves"
     public let category = TextAnimationCategory.fade
     public let loopCycleDuration: Double = 1.0
     public let scope = TextAnimationScope.perCharacter
@@ -63,7 +63,7 @@ public struct SoftGlowFadeScript: TextAnimationScript {
 public struct CinematicDissolveScript: TextAnimationScript {
     public let id = "fade_cinematic"
     public let displayName = "Cinematic"
-    public let description = "Mờ tan chậm rãi kiểu phim tài liệu điện ảnh, khoảng cách chữ dãn nhẹ tinh tế"
+    public let description = "Documentary-style slow dissolve with subtle expanded letter tracking"
     public let category = TextAnimationCategory.fade
     public let loopCycleDuration: Double = 1.0
     public let scope = TextAnimationScope.wholeBlock
@@ -98,7 +98,7 @@ public struct CinematicDissolveScript: TextAnimationScript {
 public struct ElasticBouncePopScript: TextAnimationScript {
     public let id = "pop_elastic_bounce"
     public let displayName = "Elastic Pop"
-    public let description = "Phóng to vượt ngưỡng đàn hồi giật lò xo dứt khoát, nhịp đập tim tuần hoàn 1.0s"
+    public let description = "Crisp elastic spring pop with 1.0s heartbeat pulse loop"
     public let category = TextAnimationCategory.pop
     public let loopCycleDuration: Double = 1.0
     public let scope = TextAnimationScope.perCharacter
@@ -163,7 +163,7 @@ public struct ElasticBouncePopScript: TextAnimationScript {
 public struct WordStaccatoScript: TextAnimationScript {
     public let id = "typewriter_staccato"
     public let displayName = "Word Staccato"
-    public let description = "Từng từ bật nảy dứt khoát theo nhịp đọc voice-over, giữ nhịp thở toàn câu mượt mà"
+    public let description = "Snappy voice-over rhythm per word while maintaining smooth sentence flow"
     public let category = TextAnimationCategory.typewriter
     public let loopCycleDuration: Double = 1.0
     public let scope = TextAnimationScope.perCharacter
@@ -208,7 +208,7 @@ public struct WordStaccatoScript: TextAnimationScript {
 public struct CascadeWaveFlowScript: TextAnimationScript {
     public let id = "wave_cascade_flow"
     public let displayName = "Cascade Wave"
-    public let description = "Từng ký tự lướt sóng từ trên xuống uốn lượn, bồng bềnh và tan biến theo làn sương quang học từ trái sang phải"
+    public let description = "Characters cascade in an undulating wave and dissolve left to right in mist"
     public let category = TextAnimationCategory.wave
     public let loopCycleDuration: Double = 1.0
     public let scope = TextAnimationScope.perCharacter

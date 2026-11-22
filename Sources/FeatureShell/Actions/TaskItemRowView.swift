@@ -76,7 +76,7 @@ public struct TaskItemRowView: View {
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .help("Mở bảng cấu hình nội dung và preset tiêu đề")
+                .help("Open title text and preset configuration")
             }
         }
         .padding(.horizontal, DSSpacing.md)
@@ -130,12 +130,12 @@ public struct TaskItemRowView: View {
             }
 
             HStack(spacing: 8) {
-                Text(String(localized: "Tiêu đề"))
+                Text(String(localized: "Title"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(DSColors.textSecondary)
                     .frame(width: 52, alignment: .leading)
 
-                TextField(String(localized: "Nhập tiêu đề video..."), text: Binding(
+                TextField(String(localized: "Enter video title..."), text: Binding(
                     get: { viewModel.titleText },
                     set: { viewModel.updateTitleText($0) }
                 ))
@@ -158,6 +158,10 @@ public struct TaskItemRowView: View {
     private var taskAccentColor: Color {
         switch task.id {
         case "syncAudio": return Color(red: 0.13, green: 0.83, blue: 0.93)
+        case "autoTrim": return Color(red: 0.96, green: 0.62, blue: 0.18)
+        case "shiftToStart": return Color(red: 0.40, green: 0.82, blue: 0.45)
+        case "muteVideo": return Color(red: 0.94, green: 0.38, blue: 0.42)
+        case "markBeats": return Color(red: 0.72, green: 0.48, blue: 0.98)
         case "autoColor": return Color(red: 0.18, green: 0.83, blue: 0.75)
         case "aspect916": return Color(red: 0.22, green: 0.74, blue: 0.97)
         case "addTitle": return Color(red: 0.35, green: 0.65, blue: 0.98)

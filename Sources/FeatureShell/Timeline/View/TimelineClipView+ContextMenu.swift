@@ -162,8 +162,8 @@ extension TimelineClipView {
 
     private var beatMarkersSubmenu: some View {
         Menu {
-            Button(String(localized: "Auto Detect Major Beats (Nhịp 1)")) { contextActions?.onAutoMarkBeats(clip.id, .majorOnly) }
-            Button(String(localized: "Auto Detect All Beats (Nhịp 2)")) { contextActions?.onAutoMarkBeats(clip.id, .allBeats) }
+            Button(String(localized: "Auto Detect Major Beats (Beat 1)")) { contextActions?.onAutoMarkBeats(clip.id, .majorOnly) }
+            Button(String(localized: "Auto Detect All Beats (Beat 2)")) { contextActions?.onAutoMarkBeats(clip.id, .allBeats) }
             Divider()
             Button(String(localized: "Add / Remove Beat at Playhead")) { contextActions?.onToggleBeatAtPlayhead(clip.id) }
             Button(String(localized: "Clear All Beats")) { contextActions?.onClearBeats(clip.id) }

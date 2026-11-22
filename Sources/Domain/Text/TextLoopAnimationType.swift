@@ -19,17 +19,17 @@ public enum TextLoopAnimationType: String, Sendable, CaseIterable, Identifiable 
 
     public var displayName: String {
         switch self {
-        case .none: return "Không có"
-        case .pulse: return "Nhịp đập"
-        case .sway: return "Đung đưa"
-        case .wobble: return "Lắc lư"
-        case .bounce: return "Nhún nhảy"
-        case .spin: return "Xoay vòng"
-        case .float: return "Bồng bềnh"
-        case .shake: return "Rung giật"
-        case .breathe: return "Thở nhẹ"
-        case .wave: return "Lượn sóng"
-        case .flicker: return "Chớp sáng"
+        case .none: return "None"
+        case .pulse: return "Pulse"
+        case .sway: return "Sway"
+        case .wobble: return "Wobble"
+        case .bounce: return "Bounce"
+        case .spin: return "Spin"
+        case .float: return "Float"
+        case .shake: return "Shake"
+        case .breathe: return "Breathe"
+        case .wave: return "Wave"
+        case .flicker: return "Flicker"
         }
     }
 

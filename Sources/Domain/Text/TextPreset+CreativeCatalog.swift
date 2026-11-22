@@ -12,7 +12,7 @@ extension TextPreset {
     public static let neonCyberGlow = TextPreset(
         id: "template_neon_cyber_glow",
         name: "Neon Cyber Glow",
-        description: "Chữ phát sáng hào quang Neon kèm viền chuyển sắc Linear",
+        description: "Glowing neon headline with linear gradient stroke",
         category: .cyber,
         tags: ["neon", "cyber", "glow", "gradient"],
         defaultDuration: 4.0,
@@ -42,14 +42,14 @@ extension TextPreset {
     public static let vlogBadgeBanner = TextPreset(
         id: "template_vlog_badge_banner",
         name: "Vlog Gradient Pill",
-        description: "Nhãn tiêu đề nền hộp chuyển sắc bo tròn ôm theo chữ",
+        description: "Rounded gradient pill badge tailored to title bounds",
         category: .vlog,
         tags: ["vlog", "banner", "pill", "background"],
         defaultDuration: 4.0,
         previewBadge: "BADGE",
         previewBackgroundHex: "#18181B",
         config: TextConfiguration(
-            content: "TẬP MỚI HÔM NAY",
+            content: "NEW EPISODE TODAY",
             fontName: "ArialRoundedMTBold",
             fontSize: 44.0,
             textColorHex: "#FFFFFF",
@@ -80,7 +80,7 @@ extension TextPreset {
     public static let retroCurvedTitle = TextPreset(
         id: "template_retro_curved_arc",
         name: "Retro Curved Arc",
-        description: "Tiêu đề uốn cung tròn cổ điển kèm viền kép nổi khối",
+        description: "Classic curved arc headline with raised dual stroke",
         category: .cinema,
         tags: ["curved", "arc", "retro", "cinema"],
         defaultDuration: 4.5,
@@ -105,15 +105,15 @@ extension TextPreset {
 
     public static let karaokeDualStroke = TextPreset(
         id: "template_karaoke_dual_stroke",
-        name: "Phụ Đề Viền Kép",
-        description: "Phụ đề nổi bật rõ nét trên mọi nền video với 2 tầng viền độc lập",
+        name: "Dual Stroke Subtitle",
+        description: "High-legibility subtitle over any backdrop with two independent strokes",
         category: .karaoke,
         tags: ["subtitle", "karaoke", "stroke", "clean"],
         defaultDuration: 4.0,
         previewBadge: "SUBTITLE",
         previewBackgroundHex: "#09090B",
         config: TextConfiguration(
-            content: "Lời bài hát sắc nét",
+            content: "Crisp Song Lyrics",
             fontName: "ArialRoundedMTBold",
             fontSize: 48.0,
             textColorHex: "#FFFFFF",

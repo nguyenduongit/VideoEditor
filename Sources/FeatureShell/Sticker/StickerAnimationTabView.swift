@@ -49,7 +49,7 @@ public struct StickerAnimationTabView: View {
 
     private var loopGridSection: some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            Text(String(localized: "HIỆU ỨNG VÒNG LẶP (LOOP)"))
+            Text(String(localized: "LOOP ANIMATION"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
 
@@ -97,12 +97,12 @@ public struct StickerAnimationTabView: View {
 
     private var speedSection: some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            Text(String(localized: "TỐC ĐỘ VÒNG LẶP"))
+            Text(String(localized: "LOOP SPEED"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
 
             DSSliderWithInput(
-                title: "Tốc độ",
+                title: "Speed",
                 value: Binding(
                     get: { currentConfig.animation.loopSpeed },
                     set: { val in

@@ -102,18 +102,14 @@ private struct TextPresetRow: Codable, Sendable {
         self.name = preset.name
         self.description = preset.description
         self.category = preset.category.rawValue
-        var mergedTags = preset.tags
-        if let metaTag = preset.community.encodeToTag() {
-            mergedTags.append(metaTag)
-        }
-        self.tags = mergedTags
+        self.tags = preset.tags
         self.preview_badge = preset.previewBadge
         self.config = preset.config
         self.is_system = preset.isSystem
     }
 
     func toPreset() -> TextPreset {
-        let cat = TextTemplateCategory(rawValue: category) ?? .trending
+        let cat = TextTemplateCategory.resolve(categoryString: category)
         let sys = is_system ?? false
         let (cleanTags, communityMeta) = CommunityMetadata.extract(from: tags, isSystem: sys)
         let builtIn = TextPreset.templates.first(where: { $0.id == id })

@@ -15,10 +15,10 @@ public final class MediaLibraryViewModel {
 
         public var displayName: String {
             switch self {
-            case .all: return "Tất cả"
+            case .all: return "All"
             case .video: return "Video"
-            case .audio: return "Âm thanh"
-            case .image: return "Hình ảnh"
+            case .audio: return "Audio"
+            case .image: return "Image"
             }
         }
     }

@@ -58,13 +58,13 @@ extension TimelineViewModel {
             }
             if let executor = commandExecutor, !isApplyingCommand, !commands.isEmpty {
                 let cmd: TimelineCommand = commands.count == 1 ? commands[0] : .batch(commands: commands)
-                executor.execute(cmd, title: "Bật/tắt hiển thị nhịp (\(mode.displayName))")
+                executor.execute(cmd, title: "Toggle beat markers (\(mode.displayName))")
             }
             return
         }
 
         guard let beatService = audioBeatDetectionService else {
-            onBeatDetectionResult?(false, "Dịch vụ phân tích nhịp chưa được khởi tạo.")
+            onBeatDetectionResult?(false, "Beat detection service is not initialized.")
             return
         }
 
@@ -90,16 +90,16 @@ extension TimelineViewModel {
             }
 
             guard !commands.isEmpty else {
-                self.onBeatDetectionResult?(false, "Không tìm thấy điểm nhịp rõ ràng trong đoạn âm thanh.")
+                self.onBeatDetectionResult?(false, "No clear beats detected in the audio clip.")
                 return
             }
 
             if let executor = self.commandExecutor, !self.isApplyingCommand {
                 let cmd: TimelineCommand = commands.count == 1 ? commands[0] : .batch(commands: commands)
-                executor.execute(cmd, title: "Tự động bắt nhịp (\(mode.displayName))")
+                executor.execute(cmd, title: "Auto-detect beats (\(mode.displayName))")
             }
 
-            self.onBeatDetectionResult?(true, "Đã đánh dấu \(totalDetected) điểm nhịp (\(mode.displayName)).")
+            self.onBeatDetectionResult?(true, "Marked \(totalDetected) beat markers (\(mode.displayName)).")
         }
     }
 
@@ -153,7 +153,7 @@ extension TimelineViewModel {
         if let executor = commandExecutor, !isApplyingCommand {
             executor.execute(
                 .updateClipProperties(clipID: targetClip.id, properties: updatedProps),
-                title: didAdd ? "Thêm điểm nhịp" : "Xóa điểm nhịp"
+                title: didAdd ? "Add Beat Marker" : "Remove Beat Marker"
             )
         }
         return true
@@ -173,7 +173,7 @@ extension TimelineViewModel {
 
         guard !commands.isEmpty, let executor = commandExecutor, !isApplyingCommand else { return }
         let cmd: TimelineCommand = commands.count == 1 ? commands[0] : .batch(commands: commands)
-        executor.execute(cmd, title: "Xóa toàn bộ điểm nhịp")
+        executor.execute(cmd, title: "Clear All Beat Markers")
     }
 
     private func resolveTargetClipForManualBeat(at time: CMTime) -> TimelineClip? {

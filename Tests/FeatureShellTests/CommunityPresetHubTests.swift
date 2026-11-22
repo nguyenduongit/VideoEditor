@@ -52,7 +52,7 @@ struct CommunityPresetHubTests {
         let decodedAdj = AdjustmentPreset.decode(from: legacyAdjustmentJSON)
         #expect(decodedAdj != nil)
         #expect(decodedAdj?.name == "Warm Film")
-        #expect(decodedAdj?.community.authorName == "Cộng đồng")
+        #expect(decodedAdj?.community.authorName == "Community")
         #expect(decodedAdj?.canBeModified(by: "any_user") == true)
     }
 
@@ -146,7 +146,7 @@ struct CommunityPresetHubTests {
 
         #expect(effectLibraryVM.filteredPresets.count == 1)
 
-        effectLibraryVM.searchQuery = "openshader lab"
+        effectLibraryVM.searchQuery = "glitch"
         #expect(effectLibraryVM.filteredPresets.map(\.id) == ["creative_fx_rgb_glitch"])
 
         if let glitchPkg = effectLibraryVM.filteredPresets.first {
@@ -157,5 +157,30 @@ struct CommunityPresetHubTests {
         let decodedClipConfig = EffectConfiguration.decode(from: addedClip?.properties["effectConfig"]?.asString ?? "")
         #expect(decodedClipConfig?.customParameters.count == 2)
         #expect(decodedClipConfig?.filterPipeline.first?.filterName == "RGBSplit")
+    }
+
+    @Test("Single-user personal mode unlocks all custom presets across devices and uses fixed personalOwnerID")
+    func testSingleUserPersonalOwnershipModel() {
+        #expect(CommunityIdentity.currentAuthorID == CommunityIdentity.personalOwnerID)
+        #expect(CommunityIdentity.personalOwnerID == "personal")
+
+        let legacyMachineMeta = CommunityMetadata(authorID: "old-mac-uuid-1234", authorName: "Old Mac")
+        let customEffect = EffectPreset(
+            id: "user_fx_1", name: "User FX", description: "", category: .basic,
+            config: EffectConfiguration(), isSystem: false, community: legacyMachineMeta
+        )
+        let customAdj = AdjustmentPreset(
+            id: "user_adj_1", name: "User Adj", description: "", category: .cinematic,
+            config: AdjustmentConfiguration(), isSystem: false, community: legacyMachineMeta
+        )
+        let customText = TextPreset(
+            id: "user_txt_1", name: "User Text", description: "", category: .vlog,
+            config: TextConfiguration(), isSystem: false, community: legacyMachineMeta
+        )
+
+        #expect(customEffect.canBeModified(by: CommunityIdentity.currentAuthorID) == true)
+        #expect(customAdj.canBeModified(by: CommunityIdentity.currentAuthorID) == true)
+        #expect(customText.canBeModified(by: CommunityIdentity.currentAuthorID) == true)
+        #expect(EffectPreset.systemTemplates.first?.canBeModified(by: CommunityIdentity.currentAuthorID) == false)
     }
 }

@@ -13,11 +13,11 @@ public enum EffectType: String, Codable, Sendable, CaseIterable, Identifiable {
 
     public var displayName: String {
         switch self {
-        case .fadeIn: return "Sáng dần (Fade In)"
-        case .fadeOut: return "Tối dần (Fade Out)"
-        case .whiteFlash: return "Chớp sáng (White Flash)"
-        case .cinematicBlur: return "Làm mờ (Cinematic Blur)"
-        case .cameraShake: return "Rung giật (Camera Shake)"
+        case .fadeIn: return "Fade In"
+        case .fadeOut: return "Fade Out"
+        case .whiteFlash: return "White Flash"
+        case .cinematicBlur: return "Cinematic Blur"
+        case .cameraShake: return "Camera Shake"
         }
     }
 
@@ -33,11 +33,11 @@ public enum EffectType: String, Codable, Sendable, CaseIterable, Identifiable {
 
     public var description: String {
         switch self {
-        case .fadeIn: return "Mở màn từ bóng đen chuyển dần sang sáng rõ"
-        case .fadeOut: return "Kết màn chuyển dần từ video về màn hình tối"
-        case .whiteFlash: return "Lóe sáng trắng chớp giật tạo điểm nhấn cao trào"
-        case .cinematicBlur: return "Làm mờ ảo toàn cảnh để tôn chủ thể hoặc chữ"
-        case .cameraShake: return "Rung lắc khung hình kịch tính theo nhịp điệu"
+        case .fadeIn: return "Opens smoothly from black into full brightness"
+        case .fadeOut: return "Fades smoothly from video to black at the end"
+        case .whiteFlash: return "Sharp white flash accent for dramatic beats"
+        case .cinematicBlur: return "Soft full-frame blur to highlight subjects or text"
+        case .cameraShake: return "Dynamic frame shake synced to energetic motion"
         }
     }
 }

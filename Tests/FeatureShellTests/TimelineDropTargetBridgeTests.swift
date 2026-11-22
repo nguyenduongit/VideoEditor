@@ -265,4 +265,58 @@ struct TimelineDropTargetBridgeTests {
         #expect(droppedTime == candidateTime)
         pb.clearContents()
     }
+
+    @Test("draggingUpdated reuses cached session state without re-evaluating snapCandidatesProvider")
+    @MainActor
+    func testDraggingUpdatedReusesCachedSessionWithoutRecomputingSnapCandidates() {
+        let view = TimelineDropTargetNSView(frame: NSRect(x: 0, y: 0, width: 800, height: 400))
+        view.pixelsPerSecond = 100
+        var snapProviderCallCount = 0
+        let candidateTime = CMTime(seconds: 3.0, preferredTimescale: 600)
+        view.snapCandidatesProvider = { snapProviderCallCount += 1; return [candidateTime] }
+        var guideEmitCount = 0
+        var latestGuideX: CGFloat?
+        view.onDragGuideChanged = { guideEmitCount += 1; latestGuideX = $0 }
+
+        TransitionDragSessionState.shared.begin(payload: .defaultText)
+        let mock = MockDropDraggingInfo()
+        mock.draggingLocation = NSPoint(x: 302, y: 100)
+        #expect(view.draggingEntered(mock) == .copy)
+        #expect(snapProviderCallCount == 1 && guideEmitCount == 1 && latestGuideX == 300.0)
+
+        for x in [303.0, 304.0, 305.0] {
+            mock.draggingLocation = NSPoint(x: x, y: 100)
+            #expect(view.draggingUpdated(mock) == .copy)
+        }
+        #expect(snapProviderCallCount == 1 && guideEmitCount == 1)
+
+        mock.draggingLocation = NSPoint(x: 400, y: 100)
+        _ = view.draggingUpdated(mock)
+        #expect(snapProviderCallCount == 1 && guideEmitCount == 2 && latestGuideX == 400.0)
+        view.concludeDragOperation(mock)
+        #expect(TransitionDragSessionState.shared.activePayload == nil)
+    }
+
+    @Test("Unified TimelineDragPayload drops Text, Sticker, Effect, Adjustment, and Audio at snapped dropTime")
+    @MainActor
+    func testUnifiedPayloadDropsAllAssetKindsOntoTimeline() {
+        let vm = TimelineViewModel(initialLayers: [])
+        let view = TimelineDropTargetNSView(frame: NSRect(x: 0, y: 0, width: 800, height: 400))
+        view.pixelsPerSecond = 100
+        view.onDropPayload = { vm.addDroppedPayload($0, at: $1) }
+        let fxPreset = EffectPreset(id: "fx_1", name: "Glow", description: "Glow", category: .basic, config: EffectConfiguration())
+        let payloads: [TimelineDragPayload] = [
+            .defaultText, .defaultAdjustment,
+            .sticker(StickerPreset.builtInCatalog[0]),
+            .effect(fxPreset), .audio(AudioPreset.builtInCatalog[0])
+        ]
+        let mock = MockDropDraggingInfo()
+        for (idx, payload) in payloads.enumerated() {
+            TransitionDragSessionState.shared.begin(payload: payload)
+            mock.draggingLocation = NSPoint(x: CGFloat(100 + idx * 50), y: 100)
+            _ = view.draggingEntered(mock)
+            #expect(view.performDragOperation(mock))
+        }
+        #expect(vm.layers.reduce(0) { $0 + $1.clips.count } == payloads.count)
+    }
 }

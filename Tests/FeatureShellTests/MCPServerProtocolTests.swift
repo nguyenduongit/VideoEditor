@@ -131,7 +131,7 @@ struct MCPServerProtocolTests {
 
         let inspectorVM = InspectorViewModel(timelineViewModel: vm)
         #expect(inspectorVM.selectedClip == nil)
-        #expect(inspectorVM.actionsPanelViewModel.tasks.count == 5)
+        #expect(inspectorVM.actionsPanelViewModel.tasks.count == WorkflowTaskItem.allTasks.count)
     }
 
     @Test func testMCPAIVisionFramingToolConfiguresAutoPanScaleAndLegStretch() async throws {

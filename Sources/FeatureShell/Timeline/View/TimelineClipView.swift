@@ -33,6 +33,7 @@ public struct TimelineClipView: View {
     let onUpdateProperties: ((UUID, [String: PropertyValue], Bool) -> Void)?
     let contextActions: TimelineClipContextActions?
     let onDuplicateMoveEnd: (() -> Void)?
+    let modifierState: TimelineModifierState?
 
     @State var dragOffset: CGFloat = 0
     @State var dragY: CGFloat = 0
@@ -41,7 +42,9 @@ public struct TimelineClipView: View {
     @State var isHoveringLeftTrim: Bool = false
     @State var isHoveringRightTrim: Bool = false
     @State var isTrimming: Bool = false
+    @State var isActivelyDragging: Bool = false
     @State var isOptionDuplicateDrag: Bool = false
+    @State var lastProposedStart: CMTime?
 
     public init(
         clip: TimelineClip, height: CGFloat, pixelsPerSecond: CGFloat, isLocked: Bool,
@@ -62,7 +65,8 @@ public struct TimelineClipView: View {
         onMoveEnd: @escaping () -> Void,
         onDuplicateMoveEnd: (() -> Void)? = nil,
         onUpdateProperties: ((UUID, [String: PropertyValue], Bool) -> Void)? = nil,
-        contextActions: TimelineClipContextActions? = nil
+        contextActions: TimelineClipContextActions? = nil,
+        modifierState: TimelineModifierState? = nil
     ) {
         self.clip = clip; self.height = height; self.pixelsPerSecond = pixelsPerSecond
         self.isLocked = isLocked; self.isMuted = isMuted; self.isSelected = isSelected
@@ -79,6 +83,7 @@ public struct TimelineClipView: View {
         self.onDuplicateMoveEnd = onDuplicateMoveEnd
         self.onUpdateProperties = onUpdateProperties
         self.contextActions = contextActions
+        self.modifierState = modifierState
     }
 
     public var body: some View {
@@ -90,6 +95,18 @@ public struct TimelineClipView: View {
             .background { optionDragOriginGhost(clipWidth: clipWidth, clipX: clipX) }
             .position(x: clipX + clipWidth / 2, y: (height / 2) + dragY)
             .zIndex(isDragging ? 100 : 1)
+            .onChange(of: modifierState?.isOptionPressed ?? false) { _, isOpt in
+                guard isActivelyDragging else { return }
+                isOptionDuplicateDrag = isOpt
+                if isOpt {
+                    NSCursor.dragCopy.set()
+                } else {
+                    NSCursor.arrow.set()
+                }
+                if let lastProposedStart {
+                    onMove(lastProposedStart, dragY)
+                }
+            }
     }
 
     private func clipCard(clipWidth: CGFloat) -> some View {
@@ -104,6 +121,16 @@ public struct TimelineClipView: View {
             RoundedRectangle(cornerRadius: DSRadius.clip)
                 .stroke(isOptionDuplicateDrag && isDragging ? DSColors.toggleCyan : Color.clear, lineWidth: 1.5)
         )
+        .overlay(alignment: .topTrailing) {
+            if isOptionDuplicateDrag && isDragging {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(DSColors.toggleCyan)
+                    .background(Circle().fill(Color.black.opacity(0.75)))
+                    .padding(3)
+                    .allowsHitTesting(false)
+            }
+        }
         .contentShape(Rectangle())
         .simultaneousGesture(TapGesture().onEnded { onSelect(NSEvent.modifierFlags.contains(.command)) })
         .contextMenu { clipContextMenu }
@@ -119,8 +146,12 @@ public struct TimelineClipView: View {
     private func optionDragOriginGhost(clipWidth: CGFloat, clipX: CGFloat) -> some View {
         if isOptionDuplicateDrag && isDragging {
             RoundedRectangle(cornerRadius: DSRadius.clip)
-                .fill(clipColor.opacity(0.45))
-                .overlay(RoundedRectangle(cornerRadius: DSRadius.clip).stroke(DSColors.textSecondary.opacity(0.6), lineWidth: 1))
+                .fill(clipColor.opacity(0.55))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DSRadius.clip)
+                        .strokeBorder(style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+                        .foregroundStyle(DSColors.textSecondary.opacity(0.8))
+                )
                 .frame(width: max(28, baseWidth), height: height - 4)
                 .offset(x: baseX - clipX, y: -dragY)
                 .allowsHitTesting(false)
@@ -128,7 +159,7 @@ public struct TimelineClipView: View {
     }
 
     private var isDragging: Bool {
-        dragOffset != 0 || dragY != 0 || (isSelected && (groupDragOffset != 0 || groupTrimLeftOffset != 0 || groupTrimRightOffset != 0))
+        isActivelyDragging || dragOffset != 0 || dragY != 0 || (isSelected && (groupDragOffset != 0 || groupTrimLeftOffset != 0 || groupTrimRightOffset != 0))
     }
     private var effectiveTrimLeft: CGFloat { isSelected && groupTrimLeftOffset != 0 ? groupTrimLeftOffset : trimLeftOffset }
     private var effectiveTrimRight: CGFloat { isSelected && groupTrimRightOffset != 0 ? groupTrimRightOffset : trimRightOffset }
@@ -169,11 +200,15 @@ public struct TimelineClipView: View {
                 )
             }
 
-            if !isLocked && isSelected {
+            if !isLocked {
+                let trimHitWidth = min(ClipTrimHandleView.handleHitWidth, max(5.0, width * 0.22))
                 ClipTrimHandleView(
                     isLeft: true,
+                    width: trimHitWidth,
                     height: height - 4,
+                    isSelected: isSelected,
                     isHovering: $isHoveringLeftTrim,
+                    onSelectIfNeeded: { if !isSelected { onSelect(false) } },
                     onSelect: { onSelect(false) },
                     onTrimChanged: handleLeftTrimChanged,
                     onTrimEnded: handleLeftTrimEnded
@@ -182,8 +217,11 @@ public struct TimelineClipView: View {
 
                 ClipTrimHandleView(
                     isLeft: false,
+                    width: trimHitWidth,
                     height: height - 4,
+                    isSelected: isSelected,
                     isHovering: $isHoveringRightTrim,
+                    onSelectIfNeeded: { if !isSelected { onSelect(false) } },
                     onSelect: { onSelect(false) },
                     onTrimChanged: handleRightTrimChanged,
                     onTrimEnded: handleRightTrimEnded

@@ -112,7 +112,7 @@ public struct GridOnScreenOverlayView: View {
                 if i < config.rowDividers.count {
                     let normY = config.rowDividers[i]
                     let y = CGFloat(normY) * viewSize.height
-                    let lineTitle = (i == 0) ? "Thắt lưng" : (i == 1 ? "Mắt cá" : "Line \(i + 1)")
+                    let lineTitle = (i == 0) ? "Waist" : (i == 1 ? "Ankle" : "Line \(i + 1)")
 
                     ZStack(alignment: .leading) {
                         Rectangle()

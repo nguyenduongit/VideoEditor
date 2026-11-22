@@ -113,14 +113,14 @@ public final class VisionSubjectTrackingService: SubjectTrackingServiceProtocol,
         return AutoPanEngine.smoothKeyframesGaussian(rawKeyframes, passes: passes)
     }
 
-    private struct SubjectPoseSample {
+    struct SubjectPoseSample {
         let normalizedX: Double?
         let waistY: Double?
         let ankleY: Double?
         let confidence: Float
     }
 
-    private func detectSubjectPosition(in cgImage: CGImage) -> SubjectPoseSample {
+    func detectSubjectPosition(in cgImage: CGImage) -> SubjectPoseSample {
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
 
         // 1. Primary: Human Body Pose Detection (extracts both horizontal group center and vertical waist/ankle lines)

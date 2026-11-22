@@ -79,7 +79,7 @@ public struct ColorCurvesControlView: View {
                     .foregroundStyle(DSColors.textSecondary)
             }
             .buttonStyle(.plain)
-            .help("Đặt lại đường cong hiện tại")
+            .help("Reset current curve")
         }
     }
 

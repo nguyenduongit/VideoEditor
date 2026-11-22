@@ -52,7 +52,6 @@ public struct StickerLibraryView: View {
             searchPlaceholder: "Search stickers...",
             categories: categories,
             selectedCategory: $selectedCategory,
-            favoritesCount: SidebarFavoriteManager.shared.favorites(for: "sticker").count,
             trailingAction: AnyView(reloadButton)
         ) {
             contentScrollView
@@ -96,6 +95,7 @@ public struct StickerLibraryView: View {
                             title: preset.name,
                             isFavorite: isFav,
                             isSelected: selectedPresetID == preset.id,
+                            dragPayload: .sticker(preset),
                             onSelect: {
                                 selectedPresetID = preset.id
                             },

@@ -11,8 +11,19 @@ extension TimelineCompositionBuilder {
         for layers: [TimelineLayer],
         layerAudioTrackIDs: [UUID: [CMPersistentTrackID]]
     ) -> AVAudioMix {
+        buildAudioMixWithTapControllers(
+            for: layers,
+            layerAudioTrackIDs: layerAudioTrackIDs
+        ).audioMix
+    }
+
+    static func buildAudioMixWithTapControllers(
+        for layers: [TimelineLayer],
+        layerAudioTrackIDs: [UUID: [CMPersistentTrackID]]
+    ) -> (audioMix: AVAudioMix, tapControllers: [CMPersistentTrackID: TimelineAudioGainTap]) {
         let audioMix = AVMutableAudioMix()
         var inputParams: [AVMutableAudioMixInputParameters] = []
+        var tapControllers: [CMPersistentTrackID: TimelineAudioGainTap] = [:]
 
         for layer in layers {
             guard let trackIDs = layerAudioTrackIDs[layer.id], !trackIDs.isEmpty else { continue }
@@ -22,6 +33,14 @@ extension TimelineCompositionBuilder {
                 for (parity, trackID) in trackIDs.enumerated() {
                     let params = AVMutableAudioMixInputParameters()
                     params.trackID = trackID
+                    let parityClips = layer.clips
+                        .sorted { $0.timeRange.start < $1.timeRange.start }
+                        .enumerated()
+                        .filter { $0.offset % 2 == parity }
+                        .map(\.element)
+                    let controller = TimelineAudioGainTap(clips: parityClips, isLayerMuted: layer.isMuted)
+                    tapControllers[trackID] = controller
+                    params.audioTapProcessor = TimelineAudioGainTap.makeTapProcessor(controller: controller)
                     if layer.isMuted {
                         params.setVolume(0.0, at: .zero)
                     } else {
@@ -29,6 +48,8 @@ extension TimelineCompositionBuilder {
                             for: layer.clips,
                             parity: parity,
                             windows: windows,
+                            trackBoost: 1.0,
+                            useUnityBaseVolume: true,
                             into: params
                         )
                     }
@@ -38,10 +59,18 @@ extension TimelineCompositionBuilder {
                 for trackID in trackIDs {
                     let params = AVMutableAudioMixInputParameters()
                     params.trackID = trackID
+                    let controller = TimelineAudioGainTap(clips: layer.clips, isLayerMuted: layer.isMuted)
+                    tapControllers[trackID] = controller
+                    params.audioTapProcessor = TimelineAudioGainTap.makeTapProcessor(controller: controller)
                     if layer.isMuted {
                         params.setVolume(0.0, at: .zero)
                     } else {
-                        configureClipAudioRamps(for: layer.clips, into: params)
+                        configureClipAudioRamps(
+                            for: layer.clips,
+                            trackBoost: 1.0,
+                            useUnityBaseVolume: true,
+                            into: params
+                        )
                     }
                     inputParams.append(params)
                 }
@@ -49,20 +78,24 @@ extension TimelineCompositionBuilder {
         }
 
         audioMix.inputParameters = inputParams
-        return audioMix
+        return (audioMix, tapControllers)
     }
 
     private static func configureABTrackAudioRamps(
         for clips: [TimelineClip],
         parity: Int,
         windows: [ResolvedTransitionWindow],
+        trackBoost: Float,
+        useUnityBaseVolume: Bool = false,
         into params: AVMutableAudioMixInputParameters
     ) {
         let sorted = clips.sorted { $0.timeRange.start < $1.timeRange.start }
+        let normDivisor = max(1.0, trackBoost)
         params.setVolume(0.0, at: .zero)
 
         for (index, clip) in sorted.enumerated() where index % 2 == parity {
-            let volume = Float(max(0.0, min(2.0, clip.properties["volume"]?.asNumber ?? 1.0)))
+            let rawVol = Float(max(0.0, min(Double(TimelineAudioGainTap.maxAllowedVolume), clip.properties["volume"]?.asNumber ?? 1.0)))
+            let volume: Float = useUnityBaseVolume ? 1.0 : max(0.0, min(1.0, rawVol / normDivisor))
             let inWin = windows.first { $0.trailingIndex == index }
             let outWin = windows.first { $0.leadingIndex == index }
 
@@ -120,14 +153,21 @@ extension TimelineCompositionBuilder {
         }
     }
 
-    private static func configureClipAudioRamps(for clips: [TimelineClip], into params: AVMutableAudioMixInputParameters) {
+    private static func configureClipAudioRamps(
+        for clips: [TimelineClip],
+        trackBoost: Float,
+        useUnityBaseVolume: Bool = false,
+        into params: AVMutableAudioMixInputParameters
+    ) {
         let sorted = clips.sorted { $0.timeRange.start < $1.timeRange.start }
+        let normDivisor = max(1.0, trackBoost)
         if let first = sorted.first, first.timeRange.start > .zero {
             let preRange = CMTimeRange(start: .zero, duration: first.timeRange.start)
             params.setVolumeRamp(fromStartVolume: 0.0, toEndVolume: 0.0, timeRange: preRange)
         }
         for (index, clip) in sorted.enumerated() {
-            let volume = Float(max(0.0, min(2.0, clip.properties["volume"]?.asNumber ?? 1.0)))
+            let rawVol = Float(max(0.0, min(Double(TimelineAudioGainTap.maxAllowedVolume), clip.properties["volume"]?.asNumber ?? 1.0)))
+            let volume: Float = useUnityBaseVolume ? 1.0 : max(0.0, min(1.0, rawVol / normDivisor))
             let start = clip.timeRange.start
             let end = clip.timeRange.end
             let dur = CMTimeGetSeconds(clip.timeRange.duration)
@@ -141,16 +181,26 @@ extension TimelineCompositionBuilder {
                 fadeOut *= ratio
             }
             if let kfMap = ClipKeyframeMap.from(clip: clip), kfMap.hasKeyframes(for: "volume") {
+                let kfDivisor = useUnityBaseVolume ? max(0.001, Double(rawVol)) : Double(normDivisor)
                 applyKeyframedClipAudio(
                     params: params,
                     clip: clip,
                     kfMap: kfMap,
-                    baseVolume: Double(volume),
+                    baseVolume: Double(rawVol),
+                    normDivisor: kfDivisor,
                     fadeIn: fadeIn,
                     fadeOut: fadeOut
                 )
             } else {
-                applySingleClipAudio(params: params, volume: volume, start: start, end: end, fadeIn: fadeIn, fadeOut: fadeOut)
+                applySingleClipAudio(
+                    params: params,
+                    volume: volume,
+                    start: start,
+                    end: end,
+                    fadeIn: fadeIn,
+                    fadeOut: fadeOut,
+                    useUnityBaseVolume: useUnityBaseVolume
+                )
             }
 
             if index + 1 < sorted.count {
@@ -169,18 +219,19 @@ extension TimelineCompositionBuilder {
         start: CMTime,
         end: CMTime,
         fadeIn: Double,
-        fadeOut: Double
+        fadeOut: Double,
+        useUnityBaseVolume: Bool = false
     ) {
         var bodyStart = start
         var bodyEnd = end
 
-        if fadeIn > 0.001 {
+        if !useUnityBaseVolume && fadeIn > 0.001 {
             let inDur = CMTime(seconds: fadeIn, preferredTimescale: 600)
             params.setVolumeRamp(fromStartVolume: 0.0, toEndVolume: volume, timeRange: CMTimeRange(start: start, duration: inDur))
             bodyStart = start + inDur
         }
 
-        if fadeOut > 0.001 {
+        if !useUnityBaseVolume && fadeOut > 0.001 {
             let outDur = CMTime(seconds: fadeOut, preferredTimescale: 600)
             let outStart = CMTimeSubtract(end, outDur)
             params.setVolumeRamp(fromStartVolume: volume, toEndVolume: 0.0, timeRange: CMTimeRange(start: outStart, duration: outDur))
@@ -200,6 +251,7 @@ extension TimelineCompositionBuilder {
         clip: TimelineClip,
         kfMap: ClipKeyframeMap,
         baseVolume: Double,
+        normDivisor: Double,
         fadeIn: Double,
         fadeOut: Double
     ) {
@@ -217,11 +269,11 @@ extension TimelineCompositionBuilder {
             let segDur = t1 - t0
             guard segDur > 0.0001 else { continue }
 
-            let v0 = Float(effectiveKeyframedVolume(at: t0, dur: dur, baseVolume: baseVolume, kfMap: kfMap, fadeIn: fadeIn, fadeOut: fadeOut))
-            let v1 = Float(effectiveKeyframedVolume(at: t1, dur: dur, baseVolume: baseVolume, kfMap: kfMap, fadeIn: fadeIn, fadeOut: fadeOut))
+            let v0 = Float(effectiveKeyframedVolume(at: t0, dur: dur, baseVolume: baseVolume, kfMap: kfMap, fadeIn: fadeIn, fadeOut: fadeOut) / normDivisor)
+            let v1 = Float(effectiveKeyframedVolume(at: t1, dur: dur, baseVolume: baseVolume, kfMap: kfMap, fadeIn: fadeIn, fadeOut: fadeOut) / normDivisor)
             let segStart = CMTimeAdd(start, CMTime(seconds: t0, preferredTimescale: 600))
             let segRange = CMTimeRange(start: segStart, duration: CMTime(seconds: segDur, preferredTimescale: 600))
-            params.setVolumeRamp(fromStartVolume: v0, toEndVolume: v1, timeRange: segRange)
+            params.setVolumeRamp(fromStartVolume: max(0.0, min(1.0, v0)), toEndVolume: max(0.0, min(1.0, v1)), timeRange: segRange)
         }
         params.setVolume(0.0, at: end)
     }
@@ -236,11 +288,11 @@ extension TimelineCompositionBuilder {
     ) -> Double {
         var vol = KeyframeEvaluator.evaluate(propertyKey: "volume", baseValue: baseVolume, atLocalTime: localTime, map: kfMap)
         if fadeIn > 0.001 && localTime < fadeIn {
-            vol *= max(0.0, min(1.0, localTime / fadeIn))
+            vol *= Double(AudioWaveformMath.curvedFadeMultiplier(localTime / fadeIn))
         }
         if fadeOut > 0.001 && localTime > (dur - fadeOut) {
-            vol *= max(0.0, min(1.0, (dur - localTime) / fadeOut))
+            vol *= Double(AudioWaveformMath.curvedFadeMultiplier((dur - localTime) / fadeOut))
         }
-        return max(0.0, min(2.0, vol))
+        return max(0.0, min(Double(TimelineAudioGainTap.maxAllowedVolume), vol))
     }
 }

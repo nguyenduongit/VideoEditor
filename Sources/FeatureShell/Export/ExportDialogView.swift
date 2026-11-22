@@ -52,7 +52,7 @@ public struct ExportDialogView: View {
             Image(systemName: viewModel.mediaType == .video ? "film.fill" : "waveform")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(DSColors.accent)
-            Text(viewModel.mediaType == .video ? String(localized: "Xuất Video MP4") : String(localized: "Xuất Audio Only"))
+            Text(viewModel.mediaType == .video ? String(localized: "Export Video MP4") : String(localized: "Export Audio Only"))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
             Spacer()
@@ -74,7 +74,7 @@ public struct ExportDialogView: View {
         HStack {
             Spacer()
             if !viewModel.isExporting {
-                Button(String(localized: "Đóng")) {
+                Button(String(localized: "Close")) {
                     viewModel.closeDialog()
                 }
                 .buttonStyle(.plain)
@@ -84,13 +84,13 @@ public struct ExportDialogView: View {
 
             if case .idle = viewModel.status {
                 let title = viewModel.mediaType == .video
-                    ? String(localized: "Chọn nơi lưu & Xuất Video...")
-                    : String(localized: "Chọn nơi lưu & Xuất Audio...")
+                    ? String(localized: "Choose Location & Export Video...")
+                    : String(localized: "Choose Location & Export Audio...")
                 DSActionButton(title: title, icon: "arrow.down.to.line") {
                     viewModel.promptSaveAndStartExport(timelineViewModel: timelineViewModel)
                 }
             } else if case .cancelled = viewModel.status {
-                DSActionButton(title: String(localized: "Xuất lại"), icon: "arrow.clockwise") {
+                DSActionButton(title: String(localized: "Export Again"), icon: "arrow.clockwise") {
                     viewModel.promptSaveAndStartExport(timelineViewModel: timelineViewModel)
                 }
             }
@@ -140,21 +140,21 @@ public struct ExportDialogView: View {
 
     private var fileInfoSection: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            Text(String(localized: "THÔNG TIN DỰ ÁN"))
+            Text(String(localized: "PROJECT DETAILS"))
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(DSColors.textSecondary)
 
             if viewModel.mediaType == .video {
-                infoRow(label: String(localized: "Tỉ lệ khung hình"), value: timelineViewModel.aspectRatio.title)
-                infoRow(label: String(localized: "Kích thước điểm ảnh"), value: viewModel.renderDimensionsText(for: timelineViewModel.aspectRatio))
+                infoRow(label: String(localized: "Aspect Ratio"), value: timelineViewModel.aspectRatio.title)
+                infoRow(label: String(localized: "Dimensions"), value: viewModel.renderDimensionsText(for: timelineViewModel.aspectRatio))
             } else {
-                infoRow(label: String(localized: "Định dạng xuất"), value: viewModel.audioFormat.title)
-                infoRow(label: String(localized: "Cấu hình kênh"), value: "Stereo (2 kênh) • 48 kHz")
+                infoRow(label: String(localized: "Format"), value: viewModel.audioFormat.title)
+                infoRow(label: String(localized: "Channels"), value: "Stereo (2 channels) • 48 kHz")
             }
 
-            infoRow(label: String(localized: "Thời lượng tổng"), value: viewModel.formattedDuration(duration: timelineViewModel.totalDuration))
+            infoRow(label: String(localized: "Total Duration"), value: viewModel.formattedDuration(duration: timelineViewModel.totalDuration))
             infoRow(
-                label: String(localized: "Dung lượng ước tính"),
+                label: String(localized: "Estimated File Size"),
                 value: viewModel.estimatedFileSize(
                     duration: timelineViewModel.totalDuration,
                     aspectRatio: timelineViewModel.aspectRatio
@@ -183,7 +183,7 @@ public struct ExportDialogView: View {
             Spacer()
             ProgressView()
                 .controlSize(.regular)
-            Text(viewModel.mediaType == .video ? String(localized: "Đang xuất video...") : String(localized: "Đang xuất audio..."))
+            Text(viewModel.mediaType == .video ? String(localized: "Exporting video...") : String(localized: "Exporting audio..."))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
 
@@ -205,7 +205,7 @@ public struct ExportDialogView: View {
             }
             .padding(.horizontal, DSSpacing.lg)
 
-            Button(String(localized: "Hủy xuất")) {
+            Button(String(localized: "Cancel Export")) {
                 viewModel.cancelExport()
             }
             .buttonStyle(.plain)
@@ -221,7 +221,7 @@ public struct ExportDialogView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 38))
                 .foregroundStyle(Color.green)
-            Text(viewModel.mediaType == .video ? String(localized: "Xuất video thành công!") : String(localized: "Xuất audio thành công!"))
+            Text(viewModel.mediaType == .video ? String(localized: "Video exported successfully!") : String(localized: "Audio exported successfully!"))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
 
@@ -231,7 +231,7 @@ public struct ExportDialogView: View {
                     .foregroundStyle(DSColors.textSecondary)
                     .lineLimit(1)
 
-                Button(String(localized: "Mở trong Finder")) {
+                Button(String(localized: "Show in Finder")) {
                     viewModel.openInFinder()
                 }
                 .buttonStyle(.plain)
@@ -248,7 +248,7 @@ public struct ExportDialogView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 36))
                 .foregroundStyle(Color.red)
-            Text(viewModel.mediaType == .video ? String(localized: "Xuất video thất bại") : String(localized: "Xuất audio thất bại"))
+            Text(viewModel.mediaType == .video ? String(localized: "Video export failed") : String(localized: "Audio export failed"))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(DSColors.textPrimary)
 

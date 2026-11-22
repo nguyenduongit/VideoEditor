@@ -99,6 +99,27 @@ struct TimelineClipContextMenuAndShortcutsTests {
         #expect(vm.clip(by: source.id) != nil)
     }
 
+    @Test("Multi-selection Option-drag duplicate clones all selected clips with relative delta and 1-step Undo")
+    func testDuplicateSelectedClipsViaDrag() throws {
+        let vClip = TimelineClip(name: "V1", kind: .video, timeRange: range(0, 3))
+        let aClip = TimelineClip(name: "A1", kind: .audio, timeRange: range(1, 3))
+        let vm = TimelineViewModel(initialLayers: [
+            TimelineLayer(name: "Video 1", kind: .video, clips: [vClip]),
+            TimelineLayer(name: "Audio 1", kind: .audio, clips: [aClip])
+        ])
+        vm.selectedClipIDs = [vClip.id, aClip.id]
+        vm.duplicateSelectedClipsViaDrag(delta: time(5))
+
+        #expect(vm.layers.flatMap(\.clips).count == 4)
+        let dupV = try #require(vm.layers.flatMap(\.clips).first { $0.kind == .video && $0.id != vClip.id })
+        let dupA = try #require(vm.layers.flatMap(\.clips).first { $0.kind == .audio && $0.id != aClip.id })
+        #expect(abs(CMTimeGetSeconds(dupV.timeRange.start) - 5.0) < 0.02)
+        #expect(abs(CMTimeGetSeconds(dupA.timeRange.start) - 6.0) < 0.02)
+
+        #expect(vm.undo())
+        #expect(vm.layers.flatMap(\.clips).count == 2)
+    }
+
     @Test("Copy Attributes and selective Paste Attributes preserve text content and transfer color grading")
     func testCopyAndSelectivePasteAttributes() throws {
         var srcCfg = TextConfiguration(content: "Source Text")

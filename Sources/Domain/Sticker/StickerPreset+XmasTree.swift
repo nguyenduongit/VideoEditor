@@ -4,7 +4,7 @@ extension StickerPreset {
     /// Mã nguồn SVG động kèm hoạt họa CSS @keyframes (Cây thông Noel đung đưa, đèn lấp lánh, tuyết rơi).
     /// Chuẩn W3C SVG 100% Native hình vuông 500x500, tương thích trọn vẹn với WebKit, CoreGraphics, AppKit NSImage.
     public static let animatedXmasTreeSVGMarkup: String = """
-<svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cây thông Noel hoạt họa, đèn nhấp nháy, tuyết rơi">
+<svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated Christmas tree with blinking lights and falling snow">
 <style>
 .sway{transform-origin:250px 470px;animation:sway 3s ease-in-out infinite}
 .pulse{transform-box:fill-box;transform-origin:50% 50%;animation:pulse 1.5s ease-in-out infinite}

@@ -4,7 +4,7 @@ import Foundation
 public struct TypewriterCursorScript: TextAnimationScript {
     public let id = "typewriter_cursor"
     public let displayName = "Typewriter"
-    public let description = "Gõ từng ký tự đàn hồi mượt mà kèm thanh con trỏ | di chuyển bám sát đuôi chữ"
+    public let description = "Smooth elastic per-character typing accompanied by a tracking | cursor"
     public let category = TextAnimationCategory.typewriter
     public let scope = TextAnimationScope.perCharacter
 
@@ -80,7 +80,7 @@ public struct TypewriterCursorScript: TextAnimationScript {
 public struct KineticDropGlowScript: TextAnimationScript {
     public let id = "kinetic_drop_glow"
     public let displayName = "Kinetic Drop"
-    public let description = "Chữ tung vọt lên vòm cung xoay nghiêng trên không rồi rơi nảy đàn hồi tuần tự"
+    public let description = "Characters arc skyward with air spin before bouncing down sequentially"
     public let category = TextAnimationCategory.pop
     public let scope = TextAnimationScope.perCharacter
 
@@ -192,7 +192,7 @@ public struct KineticDropGlowScript: TextAnimationScript {
 public struct CurvedArcRollerScript: TextAnimationScript {
     public let id = "curved_arc_roller"
     public let displayName = "Silk Ribbon Wave"
-    public let description = "Chữ uốn lượn mềm mại như dải lụa dọc theo đường sóng S-Curve với góc tiếp tuyến chuẩn xác"
+    public let description = "Text flows like a silk ribbon along an S-curve wave with tangent alignment"
     public let category = TextAnimationCategory.wave
     public let scope = TextAnimationScope.perCharacter
 
@@ -251,7 +251,7 @@ public struct CurvedArcRollerScript: TextAnimationScript {
 public struct NeonCyberShiftScript: TextAnimationScript {
     public let id = "neon_cyber_shift"
     public let displayName = "Elastic Spring Pop"
-    public let description = "Từng ký tự bung nở lò xo vượt ngưỡng kèm vẫy góc nghiêng và nhảy sóng nhịp đôi"
+    public let description = "Springy character pop with overshoot, playful tilt, and double-beat bounce"
     public let category = TextAnimationCategory.kinetic
     public let scope = TextAnimationScope.perCharacter
 

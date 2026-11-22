@@ -6,24 +6,29 @@ import DesignSystem
 
 // MARK: - MediaAssetDragSourceNSView
 
-/// Transparent NSView overlay that handles pointer events for a media asset item.
-/// Initiates a native AppKit drag session with a compact thumbnail card outside timeline.
-/// When the cursor enters the timeline, the drop target transitions it to a 1:1 clip block.
+/// Transparent NSView overlay that handles pointer events for any sidebar library card item.
+/// Initiates a native AppKit drag session with a compact thumbnail card (or cyan pill for transitions)
+/// outside the timeline, and pre-warms the 1:1 clip block image at the timeline's active zoom level.
 public final class MediaAssetDragSourceNSView: NSView {
 
     // MARK: Configuration
 
-    public var asset: MediaAsset?
+    public var asset: MediaAsset? {
+        didSet {
+            if let asset {
+                dragPayload = .media(asset)
+            }
+        }
+    }
+    public var dragPayload: TimelineDragPayload?
     public var onSelect: ((Bool) -> Void)?
     public var onAddToTimeline: (() -> Void)?
     public var onDelete: (() -> Void)?
+    public var onToggleFavorite: (() -> Void)?
     public var onHover: ((Bool) -> Void)?
 
     // MARK: Constants
 
-    private static let previewPixelsPerSecond: CGFloat = 100
-    private static let minBlockWidth: CGFloat = 140
-    private static let maxBlockWidth: CGFloat = 800
     private static let dragThreshold: CGFloat = 4
     private static let plusButtonSize: CGFloat = 30
 
@@ -31,7 +36,7 @@ public final class MediaAssetDragSourceNSView: NSView {
 
     private var mouseDownEvent: NSEvent?
     private var isClickingAddButton = false
-    private var isClickingDeleteButton = false
+    private var isClickingTopRightButton = false
     private var trackingArea: NSTrackingArea?
 
     // MARK: NSView
@@ -50,12 +55,16 @@ public final class MediaAssetDragSourceNSView: NSView {
         return NSRect(x: max(0, w - size), y: 0, width: size, height: size)
     }
 
+    private var hasTopRightAction: Bool {
+        onDelete != nil || onToggleFavorite != nil
+    }
+
     override public func resetCursorRects() {
         super.resetCursorRects()
         if onAddToTimeline != nil && bounds.width >= Self.plusButtonSize {
             addCursorRect(plusButtonHitRect, cursor: .pointingHand)
         }
-        if onDelete != nil && bounds.width >= Self.plusButtonSize {
+        if hasTopRightAction && bounds.width >= Self.plusButtonSize {
             addCursorRect(deleteButtonHitRect, cursor: .pointingHand)
         }
     }
@@ -83,8 +92,8 @@ public final class MediaAssetDragSourceNSView: NSView {
 
     override public func mouseDown(with event: NSEvent) {
         let localPoint = convert(event.locationInWindow, from: nil)
-        if onDelete != nil && deleteButtonHitRect.contains(localPoint) {
-            isClickingDeleteButton = true
+        if hasTopRightAction && deleteButtonHitRect.contains(localPoint) {
+            isClickingTopRightButton = true
             mouseDownEvent = event
             return
         }
@@ -93,7 +102,7 @@ public final class MediaAssetDragSourceNSView: NSView {
             mouseDownEvent = event
             return
         }
-        isClickingDeleteButton = false
+        isClickingTopRightButton = false
         isClickingAddButton = false
         mouseDownEvent = event
         let isCmd = event.modifierFlags.contains(.command)
@@ -101,7 +110,7 @@ public final class MediaAssetDragSourceNSView: NSView {
     }
 
     override public func mouseDragged(with event: NSEvent) {
-        if isClickingAddButton || isClickingDeleteButton { return }
+        if isClickingAddButton || isClickingTopRightButton { return }
         guard let downEvent = mouseDownEvent else { return }
         guard displaceExceedsThreshold(event: event, origin: downEvent) else { return }
         mouseDownEvent = nil
@@ -109,12 +118,16 @@ public final class MediaAssetDragSourceNSView: NSView {
     }
 
     override public func mouseUp(with event: NSEvent) {
-        if isClickingDeleteButton {
-            isClickingDeleteButton = false
+        if isClickingTopRightButton {
+            isClickingTopRightButton = false
             mouseDownEvent = nil
             let localPoint = convert(event.locationInWindow, from: nil)
             if deleteButtonHitRect.contains(localPoint) {
-                onDelete?()
+                if let onToggleFavorite {
+                    onToggleFavorite()
+                } else {
+                    onDelete?()
+                }
             }
             return
         }
@@ -138,77 +151,74 @@ public final class MediaAssetDragSourceNSView: NSView {
         return dx * dx + dy * dy > Self.dragThreshold * Self.dragThreshold
     }
 
+    private func resolvedPayload() -> TimelineDragPayload? {
+        if let dragPayload { return dragPayload }
+        if let asset { return .media(asset) }
+        return nil
+    }
+
     private func startDragSession(from downEvent: NSEvent) {
-        guard let asset else { return }
-        let url = asset.url
-        guard let mediaType = MediaType.from(fileExtension: url.pathExtension) else { return }
+        guard let payload = resolvedPayload() else { return }
+        TransitionDragSessionState.shared.begin(payload: payload)
 
-        let kind = mediaType.clipKind
-        let dur = resolveDuration(url: url, type: mediaType)
-        let (targetW, targetH) = blockDimensions(kind: kind, duration: dur)
+        if let kind = payload.clipKind {
+            let dur = payload.resolvedDuration()
+            let pps = TransitionDragSessionState.shared.timelinePixelsPerSecond
+            let (targetW, targetH) = TimelineClipBlockRenderer.blockDimensions(
+                for: kind,
+                duration: dur,
+                pixelsPerSecond: pps
+            )
+            let thumb: NSImage? = {
+                if case .media(let asset) = payload, kind == .video {
+                    return TimelineClipBlockRenderer.quickThumbnail(for: asset.url)
+                }
+                return nil
+            }()
+            _ = TimelineClipBlockRenderer.renderImage(
+                name: payload.displayName,
+                duration: dur,
+                kind: kind,
+                width: targetW,
+                height: targetH,
+                thumbnail: thumb
+            )
+        }
 
-        // Pre-warm the clip block image into cache for zero-latency transition upon timeline entry
-        _ = renderBlockImage(
-            url: url, kind: kind, duration: dur, width: targetW, height: targetH
-        )
-
-        // Drag session outside timeline ALWAYS displays a compact thumbnail card
-        let thumbImg = TimelineClipBlockRenderer.dragThumbnail(for: url, type: mediaType)
-        let thumbSize = thumbImg.size
-
-        let item = makeDragItem(
-            url: url,
-            thumbImg: thumbImg,
-            size: thumbSize,
-            event: downEvent
-        )
+        let dragImg = TimelineClipBlockRenderer.dragThumbnail(for: payload)
+        let item = makeDragItem(payload: payload, dragImg: dragImg, event: downEvent)
         let session = beginDraggingSession(with: [item], event: downEvent, source: self)
         session.draggingFormation = .none
     }
 
-    private func resolveDuration(url: URL, type: MediaType) -> CMTime {
-        TimelineMediaDurationResolver.resolveDuration(for: url, type: type)
-            ?? CMTime(seconds: 5, preferredTimescale: 600)
-    }
-
-    private func blockDimensions(kind: ClipKind, duration: CMTime) -> (CGFloat, CGFloat) {
-        let h: CGFloat = kind.presentation.defaultLayerHeight - 6
-        let rawW = CGFloat(CMTimeGetSeconds(duration)) * Self.previewPixelsPerSecond
-        let w = max(Self.minBlockWidth, min(Self.maxBlockWidth, rawW))
-        return (w, h)
-    }
-
-    private func renderBlockImage(
-        url: URL, kind: ClipKind, duration: CMTime, width: CGFloat, height: CGFloat
-    ) -> NSImage? {
-        let thumb = (kind == .video) ? TimelineClipBlockRenderer.quickThumbnail(for: url) : nil
-        return TimelineClipBlockRenderer.renderImage(
-            name: url.lastPathComponent,
-            duration: duration,
-            kind: kind,
-            width: width,
-            height: height,
-            thumbnail: thumb
-        )
-    }
-
-    /// Builds an `NSDraggingItem` whose frame anchors the **left edge**
-    /// directly under the cursor (anchorX = 0.0) so the cursor and ruler guide
-    /// remain at the head (cạnh trái) throughout the drag session.
     private func makeDragItem(
-        url: URL, thumbImg: NSImage, size: NSSize, event: NSEvent
+        payload: TimelineDragPayload,
+        dragImg: NSImage,
+        event: NSEvent
     ) -> NSDraggingItem {
-        let item = NSDraggingItem(pasteboardWriter: url as NSURL)
+        let writer: any NSPasteboardWriting = {
+            if case .media(let mediaAsset) = payload {
+                return mediaAsset.url as NSURL
+            }
+            let pbItem = NSPasteboardItem()
+            pbItem.setString(payload.pasteboardToken, forType: .string)
+            return pbItem
+        }()
+
+        let item = NSDraggingItem(pasteboardWriter: writer)
+        let size = dragImg.size
         let localCursor = convert(event.locationInWindow, from: nil)
+        let isTransition = payload.transitionPresetID != nil
+        let originX = isTransition ? (localCursor.x - size.width * 0.5) : localCursor.x
         let frame = NSRect(
-            x: localCursor.x,
-            y: localCursor.y - size.height / 2,
+            x: originX,
+            y: localCursor.y - size.height * 0.5,
             width: size.width,
             height: size.height
         )
-        item.setDraggingFrame(frame, contents: thumbImg)
+        item.setDraggingFrame(frame, contents: dragImg)
         let comp = NSDraggingImageComponent(key: .icon)
-        comp.contents = thumbImg
+        comp.contents = dragImg
         comp.frame = NSRect(origin: .zero, size: size)
         item.imageComponentsProvider = { [comp] }
         return item
@@ -218,7 +228,6 @@ public final class MediaAssetDragSourceNSView: NSView {
 // MARK: - NSDraggingSource
 
 extension MediaAssetDragSourceNSView: NSDraggingSource {
-
     public func draggingSession(
         _ session: NSDraggingSession,
         sourceOperationMaskFor context: NSDraggingContext
@@ -233,5 +242,7 @@ extension MediaAssetDragSourceNSView: NSDraggingSource {
     ) {
         mouseDownEvent = nil
         isClickingAddButton = false
+        isClickingTopRightButton = false
+        TransitionDragSessionState.shared.clear()
     }
 }

@@ -118,7 +118,7 @@ extension InspectorViewModel {
         let preset = TransitionPreset(
             id: "user_trans_\(UUID().uuidString.lowercased())",
             name: trimmed,
-            description: "Mẫu chuyển cảnh tùy chỉnh (\(t.shaderType.displayName))",
+            description: "Custom transition preset (\(t.shaderType.displayName))",
             category: category == .all ? .motion : category,
             tags: ["custom", t.shaderType.rawValue],
             defaultDuration: t.duration.seconds,
@@ -136,7 +136,7 @@ extension InspectorViewModel {
                 do {
                     try await repo.savePreset(preset)
                 } catch {
-                    transitionInspectorLogger.error("Lưu TransitionPreset lên Supabase thất bại: \(error.localizedDescription)")
+                    transitionInspectorLogger.error("Failed to save TransitionPreset to Supabase: \(error.localizedDescription)")
                 }
             }
         }

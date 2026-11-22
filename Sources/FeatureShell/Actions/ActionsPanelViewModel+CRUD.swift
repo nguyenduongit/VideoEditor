@@ -26,7 +26,7 @@ extension ActionsPanelViewModel {
                 logger.error("Failed to save action to repository: \(error.localizedDescription)")
             }
         }
-        statusMessage = "Đã lưu Action mới: \(name)"
+        statusMessage = "Saved new Action: \(name)"
     }
 
     public func saveCurrentAsNewAction(name: String) {

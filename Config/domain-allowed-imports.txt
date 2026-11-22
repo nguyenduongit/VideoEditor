@@ -1,4 +1,0 @@
-# Framework được phép import trong Sources/Domain (AGENTS.md R2.3)
-# Mỗi dòng ngoài Foundation/CoreMedia phải có ADR tương ứng.
-Foundation
-CoreMedia    # chỉ dùng CMTime / CMTimeRange

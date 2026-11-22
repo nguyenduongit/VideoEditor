@@ -196,7 +196,7 @@ public final class ActionsPanelViewModel {
         availableTextPresets.first(where: {
             $0.id.caseInsensitiveCompare(titlePresetID) == .orderedSame ||
             $0.name.caseInsensitiveCompare(titlePresetID) == .orderedSame
-        })?.name ?? (availableTextPresets.first?.name ?? "Mẫu chữ trực tuyến")
+        })?.name ?? (availableTextPresets.first?.name ?? "Online Text Preset")
     }
 
     public var currentAction: CustomAction? {

@@ -63,7 +63,7 @@ public struct DSSectionCard<Content: View>: View {
                 }
                 .buttonStyle(.plain)
                 .onHover { isHoveredReset = $0 }
-                .help(String(localized: "Khôi phục mặc định"))
+                .help(String(localized: "Reset to Default"))
             }
 
             if let trailingAccessory {

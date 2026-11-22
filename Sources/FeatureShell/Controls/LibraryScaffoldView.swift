@@ -18,8 +18,6 @@ public struct LibraryScaffoldView<Content: View>: View {
 
     private let categories: [String]
     private let selectedCategory: Binding<String>?
-    private let categoryCounts: [String: Int]
-    private let favoritesCount: Int
     private let showFavorites: Bool
 
     private let trailingAction: AnyView?
@@ -30,8 +28,6 @@ public struct LibraryScaffoldView<Content: View>: View {
         searchPlaceholder: String = "Search...",
         categories: [String] = [],
         selectedCategory: Binding<String>? = nil,
-        categoryCounts: [String: Int] = [:],
-        favoritesCount: Int = 0,
         showFavorites: Bool = true,
         trailingAction: AnyView? = nil,
         @ViewBuilder content: @escaping () -> Content
@@ -46,8 +42,6 @@ public struct LibraryScaffoldView<Content: View>: View {
         self.searchPlaceholder = searchPlaceholder
         self.categories = categories
         self.selectedCategory = selectedCategory
-        self.categoryCounts = categoryCounts
-        self.favoritesCount = favoritesCount
         self.showFavorites = showFavorites
         self.trailingAction = trailingAction
         self.content = content
@@ -99,11 +93,9 @@ public struct LibraryScaffoldView<Content: View>: View {
                                 .padding(.vertical, 4)
                         } else {
                             let isSelected = selected.wrappedValue == category
-                            let count = categoryCounts[category] ?? 0
                             sidebarButton(
                                 title: category,
                                 icon: nil,
-                                count: count,
                                 isSelected: isSelected
                             ) {
                                 selected.wrappedValue = category
@@ -128,12 +120,6 @@ public struct LibraryScaffoldView<Content: View>: View {
                     .truncationMode(.tail)
 
                 Spacer(minLength: 0)
-
-                if favoritesCount > 0 {
-                    Text("\(favoritesCount)")
-                        .font(.system(size: 9.5, weight: .semibold, design: .rounded))
-                        .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.textSecondary)
-                }
             }
             .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
             .padding(.horizontal, 10)
@@ -153,7 +139,6 @@ public struct LibraryScaffoldView<Content: View>: View {
     private func sidebarButton(
         title: String,
         icon: String?,
-        count: Int,
         isSelected: Bool,
         action: @escaping () -> Void
     ) -> some View {
@@ -171,12 +156,6 @@ public struct LibraryScaffoldView<Content: View>: View {
                     .truncationMode(.tail)
 
                 Spacer(minLength: 0)
-
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: 9, weight: .semibold, design: .rounded))
-                        .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.textSecondary.opacity(0.8))
-                }
             }
             .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
             .padding(.horizontal, 10)

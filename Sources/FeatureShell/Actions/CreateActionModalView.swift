@@ -10,7 +10,10 @@ public struct CreateActionModalView: View {
 
     @State private var name: String = ""
     @State private var selectedIcon: String = "play.fill"
-    @State private var orderedTaskIDs: [String] = ["syncAudio", "autoColor", "aspect916", "addTitle", "visionFraming"]
+    @State private var orderedTaskIDs: [String] = [
+        "syncAudio", "autoTrim", "shiftToStart", "muteVideo",
+        "autoColor", "aspect916", "addTitle", "visionFraming"
+    ]
 
     private let availableIcons = [
         "play.fill", "bolt.fill", "film.fill", "sparkles",
@@ -47,7 +50,7 @@ public struct CreateActionModalView: View {
                 .foregroundStyle(DSColors.accent)
                 .font(.system(size: 14))
 
-            Text(String(localized: "Tạo Action Mới"))
+            Text(String(localized: "Create New Action"))
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(DSColors.textPrimary)
 
@@ -64,7 +67,7 @@ public struct CreateActionModalView: View {
 
     private var nameAndIconSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            TextField(String(localized: "Nhập tên Action (vd: Dựng TikTok 9:16)..."), text: $name)
+            TextField(String(localized: "Action name (e.g. TikTok 9:16 Edit)..."), text: $name)
                 .textFieldStyle(.plain)
                 .font(.system(size: 11.5))
                 .foregroundStyle(DSColors.textPrimary)
@@ -94,7 +97,7 @@ public struct CreateActionModalView: View {
     private var orderedTasksSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(String(localized: "Thứ tự các bước thực thi (\(orderedTaskIDs.count) tác vụ):"))
+                Text(String(localized: "Execution order (\(orderedTaskIDs.count) tasks):"))
                     .font(.system(size: 10.5, weight: .semibold))
                     .foregroundStyle(DSColors.textSecondary)
                 Spacer()
@@ -103,7 +106,7 @@ public struct CreateActionModalView: View {
             ScrollView {
                 VStack(spacing: 4) {
                     if orderedTaskIDs.isEmpty {
-                        Text(String(localized: "Chưa chọn tác vụ nào. Hãy thêm từ danh sách bên dưới."))
+                        Text(String(localized: "No tasks selected. Add tasks from the list below."))
                             .font(.system(size: 10.5))
                             .foregroundStyle(DSColors.textSecondary.opacity(0.7))
                             .padding(.vertical, 8)
@@ -180,7 +183,7 @@ public struct CreateActionModalView: View {
         return Group {
             if !unselected.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(String(localized: "+ Thêm tác vụ khác vào quy trình:"))
+                    Text(String(localized: "+ Add tasks to workflow:"))
                         .font(.system(size: 9.5, weight: .medium))
                         .foregroundStyle(DSColors.textSecondary.opacity(0.7))
                         .padding(.top, 6)
@@ -220,7 +223,7 @@ public struct CreateActionModalView: View {
 
     private var footerActionButtons: some View {
         HStack(spacing: DSSpacing.sm) {
-            Button(String(localized: "Hủy")) {
+            Button(String(localized: "Cancel")) {
                 isPresented = false
             }
             .buttonStyle(.plain)
@@ -231,9 +234,9 @@ public struct CreateActionModalView: View {
 
             Spacer()
 
-            Button(String(localized: "Lưu Action")) {
+            Button(String(localized: "Save Action")) {
                 let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                let defaultName = String(localized: "Action Mới")
+                let defaultName = String(localized: "New Action")
                 let finalName = trimmed.isEmpty ? defaultName : trimmed
                 onSave(finalName, selectedIcon, orderedTaskIDs)
                 isPresented = false

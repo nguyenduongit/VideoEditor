@@ -69,7 +69,7 @@ struct VideoEditorApp: App {
         do {
             try transport.start()
         } catch {
-            Self.logger.error("Không thể khởi động cổng MCP 4088: \(error.localizedDescription, privacy: .public)")
+            Self.logger.error("Failed to start MCP port 4088: \(error.localizedDescription, privacy: .public)")
         }
         self.mcpTransport = transport
     }
@@ -115,48 +115,48 @@ struct VideoEditorApp: App {
 
                 Divider()
 
-                Button(String(localized: "Xuất Video MP4...")) {
+                Button(String(localized: "Export Video MP4...")) {
                     viewModel.exportViewModel.openDialog(mediaType: .video)
                 }
                 .keyboardShortcut("e", modifiers: .command)
 
-                Button(String(localized: "Xuất Audio Only...")) {
+                Button(String(localized: "Export Audio Only...")) {
                     viewModel.exportViewModel.openDialog(mediaType: .audio)
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
             }
 
             CommandMenu(String(localized: "Clip")) {
-                Button(String(localized: "Nhân đôi Clip")) {
+                Button(String(localized: "Duplicate Clip")) {
                     viewModel.timelineViewModel.duplicateClips()
                 }
                 .keyboardShortcut("d", modifiers: .command)
 
-                Button(String(localized: "Tách tại Playhead")) {
+                Button(String(localized: "Split at Playhead")) {
                     _ = viewModel.timelineViewModel.splitClips(at: viewModel.playheadState.currentTime)
                 }
                 .keyboardShortcut("b", modifiers: .command)
 
                 Divider()
 
-                Button(String(localized: "Sao chép Thuộc tính")) {
+                Button(String(localized: "Copy Attributes")) {
                     viewModel.timelineViewModel.copyAttributes()
                 }
                 .keyboardShortcut("c", modifiers: [.command, .option])
 
-                Button(String(localized: "Dán Thuộc tính...")) {
+                Button(String(localized: "Paste Attributes...")) {
                     viewModel.timelineViewModel.openPasteAttributesModal()
                 }
                 .keyboardShortcut("v", modifiers: [.command, .option])
 
                 Divider()
 
-                Button(String(localized: "Cắt đầu Clip tới Playhead")) {
+                Button(String(localized: "Trim Clip Start to Playhead")) {
                     viewModel.timelineViewModel.trimSelectedClipsToPlayhead(at: viewModel.playheadState.currentTime, isStart: true)
                 }
                 .keyboardShortcut("[", modifiers: .option)
 
-                Button(String(localized: "Cắt cuối Clip tới Playhead")) {
+                Button(String(localized: "Trim Clip End to Playhead")) {
                     viewModel.timelineViewModel.trimSelectedClipsToPlayhead(at: viewModel.playheadState.currentTime, isStart: false)
                 }
                 .keyboardShortcut("]", modifiers: .option)
@@ -211,15 +211,15 @@ struct VideoEditorApp: App {
         stockRepo: SupabaseStockMediaRepository
     ) async {
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { do { _ = try await adjustmentRepo.fetchPresets() } catch { appLogger.warning("Prefetch adjustment_presets lỗi: \(String(describing: error))") } }
-            group.addTask { do { _ = try await textRepo.fetchPresets() } catch { appLogger.warning("Prefetch text_presets lỗi: \(String(describing: error))") } }
-            group.addTask { do { _ = try await animationRepo.fetchPresets() } catch { appLogger.warning("Prefetch animation_presets lỗi: \(String(describing: error))") } }
-            group.addTask { do { _ = try await effectRepo.fetchPresets() } catch { appLogger.warning("Prefetch effect_presets lỗi: \(String(describing: error))") } }
-            group.addTask { do { _ = try await stickerRepo.fetchPresets() } catch { appLogger.warning("Prefetch sticker_presets lỗi: \(String(describing: error))") } }
-            group.addTask { do { _ = try await transitionRepo.fetchPresets() } catch { appLogger.warning("Prefetch transition_presets lỗi: \(String(describing: error))") } }
-            group.addTask { do { _ = try await actionRepo.fetchActions() } catch { appLogger.warning("Prefetch actions lỗi: \(String(describing: error))") } }
-            group.addTask { do { _ = try await audioRepo.fetchPresets() } catch { appLogger.warning("Prefetch audio_presets lỗi: \(String(describing: error))") } }
-            group.addTask { do { _ = try await stockRepo.fetchStockItems() } catch { appLogger.warning("Prefetch stock_media lỗi: \(String(describing: error))") } }
+            group.addTask { do { _ = try await adjustmentRepo.fetchPresets() } catch { appLogger.warning("Prefetch adjustment_presets failed: \(String(describing: error))") } }
+            group.addTask { do { _ = try await textRepo.fetchPresets() } catch { appLogger.warning("Prefetch text_presets failed: \(String(describing: error))") } }
+            group.addTask { do { _ = try await animationRepo.fetchPresets() } catch { appLogger.warning("Prefetch animation_presets failed: \(String(describing: error))") } }
+            group.addTask { do { _ = try await effectRepo.fetchPresets() } catch { appLogger.warning("Prefetch effect_presets failed: \(String(describing: error))") } }
+            group.addTask { do { _ = try await stickerRepo.fetchPresets() } catch { appLogger.warning("Prefetch sticker_presets failed: \(String(describing: error))") } }
+            group.addTask { do { _ = try await transitionRepo.fetchPresets() } catch { appLogger.warning("Prefetch transition_presets failed: \(String(describing: error))") } }
+            group.addTask { do { _ = try await actionRepo.fetchActions() } catch { appLogger.warning("Prefetch actions failed: \(String(describing: error))") } }
+            group.addTask { do { _ = try await audioRepo.fetchPresets() } catch { appLogger.warning("Prefetch audio_presets failed: \(String(describing: error))") } }
+            group.addTask { do { _ = try await stockRepo.fetchStockItems() } catch { appLogger.warning("Prefetch stock_media failed: \(String(describing: error))") } }
         }
     }
 

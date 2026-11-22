@@ -11,7 +11,7 @@ extension AnimationPreset {
 
     public static let loopFloat = AnimationPreset(
         id: "v2_loop_float", name: "Float",
-        description: "Bồng bềnh nhẹ nhàng theo phương thẳng đứng với đường cong Sine êm ái",
+        description: "Gentle vertical levitation following a smooth sine curve",
         phase: .loopAnimation, tags: ["float", "ambient", "levitate"], previewBadge: "FLOAT",
         manifest: CreativeAnimationManifest(
             id: "v2_loop_float", name: "Float", iconName: "arrow.up.and.down",
@@ -24,7 +24,7 @@ extension AnimationPreset {
 
     public static let loopBreathe = AnimationPreset(
         id: "v2_loop_breathe", name: "Breathe",
-        description: "Phóng to thu nhỏ 4% nhịp nhàng tạo cảm giác dòng chữ đang thở",
+        description: "Subtle 4% organic breathing scale pulse",
         phase: .loopAnimation, tags: ["breathe", "pulse", "organic"], previewBadge: "BREATHE",
         manifest: CreativeAnimationManifest(
             id: "v2_loop_breathe", name: "Breathe", iconName: "lungs.fill",
@@ -37,7 +37,7 @@ extension AnimationPreset {
 
     public static let loopWiggle = AnimationPreset(
         id: "v2_loop_wiggle", name: "Wiggle",
-        description: "Rung lắc vi mô góc nghiêng và toạ độ tạo điểm nhấn tinh nghịch",
+        description: "Playful micro tilt and position wiggle accent",
         phase: .loopAnimation, tags: ["wiggle", "shake", "playful"], previewBadge: "WIGGLE",
         manifest: CreativeAnimationManifest(
             id: "v2_loop_wiggle", name: "Wiggle", iconName: "waveform.path",
@@ -50,7 +50,7 @@ extension AnimationPreset {
 
     public static let loopRubberBand = AnimationPreset(
         id: "v2_loop_rubber_band", name: "Rubber Band",
-        description: "Co giãn đàn hồi xen kẽ hai trục X và Y như dây thun nhịp nhàng",
+        description: "Alternating X and Y elastic stretch like a snapping rubber band",
         phase: .loopAnimation, tags: ["rubber", "elastic", "stretch"], previewBadge: "ELASTIC",
         manifest: CreativeAnimationManifest(
             id: "v2_loop_rubber_band", name: "Rubber Band", iconName: "arrow.left.and.right",
@@ -63,7 +63,7 @@ extension AnimationPreset {
 
     public static let loopGlitchBurst = AnimationPreset(
         id: "v2_loop_glitch_burst", name: "Glitch Burst",
-        description: "Tách kênh màu RGB giật ngắt quãng theo nhịp điệu Cyberpunk",
+        description: "Intermittent RGB channel bursts synced to a cyberpunk pulse",
         phase: .loopAnimation, tags: ["glitch", "burst", "rgb", "cyber"], previewBadge: "GLITCH",
         manifest: CreativeAnimationManifest(
             id: "v2_loop_glitch_burst", name: "Glitch Burst", iconName: "bolt.badge.automatic",
@@ -76,7 +76,7 @@ extension AnimationPreset {
 
     public static let loopCharWave = AnimationPreset(
         id: "v2_loop_char_wave", name: "Char Wave",
-        description: "Sóng tuần hoàn nhấp nhô chạy dọc qua từng ký tự",
+        description: "Continuous periodic ripple wave flowing across characters",
         phase: .loopAnimation, tags: ["wave", "char", "ocean", "harmonic"], previewBadge: "WAVE",
         manifest: CreativeAnimationManifest(
             id: "v2_loop_char_wave", name: "Char Wave", iconName: "water.waves",
@@ -89,7 +89,7 @@ extension AnimationPreset {
 
     public static let loopRainbowHue = AnimationPreset(
         id: "v2_loop_rainbow_hue", name: "Rainbow Hue",
-        description: "Chu kỳ đổi màu cầu vồng 360 độ rực rỡ và lấp lánh",
+        description: "Vibrant 360-degree full-spectrum rainbow hue cycle",
         phase: .loopAnimation, tags: ["rainbow", "hue", "color", "chromatic"], previewBadge: "RAINBOW",
         manifest: CreativeAnimationManifest(
             id: "v2_loop_rainbow_hue", name: "Rainbow Hue", iconName: "paintpalette.fill",
@@ -102,7 +102,7 @@ extension AnimationPreset {
 
     public static let loopShimmer = AnimationPreset(
         id: "v2_loop_shimmer", name: "Shimmer",
-        description: "Vệt sáng specular highlight quét qua bề mặt định kỳ",
+        description: "Periodic specular highlight gleam sweeping across the surface",
         phase: .loopAnimation, tags: ["shimmer", "shine", "sweep"], previewBadge: "SHINE",
         manifest: CreativeAnimationManifest(
             id: "v2_loop_shimmer", name: "Shimmer", iconName: "sparkle",
@@ -115,7 +115,7 @@ extension AnimationPreset {
 
     public static let loopGlowPulse = AnimationPreset(
         id: "v2_loop_glow_pulse", name: "Glow Pulse",
-        description: "Vầng hào quang neon thở nhịp nhàng bừng sáng",
+        description: "Breathing neon halo aura pulsing softly",
         phase: .loopAnimation, tags: ["glow", "pulse", "neon"], previewBadge: "NEON",
         manifest: CreativeAnimationManifest(
             id: "v2_loop_glow_pulse", name: "Glow Pulse", iconName: "light.beacon.max.fill",
@@ -128,7 +128,7 @@ extension AnimationPreset {
 
     public static let loopTilt3D = AnimationPreset(
         id: "v2_loop_tilt_3d", name: "3D Tilt",
-        description: "Nghiêng phối cảnh 3 chiều lượn êm ái tạo chiều sâu",
+        description: "Smooth 3D spatial tilt motion adding depth",
         phase: .loopAnimation, tags: ["tilt", "3d", "spatial", "depth"], previewBadge: "3D TILT",
         manifest: CreativeAnimationManifest(
             id: "v2_loop_tilt_3d", name: "3D Tilt", iconName: "view.3d",

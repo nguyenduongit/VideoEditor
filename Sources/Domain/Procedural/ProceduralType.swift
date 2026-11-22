@@ -25,31 +25,31 @@ public enum ProceduralType: String, CaseIterable, Codable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .meshAurora: return "Cực quang Aurora"
-        case .topographicLines: return "Đường đồng mức"
-        case .retroGrid: return "Lưới 3D Synthwave"
-        case .filmGrain: return "Hạt phim 35mm"
-        case .floatingBokeh: return "Đốm bụi sáng"
-        case .lightLeaks: return "Vệt lóa sáng"
-        case .blackScreen: return "Màn hình đen"
-        case .chromaStudio: return "Phông xanh Chroma"
-        case .filmCountdown: return "Đếm ngược cổ điển"
-        case .colorBars: return "Kiểm chuẩn SMPTE"
-        case .hypnoticTunnel: return "Đường hầm xoáy"
-        case .matrixRain: return "Mưa ký tự Matrix"
+        case .meshAurora: return "Aurora"
+        case .topographicLines: return "Topographic Lines"
+        case .retroGrid: return "Synthwave 3D Grid"
+        case .filmGrain: return "35mm Film Grain"
+        case .floatingBokeh: return "Floating Bokeh"
+        case .lightLeaks: return "Light Leaks"
+        case .blackScreen: return "Black Screen"
+        case .chromaStudio: return "Chroma Green Screen"
+        case .filmCountdown: return "Retro Film Countdown"
+        case .colorBars: return "SMPTE Color Bars"
+        case .hypnoticTunnel: return "Hypnotic Tunnel"
+        case .matrixRain: return "Matrix Rain"
         }
     }
 
     public var category: String {
         switch self {
         case .blackScreen, .chromaStudio, .colorBars:
-            return "Màu nền & Phông"
+            return "Solid & Backdrops"
         case .meshAurora, .topographicLines, .retroGrid:
-            return "Nền chuyển động"
+            return "Animated Backgrounds"
         case .filmGrain, .floatingBokeh, .lightLeaks:
-            return "Lớp phủ điện ảnh"
+            return "Film Overlays"
         case .hypnoticTunnel, .matrixRain, .filmCountdown:
-            return "Thị giác & Hiệu ứng"
+            return "Visuals & Effects"
         }
     }
 

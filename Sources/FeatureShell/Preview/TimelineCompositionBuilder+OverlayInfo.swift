@@ -241,10 +241,12 @@ extension TimelineCompositionBuilder {
         guard let clip = findActiveClip(in: layer, range: range) else { return nil }
         let config = clip.properties["adjustmentConfig"]?.asString.flatMap { AdjustmentConfiguration.decode(from: $0) } ?? AdjustmentConfiguration()
         let opacity = Float(clip.properties["opacity"]?.asNumber ?? 1.0)
+        let mixIntensity = Float(clip.properties["intensity"]?.asNumber ?? 1.0)
+        let effectiveIntensity = max(0.0, min(1.0, opacity * mixIntensity))
         return TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
             trackID: kCMPersistentTrackID_Invalid,
             transform: .identity,
-            opacity: opacity,
+            opacity: effectiveIntensity,
             maskParameters: nil,
             clipTimeRange: clip.timeRange,
             isAdjustment: true,

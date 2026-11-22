@@ -55,15 +55,10 @@ public struct TextLibraryView: View {
             searchPlaceholder: "Search text presets...",
             categories: categories,
             selectedCategory: $selectedCategory,
-            favoritesCount: totalFavoritesCount,
             trailingAction: AnyView(reloadButton)
         ) {
             contentScrollView
         }
-    }
-
-    private var totalFavoritesCount: Int {
-        SidebarFavoriteManager.shared.favorites(for: "text").count
     }
 
     private var reloadButton: some View {
@@ -116,11 +111,14 @@ public struct TextLibraryView: View {
                                     title: preset.name,
                                     isFavorite: isFav,
                                     isSelected: viewModel.selectedPresetID == preset.id,
+                                    showsDeleteButton: !preset.isSystem,
+                                    dragPayload: .text(preset),
                                     onSelect: { viewModel.selectPresetForPreview(preset) },
                                     onAdd: { viewModel.addPresetToTimeline(preset) },
                                     onToggleFavorite: {
                                         SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "text")
-                                    }
+                                    },
+                                    onDelete: { viewModel.deletePreset(preset) }
                                 ) { isCardHovered in
                                     TextAnimatedThumbnailView(preset: preset, isHovered: isCardHovered)
                                 }
@@ -147,6 +145,7 @@ public struct TextLibraryView: View {
             title: "Default Text",
             isFavorite: isFav,
             isSelected: viewModel.selectedPresetID == Self.defaultPresetID || viewModel.selectedPresetID == "default",
+            dragPayload: .defaultText,
             onSelect: {
                 viewModel.selectDefaultPresetForPreview()
             },

@@ -85,7 +85,7 @@ extension MCPTimelineToolDispatcher {
             return (matched.config, matched)
         }
         var fallback = TextConfiguration(
-            content: "TIÊU ĐỀ", fontName: defaultFont, fontSize: 64.0, textColorHex: "#FFFFFF",
+            content: "TITLE", fontName: defaultFont, fontSize: 64.0, textColorHex: "#FFFFFF",
             isBold: true, characterSpacing: 1.5,
             innerStroke: TextStrokeStyle(isEnabled: true, width: 4.0, colorHex: "#0F172A"),
             glow: TextGlowStyle(isEnabled: true, colorHex: "#38BDF8", intensity: 85.0, range: 16.0),

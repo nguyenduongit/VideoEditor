@@ -11,11 +11,11 @@ public struct ExportVideoOptionsView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            Text(String(localized: "CẤU HÌNH VIDEO"))
+            Text(String(localized: "VIDEO SETTINGS"))
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(DSColors.textSecondary)
 
-            settingRow(title: String(localized: "Độ phân giải")) {
+            settingRow(title: String(localized: "Resolution")) {
                 DSDropdown(
                     selection: $viewModel.resolution,
                     titleKeyPath: \.title,
@@ -23,7 +23,7 @@ public struct ExportVideoOptionsView: View {
                 )
             }
 
-            settingRow(title: String(localized: "Tốc độ khung hình")) {
+            settingRow(title: String(localized: "Frame Rate")) {
                 DSDropdown(
                     selection: $viewModel.frameRate,
                     titleKeyPath: \.title,
@@ -31,7 +31,7 @@ public struct ExportVideoOptionsView: View {
                 )
             }
 
-            settingRow(title: String(localized: "Chuẩn mã hóa")) {
+            settingRow(title: String(localized: "Codec")) {
                 DSDropdown(
                     selection: $viewModel.codec,
                     titleKeyPath: \.rawValue,

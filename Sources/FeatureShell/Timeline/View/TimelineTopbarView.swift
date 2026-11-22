@@ -19,6 +19,10 @@ public struct TimelineTopbarView: View {
     private let canSyncAudio: Bool
     private let isSyncingAudio: Bool
     private let onSyncAudio: () -> Void
+    private let canAutoTrim: Bool
+    private let onAutoTrim: () -> Void
+    private let canCompactBackward: Bool
+    private let onCompactBackward: () -> Void
     private let canMarkBeats: Bool
     private let isDetectingBeats: Bool
     private let hasBeats: Bool
@@ -37,6 +41,8 @@ public struct TimelineTopbarView: View {
         canExtractAudio: Bool = false,
         canSyncAudio: Bool = false,
         isSyncingAudio: Bool = false,
+        canAutoTrim: Bool = false,
+        canCompactBackward: Bool = false,
         canMarkBeats: Bool = false,
         isDetectingBeats: Bool = false,
         hasBeats: Bool = false,
@@ -47,6 +53,8 @@ public struct TimelineTopbarView: View {
         onSplit: @escaping () -> Void = {},
         onExtractAudio: @escaping () -> Void = {},
         onSyncAudio: @escaping () -> Void = {},
+        onAutoTrim: @escaping () -> Void = {},
+        onCompactBackward: @escaping () -> Void = {},
         onAutoMarkBeats: @escaping (AudioBeatDetectionMode) -> Void = { _ in },
         onToggleBeatAtPlayhead: @escaping () -> Void = {},
         onClearBeats: @escaping () -> Void = {}
@@ -61,6 +69,10 @@ public struct TimelineTopbarView: View {
         self.onExtractAudio = onExtractAudio
         self.canSyncAudio = canSyncAudio
         self.isSyncingAudio = isSyncingAudio
+        self.canAutoTrim = canAutoTrim
+        self.onAutoTrim = onAutoTrim
+        self.canCompactBackward = canCompactBackward
+        self.onCompactBackward = onCompactBackward
         self.canMarkBeats = canMarkBeats
         self.isDetectingBeats = isDetectingBeats
         self.hasBeats = hasBeats
@@ -94,6 +106,12 @@ public struct TimelineTopbarView: View {
             if canSyncAudio {
                 syncAudioButton
             }
+            if canAutoTrim {
+                autoTrimButton
+            }
+            if canCompactBackward {
+                compactBackwardButton
+            }
             if canMarkBeats {
                 beatActionButtons
             }
@@ -103,6 +121,8 @@ public struct TimelineTopbarView: View {
         .animation(.easeInOut(duration: 0.15), value: canSplit)
         .animation(.easeInOut(duration: 0.15), value: canExtractAudio)
         .animation(.easeInOut(duration: 0.15), value: canSyncAudio)
+        .animation(.easeInOut(duration: 0.15), value: canAutoTrim)
+        .animation(.easeInOut(duration: 0.15), value: canCompactBackward)
         .animation(.easeInOut(duration: 0.15), value: canMarkBeats)
         .padding(.horizontal, DSSpacing.lg)
         .frame(height: DSSize.timelineTopbarHeight)
@@ -127,8 +147,8 @@ public struct TimelineTopbarView: View {
     private var extractAudioButton: some View {
         TimelineToolbarActionButton(
             icon: "waveform.badge.plus",
-            title: "Tách âm thanh",
-            help: "Tách âm thanh từ video clip thành audio clip riêng biệt (⌘E)",
+            title: "Extract Audio",
+            help: "Detach audio from video clip into a separate audio clip (⌘E)",
             action: onExtractAudio
         )
     }
@@ -139,8 +159,26 @@ public struct TimelineTopbarView: View {
             title: "Sync Audio",
             isLoading: isSyncingAudio,
             isDisabled: isSyncingAudio,
-            help: "Tự động khớp âm thanh của 2 clip được chọn theo dạng sóng (waveform)",
+            help: "Automatically align audio waveforms of the 2 selected clips",
             action: onSyncAudio
+        )
+    }
+
+    private var autoTrimButton: some View {
+        TimelineToolbarActionButton(
+            icon: "timeline.selection",
+            title: "Auto Trim",
+            help: "Trim excess start and end regions outside the overlapping range of Video and Audio",
+            action: onAutoTrim
+        )
+    }
+
+    private var compactBackwardButton: some View {
+        TimelineToolbarActionButton(
+            icon: "backward.end.alt.fill",
+            title: "Compact Backward",
+            help: "Compact selected clips backward toward preceding clip or 00:00",
+            action: onCompactBackward
         )
     }
 
@@ -152,7 +190,7 @@ public struct TimelineTopbarView: View {
                 isLoading: isDetectingBeats && activeBeatMode == .majorOnly,
                 isDisabled: isDetectingBeats,
                 isActive: hasBeats && activeBeatMode == .majorOnly,
-                help: "Tự động đánh dấu Nhịp 1 - Phách mạnh (Kick drum)",
+                help: "Auto detect major downbeats (Kick drum)",
                 action: { onAutoMarkBeats(.majorOnly) }
             )
 
@@ -162,7 +200,7 @@ public struct TimelineTopbarView: View {
                 isLoading: isDetectingBeats && activeBeatMode == .allBeats,
                 isDisabled: isDetectingBeats,
                 isActive: hasBeats && activeBeatMode == .allBeats,
-                help: "Tự động đánh dấu Nhịp 2 - Nhịp chi tiết (Kick & Snare)",
+                help: "Auto detect detailed beats (Kick & Snare)",
                 action: { onAutoMarkBeats(.allBeats) }
             )
 
@@ -170,7 +208,7 @@ public struct TimelineTopbarView: View {
                 icon: "bookmark.fill",
                 title: "Mark (M)",
                 isDisabled: isDetectingBeats,
-                help: "Thêm hoặc xóa điểm nhịp thủ công tại vị trí Playhead (Phím tắt: M)",
+                help: "Add or remove beat marker at playhead (Shortcut: M)",
                 action: onToggleBeatAtPlayhead
             )
 
@@ -179,7 +217,7 @@ public struct TimelineTopbarView: View {
                     icon: "xmark.circle",
                     title: "Clear",
                     isDisabled: isDetectingBeats,
-                    help: "Xóa toàn bộ điểm nhịp trên clip đang chọn",
+                    help: "Clear all beat markers on selected clip",
                     action: onClearBeats
                 )
             }

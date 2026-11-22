@@ -225,10 +225,12 @@ extension TimelineVideoCompositor {
         resolvedProps: [String: PropertyValue]
     ) -> TimelineCustomVideoCompositionInstruction.LayerRenderInfo {
         let opacity = Float(resolvedProps["opacity"]?.asNumber ?? Double(info.opacity))
+        let mixIntensity = Float(resolvedProps["intensity"]?.asNumber ?? 1.0)
+        let effectiveIntensity = max(0.0, min(1.0, opacity * mixIntensity))
         return TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
             trackID: info.trackID,
             transform: info.transform,
-            opacity: opacity,
+            opacity: effectiveIntensity,
             maskParameters: info.maskParameters,
             clipTimeRange: info.clipTimeRange,
             isAdjustment: true,

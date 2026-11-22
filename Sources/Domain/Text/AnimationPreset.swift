@@ -42,7 +42,7 @@ public struct AnimationPreset: Identifiable, Codable, Sendable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
         self.schemaVersion = (try? c.decodeIfPresent(Int.self, forKey: .schemaVersion)) ?? 1
-        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Hoạt ảnh"
+        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Animation"
         self.description = (try? c.decodeIfPresent(String.self, forKey: .description)) ?? ""
         self.phase = (try? c.decodeIfPresent(AnimationPhaseCategory.self, forKey: .phase)) ?? .inAnimation
         self.tags = (try? c.decodeIfPresent([String].self, forKey: .tags)) ?? []

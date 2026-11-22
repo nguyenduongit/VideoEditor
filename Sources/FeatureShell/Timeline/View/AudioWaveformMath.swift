@@ -42,15 +42,25 @@ public struct AudioWaveformMath: Sendable {
         return maxVal
     }
 
-    /// Calculates the envelope gain multiplier in [0, 1] at a relative clip time `t` (seconds).
-    /// Handles both fade-in (at start) and fade-out (at end) with smooth linear ramps.
+    /// Smooth S-curve (Hermite smoothstep: `3u^2 - 2u^3`) mapping normalized fade progress `u in [0, 1]`
+    /// to a natural curved audio gain multiplier in `[0, 1]` with zero derivative at both endpoints.
+    @inline(__always)
+    public static func curvedFadeMultiplier(_ progress: Double) -> Float {
+        let u = max(0.0, min(1.0, progress))
+        return Float(u * u * (3.0 - 2.0 * u))
+    }
+
+    /// Calculates the envelope gain multiplier in [0, 4] at a relative clip time `t` (seconds).
+    /// Handles clip volume gain (0%...400%) as well as fade-in (at start) and fade-out (at end) with smooth S-curve ramps.
     public static func envelopeGain(
         at t: Double,
         duration: Double,
         fadeIn: Double,
-        fadeOut: Double
+        fadeOut: Double,
+        volume: Double = 1.0
     ) -> Float {
-        guard duration > 0 else { return 1.0 }
+        let clampedVol = Float(max(0.0, min(4.0, volume)))
+        guard duration > 0 else { return clampedVol }
         var inGain: Float = 1.0
         var outGain: Float = 1.0
 
@@ -58,7 +68,7 @@ public struct AudioWaveformMath: Sendable {
             if t <= 0 {
                 inGain = 0.0
             } else if t < fadeIn {
-                inGain = Float(max(0.0, min(1.0, t / fadeIn)))
+                inGain = curvedFadeMultiplier(t / fadeIn)
             }
         }
 
@@ -67,10 +77,21 @@ public struct AudioWaveformMath: Sendable {
             if t >= duration {
                 outGain = 0.0
             } else if t > fadeOutStart {
-                outGain = Float(max(0.0, min(1.0, (duration - t) / fadeOut)))
+                outGain = curvedFadeMultiplier((duration - t) / fadeOut)
             }
         }
 
-        return max(0.0, min(1.0, inGain * outGain))
+        return max(0.0, min(4.0, clampedVol * inGain * outGain))
+    }
+
+    /// Maps volume gain in [0.0, 4.0] to a normalized envelope line height fraction in [0.0, 1.0]
+    /// (0.0 -> 0%, 1.0 -> 50% baseline, 4.0 -> 100% top).
+    public static func volumeLineHeightFraction(volume: Double) -> CGFloat {
+        let v = max(0.0, min(4.0, volume))
+        if v <= 1.0 {
+            return CGFloat(v * 0.5)
+        } else {
+            return CGFloat(0.5 + ((v - 1.0) / 3.0) * 0.5)
+        }
     }
 }

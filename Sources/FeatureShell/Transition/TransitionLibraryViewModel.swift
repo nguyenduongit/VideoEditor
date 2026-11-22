@@ -42,6 +42,7 @@ public final class TransitionLibraryViewModel {
 
     public func reloadTemplates() {
         templatePresets = dependencies.transitionTemplates.loadAllTemplates()
+        Task { await syncFromRemoteIfAvailable(force: true) }
     }
 
     public func syncFromRemoteIfAvailable(force: Bool = false) async {
@@ -59,7 +60,7 @@ public final class TransitionLibraryViewModel {
             let fetched = try await repo.fetchPresets()
             templatePresets = fetched
         } catch {
-            transitionLibraryLogger.error("Đồng bộ TransitionPresets từ Supabase thất bại: \(error.localizedDescription)")
+            transitionLibraryLogger.error("Failed to sync TransitionPresets from Supabase: \(error.localizedDescription)")
             templatePresets = dependencies.transitionTemplates.loadAllTemplates()
         }
     }

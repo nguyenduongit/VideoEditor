@@ -4,7 +4,7 @@ import Foundation
 public struct LiquidWavePulseScript: TextAnimationScript {
     public let id = "liquid_wave_pulse"
     public let displayName = "Ocean Breeze Wave"
-    public let description = "Sóng biển truyền qua từng chữ cái với góc nghiêng tiếp tuyến và độ đàn hồi mượt mà"
+    public let description = "Ocean wave ripples smoothly across letters with elastic tangent tilt"
     public let category = TextAnimationCategory.wave
     public let scope = TextAnimationScope.perCharacter
 
@@ -85,7 +85,7 @@ public struct LiquidWavePulseScript: TextAnimationScript {
 public struct GlitchRGBPopScript: TextAnimationScript {
     public let id = "glitch_rgb_pop"
     public let displayName = "Cyber Glitch"
-    public let description = "Chữ giật bậc thang điện tử, xô lệch lát cắt ngang dọc và tách kênh màu RGB mạnh"
+    public let description = "Stepped electronic stutter, sliced offsets, and bold RGB chromatic split"
     public let category = TextAnimationCategory.glitch
     public let scope = TextAnimationScope.perCharacter
 
@@ -156,7 +156,7 @@ public struct GlitchRGBPopScript: TextAnimationScript {
 public struct SmoothWordGlideScript: TextAnimationScript {
     public let id = "smooth_word_glide"
     public let displayName = "Word Glide"
-    public let description = "Từng từ trượt mượt lên vị trí trung tâm, bồng bềnh lơ lửng và trượt vút lên trên"
+    public let description = "Words glide up to center, hover weightlessly, then sweep cleanly upward"
     public let category = TextAnimationCategory.slide
     public let scope = TextAnimationScope.perWord
 
@@ -226,7 +226,7 @@ public struct SmoothWordGlideScript: TextAnimationScript {
 public struct ElasticFlip3DScript: TextAnimationScript {
     public let id = "elastic_flip_3d"
     public let displayName = "3D Domino Flip"
-    public let description = "Từng chữ cái lật cánh 3D nối đuôi nhau như hiệu ứng Domino kèm độ nảy đàn hồi"
+    public let description = "Characters cascade in 3D domino flips with elastic bounce settling"
     public let category = TextAnimationCategory.cinematic
     public let scope = TextAnimationScope.perCharacter
 

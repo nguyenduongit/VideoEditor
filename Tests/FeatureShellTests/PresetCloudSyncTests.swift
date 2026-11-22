@@ -56,7 +56,7 @@ struct PresetCloudSyncTests {
         let deps = EditorDependencies(adjustmentTemplates: loader)
         let vm = AdjustmentLibraryViewModel(dependencies: deps)
         #expect(vm.defaultPreset.id == "default")
-        #expect(vm.defaultPreset.name == "Mặc định")
+        #expect(vm.defaultPreset.name == "Default")
         #expect(vm.templatePresets.isEmpty)
         #expect(vm.filteredPresetsWithDefaultFirst.count == 1)
         #expect(vm.filteredPresetsWithDefaultFirst.first?.id == "default")

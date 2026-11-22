@@ -6,6 +6,7 @@ import DesignSystem
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, View body <= 80 dòng) và R3.4 (tách Subview).
 public struct ActionsPanelView: View {
     @Bindable var viewModel: ActionsPanelViewModel
+    @State private var isDeleteActionAlertPresented: Bool = false
 
     public init(viewModel: ActionsPanelViewModel) {
         self.viewModel = viewModel
@@ -31,6 +32,16 @@ public struct ActionsPanelView: View {
                 }
             )
         }
+        .alert("Delete Action", isPresented: $isDeleteActionAlertPresented) {
+            Button("Delete", role: .destructive) {
+                if let id = viewModel.currentAction?.id {
+                    viewModel.deleteAction(id: id)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete Action \"\(viewModel.currentAction?.name ?? "")\" from Supabase?")
+        }
     }
 
     // MARK: - Action Selector
@@ -38,7 +49,7 @@ public struct ActionsPanelView: View {
     private var actionDropdownRow: some View {
         HStack(spacing: 8) {
             DSDropdown(
-                selectedTitle: viewModel.currentAction?.name ?? "Chưa có Action (Bấm + để tạo)",
+                selectedTitle: viewModel.currentAction?.name ?? "No Actions (Click + to create)",
                 leadingIcon: viewModel.currentAction?.icon ?? "play.fill",
                 leadingIconColor: DSColors.accent,
                 options: viewModel.actions.map { DSDropdownOption(id: $0.id, title: $0.name, iconName: $0.icon) },
@@ -60,7 +71,20 @@ public struct ActionsPanelView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
-            .help("Tạo mới Action tùy chỉnh và lưu lên Supabase")
+            .help("Create a new custom Action and save to Supabase")
+
+            if let current = viewModel.currentAction, !current.isSystem {
+                Button(action: { isDeleteActionAlertPresented = true }) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.red.opacity(0.95))
+                        .frame(width: 26, height: 26)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .help("Delete selected Action from Supabase")
+            }
         }
         .padding(.horizontal, DSSpacing.md)
         .padding(.vertical, 4)
@@ -95,10 +119,10 @@ public struct ActionsPanelView: View {
             Image(systemName: "plus.square.dashed")
                 .font(.system(size: 26))
                 .foregroundStyle(DSColors.textSecondary.opacity(0.5))
-            Text(viewModel.actions.isEmpty ? "Chưa có Action nào" : "Action này chưa có tác vụ nào")
+            Text(viewModel.actions.isEmpty ? "No Actions Yet" : "This Action has no tasks")
                 .font(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(DSColors.textSecondary)
-            Text(viewModel.actions.isEmpty ? "Bấm nút \"+\" ở góc trên để tạo Action mới." : "Hãy thêm tác vụ vào Action.")
+            Text(viewModel.actions.isEmpty ? "Click the \"+\" button above to create a new Action." : "Add tasks to this Action.")
                 .font(.system(size: 10))
                 .foregroundStyle(DSColors.textSecondary.opacity(0.7))
         }
@@ -137,12 +161,12 @@ public struct ActionsPanelView: View {
                 if viewModel.isProcessing {
                     ProgressView()
                         .controlSize(.small)
-                    Text(String(localized: "Đang thực thi..."))
+                    Text(String(localized: "Running..."))
                         .font(.system(size: 12, weight: .semibold))
                 } else {
                     Image(systemName: "play.fill")
                         .font(.system(size: 10, weight: .bold))
-                    Text(String(localized: "Thực thi \(viewModel.currentAction?.name ?? "Action")"))
+                    Text(String(localized: "Run \(viewModel.currentAction?.name ?? "Action")"))
                         .font(.system(size: 12, weight: .semibold))
                 }
             }

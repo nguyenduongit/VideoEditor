@@ -53,8 +53,9 @@ public struct ClipFadeHandleOverlayView: View {
             return AnyView(EmptyView())
         }
         let baselineY = (clip.kind == .video) ? (height - 30.0) : 0.0
-        let inX = min(width - 8, max(0, CGFloat(activeFadeIn) * pixelsPerSecond))
-        let outX = max(8, min(width, width - CGFloat(activeFadeOut) * pixelsPerSecond))
+        let edgeInset = min(10.0, width * 0.25)
+        let inX = min(width - edgeInset, max(edgeInset, CGFloat(activeFadeIn) * pixelsPerSecond))
+        let outX = max(edgeInset, min(width - edgeInset, width - CGFloat(activeFadeOut) * pixelsPerSecond))
 
         return AnyView(
             ZStack(alignment: .topLeading) {
@@ -96,7 +97,7 @@ public struct ClipFadeHandleOverlayView: View {
                 .overlay(Circle().stroke(Color.black.opacity(0.35), lineWidth: 1))
                 .shadow(color: Color.black.opacity(0.3), radius: 2, x: 0, y: 1)
         }
-        .frame(width: 24, height: 24)
+        .frame(width: 14, height: 14)
         .contentShape(Rectangle())
     }
 

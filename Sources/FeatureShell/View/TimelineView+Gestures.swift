@@ -3,6 +3,11 @@ import CoreMedia
 import Domain
 import DesignSystem
 
+final class TimelineDragSessionBox {
+    var movingSourceLayerID: UUID?
+    var pendingStartTime: CMTime = .zero
+}
+
 extension TimelineView {
     func handleCmdZoom(delta: CGFloat, cursorX: CGFloat) {
         let visibleWidth = enclosingScrollView?.contentView.bounds.width ?? viewModel.viewportWidth
@@ -32,33 +37,52 @@ extension TimelineView {
         newStart: CMTime,
         dragY: CGFloat
     ) {
-        movingClipID = clipID
-        movingSourceLayerID = layerID
-        pendingStartTime = newStart
+        if movingClipID != clipID {
+            movingClipID = clipID
+        }
+        dragSession.movingSourceLayerID = layerID
+        dragSession.pendingStartTime = newStart
         if viewModel.selectedClipIDs.count > 1 && viewModel.selectedClipIDs.contains(clipID) {
-            viewModel.updateGroupMove(pivotClipID: clipID, proposedStart: newStart)
+            viewModel.updateGroupMove(
+                pivotClipID: clipID,
+                proposedStart: newStart,
+                isDuplicating: modifierState.isOptionPressed
+            )
         } else {
             viewModel.updateDropTarget(sourceIndex: index, movingClipKind: clipKind, dragY: dragY)
         }
     }
 
     func handleClipMoveEnd(clipID: UUID, isDuplicate: Bool = false) {
+        let sourceLayerID = dragSession.movingSourceLayerID
+        let pendingStartTime = dragSession.pendingStartTime
         defer {
             viewModel.cleanEmptyLayers()
             viewModel.hoverLayerID = nil
             viewModel.dropBetweenIndex = nil
             movingClipID = nil
-            movingSourceLayerID = nil
+            dragSession.movingSourceLayerID = nil
+            dragSession.pendingStartTime = .zero
         }
-        guard let sourceLayerID = movingSourceLayerID else { return }
+        guard let sourceLayerID else { return }
         if isDuplicate {
-            viewModel.duplicateClipViaDrag(
-                clipID: clipID,
-                from: sourceLayerID,
-                to: viewModel.hoverLayerID ?? sourceLayerID,
-                insertAtIndex: viewModel.dropBetweenIndex,
-                newStartTime: pendingStartTime
-            )
+            if viewModel.selectedClipIDs.count > 1 && viewModel.selectedClipIDs.contains(clipID) {
+                let effectiveDelta = viewModel.clampedGroupMoveDelta(
+                    pivotClipID: clipID,
+                    proposedStart: pendingStartTime,
+                    isDuplicating: true
+                )
+                viewModel.resetGroupMove()
+                viewModel.duplicateSelectedClipsViaDrag(delta: effectiveDelta)
+            } else {
+                viewModel.duplicateClipViaDrag(
+                    clipID: clipID,
+                    from: sourceLayerID,
+                    to: viewModel.hoverLayerID ?? sourceLayerID,
+                    insertAtIndex: viewModel.dropBetweenIndex,
+                    newStartTime: pendingStartTime
+                )
+            }
             playheadState.seek(to: playheadState.currentTime, force: true)
             return
         }
@@ -107,7 +131,8 @@ extension TimelineView {
         viewModel.resetGroupMove()
         viewModel.resetGroupTrim()
         movingClipID = nil
-        movingSourceLayerID = nil
+        dragSession.movingSourceLayerID = nil
+        dragSession.pendingStartTime = .zero
         let rawTime = CMTime(seconds: max(0, Double(x / pps)), preferredTimescale: 600)
         let (snapped, didSnap) = TimelineSnapEngine.snapPoint(
             time: rawTime,
@@ -164,6 +189,12 @@ extension TimelineView {
             onDropAsset: { asset, dropTime in
                 isTimelineFocused = true
                 viewModel.addAsset(asset, at: dropTime)
+                onTimelineActivated?()
+                playheadState.seek(to: playheadState.currentTime, force: true)
+            },
+            onDropPayload: { payload, dropTime in
+                isTimelineFocused = true
+                viewModel.addDroppedPayload(payload, at: dropTime)
                 onTimelineActivated?()
                 playheadState.seek(to: playheadState.currentTime, force: true)
             },

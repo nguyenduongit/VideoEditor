@@ -27,6 +27,33 @@ extension MCPTimelineToolDispatcher {
             return "{\"status\":\"success\",\"operation\":\"seek\",\"timeSeconds\":\(atSec)}"
         }
 
+        if op == "autotrim" {
+            let ok = vm.autoTrimOverlapClips()
+            return "{\"status\":\"\(ok ? "success" : "noop")\",\"operation\":\"autoTrim\"}"
+        }
+
+        if op == "shifttostart" || op == "compactbackward" {
+            let ok = vm.selectedClipIDs.isEmpty ? vm.shiftClipsToTimelineStart() : vm.compactSelectedClipsBackward()
+            return "{\"status\":\"\(ok ? "success" : "noop")\",\"operation\":\"compactBackward\"}"
+        }
+
+        if op == "mutevideo" {
+            let ok = vm.muteVideoTracks()
+            return "{\"status\":\"\(ok ? "success" : "noop")\",\"operation\":\"muteVideo\"}"
+        }
+
+        if op == "markbeats" {
+            let allMediaClips = vm.layers.flatMap(\.clips).filter { ($0.kind == .audio || $0.kind == .video) && $0.mediaURL != nil }
+            if vm.selectedClipIDs.isEmpty, let firstAudio = allMediaClips.first(where: { $0.kind == .audio }) ?? allMediaClips.first {
+                vm.selectClip(firstAudio.id)
+            }
+            let modeStr = (dict["mode"] as? String)?.lowercased() ?? "major"
+            let mode: AudioBeatDetectionMode = modeStr.contains("all") ? .allBeats : .majorOnly
+            vm.autoMarkBeats(mode: mode)
+            vm.selectedClipIDs = preservedSelection
+            return "{\"status\":\"success\",\"operation\":\"markBeats\"}"
+        }
+
         let clipQuery = (dict["clipId"] as? String)?.lowercased() ?? "video"
         let allClips = vm.layers.flatMap(\.clips)
         let matchedClip = allClips.first(where: {

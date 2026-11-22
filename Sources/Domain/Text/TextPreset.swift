@@ -2,7 +2,7 @@ import Foundation
 
 /// Danh mục phân loại mẫu chữ (Text Template Category) gồm 3 nhóm chính: Title, Sub, Music
 public enum TextTemplateCategory: String, Codable, Sendable, CaseIterable, Identifiable {
-    case all = "Tất cả"
+    case all = "All"
     case title = "Title"
     case sub = "Sub"
     case music = "Music"
@@ -18,17 +18,31 @@ public enum TextTemplateCategory: String, Codable, Sendable, CaseIterable, Ident
 
     /// Tên hiển thị chuẩn trên giao diện UI
     public var displayName: String {
-        switch self {
-        case .all: return "All"
-        case .title: return "Title"
-        case .sub: return "Sub"
-        case .music: return "Music"
+        rawValue
+    }
+
+    /// Các danh mục thực tế gán cho từng mẫu (không tính tab lọc "All")
+    public static var assignableCases: [TextTemplateCategory] {
+        [.title, .sub, .music]
+    }
+
+    public static func resolve(categoryString: String) -> TextTemplateCategory {
+        if let matched = TextTemplateCategory(rawValue: categoryString) {
+            return matched
+        }
+        switch categoryString.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "all", "tất cả": return .all
+        case "sub", "subtitle", "karaoke": return .sub
+        case "music": return .music
+        case "title": return .title
+        default: return .trending
         }
     }
 
-    /// Các danh mục thực tế gán cho từng mẫu (không tính tab lọc "Tất cả")
-    public static var assignableCases: [TextTemplateCategory] {
-        [.title, .sub, .music]
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        self = Self.resolve(categoryString: raw)
     }
 }
 
@@ -87,7 +101,7 @@ public struct TextPreset: Identifiable, Codable, Sendable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
         self.schemaVersion = (try? c.decodeIfPresent(Int.self, forKey: .schemaVersion)) ?? 2
-        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Mẫu chữ"
+        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Text Preset"
         self.description = (try? c.decodeIfPresent(String.self, forKey: .description)) ?? ""
         self.category = (try? c.decodeIfPresent(TextTemplateCategory.self, forKey: .category)) ?? .trending
         self.tags = (try? c.decodeIfPresent([String].self, forKey: .tags)) ?? []
@@ -104,8 +118,7 @@ public struct TextPreset: Identifiable, Codable, Sendable, Equatable {
     }
 
     public func canBeModified(by userID: String) -> Bool {
-        guard !isSystem else { return false }
-        return community.authorID.isEmpty || community.authorID == userID
+        !isSystem
     }
 
     public func encodeToJSON(prettyPrinted: Bool = true) -> String? {

@@ -20,6 +20,7 @@ public struct AudioWaveformView: View {
     private let fadeOut: Double
     private let clipDuration: CMTime?
     private let speed: Double
+    private let volume: Double
 
     @State private var peaks: [Float]
     @State private var totalDurationSeconds: Double = 0
@@ -34,7 +35,8 @@ public struct AudioWaveformView: View {
         fadeIn: Double = 0.0,
         fadeOut: Double = 0.0,
         clipDuration: CMTime? = nil,
-        speed: Double = 1.0
+        speed: Double = 1.0,
+        volume: Double = 1.0
     ) {
         self.url = url
         self.service = service
@@ -46,6 +48,7 @@ public struct AudioWaveformView: View {
         self.fadeOut = fadeOut
         self.clipDuration = clipDuration
         self.speed = max(0.01, speed)
+        self.volume = max(0.0, min(4.0, volume))
         if let url, let cached = AudioWaveformMemoryCache.cache[url] {
             self._peaks = State(initialValue: cached)
         } else {
@@ -61,63 +64,72 @@ public struct AudioWaveformView: View {
 
     public var body: some View {
         Canvas { context, size in
-            let barWidth: CGFloat = 1.3
-            let spacing: CGFloat = 0.7
-            let pitch = barWidth + spacing
-            let barCount = max(1, Int(size.width / pitch))
-            let availHeight = max(4.0, size.height - 4.0)
-            let yBottom = size.height - 2.0
-            let threshLinear = pow(10.0, thresholdDB / 20.0)
-            let threshFraction = CGFloat(AudioWaveformMath.perceptualHeightFraction(amplitude: threshLinear))
-            let yThreshold = yBottom - (threshFraction * availHeight)
-            let pps = max(1.0, pixelsPerSecond)
-            let sourceStartSec = max(0, CMTimeGetSeconds(sourceStartTime))
-            let clipDurSec = clipDuration.map { CMTimeGetSeconds($0) } ?? (Double(size.width) / Double(pps))
-
-            drawThresholdGuide(context: context, width: size.width, y: yThreshold)
-
-            let effSpeed = max(0.01, speed)
-            for i in 0..<barCount {
-                let x = CGFloat(i) * pitch
-                let timelineSec = Double(x) / Double(pps)
-                let tStart = sourceStartSec + (timelineSec * effSpeed)
-                let tEnd = tStart + ((Double(pitch) / Double(pps)) * effSpeed)
-                let relTime = timelineSec
-
-                let amp = AudioWaveformMath.peakInRange(
-                    peaks: peaks,
-                    sourceStartTime: tStart,
-                    sourceEndTime: tEnd,
-                    peaksPerSecond: 100.0
-                )
-                let gain = AudioWaveformMath.envelopeGain(at: relTime, duration: clipDurSec, fadeIn: fadeIn, fadeOut: fadeOut)
-
-                drawBar(
-                    context: context,
-                    x: x,
-                    barWidth: barWidth,
-                    amp: amp * gain,
-                    availHeight: availHeight,
-                    yBottom: yBottom,
-                    yThreshold: yThreshold,
-                    threshLinear: threshLinear
-                )
-            }
-
-            if fadeIn > 0.001 || fadeOut > 0.001 {
-                drawEnvelopeLine(
-                    context: context,
-                    width: size.width,
-                    yBottom: yBottom,
-                    yTop: yBottom - availHeight,
-                    fadeIn: fadeIn,
-                    fadeOut: fadeOut,
-                    pps: pps
-                )
-            }
+            renderWaveformCanvas(context: context, size: size)
         }
         .task(id: url) {
             await loadWaveform()
+        }
+    }
+
+    private func renderWaveformCanvas(context: GraphicsContext, size: CGSize) {
+        let barWidth: CGFloat = 1.3
+        let spacing: CGFloat = 0.7
+        let pitch = barWidth + spacing
+        let barCount = max(1, Int(size.width / pitch))
+        let availHeight = max(4.0, size.height - 4.0)
+        let yBottom = size.height - 2.0
+        let threshLinear = pow(10.0, thresholdDB / 20.0)
+        let threshFraction = CGFloat(AudioWaveformMath.perceptualHeightFraction(amplitude: threshLinear))
+        let yThreshold = yBottom - (threshFraction * availHeight)
+        let pps = max(1.0, pixelsPerSecond)
+        let sourceStartSec = max(0, CMTimeGetSeconds(sourceStartTime))
+        let clipDurSec = clipDuration.map { CMTimeGetSeconds($0) } ?? (Double(size.width) / Double(pps))
+
+        drawThresholdGuide(context: context, width: size.width, y: yThreshold)
+
+        let effSpeed = max(0.01, speed)
+        for i in 0..<barCount {
+            let x = CGFloat(i) * pitch
+            let timelineSec = Double(x) / Double(pps)
+            let tStart = sourceStartSec + (timelineSec * effSpeed)
+            let tEnd = tStart + ((Double(pitch) / Double(pps)) * effSpeed)
+            let amp = AudioWaveformMath.peakInRange(
+                peaks: peaks,
+                sourceStartTime: tStart,
+                sourceEndTime: tEnd,
+                peaksPerSecond: 100.0
+            )
+            let gain = AudioWaveformMath.envelopeGain(
+                at: timelineSec,
+                duration: clipDurSec,
+                fadeIn: fadeIn,
+                fadeOut: fadeOut,
+                volume: volume
+            )
+            drawBar(
+                context: context,
+                x: x,
+                barWidth: barWidth,
+                amp: amp * gain,
+                availHeight: availHeight,
+                yBottom: yBottom,
+                yThreshold: yThreshold,
+                threshLinear: threshLinear
+            )
+        }
+
+        if fadeIn > 0.001 || fadeOut > 0.001 || abs(volume - 1.0) > 0.005 {
+            let volFraction = AudioWaveformMath.volumeLineHeightFraction(volume: volume)
+            let yVolLevel = yBottom - (volFraction * availHeight)
+            drawEnvelopeLine(
+                context: context,
+                width: size.width,
+                yBottom: yBottom,
+                yTop: yVolLevel,
+                fadeIn: fadeIn,
+                fadeOut: fadeOut,
+                pps: pps
+            )
         }
     }
 
@@ -133,13 +145,39 @@ public struct AudioWaveformView: View {
         var path = Path()
         let inW = min(width, CGFloat(fadeIn) * pps)
         let outW = min(width - inW, CGFloat(fadeOut) * pps)
+        let flatEndX = max(inW, width - outW)
+        let spanY = yBottom - yTop
 
-        path.move(to: CGPoint(x: 0, y: yBottom))
-        path.addLine(to: CGPoint(x: inW, y: yTop))
-        path.addLine(to: CGPoint(x: max(inW, width - outW), y: yTop))
-        path.addLine(to: CGPoint(x: width, y: yBottom))
+        if inW > 0.5 {
+            path.move(to: CGPoint(x: 0, y: yBottom))
+            let steps = max(8, min(32, Int(inW / 3.0)))
+            for s in 1...steps {
+                let u = Double(s) / Double(steps)
+                let curve = CGFloat(AudioWaveformMath.curvedFadeMultiplier(u))
+                let x = inW * CGFloat(u)
+                let y = yBottom - curve * spanY
+                path.addLine(to: CGPoint(x: x, y: y))
+            }
+        } else {
+            path.move(to: CGPoint(x: 0, y: yTop))
+        }
 
-        context.stroke(path, with: .color(Color.white.opacity(0.35)), lineWidth: 1.0)
+        path.addLine(to: CGPoint(x: flatEndX, y: yTop))
+
+        if outW > 0.5 {
+            let steps = max(8, min(32, Int(outW / 3.0)))
+            for s in 1...steps {
+                let u = Double(s) / Double(steps)
+                let curve = CGFloat(AudioWaveformMath.curvedFadeMultiplier(1.0 - u))
+                let x = flatEndX + outW * CGFloat(u)
+                let y = yBottom - curve * spanY
+                path.addLine(to: CGPoint(x: x, y: y))
+            }
+        }
+
+        let isBoosted = volume > 1.005
+        let lineColor = isBoosted ? DSColors.waveformPeak.opacity(0.75) : Color.white.opacity(0.45)
+        context.stroke(path, with: .color(lineColor), lineWidth: 1.1)
     }
 
     private func drawThresholdGuide(context: GraphicsContext, width: CGFloat, y: CGFloat) {

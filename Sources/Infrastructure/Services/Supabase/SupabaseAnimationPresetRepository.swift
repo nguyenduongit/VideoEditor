@@ -122,11 +122,7 @@ private struct AnimationPresetRow: Codable, Sendable {
         self.name = preset.name
         self.description = preset.description
         self.category = preset.phase.rawValue
-        var mergedTags = preset.tags
-        if let metaTag = preset.community.encodeToTag() {
-            mergedTags.append(metaTag)
-        }
-        self.tags = mergedTags
+        self.tags = preset.tags
         self.preview_badge = preset.previewBadge
         self.config = preset.manifest
         self.is_system = preset.isSystem

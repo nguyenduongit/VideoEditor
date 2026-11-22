@@ -45,7 +45,7 @@ public final class SupabaseStickerPresetRepository: StickerPresetRepositoryProto
                 do {
                     try await seedSystemCatalogSafely(preserving: fetched)
                 } catch {
-                    stickerRepoLogger.warning("Seed an toàn sticker_presets bỏ qua do lỗi mạng/bảng: \(error.localizedDescription)")
+                    stickerRepoLogger.warning("Safe seed of sticker_presets skipped due to network/table error: \(error.localizedDescription)")
                     templateLoader.setInMemoryTemplates(StickerPreset.builtInCatalog + fetched.filter { !$0.isSystem })
                 }
                 return templateLoader.loadAllTemplates()
@@ -54,7 +54,7 @@ public final class SupabaseStickerPresetRepository: StickerPresetRepositoryProto
             templateLoader.setInMemoryTemplates(fetched)
             return templateLoader.loadAllTemplates()
         } catch {
-            stickerRepoLogger.warning("Không thể tải sticker_presets từ Supabase, dùng cache nội bộ: \(error.localizedDescription)")
+            stickerRepoLogger.warning("Failed to fetch sticker_presets from Supabase, falling back to local cache: \(error.localizedDescription)")
             return templateLoader.loadAllTemplates()
         }
     }
@@ -137,11 +137,7 @@ private struct StickerPresetRow: Codable, Sendable {
         self.description = preset.description
         self.category = preset.category.rawValue
         self.format = preset.format.rawValue
-        var mergedTags = preset.tags
-        if let metaTag = preset.community.encodeToTag() {
-            mergedTags.append(metaTag)
-        }
-        self.tags = mergedTags
+        self.tags = preset.tags
         self.default_duration = preset.defaultDuration
         self.asset_path = preset.assetPath ?? preset.config.sourceURLString
         self.system_symbol_fallback = preset.systemSymbolFallback
@@ -150,7 +146,7 @@ private struct StickerPresetRow: Codable, Sendable {
     }
 
     func toPreset() -> StickerPreset {
-        let cat = StickerCategory(rawValue: category) ?? .emoji
+        let cat = StickerCategory.resolve(categoryString: category)
         let fmt = StickerFormat(rawValue: format) ?? config.format
         let sys = is_system ?? false
         let (cleanTags, communityMeta) = CommunityMetadata.extract(from: tags, isSystem: sys)

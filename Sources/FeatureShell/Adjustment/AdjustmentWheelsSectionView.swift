@@ -3,9 +3,8 @@ import Domain
 import DesignSystem
 
 /// Bảng điều khiển Bánh xe màu 3 vùng: Lift (Shadows), Gamma (Midtones), Gain (Highlights).
-/// Đặt tên 100% bằng tiếng Anh ngắn gọn, không lồng subtab.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
-public struct ColorWheelsSectionView: View {
+/// Tuân thủ AGENTS.md (1 File = 1 Primary Type, Ubiquitous Language, Hàm <= 50 dòng).
+public struct AdjustmentWheelsSectionView: View {
     @Bindable var viewModel: InspectorViewModel
     @State private var selectedWheelMode: WheelMode = .shadows
 
@@ -93,3 +92,6 @@ public struct ColorWheelsSectionView: View {
         }
     }
 }
+
+/// Tương thích ngược với tên gọi cũ
+public typealias ColorWheelsSectionView = AdjustmentWheelsSectionView

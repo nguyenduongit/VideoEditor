@@ -4,12 +4,25 @@ import CoreMedia
 import Domain
 import DesignSystem
 
-/// Lưu giữ ID của `TransitionPreset` đang được kéo từ `TransitionLibraryView` sang Timeline.
+/// Lưu giữ trạng thái phiên kéo thả từ các kho Assets sang Timeline (In-Memory O(1) Fast Path).
 @MainActor
 public final class TransitionDragSessionState {
     public static let shared = TransitionDragSessionState()
     public var activePresetID: String?
+    public var activePayload: TimelineDragPayload?
+    public var timelinePixelsPerSecond: CGFloat = 60.0
+
     private init() {}
+
+    public func begin(payload: TimelineDragPayload) {
+        activePayload = payload
+        activePresetID = payload.transitionPresetID
+    }
+
+    public func clear() {
+        activePayload = nil
+        activePresetID = nil
+    }
 }
 
 public struct TimelineDropTargetBridge: NSViewRepresentable {
@@ -17,6 +30,7 @@ public struct TimelineDropTargetBridge: NSViewRepresentable {
     private let scrollOffset: CGFloat
     private let verticalScrollOffset: CGFloat
     private let onDropAsset: (MediaAsset, CMTime) -> Void
+    private let onDropPayload: ((TimelineDragPayload, CMTime) -> Void)?
     private let onDragGuideChanged: ((CGFloat?) -> Void)?
     private let snapCandidatesProvider: (() -> [CMTime])?
     private let resolveTransitionJoinTarget: ((String, CGFloat, CGFloat) -> TransitionDropJoinTarget?)?
@@ -28,6 +42,7 @@ public struct TimelineDropTargetBridge: NSViewRepresentable {
         scrollOffset: CGFloat,
         verticalScrollOffset: CGFloat = 0,
         onDropAsset: @escaping (MediaAsset, CMTime) -> Void,
+        onDropPayload: ((TimelineDragPayload, CMTime) -> Void)? = nil,
         onDragGuideChanged: ((CGFloat?) -> Void)? = nil,
         snapCandidatesProvider: (() -> [CMTime])? = nil,
         resolveTransitionJoinTarget: ((String, CGFloat, CGFloat) -> TransitionDropJoinTarget?)? = nil,
@@ -38,6 +53,7 @@ public struct TimelineDropTargetBridge: NSViewRepresentable {
         self.scrollOffset = scrollOffset
         self.verticalScrollOffset = verticalScrollOffset
         self.onDropAsset = onDropAsset
+        self.onDropPayload = onDropPayload
         self.onDragGuideChanged = onDragGuideChanged
         self.snapCandidatesProvider = snapCandidatesProvider
         self.resolveTransitionJoinTarget = resolveTransitionJoinTarget
@@ -57,9 +73,11 @@ public struct TimelineDropTargetBridge: NSViewRepresentable {
 
     private func configure(_ view: TimelineDropTargetNSView) {
         view.pixelsPerSecond = pixelsPerSecond
+        TransitionDragSessionState.shared.timelinePixelsPerSecond = pixelsPerSecond
         view.scrollOffset = scrollOffset
         view.verticalScrollOffset = verticalScrollOffset
         view.onDropAsset = onDropAsset
+        view.onDropPayload = onDropPayload
         view.onDragGuideChanged = onDragGuideChanged
         view.snapCandidatesProvider = snapCandidatesProvider
         view.resolveTransitionJoinTarget = resolveTransitionJoinTarget
@@ -75,11 +93,17 @@ public final class TimelineDropTargetNSView: NSView {
     public var scrollOffset: CGFloat = 0
     public var verticalScrollOffset: CGFloat = 0
     public var onDropAsset: ((MediaAsset, CMTime) -> Void)?
+    public var onDropPayload: ((TimelineDragPayload, CMTime) -> Void)?
     public var onDragGuideChanged: ((CGFloat?) -> Void)?
     public var snapCandidatesProvider: (() -> [CMTime])?
     public var resolveTransitionJoinTarget: ((String, CGFloat, CGFloat) -> TransitionDropJoinTarget?)?
     public var onDropTransition: ((String, CGFloat, CGFloat) -> Bool)?
     public var onTransitionDragEnded: (() -> Void)?
+
+    var activeSessionPayload: TimelineDragPayload?
+    var cachedSnapCandidates: [CMTime] = [.zero]
+    var hasCachedSession = false
+    var lastGuideCanvasX: CGFloat?
 
     override public var isFlipped: Bool { true }
 
@@ -94,21 +118,28 @@ public final class TimelineDropTargetNSView: NSView {
     }
 
     override public func hitTest(_ point: NSPoint) -> NSView? {
-        if let ev = NSApplication.shared.currentEvent {
-            switch ev.type {
-            case .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp,
-                 .otherMouseDown, .otherMouseUp, .scrollWheel:
-                return nil
-            default:
-                break
+        if TransitionDragSessionState.shared.activePayload != nil ||
+           TransitionDragSessionState.shared.activePresetID != nil {
+            if let ev = NSApplication.shared.currentEvent {
+                switch ev.type {
+                case .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp,
+                     .otherMouseDown, .otherMouseUp, .scrollWheel:
+                    return nil
+                default:
+                    break
+                }
             }
-        }
-        if TransitionDragSessionState.shared.activePresetID != nil {
             return self
         }
-        let pbTypes = NSPasteboard(name: .drag).types ?? []
-        if pbTypes.contains(NSPasteboard.PasteboardType("public.file-url")) || pbTypes.contains(.string) {
-            return self
+        // Only intercept external Finder drags (where the drag originates outside our window).
+        // Never intercept in-window `.leftMouseDragged` from internal clip move/trim gestures.
+        let currentEvent = NSApplication.shared.currentEvent
+        let isExternalEvent = (currentEvent == nil) || (currentEvent?.window !== self.window)
+        if isExternalEvent {
+            let pbTypes = NSPasteboard(name: .drag).types ?? []
+            if pbTypes.contains(NSPasteboard.PasteboardType("public.file-url")) {
+                return self
+            }
         }
         return nil
     }
@@ -121,13 +152,12 @@ public final class TimelineDropTargetNSView: NSView {
         isHidden = true
         let hit = window?.contentView?.hitTest(event.locationInWindow)
         isHidden = false
-        if let hit, hit !== self {
-            switch event.type {
-            case .leftMouseDown: hit.mouseDown(with: event)
-            case .leftMouseUp: hit.mouseUp(with: event)
-            case .rightMouseDown: hit.rightMouseDown(with: event)
-            default: break
-            }
+        guard let hit, hit !== self else { return }
+        switch event.type {
+        case .leftMouseDown: hit.mouseDown(with: event)
+        case .leftMouseUp: hit.mouseUp(with: event)
+        case .rightMouseDown: hit.rightMouseDown(with: event)
+        default: break
         }
     }
 
@@ -135,129 +165,123 @@ public final class TimelineDropTargetNSView: NSView {
 
     override public func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
         let localLoc = convert(sender.draggingLocation, from: nil)
-        if let url = extractFileURL(from: sender),
-           let type = MediaType.from(fileExtension: url.pathExtension) {
-            updateDragGuide(at: localLoc.x)
-            updateDraggingItem(sender: sender, url: url, type: type, localLoc: localLoc)
-            return .copy
+        guard let payload = resolveDragPayload(from: sender) else {
+            resetDragSessionCache()
+            return []
         }
-        if let presetID = extractTransitionPresetID(from: sender) {
+        activeSessionPayload = payload
+        cachedSnapCandidates = snapCandidatesProvider?() ?? [.zero]
+        hasCachedSession = true
+        lastGuideCanvasX = nil
+        if let presetID = payload.transitionPresetID {
             return evaluateTransitionDrag(sender: sender, presetID: presetID, localLoc: localLoc)
         }
-        return []
+        updateDragGuide(at: localLoc.x)
+        updateDraggingItem(sender: sender, payload: payload, localLoc: localLoc)
+        return .copy
     }
 
     override public func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
         let localLoc = convert(sender.draggingLocation, from: nil)
-        if extractFileURL(from: sender) != nil {
-            updateDragGuide(at: localLoc.x)
-            return .copy
+        guard let payload = activeSessionPayload ?? resolveDragPayload(from: sender) else {
+            publishGuide(nil)
+            return []
         }
-        if let presetID = extractTransitionPresetID(from: sender) {
+        if let presetID = payload.transitionPresetID {
             return evaluateTransitionDrag(sender: sender, presetID: presetID, localLoc: localLoc)
         }
-        onDragGuideChanged?(nil)
-        return []
+        updateDragGuide(at: localLoc.x)
+        return .copy
     }
 
     override public func draggingExited(_ sender: (any NSDraggingInfo)?) {
-        onDragGuideChanged?(nil)
+        let payload = activeSessionPayload ?? (sender.flatMap { resolveDragPayload(from: $0) })
+        publishGuide(nil)
         onTransitionDragEnded?()
-        guard let sender else { return }
-        if let url = extractFileURL(from: sender),
-           let type = MediaType.from(fileExtension: url.pathExtension) {
+        if let sender, let payload, payload.clipKind != nil {
             let localLoc = convert(sender.draggingLocation, from: nil)
-            restoreThumbnailDraggingItem(sender: sender, url: url, type: type, localLoc: localLoc)
+            restoreThumbnailDraggingItem(sender: sender, payload: payload, localLoc: localLoc)
         }
+        resetDragSessionCache()
     }
 
     override public func concludeDragOperation(_ sender: (any NSDraggingInfo)?) {
-        onDragGuideChanged?(nil)
+        publishGuide(nil)
         onTransitionDragEnded?()
-        TransitionDragSessionState.shared.activePresetID = nil
+        resetDragSessionCache()
+        TransitionDragSessionState.shared.clear()
     }
 
     override public func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
         let localLoc = convert(sender.draggingLocation, from: nil)
-        if let url = extractFileURL(from: sender),
-           let type = MediaType.from(fileExtension: url.pathExtension) {
-            let dropTime = calculateDropTime(locX: localLoc.x)
-            let asset = MediaAsset(url: url, type: type)
-            onDropAsset?(asset, dropTime)
-            onDragGuideChanged?(nil)
-            return true
+        guard let payload = activeSessionPayload ?? resolveDragPayload(from: sender) else {
+            resetDragSessionCache()
+            return false
         }
-        if let presetID = extractTransitionPresetID(from: sender) {
+        defer {
+            publishGuide(nil)
+            onTransitionDragEnded?()
+            resetDragSessionCache()
+            TransitionDragSessionState.shared.clear()
+        }
+
+        if let presetID = payload.transitionPresetID {
             let canvasX = max(0, localLoc.x + scrollOffset)
             let canvasY = max(0, localLoc.y + verticalScrollOffset)
-            let didDrop = onDropTransition?(presetID, canvasX, canvasY) ?? false
-            onDragGuideChanged?(nil)
-            onTransitionDragEnded?()
-            TransitionDragSessionState.shared.activePresetID = nil
-            return didDrop
+            return onDropTransition?(presetID, canvasX, canvasY) ?? false
         }
-        return false
+
+        let dropTime = calculateDropTime(locX: localLoc.x)
+        if case .media(let asset) = payload {
+            if let onDropPayload {
+                onDropPayload(payload, dropTime)
+            } else {
+                onDropAsset?(asset, dropTime)
+            }
+            return true
+        }
+        onDropPayload?(payload, dropTime)
+        return true
     }
 
     // MARK: - Helpers
 
-    private func evaluateTransitionDrag(
-        sender: any NSDraggingInfo,
-        presetID: String,
-        localLoc: NSPoint
-    ) -> NSDragOperation {
+    func resetDragSessionCache() {
+        activeSessionPayload = nil
+        cachedSnapCandidates = [.zero]
+        hasCachedSession = false
+        lastGuideCanvasX = nil
+    }
+
+    func publishGuide(_ canvasX: CGFloat?) {
+        if let canvasX, let last = lastGuideCanvasX, abs(canvasX - last) < 0.0005 { return }
+        if canvasX == nil && lastGuideCanvasX == nil { return }
+        lastGuideCanvasX = canvasX
+        onDragGuideChanged?(canvasX)
+    }
+
+    func evaluateTransitionDrag(sender: any NSDraggingInfo, presetID: String, localLoc: NSPoint) -> NSDragOperation {
         let canvasX = max(0, localLoc.x + scrollOffset)
         let canvasY = max(0, localLoc.y + verticalScrollOffset)
         guard let target = resolveTransitionJoinTarget?(presetID, canvasX, canvasY) else {
-            onDragGuideChanged?(nil)
+            publishGuide(nil)
             return .copy
         }
-        onDragGuideChanged?(target.cutCanvasX)
+        publishGuide(target.cutCanvasX)
         return .copy
     }
 
-    func extractFileURL(from sender: any NSDraggingInfo) -> URL? {
-        if let urls = sender.draggingPasteboard.readObjects(
-            forClasses: [NSURL.self], options: nil) as? [URL],
-           let first = urls.first {
-            return first
-        }
-        if let str = sender.draggingPasteboard.string(forType: .fileURL),
-           let u = URL(string: str) {
-            return u
-        }
-        return nil
-    }
-
-    func extractTransitionPresetID(from sender: any NSDraggingInfo) -> String? {
-        let pb = sender.draggingPasteboard
-        if let str = pb.string(forType: .string), str.hasPrefix("transition:") {
-            return String(str.dropFirst("transition:".count))
-        }
-        if let strings = pb.readObjects(forClasses: [NSString.self], options: nil) as? [String],
-           let first = strings.first(where: { $0.hasPrefix("transition:") }) {
-            return String(first.dropFirst("transition:".count))
-        }
-        return TransitionDragSessionState.shared.activePresetID
-    }
-
-    private func calculateDropTime(locX: CGFloat) -> CMTime {
+    func calculateDropTime(locX: CGFloat) -> CMTime {
         let canvasX = max(0, locX + scrollOffset)
-        let seconds = max(0, Double(canvasX / pixelsPerSecond))
-        let rawTime = CMTime(seconds: seconds, preferredTimescale: 600)
-        let candidates = snapCandidatesProvider?() ?? [.zero]
+        let rawTime = CMTime(seconds: max(0, Double(canvasX / pixelsPerSecond)), preferredTimescale: 600)
+        let candidates = hasCachedSession ? cachedSnapCandidates : (snapCandidatesProvider?() ?? [.zero])
         let threshold = TimelineSnapEngine.thresholdTime(pixelsPerSecond: pixelsPerSecond)
-        let (snapped, didSnap) = TimelineSnapEngine.snapPoint(
-            time: rawTime,
-            candidates: candidates,
-            threshold: threshold
-        )
+        let (snapped, didSnap) = TimelineSnapEngine.snapPoint(time: rawTime, candidates: candidates, threshold: threshold)
         return didSnap ? snapped : TimeRational.snapToFrame(time: rawTime)
     }
 
-    private func updateDragGuide(at locX: CGFloat) {
+    func updateDragGuide(at locX: CGFloat) {
         let effectTime = calculateDropTime(locX: locX)
-        let snappedCanvasX = CGFloat(CMTimeGetSeconds(effectTime)) * pixelsPerSecond
-        onDragGuideChanged?(snappedCanvasX)
+        publishGuide(CGFloat(CMTimeGetSeconds(effectTime)) * pixelsPerSecond)
     }
 }

@@ -27,11 +27,11 @@ extension InspectorViewModel {
 
     public var volumeLeadingIconHelp: String {
         if isSelectedClipLayerMuted {
-            return String(localized: "Layer đang tắt tiếng — Click để bật tiếng Layer")
+            return String(localized: "Layer is muted — Click to unmute Layer")
         } else if currentVolume <= 0.001 {
-            return String(localized: "Clip đang tắt tiếng — Click để khôi phục âm lượng")
+            return String(localized: "Clip is muted — Click to restore volume")
         } else {
-            return String(localized: "Click để tắt tiếng nhanh")
+            return String(localized: "Click to quick mute")
         }
     }
 

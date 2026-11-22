@@ -12,7 +12,7 @@ public struct DSInspectorTabBar<Trailing: View>: View {
     public init(
         tabs: [String],
         selectedTab: Binding<String>,
-        fallbackTitle: String = "Thuộc tính",
+        fallbackTitle: String = "Properties",
         @ViewBuilder trailing: () -> Trailing
     ) {
         self.tabs = tabs
@@ -99,7 +99,7 @@ extension DSInspectorTabBar where Trailing == EmptyView {
     public init(
         tabs: [String],
         selectedTab: Binding<String>,
-        fallbackTitle: String = "Thuộc tính"
+        fallbackTitle: String = "Properties"
     ) {
         self.init(tabs: tabs, selectedTab: selectedTab, fallbackTitle: fallbackTitle) {
             EmptyView()

@@ -235,10 +235,9 @@ struct AudioAlignmentTests {
         #expect(undoneAudio.timeRange.duration == CMTime(value: 15, timescale: 1))
     }
 
-    @Test("performAISyncAudio trims excess at both ends of Video and Audio and aligns both at zero")
+    @Test("Atomic pipeline: performAISyncAudio aligns waveform, autoTrimOverlapClips trims both ends, and shiftClipsToTimelineStart shifts to zero")
     func testPerformAISyncAudioTrimsBothEnds() async {
         // Video is 20s [0..20], Audio is 12s [0..12] and starts +4s into the video (so Audio spans [4..16] of the video)
-        // Expected overlap: Video head trimmed by 4s (sourceStart = 4s), Video & Audio both start at 0s with duration 12s!
         let clipVideo = TimelineClip(
             name: "IMG_5671.MOV",
             kind: .video,
@@ -269,8 +268,20 @@ struct AudioAlignmentTests {
             initialLayers: [layerVideo, layerAudio]
         )
 
+        // Step 1: Sync Audio ONLY aligns audio start to +4.0s without secretly trimming video
         let res = await vm.performAISyncAudio(availableAssets: [])
         #expect(res.isSuccess == true)
+        #expect(vm.layers[0].clips[0].timeRange.start == .zero)
+        #expect(abs(CMTimeGetSeconds(vm.layers[0].clips[0].timeRange.duration) - 20.0) < 0.05)
+        #expect(abs(CMTimeGetSeconds(vm.layers[1].clips[0].timeRange.start) - 4.0) < 0.05)
+
+        // Step 2: Auto Trim trims excess head/tail to overlap [4..16s]
+        #expect(vm.autoTrimOverlapClips() == true)
+        #expect(abs(CMTimeGetSeconds(vm.layers[0].clips[0].timeRange.start) - 4.0) < 0.05)
+        #expect(abs(CMTimeGetSeconds(vm.layers[0].clips[0].timeRange.duration) - 12.0) < 0.05)
+
+        // Step 3: Shift to Start moves both clips to 00:00:00
+        #expect(vm.shiftClipsToTimelineStart() == true)
 
         let trimmedVideo = vm.layers[0].clips[0]
         let trimmedAudio = vm.layers[1].clips[0]

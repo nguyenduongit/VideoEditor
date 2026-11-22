@@ -17,11 +17,11 @@ DerivedData/
 *.mp4
 *.mov
 
-# Node & Environment
-node_modules/
+# Environment
 .env
 .env*.local
 
-# Scratch
+# Scratch & Temp
 scratch/
+supabase/.temp/
 

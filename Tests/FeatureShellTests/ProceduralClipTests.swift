@@ -24,7 +24,7 @@ struct ProceduralClipTests {
     @Test("Procedural clip allows infinite trim bounds without fixed source duration cap")
     func testProceduralClipInfiniteTrimBounds() {
         let clip = TimelineClip(
-            name: "Màn hình đen",
+            name: "Black Screen",
             kind: .video,
             timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 5, preferredTimescale: 600)),
             maxDuration: nil,
@@ -50,7 +50,7 @@ struct ProceduralClipTests {
     @Test("Procedural solid color clip activates custom compositor")
     func testProceduralClipActivatesCustomCompositor() {
         let clip = TimelineClip(
-            name: "Màn hình đen",
+            name: "Black Screen",
             kind: .video,
             timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 5, preferredTimescale: 600)),
             properties: [
@@ -65,7 +65,7 @@ struct ProceduralClipTests {
     @Test("Splitting a procedural clip preserves isProcedural and sets right sourceStartTime to zero")
     func testProceduralClipSplit() {
         let clip = TimelineClip(
-            name: "Màn hình đen",
+            name: "Black Screen",
             kind: .video,
             timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10, preferredTimescale: 600)),
             properties: [

@@ -5,7 +5,7 @@ extension StickerPreset {
     /// Chuẩn W3C SVG 100% Native, unroll trực tiếp các cánh hoa để tương thích trọn vẹn
     /// với mọi bộ dựng đồ họa (WebKit, CoreGraphics, AppKit NSImage).
     public static let animatedFlowerSVGMarkup: String = """
-<svg viewBox="-50 0 500 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cây hoa hồng nhạt đung đưa, cánh hoa rơi">
+<svg viewBox="-50 0 500 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Swaying light pink flower plant with falling petals">
 <style>
 .sway{transform-origin:200px 470px;animation:sway 3s ease-in-out infinite}
 .leaf{transform-box:fill-box;transform-origin:50% 100%;animation:leaf 1.5s ease-in-out infinite}

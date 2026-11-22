@@ -79,9 +79,8 @@ public final class SidebarFavoriteManager: Sendable {
                 if let cloudFavs = try? await repository.fetchFavorites(for: tab) {
                     await MainActor.run { [weak self] in
                         guard let self else { return }
-                        let localFavs = self.favoriteMap[tab] ?? []
-                        let merged = localFavs.union(cloudFavs)
-                        self.favoriteMap[tab] = merged
+                        let localDefaults = (self.favoriteMap[tab] ?? []).filter { $0.hasPrefix("default") }
+                        self.favoriteMap[tab] = cloudFavs.union(localDefaults)
                         self.saveFavoritesToDisk(for: tab)
                     }
                 }

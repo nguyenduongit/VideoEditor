@@ -2,10 +2,9 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Bảng điều khiển màu cơ bản (Basic Grading): Auto Balance, White Balance, Tone & Light.
-/// Đặt tên 100% bằng tiếng Anh ngắn gọn, không lồng subtab.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
-public struct ColorBasicSectionView: View {
+/// Bảng điều khiển màu cơ bản (Basic Grading): White Balance, Tone & Light, Intensity.
+/// Tuân thủ AGENTS.md (1 File = 1 Primary Type, Ubiquitous Language, Hàm <= 50 dòng).
+public struct AdjustmentBasicSectionView: View {
     @Bindable var viewModel: InspectorViewModel
 
     public init(viewModel: InspectorViewModel) {
@@ -148,7 +147,6 @@ public struct ColorBasicSectionView: View {
         }
     }
 
-
     private func resetWhiteBalance() {
         var cfg = currentConfig
         cfg.basic.temp = 0
@@ -173,3 +171,6 @@ public struct ColorBasicSectionView: View {
         }
     }
 }
+
+/// Tương thích ngược với tên gọi cũ
+public typealias ColorBasicSectionView = AdjustmentBasicSectionView

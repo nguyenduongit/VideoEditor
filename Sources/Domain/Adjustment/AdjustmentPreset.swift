@@ -2,28 +2,42 @@ import Foundation
 
 /// Danh mục phân loại mẫu chỉnh màu (Adjustment Template Category) đồng bộ với Supabase
 public enum AdjustmentTemplateCategory: String, Codable, Sendable, CaseIterable, Identifiable {
-    case all = "Tất cả"
-    case cinematic = "Điện ảnh"
-    case filmVintage = "Phim & Cổ điển"
-    case portraitVlog = "Chân dung & Vlog"
-    case cyberNeon = "Cyber & Đêm"
+    case all = "All"
+    case cinematic = "Cinematic"
+    case filmVintage = "Film & Vintage"
+    case portraitVlog = "Portrait & Vlog"
+    case cyberNeon = "Cyber & Night"
     case moodyMono = "Moody & B&W"
 
     public var id: String { rawValue }
 
     public var displayName: String {
-        switch self {
-        case .all: return "All"
-        case .cinematic: return "Cinematic"
-        case .filmVintage: return "Film & Vintage"
-        case .portraitVlog: return "Portrait & Vlog"
-        case .cyberNeon: return "Cyber & Night"
-        case .moodyMono: return "Moody & B&W"
-        }
+        rawValue
     }
 
     public static var assignableCases: [AdjustmentTemplateCategory] {
         [.cinematic, .filmVintage, .portraitVlog, .cyberNeon, .moodyMono]
+    }
+
+    public static func resolve(categoryString: String) -> AdjustmentTemplateCategory {
+        if let matched = AdjustmentTemplateCategory(rawValue: categoryString) {
+            return matched
+        }
+        switch categoryString.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "all", "tất cả": return .all
+        case "cinematic", "điện ảnh": return .cinematic
+        case "film & vintage", "phim & cổ điển": return .filmVintage
+        case "portrait & vlog", "chân dung & vlog": return .portraitVlog
+        case "cyber & night", "cyber & đêm": return .cyberNeon
+        case "moody & b&w": return .moodyMono
+        default: return .cinematic
+        }
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        self = Self.resolve(categoryString: raw)
     }
 }
 
@@ -73,7 +87,7 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
         self.schemaVersion = (try? c.decodeIfPresent(Int.self, forKey: .schemaVersion)) ?? 1
-        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Mẫu chỉnh màu"
+        self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Adjustment Preset"
         self.description = (try? c.decodeIfPresent(String.self, forKey: .description)) ?? ""
         self.category = (try? c.decodeIfPresent(AdjustmentTemplateCategory.self, forKey: .category)) ?? .cinematic
         self.tags = (try? c.decodeIfPresent([String].self, forKey: .tags)) ?? []
@@ -121,8 +135,8 @@ public struct AdjustmentPreset: Identifiable, Codable, Equatable, Sendable {
 
     public static let `default` = AdjustmentPreset(
         id: "default",
-        name: "Mặc định",
-        description: "Màu nguyên bản không chỉnh sửa",
+        name: "Default",
+        description: "Original unedited color",
         category: .cinematic,
         previewColorsHex: ["#27272A", "#18181B"],
         config: AdjustmentConfiguration(),

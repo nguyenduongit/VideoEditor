@@ -23,6 +23,8 @@ public final class TimelinePlaybackEngine {
     var lastStructureSignature: String = ""
     public internal(set) var isPlaybackActive: Bool = false
     var lastPropertiesSignature: String = ""
+    var lastVisualAndAudioEnvelopeSignature: String = ""
+    var activeAudioTapControllers: [CMPersistentTrackID: TimelineAudioGainTap] = [:]
     var currentComposition: AVMutableComposition?
     var currentLayerTrackIDs: [UUID: CMPersistentTrackID] = [:]
     var currentSecondaryLayerTrackIDs: [UUID: CMPersistentTrackID] = [:]

@@ -14,9 +14,9 @@ public enum CommunityAssetType: String, Codable, Sendable, CaseIterable, Identif
 
 /// Tùy chọn sắp xếp và lọc danh sách trong Kho Thư viện Cộng đồng.
 public enum CommunitySortOption: String, Codable, Sendable, CaseIterable, Identifiable {
-    case popular = "Phổ biến"
-    case newest = "Mới nhất"
-    case mine = "Của tôi"
+    case popular = "Popular"
+    case newest = "Newest"
+    case mine = "Mine"
 
     public var id: String { rawValue }
 }
@@ -35,7 +35,7 @@ public struct CommunityMetadata: Codable, Sendable, Equatable {
 
     public init(
         authorID: String = "",
-        authorName: String = "Cộng đồng",
+        authorName: String = "Community",
         downloadsCount: Int = 0,
         likesCount: Int = 0,
         isVerified: Bool = false,
@@ -44,7 +44,7 @@ public struct CommunityMetadata: Codable, Sendable, Equatable {
         createdAtTimestamp: Double = Date().timeIntervalSince1970
     ) {
         self.authorID = authorID
-        self.authorName = authorName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Cộng đồng" : authorName
+        self.authorName = authorName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Community" : authorName
         self.downloadsCount = max(0, downloadsCount)
         self.likesCount = max(0, likesCount)
         self.isVerified = isVerified
@@ -55,7 +55,7 @@ public struct CommunityMetadata: Codable, Sendable, Equatable {
 
     public static let systemDefault = CommunityMetadata(
         authorID: "system",
-        authorName: "Hệ thống",
+        authorName: "System",
         downloadsCount: 100,
         likesCount: 50,
         isVerified: true,
@@ -65,8 +65,8 @@ public struct CommunityMetadata: Codable, Sendable, Equatable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.authorID = (try? c.decodeIfPresent(String.self, forKey: .authorID)) ?? ""
-        let rawName = (try? c.decodeIfPresent(String.self, forKey: .authorName)) ?? "Cộng đồng"
-        self.authorName = rawName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Cộng đồng" : rawName
+        let rawName = (try? c.decodeIfPresent(String.self, forKey: .authorName)) ?? "Community"
+        self.authorName = rawName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Community" : rawName
         self.downloadsCount = max(0, (try? c.decodeIfPresent(Int.self, forKey: .downloadsCount)) ?? 0)
         self.likesCount = max(0, (try? c.decodeIfPresent(Int.self, forKey: .likesCount)) ?? 0)
         self.isVerified = (try? c.decodeIfPresent(Bool.self, forKey: .isVerified)) ?? false
@@ -106,31 +106,12 @@ public struct CommunityMetadata: Codable, Sendable, Equatable {
     }
 }
 
-/// Quản lý định danh người đóng góp trên thiết bị (Author ID & Author Name) an toàn luồng.
+/// Định danh chủ sở hữu duy nhất cho ứng dụng cá nhân (Single-User).
+/// Sử dụng `personalOwnerID` cố định thay vì UUID ngẫu nhiên theo máy để không bao giờ mất quyền chỉnh sửa preset của chính bạn.
 public enum CommunityIdentity {
-    private static let authorIDKey = "com.videoeditor.community.authorID"
-    private static let authorNameKey = "com.videoeditor.community.authorName"
+    public static let personalOwnerID = "personal"
 
     public static var currentAuthorID: String {
-        if let existing = UserDefaults.standard.string(forKey: authorIDKey), !existing.isEmpty {
-            return existing
-        }
-        let generated = UUID().uuidString
-        UserDefaults.standard.set(generated, forKey: authorIDKey)
-        return generated
-    }
-
-    public static var currentAuthorName: String {
-        get {
-            let saved = UserDefaults.standard.string(forKey: authorNameKey) ?? ""
-            let trimmed = saved.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? "Creator" : trimmed
-        }
-        set {
-            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                UserDefaults.standard.set(trimmed, forKey: authorNameKey)
-            }
-        }
+        personalOwnerID
     }
 }

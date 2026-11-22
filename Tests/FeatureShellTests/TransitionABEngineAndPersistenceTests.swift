@@ -109,7 +109,7 @@ struct TransitionABEngineAndPersistenceTests {
         )
         let trans = CutTransition(
             presetID: "whip_pan_left",
-            name: "Whip Pan Trái",
+            name: "Whip Pan Left",
             leadingClipID: clip0.id,
             trailingClipID: clip1.id,
             duration: RationalTime(cmTime: CMTime(seconds: 0.6, preferredTimescale: 600)),

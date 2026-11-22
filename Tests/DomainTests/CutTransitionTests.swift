@@ -11,7 +11,7 @@ struct CutTransitionTests {
         let trailID = UUID()
         let transition = CutTransition(
             presetID: "whip_pan_left",
-            name: "Whip Pan Trái",
+            name: "Whip Pan Left",
             leadingClipID: leadID,
             trailingClipID: trailID,
             duration: RationalTime(value: 300, timescale: 600),

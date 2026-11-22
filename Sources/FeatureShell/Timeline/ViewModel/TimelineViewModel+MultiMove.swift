@@ -4,19 +4,29 @@ import Domain
 
 extension TimelineViewModel {
     /// Computes the effective delta for group movement based on a pivot clip's proposed new start time.
-    public func clampedGroupMoveDelta(pivotClipID: UUID, proposedStart: CMTime) -> CMTime {
+    public func clampedGroupMoveDelta(pivotClipID: UUID, proposedStart: CMTime, isDuplicating: Bool = false) -> CMTime {
         guard let pivotClip = layers.flatMap(\.clips).first(where: { $0.id == pivotClipID }) else {
             return .zero
         }
         let originalStart = pivotClip.timeRange.start
         let proposedDelta = CMTimeSubtract(proposedStart, originalStart)
+        if isDuplicating {
+            let earliestStart = layers
+                .filter { !$0.isLocked }
+                .flatMap(\.clips)
+                .filter { selectedClipIDs.contains($0.id) }
+                .map(\.timeRange.start)
+                .min() ?? originalStart
+            let minAllowedDelta = CMTimeSubtract(.zero, earliestStart)
+            return CMTimeMaximum(minAllowedDelta, proposedDelta)
+        }
         let limits = TimelineGroupMoveEngine.calculateLimits(layers: layers, selectedClipIDs: selectedClipIDs)
         return TimelineGroupMoveEngine.clamp(delta: proposedDelta, limits: limits)
     }
 
     /// Updates groupMoveOffset in real-time during drag.
-    public func updateGroupMove(pivotClipID: UUID, proposedStart: CMTime) {
-        let effectiveDelta = clampedGroupMoveDelta(pivotClipID: pivotClipID, proposedStart: proposedStart)
+    public func updateGroupMove(pivotClipID: UUID, proposedStart: CMTime, isDuplicating: Bool = false) {
+        let effectiveDelta = clampedGroupMoveDelta(pivotClipID: pivotClipID, proposedStart: proposedStart, isDuplicating: isDuplicating)
         groupMoveOffset = CGFloat(CMTimeGetSeconds(effectiveDelta)) * pixelsPerSecond
     }
 

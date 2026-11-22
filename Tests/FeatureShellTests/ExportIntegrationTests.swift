@@ -172,7 +172,7 @@ struct ExportIntegrationTests {
 
         let adjClip = TimelineClip(
             id: UUID(),
-            name: "Mặc định",
+            name: "Default",
             kind: .adjustment,
             timeRange: CMTimeRange(start: .zero, duration: CMTime(value: 2, timescale: 1))
         )

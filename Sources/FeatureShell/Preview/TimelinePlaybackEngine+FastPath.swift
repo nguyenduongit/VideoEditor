@@ -25,6 +25,17 @@ extension TimelinePlaybackEngine {
         if wasPlaying {
             isPlaybackActive = true
         }
+
+        let visualAndEnvelopeSig = computeVisualAndAudioEnvelopeSignature(layers: layers)
+        if visualAndEnvelopeSig == lastVisualAndAudioEnvelopeSignature,
+           updateLiveAudioTapControllersIfPossible(layers: layers) {
+            if wasPlaying {
+                resumeIfActive()
+            }
+            return true
+        }
+        lastVisualAndAudioEnvelopeSignature = visualAndEnvelopeSig
+
         let duration = CMTimeMaximum(totalDuration, composition.duration)
         if let newVideoComp = TimelineCompositionBuilder.buildVideoComposition(
             for: layers,
@@ -72,8 +83,7 @@ extension TimelinePlaybackEngine {
         let layersSig = layers.map { layer in
             let clipsSig = layer.clips.map { clip in
                 let urlStr = clip.mediaURL?.absoluteString ?? ""
-                let spd = clip.properties["speed"]?.asNumber ?? 1.0
-                return "\(clip.id)-\(urlStr)-\(clip.timeRange.start.value)-\(clip.timeRange.duration.value)-\(clip.sourceStartTime.value)-spd:\(spd)"
+                return "\(clip.id)-\(urlStr)-\(clip.timeRange.start.value)-\(clip.timeRange.duration.value)-\(clip.sourceStartTime.value)"
             }
             let transStructSig = layer.transitions.map { t in
                 "\(t.id)-\(t.leadingClipID)-\(t.trailingClipID)-\(t.duration.value)-\(t.duration.timescale)-\(t.alignment.rawValue)"
@@ -94,6 +104,34 @@ extension TimelinePlaybackEngine {
                 return "\(t.id):\(t.presetID):\(t.shaderType.rawValue):\(t.easing.rawValue):xfade=\(t.crossfadeAudio):msl=\(t.customMetalSource?.hashValue ?? 0):[\(pSig)]"
             }
             return "\(layer.id):hidden=\(layer.isHidden):muted=\(layer.isMuted):[\(clipsSig.joined(separator: ","))]:T[\(transPropSig.joined(separator: ","))]"
+        }.joined(separator: "|")
+    }
+
+    /// Chữ ký của các thuộc tính thị giác và cấu trúc envelope (ngoại trừ các thuộc tính Audio/Speed đang kéo live:
+    /// `volume`, `fadeIn`, `fadeOut`, `pan`, `pitchPreservation`, `speed`, `duration`, `isMuted`
+    /// vốn được cập nhật trực tiếp qua `TimelineAudioGainTap` hoặc `audioTimePitchAlgorithm`).
+    /// Khi chữ ký này không đổi, `tryFastPathUpdate` bỏ qua hoàn toàn việc tạo lại `videoComposition` và `audioMix`,
+    /// giữ cho nhạc đang phát mượt tuyệt đối 100%, không dừng, không khựng, không mất tiếng.
+    func computeVisualAndAudioEnvelopeSignature(layers: [TimelineLayer]) -> String {
+        let liveAudioExcludedKeys: Set<String> = [
+            "volume", "preMuteVolume", "isClipMuted",
+            "fadeIn", "fadeOut", "pan",
+            "pitchPreservation", "speed", "duration", "isBeatCounter"
+        ]
+        return layers.map { layer in
+            let clipsSig = layer.clips.map { clip in
+                let propSig = clip.properties
+                    .filter { !liveAudioExcludedKeys.contains($0.key) }
+                    .sorted(by: { $0.key < $1.key })
+                    .map { "\($0.key)=\($0.value)" }
+                    .joined(separator: ";")
+                return "\(clip.id):[\(propSig)]"
+            }
+            let transPropSig = layer.transitions.map { t in
+                let pSig = t.parameterValues.sorted(by: { $0.key < $1.key }).map { "\($0.key)=\($0.value)" }.joined(separator: ";")
+                return "\(t.id):\(t.presetID):\(t.shaderType.rawValue):\(t.easing.rawValue):xfade=\(t.crossfadeAudio):msl=\(t.customMetalSource?.hashValue ?? 0):[\(pSig)]"
+            }
+            return "\(layer.id):hidden=\(layer.isHidden):[\(clipsSig.joined(separator: ","))]:T[\(transPropSig.joined(separator: ","))]"
         }.joined(separator: "|")
     }
 }

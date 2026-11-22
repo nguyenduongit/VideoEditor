@@ -35,6 +35,7 @@ extension TimelineClipView {
             let inSec = clip.properties["fadeIn"]?.asNumber ?? 0.0
             let outSec = clip.properties["fadeOut"]?.asNumber ?? 0.0
             let speed = clip.properties["speed"]?.asNumber ?? 1.0
+            let volume = clip.properties["volume"]?.asNumber ?? 1.0
             AudioWaveformView(
                 url: clip.mediaURL,
                 service: waveformService,
@@ -44,7 +45,8 @@ extension TimelineClipView {
                 fadeIn: inSec,
                 fadeOut: outSec,
                 clipDuration: clip.timeRange.duration,
-                speed: speed
+                speed: speed,
+                volume: volume
             )
             .opacity(isAudioMuted ? 0.35 : 1.0)
             .animation(.easeInOut(duration: 0.2), value: isAudioMuted)

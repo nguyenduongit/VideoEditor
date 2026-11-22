@@ -85,7 +85,7 @@ struct ProceduralRenderEngineTests {
         properties["proceduralConfig"] = .string(config.encodeToJSON()!)
 
         let clip = TimelineClip(
-            name: "Cực quang",
+            name: "Aurora",
             kind: .video,
             timeRange: CMTimeRange(start: .zero, duration: duration),
             mediaURL: ProceduralAssetProvider.shared.blackVideoURL(),

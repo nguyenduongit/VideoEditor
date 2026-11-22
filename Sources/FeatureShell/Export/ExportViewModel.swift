@@ -123,7 +123,7 @@ public final class ExportViewModel {
     /// Bắt đầu quy trình xuất video hoặc audio: Mở hộp thoại chọn nơi lưu và thực thi render.
     public func promptSaveAndStartExport(timelineViewModel: TimelineViewModel) {
         guard !timelineViewModel.layers.flatMap(\.clips).isEmpty else {
-            errorMessage = "Timeline chưa có clip nào để xuất."
+            errorMessage = "The timeline has no clips to export."
             status = .failed(errorMessage: errorMessage ?? "")
             return
         }
