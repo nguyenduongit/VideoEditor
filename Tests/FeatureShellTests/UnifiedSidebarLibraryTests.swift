@@ -33,12 +33,60 @@ struct UnifiedSidebarLibraryTests {
         manager.removeFavorite(id: "preset_1", for: "text")
         #expect(!manager.isFavorite(id: "preset_1", for: "text"))
 
-        // Independent across tabs
+        // Independent across tabs including local System Library tabs
         manager.addFavorite(id: "item_A", for: "media")
         manager.addFavorite(id: "item_B", for: "audio")
+        manager.addFavorite(id: "creative_fx_rgb_glitch", for: "effect")
+        manager.addFavorite(id: "dissolve_default", for: "transition")
+        manager.addFavorite(id: "sticker_emoji_grinning", for: "sticker")
         #expect(manager.isFavorite(id: "item_A", for: "media"))
         #expect(!manager.isFavorite(id: "item_A", for: "audio"))
         #expect(manager.isFavorite(id: "item_B", for: "audio"))
+        #expect(manager.isFavorite(id: "creative_fx_rgb_glitch", for: "effect"))
+        #expect(manager.isFavorite(id: "dissolve_default", for: "transition"))
+        #expect(manager.isFavorite(id: "sticker_emoji_grinning", for: "sticker"))
+    }
+
+    @Test("SidebarFavoriteManager cloud sync preserves local favorites for Effect, Transition, and Sticker")
+    func testSidebarFavoriteManagerPreservesLocalSystemLibraryFavoritesDuringCloudSync() async throws {
+        actor StubFavoriteRepo: FavoriteRepositoryProtocol {
+            var syncedTabs: [String] = []
+            var pushedTabs: [String] = []
+
+            func fetchFavorites(for tab: String) async throws -> Set<String> {
+                syncedTabs.append(tab)
+                return tab == "text" ? ["cloud_text_1"] : []
+            }
+            func addFavorite(id: String, for tab: String) async throws {
+                pushedTabs.append(tab)
+            }
+            func removeFavorite(id: String, for tab: String) async throws {}
+        }
+
+        let repo = StubFavoriteRepo()
+        let defaults = UserDefaults(suiteName: "Test_SidebarFavoriteManager_Sync_\(UUID().uuidString)")!
+        let manager = SidebarFavoriteManager(userDefaults: defaults)
+        manager.configure(repository: repo)
+
+        manager.addFavorite(id: "creative_fx_rgb_glitch", for: "effect")
+        manager.addFavorite(id: "dissolve_default", for: "transition")
+        manager.addFavorite(id: "sticker_emoji_grinning", for: "sticker")
+        manager.addFavorite(id: "user_text_1", for: "text")
+
+        await manager.syncWithCloudNow()
+        let synced = await repo.syncedTabs
+        let pushed = await repo.pushedTabs
+
+        #expect(manager.isFavorite(id: "creative_fx_rgb_glitch", for: "effect"))
+        #expect(manager.isFavorite(id: "dissolve_default", for: "transition"))
+        #expect(manager.isFavorite(id: "sticker_emoji_grinning", for: "sticker"))
+        #expect(manager.isFavorite(id: "cloud_text_1", for: "text"))
+        #expect(!synced.contains("effect"))
+        #expect(!synced.contains("transition"))
+        #expect(!synced.contains("sticker"))
+        #expect(!pushed.contains("effect"))
+        #expect(!pushed.contains("transition"))
+        #expect(!pushed.contains("sticker"))
     }
 
     @Test("LibraryScaffoldView constants and categories conform to unified design")
@@ -86,7 +134,7 @@ struct UnifiedSidebarLibraryTests {
         #expect(textCats.count >= 3)
 
         // Effect
-        let effectCats = EffectTemplateCategory.assignableCases
+        let effectCats = EffectCategory.assignableCases
         #expect(!effectCats.contains(.all))
         #expect(effectCats.count >= 4)
 
@@ -193,9 +241,9 @@ struct UnifiedSidebarLibraryTests {
         #expect(audioVM.filteredItems.contains(where: { $0.id == "audio_dance_beat" }))
         audioVM.searchQuery = ""
 
-        // Adding preset adds a dance beat counter clip to timeline
+        // Adding item adds a dance beat counter clip to timeline
         #expect(timelineVM.layers.isEmpty)
-        audioVM.addPresetToTimeline(item)
+        audioVM.addToTimeline(item)
         #expect(!timelineVM.layers.isEmpty)
         let addedClip = timelineVM.layers.flatMap(\.clips).first
         #expect(addedClip != nil)
@@ -203,13 +251,14 @@ struct UnifiedSidebarLibraryTests {
         #expect(addedClip?.kind == .audio)
     }
 
-    @Test("TextAnimatedThumbnail and Evaluator execute In, Loop and Out phases during preview")
+    @Test("TextAnimatedThumbnail and Evaluator execute unified script Intro, Loop and Outro phases during preview")
     func testTextAnimatedThumbnailThreePhasesExecution() {
         let preset = TextPreset.neonCyberGlow
         let effective = TextThumbnailRenderer.effectiveAnimatedConfig(for: preset)
-        #expect(effective.animation.hasInAnimation)
-        #expect(effective.animation.hasLoopAnimation)
-        #expect(effective.animation.hasOutAnimation)
+        #expect(effective.animation.hasScriptAnimation)
+        #expect(effective.animation.scriptInDuration == 1.0)
+        #expect(effective.animation.scriptLoopDuration == 2.0)
+        #expect(effective.animation.scriptOutDuration == 1.0)
 
         let duration = TextThumbnailRenderer.effectiveDuration(for: preset)
         #expect(duration == 4.0)

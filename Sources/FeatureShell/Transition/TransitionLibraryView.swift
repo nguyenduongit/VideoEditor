@@ -2,14 +2,12 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Left Sidebar view for the Transitions Library.
-/// Features a 100pt vertical category sidebar, 2-column square card grid,
-/// top-right 26pt Favorites button, and bottom-right 26pt Add button.
-/// Complies with AGENTS.md rules (File <= 300 lines, View body <= 40 lines).
+/// Left Sidebar view for the Dev-Authored Transitions System Library (`TransitionLibrary`).
+/// Read-only to end users per AGENTS.md Article 15 (local Favorites via `UserDefaults`, no Supabase sync).
 public struct TransitionLibraryView: View {
     @Bindable private var viewModel: TransitionLibraryViewModel
     @State private var selectedCategory: String = TransitionCategory.basic.displayName
-    @State private var selectedPresetID: String?
+    @State private var selectedItemID: String?
 
     private let categories = TransitionCategory.assignableCases.map(\.displayName)
 
@@ -22,26 +20,24 @@ public struct TransitionLibraryView: View {
         self.viewModel = viewModel
     }
 
-    private var displayedPresets: [TransitionPreset] {
+    private var displayedItems: [TransitionLibraryItem] {
         let trimmed = viewModel.searchQuery.trimmingCharacters(in: .whitespaces)
-        let base: [TransitionPreset]
+        let base: [TransitionLibraryItem]
         if selectedCategory == SidebarFavoriteManager.favoritesCategory {
             let favs = SidebarFavoriteManager.shared.favorites(for: "transition")
-            base = viewModel.templatePresets.filter { favs.contains($0.id) }
+            base = viewModel.items.filter { favs.contains($0.id) }
         } else if !trimmed.isEmpty {
-            base = viewModel.templatePresets
+            base = viewModel.items
+        } else if let cat = TransitionCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
+            base = viewModel.items.filter { $0.category == cat }
         } else {
-            if let cat = TransitionCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
-                base = viewModel.templatePresets.filter { $0.category == cat }
-            } else {
-                base = viewModel.templatePresets
-            }
+            base = viewModel.items
         }
         guard !trimmed.isEmpty else { return base }
         return base.filter {
             $0.name.localizedCaseInsensitiveContains(trimmed)
-            || $0.description.localizedCaseInsensitiveContains(trimmed)
-            || $0.tags.contains { $0.localizedCaseInsensitiveContains(trimmed) }
+                || $0.description.localizedCaseInsensitiveContains(trimmed)
+                || $0.tags.contains { $0.localizedCaseInsensitiveContains(trimmed) }
         }
     }
 
@@ -50,66 +46,35 @@ public struct TransitionLibraryView: View {
             searchQuery: $viewModel.searchQuery,
             searchPlaceholder: "Search transitions...",
             categories: categories,
-            selectedCategory: $selectedCategory,
-            trailingAction: AnyView(reloadButton)
+            selectedCategory: $selectedCategory
         ) {
             contentScrollView
         }
-        .task {
-            await viewModel.syncFromRemoteIfAvailable()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .presetStoreDidUpdate)) { _ in
-            viewModel.reloadTemplates()
-        }
-    }
-
-    private var reloadButton: some View {
-        let size = LibraryScaffoldView<EmptyView>.searchControlHeight
-        return Button(action: {
-            viewModel.reloadTemplates()
-        }) {
-            ZStack {
-                RoundedRectangle(cornerRadius: DSRadius.small)
-                    .fill(DSColors.windowBackground)
-                RoundedRectangle(cornerRadius: DSRadius.small)
-                    .stroke(DSColors.blockBorder, lineWidth: 1)
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(DSColors.textSecondary)
-            }
-            .frame(width: size, height: size)
-        }
-        .buttonStyle(.plain)
-        .help("Reload Transitions")
     }
 
     private var contentScrollView: some View {
         DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-            let presets = displayedPresets
-            if presets.isEmpty {
-                emptyTemplatesView
+            let items = displayedItems
+            if items.isEmpty {
+                emptyLibraryView
             } else {
                 LazyVGrid(columns: columns, spacing: DSSpacing.sm) {
-                    ForEach(presets) { preset in
-                        let isFav = SidebarFavoriteManager.shared.isFavorite(id: preset.id, for: "transition")
+                    ForEach(items) { item in
+                        let isFav = SidebarFavoriteManager.shared.isFavorite(id: item.id, for: "transition")
                         UnifiedLibraryCardItemView(
-                            title: preset.name,
+                            title: item.name,
                             isFavorite: isFav,
-                            isSelected: selectedPresetID == preset.id,
-                            dragPayload: .transition(preset),
-                            onSelect: {
-                                selectedPresetID = preset.id
-                            },
-                            onAdd: {
-                                viewModel.applyTransitionToTimeline(preset)
-                            },
+                            isSelected: selectedItemID == item.id,
+                            dragPayload: .transition(item),
+                            onSelect: { selectedItemID = item.id },
+                            onAdd: { viewModel.applyTransitionToTimeline(item) },
                             onToggleFavorite: {
-                                SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "transition")
+                                SidebarFavoriteManager.shared.toggleFavorite(id: item.id, for: "transition")
                             }
                         ) { isCardHovered in
-                            transitionThumbnail(for: preset, isHovered: isCardHovered)
+                            TransitionAnimatedThumbnailView(item: item, isHovered: isCardHovered)
                         }
-                        .help("\(preset.name) — \(preset.description)")
+                        .help("\(item.name) — \(item.description)")
                     }
                 }
                 .padding(DSSpacing.sm)
@@ -117,12 +82,7 @@ public struct TransitionLibraryView: View {
         }
     }
 
-    @ViewBuilder
-    private func transitionThumbnail(for preset: TransitionPreset, isHovered: Bool) -> some View {
-        TransitionAnimatedThumbnailView(preset: preset, isHovered: isHovered)
-    }
-
-    private var emptyTemplatesView: some View {
+    private var emptyLibraryView: some View {
         VStack(spacing: DSSpacing.sm) {
             Image(systemName: "arrow.left.arrow.right")
                 .font(.system(size: 28))

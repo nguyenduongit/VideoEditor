@@ -252,7 +252,7 @@ public struct NeonCyberShiftScript: TextAnimationScript {
     public let id = "neon_cyber_shift"
     public let displayName = "Elastic Spring Pop"
     public let description = "Springy character pop with overshoot, playful tilt, and double-beat bounce"
-    public let category = TextAnimationCategory.kinetic
+    public let category = TextAnimationCategory.pop
     public let scope = TextAnimationScope.perCharacter
 
     public init() {}
@@ -261,39 +261,59 @@ public struct NeonCyberShiftScript: TextAnimationScript {
         let em = max(16.0, base.fontSize)
         switch phase {
         case .intro(let progress):
-            let total = max(1, unitTotal)
-            let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.46 / Double(total))) / 0.54))
-            guard p > 0.0 else { return TextUnitDelta(scaleX: 0.05, scaleY: 0.05, opacity: 0.0) }
-            let decay = exp(-p * 4.2)
-            let spring = 1.0 - decay * cos(p * .pi * 3.2)
-            let overshoot = decay * sin(p * .pi * 3.2)
-            let dir = unitIndex.isMultiple(of: 2) ? 1.0 : -1.0
-            return TextUnitDelta(
-                offsetY: (1.0 - spring) * (0.65 * em),
-                scaleX: max(0.08, spring + overshoot * 0.22),
-                scaleY: max(0.08, spring - overshoot * 0.14),
-                rotation: decay * cos(p * .pi * 2.5) * 26.0 * dir,
-                opacity: min(1.0, p * 4.5),
-                glowIntensityDelta: max(0.0, overshoot) * 30.0
-            )
+            let raw = evaluateIntroRaw(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
+            guard progress > 0.72 else { return raw }
+            let t = (progress - 0.72) / 0.28
+            let s = t * t * (3.0 - 2.0 * t)
+            return TextUnitDelta.lerp(raw, loopDelta(cycleProgress: progress, em: em, unitIndex: unitIndex), t: s)
         case .loop(_, let cycleProgress):
-            let angle = cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.58
-            let pulse = max(0.0, sin(angle))
-            let liftY = -pulse * (0.28 * em)
-            let scaleX = 1.0 - pulse * 0.08
-            let scaleY = 1.0 + pulse * 0.14
-            return TextUnitDelta(
-                offsetY: liftY, scaleX: scaleX, scaleY: scaleY,
-                rotation: cos(angle) * pulse * 8.0, opacity: 1.0
-            )
+            return loopDelta(cycleProgress: cycleProgress, em: em, unitIndex: unitIndex)
         case .outro(let progress):
-            let total = max(1, unitTotal)
-            let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.38 / Double(total))) / 0.62))
-            let pop = p < 0.28 ? (1.0 + sin((p / 0.28) * .pi) * 0.22) : max(0.05, 1.0 - pow((p - 0.28) / 0.72, 2.0))
-            return TextUnitDelta(
-                offsetY: p < 0.28 ? -sin((p / 0.28) * .pi) * (0.25 * em) : pow((p - 0.28) / 0.72, 2.0) * (0.65 * em),
-                scaleX: pop, scaleY: pop, opacity: 1.0 - pow(p, 1.8)
-            )
+            let raw = evaluateOutroRaw(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
+            let blendT = min(1.0, progress / 0.25)
+            return TextUnitDelta.lerp(loopDelta(cycleProgress: progress, em: em, unitIndex: unitIndex), raw, t: blendT)
         }
+    }
+
+    private func loopDelta(cycleProgress: Double, em: Double, unitIndex: Int) -> TextUnitDelta {
+        let angle = cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.58
+        let pulse = max(0.0, sin(angle))
+        return TextUnitDelta(
+            offsetY: -pulse * (0.28 * em),
+            scaleX: 1.0 - pulse * 0.08,
+            scaleY: 1.0 + pulse * 0.14,
+            rotation: cos(angle) * pulse * 8.0,
+            opacity: 1.0
+        )
+    }
+
+    private func evaluateIntroRaw(progress: Double, em: Double, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
+        let total = max(1, unitTotal)
+        let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.46 / Double(total))) / 0.54))
+        guard p > 0.0 else { return TextUnitDelta(scaleX: 0.05, scaleY: 0.05, opacity: 0.0) }
+        let decay = exp(-p * 4.2)
+        let spring = 1.0 - decay * cos(p * .pi * 3.2)
+        let overshoot = decay * sin(p * .pi * 3.2)
+        let dir = unitIndex.isMultiple(of: 2) ? 1.0 : -1.0
+        return TextUnitDelta(
+            offsetY: (1.0 - spring) * (0.65 * em),
+            scaleX: max(0.08, spring + overshoot * 0.22),
+            scaleY: max(0.08, spring - overshoot * 0.14),
+            rotation: decay * cos(p * .pi * 2.5) * 26.0 * dir,
+            opacity: min(1.0, p * 4.5),
+            glowIntensityDelta: max(0.0, overshoot) * 30.0
+        )
+    }
+
+    private func evaluateOutroRaw(progress: Double, em: Double, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
+        let total = max(1, unitTotal)
+        let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.38 / Double(total))) / 0.62))
+        let pop = p < 0.28 ? (1.0 + sin((p / 0.28) * .pi) * 0.22) : max(0.05, 1.0 - pow((p - 0.28) / 0.72, 2.0))
+        return TextUnitDelta(
+            offsetY: p < 0.28 ? -sin((p / 0.28) * .pi) * (0.25 * em) : pow((p - 0.28) / 0.72, 2.0) * (0.65 * em),
+            scaleX: pop,
+            scaleY: pop,
+            opacity: 1.0 - pow(p, 1.8)
+        )
     }
 }

@@ -220,6 +220,8 @@ public struct TimelineClipContextActions {
     public let onToggleBeatAtPlayhead: (UUID) -> Void
     public let onClearBeats: (UUID) -> Void
     public let onSetAudioFade: (UUID, Double) -> Void
+    public let canOverwriteOriginPreset: (TimelineClip) -> Bool
+    public let onOverwritePreset: (TimelineClip) -> Void
 
     public init(
         playheadTime: CMTime,
@@ -244,7 +246,9 @@ public struct TimelineClipContextActions {
         onAutoMarkBeats: @escaping (UUID, AudioBeatDetectionMode) -> Void,
         onToggleBeatAtPlayhead: @escaping (UUID) -> Void,
         onClearBeats: @escaping (UUID) -> Void,
-        onSetAudioFade: @escaping (UUID, Double) -> Void
+        onSetAudioFade: @escaping (UUID, Double) -> Void,
+        canOverwriteOriginPreset: @escaping (TimelineClip) -> Bool = { _ in false },
+        onOverwritePreset: @escaping (TimelineClip) -> Void = { _ in }
     ) {
         self.playheadTime = playheadTime
         self.canPasteClip = canPasteClip
@@ -269,5 +273,7 @@ public struct TimelineClipContextActions {
         self.onToggleBeatAtPlayhead = onToggleBeatAtPlayhead
         self.onClearBeats = onClearBeats
         self.onSetAudioFade = onSetAudioFade
+        self.canOverwriteOriginPreset = canOverwriteOriginPreset
+        self.onOverwritePreset = onOverwritePreset
     }
 }

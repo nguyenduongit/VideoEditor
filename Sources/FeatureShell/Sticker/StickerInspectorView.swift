@@ -15,9 +15,17 @@ public struct StickerInspectorView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.md) {
             headerSection
+            if currentConfig.format == .audiogram {
+                AudiogramInspectorSectionView(viewModel: viewModel)
+            }
             transformSection
         }
         .padding(.vertical, DSSpacing.xs)
+        .onAppear {
+            if currentConfig.format == .audiogram {
+                viewModel.ensureAudioBeatsAnalyzedForSelectedClip()
+            }
+        }
     }
 
     private var currentConfig: StickerConfiguration {

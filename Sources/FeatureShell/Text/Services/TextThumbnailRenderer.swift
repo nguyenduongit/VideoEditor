@@ -208,15 +208,8 @@ public enum TextThumbnailRenderer {
             cfg.content = preset.name
         }
         if cfg.animation.isDefault && !isDefaultStaticPreset(preset) {
-            cfg.animation = TextAnimationConfiguration(
-                inDuration: 0.8,
-                outDuration: 0.7,
-                loopSpeed: 1.0,
-                scope: .perCharacter,
-                inManifest: AnimationPreset.inElasticJellyDrop.manifest,
-                outManifest: AnimationPreset.outPixelDisintegrate.manifest,
-                loopManifest: AnimationPreset.loopHarmonicWave.manifest
-            )
+            cfg.animation.scriptId = "kinetic_drop_glow"
+            cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: 2, speed: 1.0)
         }
         return cfg
     }

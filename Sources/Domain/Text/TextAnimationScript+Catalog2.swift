@@ -152,11 +152,11 @@ public struct GlitchRGBPopScript: TextAnimationScript {
     }
 }
 
-// MARK: - Script 7: Cinematic Focus Rise (Từng từ vút cung tròn & Lấy nét quang học)
+// MARK: - Script 7: Word Glide (Từng từ trượt mượt từ mép trái màn hình vào tâm, thoát ra mép phải)
 public struct SmoothWordGlideScript: TextAnimationScript {
     public let id = "smooth_word_glide"
     public let displayName = "Word Glide"
-    public let description = "Words glide up to center, hover weightlessly, then sweep cleanly upward"
+    public let description = "Words slide cleanly from off-screen left, hover gently, and glide off-screen right"
     public let category = TextAnimationCategory.slide
     public let scope = TextAnimationScope.perWord
 
@@ -169,54 +169,54 @@ public struct SmoothWordGlideScript: TextAnimationScript {
         unitTotal: Int
     ) -> TextUnitDelta {
         let em = max(16.0, base.fontSize)
+        let loopAt: (Double) -> (y: Double, rot: Double) = { prog in
+            let angle = prog * .pi * 2.0 - Double(unitIndex) * 0.75
+            return (-sin(angle) * (0.10 * em), cos(angle) * 2.2)
+        }
         switch phase {
         case .intro(let progress):
             let total = max(1, unitTotal)
-            let stagger = 0.44 / Double(total)
-            let p = min(1.0, max(0.0, (progress - Double(unitIndex) * stagger) / 0.56))
-            if p <= 0.0 {
-                return TextUnitDelta(offsetX: -0.55 * em, offsetY: 0.85 * em, rotation: -18.0, opacity: 0.0, blurRadius: 0.28 * em)
+            let stagger = 0.42 / Double(total)
+            let p = min(1.0, max(0.0, (progress - Double(unitIndex) * stagger) / 0.58))
+            guard p > 0.0 else {
+                return TextUnitDelta(offsetY: 0.28 * em, canvasOffsetXRatio: -0.95, rotation: -8.0, opacity: 0.0, blurRadius: 0.24 * em)
             }
-            let decay = exp(-p * 4.2) * (1.0 - p)
-            let spring = 1.0 - decay * cos(p * .pi * 2.4)
-            let angle = progress * .pi * 2.0 - Double(unitIndex) * 0.75
-            let floatY = -sin(angle) * (0.16 * em), rot = cos(angle) * 3.2
+            let ease = 1.0 - pow(1.0 - p, 3.4)
+            let rem = 1.0 - ease
+            let l = loopAt(progress)
+            let blendLoop = max(0.0, (progress - 0.72) / 0.28)
+            let sLoop = blendLoop * blendLoop * (3.0 - 2.0 * blendLoop)
             return TextUnitDelta(
-                offsetX: (1.0 - spring) * (-0.55 * em),
-                offsetY: (1.0 - spring) * (0.85 * em) + spring * floatY,
-                scaleX: 0.82 + 0.18 * spring,
-                scaleY: 0.82 + 0.18 * spring,
-                rotation: (1.0 - spring) * -18.0 + spring * rot,
-                skewX: (1.0 - spring) * -10.0,
-                opacity: min(1.0, p * 3.2),
-                blurRadius: max(0.0, (1.0 - p) * (0.26 * em))
+                offsetY: rem * (0.28 * em) + sLoop * l.y,
+                canvasOffsetXRatio: -0.95 * rem,
+                scaleX: 0.90 + 0.10 * ease,
+                scaleY: 0.90 + 0.10 * ease,
+                rotation: rem * -8.0 + sLoop * l.rot,
+                skewX: rem * -8.0,
+                opacity: min(1.0, p * 3.5),
+                blurRadius: max(0.0, rem * (0.22 * em))
             )
 
         case .loop(_, let cycleProgress):
-            let angle = cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.75
-            let floatY = -sin(angle) * (0.16 * em)
-            let rot = cos(angle) * 3.2
-            return TextUnitDelta(
-                offsetY: floatY,
-                rotation: rot,
-                opacity: 1.0
-            )
+            let l = loopAt(cycleProgress)
+            return TextUnitDelta(offsetY: l.y, rotation: l.rot, opacity: 1.0)
 
         case .outro(let progress):
             let total = max(1, unitTotal)
             let stagger = 0.35 / Double(total)
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * stagger) / 0.65))
-            let ease = p * p
-            let angle = progress * .pi * 2.0 - Double(unitIndex) * 0.75
-            let floatY = -sin(angle) * (0.16 * em), rot = cos(angle) * 3.2
+            let ease = pow(p, 2.4)
+            let stay = 1.0 - ease
+            let l = loopAt(progress)
             return TextUnitDelta(
-                offsetX: ease * (0.50 * em),
-                offsetY: (1.0 - ease) * floatY - ease * (0.80 * em),
-                scaleX: 1.0 - ease * 0.18,
-                scaleY: 1.0 - ease * 0.18,
-                rotation: (1.0 - ease) * rot + ease * 15.0,
-                opacity: 1.0 - ease,
-                blurRadius: ease * (0.26 * em)
+                offsetY: stay * l.y - ease * (0.24 * em),
+                canvasOffsetXRatio: 0.95 * ease,
+                scaleX: 1.0 - ease * 0.10,
+                scaleY: 1.0 - ease * 0.10,
+                rotation: stay * l.rot + ease * 8.0,
+                skewX: ease * 8.0,
+                opacity: stay,
+                blurRadius: ease * (0.22 * em)
             )
         }
     }
@@ -227,7 +227,8 @@ public struct ElasticFlip3DScript: TextAnimationScript {
     public let id = "elastic_flip_3d"
     public let displayName = "3D Domino Flip"
     public let description = "Characters cascade in 3D domino flips with elastic bounce settling"
-    public let category = TextAnimationCategory.cinematic
+    public let category = TextAnimationCategory.pop
+    public let tags: [TextAnimationTag] = [.pop, .threeD]
     public let scope = TextAnimationScope.perCharacter
 
     public init() {}
@@ -241,51 +242,59 @@ public struct ElasticFlip3DScript: TextAnimationScript {
         let em = max(16.0, base.fontSize)
         switch phase {
         case .intro(let progress):
-            let total = max(1, unitTotal)
-            let stagger = 0.50 / Double(total)
-            let p = min(1.0, max(0.0, (progress - Double(unitIndex) * stagger) / 0.50))
-            if p <= 0.0 { return TextUnitDelta(scaleX: 0.04, opacity: 0.0) }
-            let decay = exp(-p * 3.8)
-            let flipCos = 1.0 - decay * cos(p * .pi * 3.0)
-            let scaleX = max(0.06, flipCos)
-            let scaleY = 0.76 + 0.24 * min(1.0, p * 1.5) + decay * sin(p * .pi * 3.0) * 0.18
-            let skewY = decay * cos(p * .pi * 3.0) * 24.0
-            let offsetY = -decay * sin(p * .pi * 2.0) * (0.42 * em)
-            return TextUnitDelta(
-                offsetY: offsetY,
-                scaleX: scaleX,
-                scaleY: scaleY,
-                skewY: skewY,
-                opacity: min(1.0, p * 4.5),
-                glowIntensityDelta: decay * 22.0
-            )
-
+            let raw = evaluateIntroRaw(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
+            guard progress > 0.72 else { return raw }
+            let t = (progress - 0.72) / 0.28
+            let s = t * t * (3.0 - 2.0 * t)
+            return TextUnitDelta.lerp(raw, loopDelta(cycleProgress: progress, em: em, unitIndex: unitIndex), t: s)
         case .loop(_, let cycleProgress):
-            let waveArg = cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.48
-            let pulse = max(0.0, sin(waveArg))
-            let flipScaleX = 1.0 - pulse * 0.34
-            let liftY = -pulse * (0.20 * em)
-            let skewY = cos(waveArg) * pulse * 14.0
-            return TextUnitDelta(
-                offsetY: liftY,
-                scaleX: flipScaleX,
-                scaleY: 1.0 + pulse * 0.10,
-                skewY: skewY,
-                opacity: 1.0
-            )
-
+            return loopDelta(cycleProgress: cycleProgress, em: em, unitIndex: unitIndex)
         case .outro(let progress):
-            let total = max(1, unitTotal)
-            let stagger = 0.40 / Double(total)
-            let p = min(1.0, max(0.0, (progress - Double(unitIndex) * stagger) / 0.60))
-            let ease = p * p
-            return TextUnitDelta(
-                offsetY: ease * (0.45 * em),
-                scaleX: max(0.04, 1.0 - ease * 0.96),
-                scaleY: 1.0 - ease * 0.22,
-                skewY: ease * -24.0,
-                opacity: 1.0 - ease
-            )
+            let raw = evaluateOutroRaw(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
+            return TextUnitDelta.lerp(loopDelta(cycleProgress: progress, em: em, unitIndex: unitIndex), raw, t: min(1.0, progress / 0.25))
         }
+    }
+
+    private func loopDelta(cycleProgress: Double, em: Double, unitIndex: Int) -> TextUnitDelta {
+        let waveArg = cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.48
+        let pulse = max(0.0, sin(waveArg))
+        return TextUnitDelta(
+            offsetY: -pulse * (0.20 * em),
+            scaleX: 1.0 - pulse * 0.34,
+            scaleY: 1.0 + pulse * 0.10,
+            skewY: cos(waveArg) * pulse * 14.0,
+            opacity: 1.0
+        )
+    }
+
+    private func evaluateIntroRaw(progress: Double, em: Double, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
+        let total = max(1, unitTotal)
+        let stagger = 0.50 / Double(total)
+        let p = min(1.0, max(0.0, (progress - Double(unitIndex) * stagger) / 0.50))
+        if p <= 0.0 { return TextUnitDelta(scaleX: 0.04, opacity: 0.0) }
+        let decay = exp(-p * 3.8)
+        let flipCos = 1.0 - decay * cos(p * .pi * 3.0)
+        return TextUnitDelta(
+            offsetY: -decay * sin(p * .pi * 2.0) * (0.42 * em),
+            scaleX: max(0.06, flipCos),
+            scaleY: 0.76 + 0.24 * min(1.0, p * 1.5) + decay * sin(p * .pi * 3.0) * 0.18,
+            skewY: decay * cos(p * .pi * 3.0) * 24.0,
+            opacity: min(1.0, p * 4.5),
+            glowIntensityDelta: decay * 22.0
+        )
+    }
+
+    private func evaluateOutroRaw(progress: Double, em: Double, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
+        let total = max(1, unitTotal)
+        let stagger = 0.40 / Double(total)
+        let p = min(1.0, max(0.0, (progress - Double(unitIndex) * stagger) / 0.60))
+        let ease = p * p
+        return TextUnitDelta(
+            offsetY: ease * (0.45 * em),
+            scaleX: max(0.04, 1.0 - ease * 0.96),
+            scaleY: 1.0 - ease * 0.22,
+            skewY: ease * -24.0,
+            opacity: 1.0 - ease
+        )
     }
 }

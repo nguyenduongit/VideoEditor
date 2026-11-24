@@ -24,10 +24,12 @@ public struct InspectorView: View {
                         InspectorTopbarToastView(viewModel: viewModel.actionsPanelViewModel)
                     }
                 )
+                .layoutPriority(1)
                 contentArea
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(width: DSSize.sidebarWidth)
-            .frame(maxHeight: .infinity)
+            .frame(maxHeight: .infinity, alignment: .top)
         }
         .frame(width: DSSize.sidebarWidth)
         .onAppear {

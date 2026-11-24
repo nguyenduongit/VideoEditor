@@ -2,10 +2,9 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Bảng Inspector chuyên dụng cho clip Hiệu ứng thị giác (Effect Layer).
-/// Tự động sinh các thanh trượt tùy chỉnh (`customParameters`) được định nghĩa trong Gói Sáng Tạo Mở.
-/// Hỗ trợ lưu và ghi đè Effect Preset trên Supabase & bộ nhớ đệm.
-/// Tuân thủ AGENTS.md (1 File = 1 Primary Type, Ubiquitous Language, Hàm <= 50 dòng, Body <= 40 dòng).
+/// Inspector panel for visual Effect Layer clips.
+/// Dynamically renders custom shader parameter sliders defined in `EffectConfiguration.customParameters`.
+/// System-only Effects do not expose User Preset Save/Overwrite controls per AGENTS.md Article 15.
 public struct EffectInspectorView: View {
     @Bindable private var viewModel: InspectorViewModel
 
@@ -16,7 +15,6 @@ public struct EffectInspectorView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.lg) {
             headerSection
-            EffectPresetActionSectionView(viewModel: viewModel, currentConfig: currentConfig)
             Divider().background(DSColors.blockBorder)
             slidersSection
             if !currentConfig.customParameters.isEmpty {
@@ -221,170 +219,6 @@ public struct EffectInspectorView: View {
     private func commitConfig() {
         if let json = currentConfig.encodeToJSON() {
             viewModel.commitTextProperty(key: "effectConfig", text: json)
-        }
-    }
-}
-
-// MARK: - Subview nội bộ: Thao tác Lưu & Ghi đè Preset (Private Cohesion)
-
-public struct EffectPresetActionSectionView: View {
-    @Bindable var viewModel: InspectorViewModel
-    let currentConfig: EffectConfiguration
-
-    @State private var isSaveModalPresented: Bool = false
-    @State private var isOverwriteAlertPresented: Bool = false
-    @State private var isOverwriting: Bool = false
-    @State private var saveSuccessMessage: String?
-
-    public init(viewModel: InspectorViewModel, currentConfig: EffectConfiguration) {
-        self.viewModel = viewModel
-        self.currentConfig = currentConfig
-    }
-
-    private var originPresetID: String? {
-        viewModel.liveProperties["originPresetId"]?.asString
-            ?? viewModel.selectedClip?.properties["originPresetId"]?.asString
-    }
-
-    private var originPresetName: String? {
-        viewModel.liveProperties["originPresetName"]?.asString
-            ?? viewModel.selectedClip?.properties["originPresetName"]?.asString
-    }
-
-    private var canOverwriteOrigin: Bool {
-        guard let originID = originPresetID else { return false }
-        let all = viewModel.dependencies.effectTemplates.loadAllTemplates()
-        guard let existing = all.first(where: { $0.id == originID }) else { return false }
-        return existing.canBeModified(by: CommunityIdentity.currentAuthorID)
-    }
-
-    public var body: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            if let originID = originPresetID, let originName = originPresetName, canOverwriteOrigin {
-                existingPresetButtons(originID: originID, originName: originName)
-            } else {
-                newPresetButton
-            }
-
-            if let saveSuccessMessage {
-                Text(saveSuccessMessage)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Color.green)
-            }
-        }
-        .popover(isPresented: $isSaveModalPresented) {
-            SavePresetModalView(
-                kind: .effect(config: currentConfig),
-                originPresetID: originPresetID,
-                originPresetName: originPresetName,
-                dependencies: viewModel.dependencies,
-                onSaveCompleted: { newID, newName in
-                    viewModel.commitTextProperty(key: "originPresetId", text: newID)
-                    viewModel.commitTextProperty(key: "originPresetName", text: newName)
-                    saveSuccessMessage = "Saved preset \"\(newName)\" successfully!"
-                },
-                onDismiss: { isSaveModalPresented = false }
-            )
-        }
-        .alert("Confirm Preset Overwrite", isPresented: $isOverwriteAlertPresented) {
-            Button(String(localized: "Overwrite"), role: .destructive) {
-                overwriteCurrentPreset()
-            }
-            Button(String(localized: "Cancel"), role: .cancel) {}
-        } message: {
-            Text(String(localized: "Are you sure you want to update all new effect parameters to preset \"\(originPresetName ?? "")\" on Supabase?"))
-        }
-    }
-
-    private func existingPresetButtons(originID: String, originName: String) -> some View {
-        HStack(spacing: DSSpacing.sm) {
-            Button(action: { isOverwriteAlertPresented = true }) {
-                HStack(spacing: 5) {
-                    if isOverwriting {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                    }
-                    Text(String(localized: "Overwrite \"\(originName)\""))
-                        .lineLimit(1)
-                }
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 7)
-                .background(DSColors.accent)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
-            .buttonStyle(.plain)
-            .disabled(isOverwriting)
-
-            Button(action: { isSaveModalPresented = true }) {
-                Image(systemName: "plus")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(DSColors.textPrimary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .background(Color.white.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
-            .buttonStyle(.plain)
-            .help(String(localized: "Save as a new preset copy..."))
-        }
-    }
-
-    private var newPresetButton: some View {
-        Button(action: { isSaveModalPresented = true }) {
-            HStack(spacing: 6) {
-                Image(systemName: "square.and.arrow.down")
-                Text(String(localized: "Save as Preset..."))
-                Spacer()
-                Image(systemName: "icloud.and.arrow.up")
-                    .foregroundStyle(DSColors.textSecondary)
-            }
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(DSColors.textPrimary)
-            .padding(.horizontal, DSSpacing.sm)
-            .padding(.vertical, 7)
-            .background(Color.white.opacity(0.06))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.12), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func overwriteCurrentPreset() {
-        guard let originID = originPresetID, let originName = originPresetName else { return }
-        isOverwriting = true
-        saveSuccessMessage = nil
-
-        let allPresets = viewModel.dependencies.effectTemplates.loadAllTemplates()
-        let existing = allPresets.first(where: { $0.id == originID })
-
-        let updatedPreset = EffectPreset(
-            id: originID,
-            name: originName,
-            description: existing?.description ?? "",
-            category: existing?.category ?? .lightTransition,
-            tags: existing?.tags ?? [originName.lowercased()],
-            config: currentConfig,
-            isSystem: false,
-            community: existing?.community
-        )
-
-        Task {
-            do {
-                viewModel.dependencies.effectTemplates.updateInMemoryPreset(updatedPreset)
-                try await viewModel.dependencies.presetRepositories.effectRepository?.savePreset(updatedPreset)
-                await MainActor.run {
-                    isOverwriting = false
-                    saveSuccessMessage = "Updated \"\(originName)\" successfully!"
-                }
-            } catch {
-                await MainActor.run {
-                    isOverwriting = false
-                    saveSuccessMessage = "Update error: \(error.localizedDescription)"
-                }
-            }
         }
     }
 }

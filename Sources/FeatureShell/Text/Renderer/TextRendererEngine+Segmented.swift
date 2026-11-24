@@ -10,50 +10,19 @@ import Domain
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, Hàm <= 50 dòng).
 extension TextRendererEngine {
 
-    /// Kiểm tra hoạt ảnh có bản chất kinetic per-character (cần phân tách từng con chữ) hay không
-    public static func isKineticTypographyAnimation(_ anim: TextAnimationConfiguration) -> Bool {
-        if let inM = anim.inManifest, inM.defaultScope != .wholeBlock { return true }
-        if let outM = anim.outManifest, outM.defaultScope != .wholeBlock { return true }
-        if let loopM = anim.loopManifest, loopM.defaultScope != .wholeBlock { return true }
-
-        switch anim.inType {
-        case .slideUp, .whipRight, .kineticDrop, .typewriter:
-            return true
-        default: break
-        }
-
-        switch anim.outType {
-        case .dropDown, .whipOut:
-            return true
-        default: break
-        }
-
-        switch anim.loopType {
-        case .wave, .shake:
-            return true
-        default: break
-        }
-
-        return false
-    }
-
-    /// Xác định xem văn bản có nên được kết xuất phân tách theo ký tự / từ hay không
+    /// Determines whether text should render per-line / per-word / per-character for the active `TextAnimationScript`.
     public func shouldRenderSegmented(for config: TextConfiguration) -> Bool {
         guard !config.animation.isDefault else { return false }
-        if config.animation.hasScriptAnimation {
-            if let script = TextAnimationScriptRegistry.shared.script(for: config.animation.scriptId) {
-                return script.scope != .wholeBlock
-            }
+        if config.animation.hasScriptAnimation,
+           let script = TextAnimationScriptRegistry.shared.script(for: config.animation.scriptId) {
+            let effective = config.animation.scopeOverride ?? script.scope
+            return effective != .wholeBlock
         }
-        if config.animation.scope != .wholeBlock { return true }
-        if let manifest = config.animation.loopManifest, manifest.defaultScope != .wholeBlock { return true }
-        if let manifest = config.animation.inManifest, manifest.defaultScope != .wholeBlock { return true }
-        if let manifest = config.animation.outManifest, manifest.defaultScope != .wholeBlock { return true }
-        return Self.isKineticTypographyAnimation(config.animation)
+        return (config.animation.scopeOverride ?? config.animation.scope) != .wholeBlock
     }
 
     #if os(macOS)
-    /// Kết xuất phân cấp từng ký tự hoặc từng từ với đường cong vật lý và độ trễ sóng chuẩn CapCut
+    /// Renders per-line / per-word / per-character kinetic typography driven by unified scripts.
     internal func renderSegmentedAnimatedImage(
         for config: TextConfiguration,
         localTime: Double,
@@ -73,15 +42,11 @@ extension TextRendererEngine {
         let effectiveScope: TextAnimationScope
         if config.animation.hasScriptAnimation,
            let script = TextAnimationScriptRegistry.shared.script(for: config.animation.scriptId) {
-            effectiveScope = script.scope
+            effectiveScope = config.animation.scopeOverride ?? script.scope
+        } else if let overrideScope = config.animation.scopeOverride, overrideScope != .wholeBlock {
+            effectiveScope = overrideScope
         } else if config.animation.scope != .wholeBlock {
             effectiveScope = config.animation.scope
-        } else if let manifest = config.animation.loopManifest, manifest.defaultScope != .wholeBlock {
-            effectiveScope = manifest.defaultScope
-        } else if let manifest = config.animation.inManifest, manifest.defaultScope != .wholeBlock {
-            effectiveScope = manifest.defaultScope
-        } else if let manifest = config.animation.outManifest, manifest.defaultScope != .wholeBlock {
-            effectiveScope = manifest.defaultScope
         } else {
             effectiveScope = config.content.count > 50 ? .perWord : .perCharacter
         }

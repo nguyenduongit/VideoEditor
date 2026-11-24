@@ -8,6 +8,8 @@ public enum TextAnimationCategory: String, CaseIterable, Codable, Sendable, Equa
     case wave = "Wave"
     case glitch = "Glitch"
     case typewriter = "Typewriter"
+    case threeD = "3D"
+    case lightFX = "Light FX"
 
     // Legacy static aliases preserving backward compatibility
     public static let title: Self = .wave, sub: Self = .slide, music: Self = .wave
@@ -19,6 +21,7 @@ public enum TextAnimationCategory: String, CaseIterable, Codable, Sendable, Equa
         switch self {
         case .fade: "sun.max"; case .slide: "arrow.right.to.line"; case .pop: "bolt.circle.fill"
         case .wave: "water.waves"; case .glitch: "sparkles.tv"; case .typewriter: "character.cursor.ibeam"
+        case .threeD: "cube.transparent"; case .lightFX: "sparkles"
         }
     }
 }
@@ -32,6 +35,8 @@ public struct TextUnitDelta: Sendable, Equatable {
     // MARK: - 1. Transform & Cursor Delta (Pure Kinematics)
     public var offsetX: Double
     public var offsetY: Double
+    public var canvasOffsetXRatio: Double
+    public var canvasOffsetYRatio: Double
     public var scaleX: Double
     public var scaleY: Double
     public var rotation: Double
@@ -61,8 +66,20 @@ public struct TextUnitDelta: Sendable, Equatable {
     public var glitchIntensity: Double
     public var noiseIntensity: Double
 
+    // MARK: - 3. GPU Shader Channels (TextShaderFilterEngine)
+    public var perspectiveX: Double
+    public var perspectiveY: Double
+    public var motionBlurRadius: Double
+    public var motionBlurAngle: Double
+    public var lightSweepPhase: Double
+    public var liquidWavePhase: Double
+    public var glitchSliceIntensity: Double
+    public var pixelateScale: Double
+    public var hueAngle: Double
+
     public init(
         offsetX: Double = 0.0, offsetY: Double = 0.0,
+        canvasOffsetXRatio: Double = 0.0, canvasOffsetYRatio: Double = 0.0,
         scaleX: Double = 1.0, scaleY: Double = 1.0,
         rotation: Double = 0.0, skewX: Double = 0.0, skewY: Double = 0.0,
         opacity: Double = 1.0, trailingCursorOpacity: Double = 0.0,
@@ -71,9 +88,14 @@ public struct TextUnitDelta: Sendable, Equatable {
         trackingEmDelta: Double = 0.0, anchorOverride: TextAnchorPoint? = nil,
         echoCount: Int = 0, echoOffsetXEm: Double = 0.0, echoOffsetYEm: Double = 0.0,
         glowIntensityDelta: Double = 0.0, shadowDistanceDelta: Double = 0.0,
-        blurRadius: Double = 0.0, glitchIntensity: Double = 0.0, noiseIntensity: Double = 0.0
+        blurRadius: Double = 0.0, glitchIntensity: Double = 0.0, noiseIntensity: Double = 0.0,
+        perspectiveX: Double = 0.0, perspectiveY: Double = 0.0,
+        motionBlurRadius: Double = 0.0, motionBlurAngle: Double = 0.0,
+        lightSweepPhase: Double = -1.0, liquidWavePhase: Double = -1.0,
+        glitchSliceIntensity: Double = 0.0, pixelateScale: Double = 0.0, hueAngle: Double = 0.0
     ) {
         self.offsetX = offsetX; self.offsetY = offsetY
+        self.canvasOffsetXRatio = canvasOffsetXRatio; self.canvasOffsetYRatio = canvasOffsetYRatio
         self.scaleX = scaleX; self.scaleY = scaleY
         self.rotation = rotation; self.skewX = skewX; self.skewY = skewY
         self.opacity = max(0.0, min(1.0, opacity))
@@ -85,9 +107,57 @@ public struct TextUnitDelta: Sendable, Equatable {
         self.glowIntensityDelta = glowIntensityDelta; self.shadowDistanceDelta = shadowDistanceDelta
         self.blurRadius = max(0.0, blurRadius)
         self.glitchIntensity = max(0.0, min(100.0, glitchIntensity)); self.noiseIntensity = max(0.0, min(100.0, noiseIntensity))
+        self.perspectiveX = max(-0.85, min(0.85, perspectiveX)); self.perspectiveY = max(-0.85, min(0.85, perspectiveY))
+        self.motionBlurRadius = max(0.0, min(45.0, motionBlurRadius)); self.motionBlurAngle = motionBlurAngle
+        self.lightSweepPhase = lightSweepPhase; self.liquidWavePhase = liquidWavePhase
+        self.glitchSliceIntensity = max(0.0, glitchSliceIntensity)
+        self.pixelateScale = max(0.0, pixelateScale); self.hueAngle = hueAngle
     }
 
     public static let identity = TextUnitDelta()
+
+    /// Smooth linear interpolation between two deltas to guarantee exact phase-boundary continuity.
+    public static func lerp(_ a: TextUnitDelta, _ b: TextUnitDelta, t: Double) -> TextUnitDelta {
+        let k = max(0.0, min(1.0, t))
+        let inv = 1.0 - k
+        return TextUnitDelta(
+            offsetX: inv * a.offsetX + k * b.offsetX,
+            offsetY: inv * a.offsetY + k * b.offsetY,
+            canvasOffsetXRatio: inv * a.canvasOffsetXRatio + k * b.canvasOffsetXRatio,
+            canvasOffsetYRatio: inv * a.canvasOffsetYRatio + k * b.canvasOffsetYRatio,
+            scaleX: inv * a.scaleX + k * b.scaleX,
+            scaleY: inv * a.scaleY + k * b.scaleY,
+            rotation: inv * a.rotation + k * b.rotation,
+            skewX: inv * a.skewX + k * b.skewX,
+            skewY: inv * a.skewY + k * b.skewY,
+            opacity: inv * a.opacity + k * b.opacity,
+            trailingCursorOpacity: inv * a.trailingCursorOpacity + k * b.trailingCursorOpacity,
+            waveAmplitudeEm: inv * a.waveAmplitudeEm + k * b.waveAmplitudeEm,
+            waveFrequencyEm: inv * a.waveFrequencyEm + k * b.waveFrequencyEm,
+            wavePhaseRadians: inv * a.wavePhaseRadians + k * b.wavePhaseRadians,
+            clipRevealX: inv * a.clipRevealX + k * b.clipRevealX,
+            clipRevealY: inv * a.clipRevealY + k * b.clipRevealY,
+            trackingEmDelta: inv * a.trackingEmDelta + k * b.trackingEmDelta,
+            anchorOverride: k > 0.5 ? (b.anchorOverride ?? a.anchorOverride) : (a.anchorOverride ?? b.anchorOverride),
+            echoCount: k > 0.5 ? b.echoCount : a.echoCount,
+            echoOffsetXEm: inv * a.echoOffsetXEm + k * b.echoOffsetXEm,
+            echoOffsetYEm: inv * a.echoOffsetYEm + k * b.echoOffsetYEm,
+            glowIntensityDelta: inv * a.glowIntensityDelta + k * b.glowIntensityDelta,
+            shadowDistanceDelta: inv * a.shadowDistanceDelta + k * b.shadowDistanceDelta,
+            blurRadius: inv * a.blurRadius + k * b.blurRadius,
+            glitchIntensity: inv * a.glitchIntensity + k * b.glitchIntensity,
+            noiseIntensity: inv * a.noiseIntensity + k * b.noiseIntensity,
+            perspectiveX: inv * a.perspectiveX + k * b.perspectiveX,
+            perspectiveY: inv * a.perspectiveY + k * b.perspectiveY,
+            motionBlurRadius: inv * a.motionBlurRadius + k * b.motionBlurRadius,
+            motionBlurAngle: inv * a.motionBlurAngle + k * b.motionBlurAngle,
+            lightSweepPhase: (a.lightSweepPhase >= 0 && b.lightSweepPhase >= 0) ? (inv * a.lightSweepPhase + k * b.lightSweepPhase) : (k > 0.5 ? b.lightSweepPhase : a.lightSweepPhase),
+            liquidWavePhase: (a.liquidWavePhase >= 0 && b.liquidWavePhase >= 0) ? (inv * a.liquidWavePhase + k * b.liquidWavePhase) : (k > 0.5 ? b.liquidWavePhase : a.liquidWavePhase),
+            glitchSliceIntensity: inv * a.glitchSliceIntensity + k * b.glitchSliceIntensity,
+            pixelateScale: inv * a.pixelateScale + k * b.pixelateScale,
+            hueAngle: inv * a.hueAngle + k * b.hueAngle
+        )
+    }
 }
 
 /// Ba pha diễn hoạt chuyển động toàn vẹn trong 1 Script: Xuất hiện (In) -> Tuần hoàn (Loop) -> Biến mất (Out).
@@ -149,30 +219,20 @@ extension TextAnimationScript {
         localTime: Double,
         duration: Double
     ) -> TextScriptPhase {
-        let safeDur = max(0.1, duration)
-        let t = max(0.0, min(safeDur, localTime))
-        let rawIn = max(0.0, anim.scriptInDuration), rawOut = max(0.0, anim.scriptOutDuration)
-        let inD: Double, outD: Double
-        if (rawIn + rawOut) >= (safeDur * 0.6) {
-            let scale = (safeDur * 0.5) / max(0.001, rawIn + rawOut)
-            inD = rawIn * scale; outD = rawOut * scale
-        } else {
-            inD = rawIn; outD = rawOut
+        let phases = anim.resolvedPhases(forClipDuration: duration, baseCycleSeconds: loopCycleDuration)
+        let t = max(0.0, min(phases.totalDuration, localTime))
+        if phases.inDuration > 0.0001 && t < phases.inDuration {
+            return .intro(progress: t / phases.inDuration)
         }
-        let outStart = max(inD, safeDur - outD)
-        if t < inD {
-            return .intro(progress: t / max(0.001, inD))
-        } else if t < outStart {
-            let loopSpan = max(0.001, outStart - inD)
-            let loopElapsed = t - inD
-            let baseLoopSteps = Double(anim.scriptBaseLoopSeconds)
-            let baseLoopTime = (loopElapsed / loopSpan) * baseLoopSteps
-            let totalCycles = baseLoopTime * Double(cyclesPerUnitSecond)
+        let loopEnd = phases.inDuration + phases.loopDuration
+        if phases.cycleCount > 0 && phases.loopDuration > 0.0001 && t < loopEnd {
+            let loopElapsed = max(0.0, t - phases.inDuration)
+            let totalCycles = Double(phases.cycleCount) * (loopElapsed / phases.loopDuration)
             let cycleProg = totalCycles - floor(totalCycles)
-            return .loop(time: baseLoopTime, cycleProgress: max(0.0, min(1.0, cycleProg)))
-        } else {
-            return .outro(progress: (t - outStart) / max(0.001, outD))
+            return .loop(time: loopElapsed, cycleProgress: max(0.0, min(1.0, cycleProg)))
         }
+        let denom = max(0.0001, phases.outDuration)
+        return .outro(progress: max(0.0, min(1.0, (t - loopEnd) / denom)))
     }
 
     public func evaluate(
@@ -261,23 +321,37 @@ public final class TextAnimationScriptRegistry: Sendable {
 
     public init() {
         let activeList: [any TextAnimationScript] = [
+            // Fade
             SoftGlowFadeScript(), CinematicDissolveScript(), SoftBreatheCascadeScript(),
-            SmoothWordGlideScript(), CurtainBaselineRiseScript(), TrailerTrackingExpandScript(),
+            BlurFocusDissolveScript(), KaraokeGlowFlowScript(),
+            // Slide
+            SmoothWordGlideScript(), LineCascadeRiseScript(), TrailerTrackingExpandScript(),
+            WhipEchoSlamScript(), AnamorphicSplitRevealScript(), WhipMotionSlideScript(), ZipperCrossSlideScript(),
+            // Pop
             ElasticBouncePopScript(), KineticDropGlowScript(), PopUpHinge3DScript(),
-            TitleWaveFloatScript(), CascadeWaveFlowScript(), LiquidWavePulseScript(), RippleDropWaveScript(),
+            NeonCyberShiftScript(), TornadoSpiralPopScript(),
+            ElasticFlip3DScript(), BeatPulseSlamScript(),
+            // Wave
+            TitleWaveFloatScript(), CascadeWaveFlowScript(), LiquidWavePulseScript(),
+            RippleDropWaveScript(), CurvedArcRollerScript(), DNAHelixTwistScript(),
+            JellyTrampolineWaveScript(), PendulumHingeSwingScript(),
+            FlagFlutterWaveScript(), LiquidMeltRippleScript(),
+            // Glitch
             GlitchRGBPopScript(), HologramScanBeamScript(), VHSTrackingDriftScript(),
-            TypewriterCursorScript(), WordStaccatoScript(), FlipCounterRollScript()
+            QuantumTeleportFlickerScript(), CyberShutterSliceScript(), CRTSliceTearScript(),
+            // Typewriter & Karaoke
+            TypewriterCursorScript(), WordStaccatoScript(), FlipCounterRollScript(),
+            KaraokeBoxPopScript(),
+            // Fade additions (Curved/Shutter masks)
+            CurtainBaselineRiseScript(), ShutterBlindRevealScript(),
+            // 3D & Light FX
+            ThreeDTumbleDropScript(), SwingingDoor3DScript(), DepthPerspectiveZoomScript(),
+            MetallicLightSweepScript(), PixelizeDissolveScript(), NeonTubeIgnitionScript(), ChromaticVaporScript()
         ]
         self.scripts = activeList
 
-        let legacyList: [any TextAnimationScript] = [
-            NeonCyberShiftScript(), WhipEchoSlamScript(), TornadoSpiralPopScript(),
-            ElasticFlip3DScript(), PendulumHingeSwingScript(), AnamorphicSplitRevealScript(),
-            CurvedArcRollerScript(), DNAHelixTwistScript(), JellyTrampolineWaveScript(),
-            QuantumTeleportFlickerScript(), CyberShutterSliceScript(), ShutterBlindRevealScript()
-        ]
         var map: [String: any TextAnimationScript] = [:]
-        for item in legacyList + activeList { map[item.id] = item }
+        for item in activeList { map[item.id] = item }
         map["neon_color_shift"] = map["neon_cyber_shift"]
         map["cyber_glitch_pop"] = map["glitch_rgb_pop"]
         map["kinetic_wave_bounce"] = map["liquid_wave_pulse"]

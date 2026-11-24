@@ -304,11 +304,11 @@ struct TimelineDropTargetBridgeTests {
         let view = TimelineDropTargetNSView(frame: NSRect(x: 0, y: 0, width: 800, height: 400))
         view.pixelsPerSecond = 100
         view.onDropPayload = { vm.addDroppedPayload($0, at: $1) }
-        let fxPreset = EffectPreset(id: "fx_1", name: "Glow", description: "Glow", category: .basic, config: EffectConfiguration())
+        let fxItem = EffectLibraryItem(id: "fx_1", name: "Glow", description: "Glow", category: .basic, config: EffectConfiguration())
         let payloads: [TimelineDragPayload] = [
             .defaultText, .defaultAdjustment,
-            .sticker(StickerPreset.builtInCatalog[0]),
-            .effect(fxPreset), .audio(AudioPreset.builtInCatalog[0])
+            .sticker(StickerLibraryItem.systemItems[0]),
+            .effect(fxItem), .audio(AudioLibraryItem.builtInCatalog[0])
         ]
         let mock = MockDropDraggingInfo()
         for (idx, payload) in payloads.enumerated() {

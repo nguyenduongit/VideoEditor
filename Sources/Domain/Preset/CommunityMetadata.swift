@@ -1,13 +1,9 @@
 import Foundation
 
-/// Phân loại tài nguyên trong Kho Thư viện Cộng đồng Mở (Unified Community Asset Hub).
-/// Hỗ trợ hiện tại: Text, Adjustment, Effect; sẵn sàng mở rộng: Transition, Sticker.
+/// Phân loại User Presets trong Kho Thư viện Cộng đồng Mở (chỉ Text và Adjustment theo Điều 15 AGENTS.md).
 public enum CommunityAssetType: String, Codable, Sendable, CaseIterable, Identifiable {
     case text = "text"
     case adjustment = "adjustment"
-    case effect = "effect"
-    case transition = "transition"
-    case sticker = "sticker"
 
     public var id: String { rawValue }
 }

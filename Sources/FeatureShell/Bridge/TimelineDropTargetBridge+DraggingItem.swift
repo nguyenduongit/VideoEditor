@@ -6,14 +6,14 @@ import DesignSystem
 /// Đại diện hợp nhất cho mọi loại tài nguyên kéo từ Sidebar (hoặc Finder) thả vào Timeline.
 public enum TimelineDragPayload: Sendable, Equatable {
     case media(MediaAsset)
-    case audio(AudioPreset)
+    case audio(AudioLibraryItem)
     case text(TextPreset)
     case defaultText
-    case sticker(StickerPreset)
-    case effect(EffectPreset)
+    case sticker(StickerLibraryItem)
+    case effect(EffectLibraryItem)
     case adjustment(AdjustmentPreset)
     case defaultAdjustment
-    case transition(TransitionPreset)
+    case transition(TransitionLibraryItem)
     case transitionID(String)
 
     public var clipKind: ClipKind? {

@@ -34,7 +34,10 @@ public struct QuantumTeleportFlickerScript: TextAnimationScript {
                 echoOffsetYEm: -jumpY / em * 0.45,
                 glitchIntensity: env * 78.0
             )
-        case .loop(let time, _):
+        case .loop(let time, let cycleProgress):
+            guard cycleProgress > 0.06 && cycleProgress < 0.94 else {
+                return TextUnitDelta(opacity: 1.0)
+            }
             let slot = floor(time * 10.0)
             let active = sin(slot * 2.9 + seed * 1.7) > 0.82
             guard active else { return TextUnitDelta(opacity: 1.0) }
@@ -51,6 +54,7 @@ public struct QuantumTeleportFlickerScript: TextAnimationScript {
             )
         case .outro(let progress):
             let p = min(1.0, max(0.0, progress))
+            if p <= 0.02 { return TextUnitDelta(opacity: 1.0) }
             let qStep = floor(p * 8.0)
             let dx = sin(qStep * 4.3 + seed) * p * 0.75
             let dy = cos(qStep * 3.9 + seed) * p * 0.60
@@ -94,7 +98,10 @@ public struct CyberShutterSliceScript: TextAnimationScript {
                 clipRevealX: steppedReveal,
                 glitchIntensity: (1.0 - p) * 70.0
             )
-        case .loop(let time, _):
+        case .loop(let time, let cycleProgress):
+            guard cycleProgress > 0.06 && cycleProgress < 0.94 else {
+                return TextUnitDelta(opacity: 1.0, clipRevealX: 1.0)
+            }
             let step = floor(time * 12.0)
             let pulse = sin(step * 2.3 + Double(unitIndex) * 1.5) > 0.78
             return TextUnitDelta(
@@ -105,6 +112,7 @@ public struct CyberShutterSliceScript: TextAnimationScript {
             )
         case .outro(let progress):
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.38 / Double(total))) / 0.62))
+            if p <= 0.02 { return TextUnitDelta(opacity: 1.0, clipRevealX: 1.0) }
             let stepped = max(0.0, 1.0 - floor(p * 7.0) / 7.0)
             return TextUnitDelta(
                 offsetY: -dir * p * (0.30 * em),
@@ -121,7 +129,7 @@ public struct CurtainBaselineRiseScript: TextAnimationScript {
     public let id = "curtain_baseline_rise"
     public let displayName = "Curtain Rise"
     public let description = "Clean Keynote-style word rise emerging smoothly from an invisible baseline mask"
-    public let category = TextAnimationCategory.slide
+    public let category = TextAnimationCategory.fade
     public let scope = TextAnimationScope.perWord
 
     public init() {}
@@ -154,7 +162,7 @@ public struct ShutterBlindRevealScript: TextAnimationScript {
     public let id = "shutter_blind_reveal"
     public let displayName = "Shutter Blind"
     public let description = "Architectural left-to-right shutter blind reveal per character"
-    public let category = TextAnimationCategory.editorial
+    public let category = TextAnimationCategory.fade
     public let scope = TextAnimationScope.perCharacter
 
     public init() {}

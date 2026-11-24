@@ -166,12 +166,12 @@ struct TransitionABEngineAndPersistenceTests {
         let timelineVM = TimelineViewModel(initialLayers: [layer])
         let inspectorVM = InspectorViewModel(timelineViewModel: timelineVM)
 
-        guard let transitionPreset = TransitionPreset.builtInCatalog.first(where: { $0.id == "dissolve_default" }) ?? TransitionPreset.builtInCatalog.first else {
-            Issue.record("Missing transition preset in builtInCatalog")
+        guard let transitionItem = TransitionLibraryItem.systemItems.first(where: { $0.id == "dissolve_default" }) ?? TransitionLibraryItem.systemItems.first else {
+            Issue.record("Missing transition item in systemItems")
             return
         }
 
-        let created = try #require(timelineVM.addOrUpdateCutTransition(transitionPreset, between: c0.id, and: c1.id))
+        let created = try #require(timelineVM.addOrUpdateCutTransition(transitionItem, between: c0.id, and: c1.id))
         #expect(timelineVM.layers[0].transitions.count == 1)
         #expect(created.shaderType == .dissolve)
 
@@ -197,26 +197,11 @@ struct TransitionABEngineAndPersistenceTests {
         timelineVM.redo()
         #expect(timelineVM.layers[0].transitions.count == 1)
 
-        // SupabaseTransitionPresetRepository offline-first roundtrip
-        let loader = TransitionTemplateLoader()
-        let repo = SupabaseTransitionPresetRepository(client: nil, templateLoader: loader)
-        var customPreset = transitionPreset
-        customPreset = TransitionPreset(
-            id: "custom_cyber_zoom",
-            name: "Cyber Zoom",
-            description: "Custom GPU transition",
-            category: .glitch,
-            defaultDuration: 0.45,
-            shaderType: .zoomBlur,
-            defaultEasing: .cubicBezier,
-            parameters: transitionPreset.parameters,
-            parameterValues: ["zoomStrength": 0.8],
-            isSystem: false
-        )
-        try await repo.savePreset(customPreset)
-        let allPresets = try await repo.fetchPresets()
-        #expect(allPresets.contains(where: { $0.id == "custom_cyber_zoom" }))
-        #expect(allPresets.count >= 2)
+        // TransitionLibrary provides complete dev-authored catalog deterministically without Supabase sync
+        let library = TransitionLibrary()
+        let allItems = library.loadAllItems()
+        #expect(allItems.count == 83)
+        #expect(library.item(withID: transitionItem.id)?.id == transitionItem.id)
     }
 
     @Test("TimelineTransitionOverlayView positioning math is strictly symmetrical and Inspector duration updates realtime")
@@ -227,12 +212,12 @@ struct TransitionABEngineAndPersistenceTests {
         let timelineVM = TimelineViewModel(initialLayers: [layer])
         let inspectorVM = InspectorViewModel(timelineViewModel: timelineVM)
 
-        guard let preset = TransitionPreset.builtInCatalog.first else {
-            Issue.record("Missing builtInCatalog transition preset")
+        guard let item = TransitionLibraryItem.systemItems.first else {
+            Issue.record("Missing systemItems transition item")
             return
         }
 
-        let trans = try #require(timelineVM.addOrUpdateCutTransition(preset, between: c0.id, and: c1.id))
+        let trans = try #require(timelineVM.addOrUpdateCutTransition(item, between: c0.id, and: c1.id))
         timelineVM.selectedTransitionID = trans.id
         inspectorVM.syncWithSelection()
 

@@ -1,18 +1,16 @@
 import Foundation
 import Domain
 
-/// Bộ giải quyết phông chữ và thuộc tính hoạt ảnh văn bản cho các lệnh MCP / AI Assistant.
-/// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, Hàm <= 50 dòng).
+/// Resolves font names and unified `TextAnimationScript` identifiers for MCP / AI Assistant tools.
 @MainActor
 public enum MCPTextPropertyResolver {
-    /// Phân giải tên font từ câu lệnh của người dùng hoặc AI sang PostScript font ID thực tế.
+    /// Resolves font query strings to registered PostScript font identifiers.
     public static func resolveFontName(_ raw: String, fontManager: CustomFontManager = CustomFontManager()) -> String {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "UVN Ke Chuyen" }
 
         let allFonts = fontManager.fonts
 
-        // 1. Khớp chính xác ID hoặc Display Name (không phân biệt hoa thường)
         if let exact = allFonts.first(where: {
             $0.id.caseInsensitiveCompare(trimmed) == .orderedSame ||
             $0.displayName.caseInsensitiveCompare(trimmed) == .orderedSame
@@ -20,7 +18,6 @@ public enum MCPTextPropertyResolver {
             return exact.id
         }
 
-        // 2. Khớp chuỗi con (VD: "bay buom" -> "UVN Bay Buom", "da lat" -> "UVN Da Lat")
         let query = trimmed.lowercased()
         if let matched = allFonts.first(where: {
             $0.displayName.lowercased().contains(query) ||
@@ -29,47 +26,43 @@ public enum MCPTextPropertyResolver {
             return matched.id
         }
 
-        // 3. Nếu người dùng chỉ định font quen thuộc (Helvetica, Impact, Arial...)
         return trimmed
     }
 
-    /// Phân giải chuỗi hoạt ảnh xuất hiện (In Animation).
-    public static func resolveInAnimation(_ raw: String) -> TextInAnimationType {
+    /// Maps any continuous script ID, display name, or legacy keyword onto a unified `TextAnimationScript.id`.
+    public static func resolveScriptId(_ raw: String) -> String {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let exact = TextInAnimationType(rawValue: trimmed) { return exact }
         let lower = trimmed.lowercased()
-        if lower.contains("fade") { return .fadeIn }
-        if lower.contains("zoom") || lower.contains("expand") { return .zoomIn }
-        if lower.contains("slide") || lower.contains("truot") || lower.contains("fly") || lower.contains("up") { return .slideUp }
-        if lower.contains("whip") || lower.contains("move") || lower.contains("wipe") || lower.contains("right") || lower.contains("spin") || lower.contains("vortex") { return .whipRight }
-        if lower.contains("type") || lower.contains("danh may") || lower.contains("hand") { return .typewriter }
-        if lower.contains("drop") || lower.contains("bounce") || lower.contains("kinetic") || lower.contains("roi") || lower.contains("nay") { return .kineticDrop }
-        return .fadeIn
-    }
+        guard !lower.isEmpty, lower != "none" else { return "none" }
 
-    /// Phân giải chuỗi hoạt ảnh biến mất (Out Animation).
-    public static func resolveOutAnimation(_ raw: String) -> TextOutAnimationType {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let exact = TextOutAnimationType(rawValue: trimmed) { return exact }
-        let lower = trimmed.lowercased()
-        if lower.contains("fade") || lower.contains("dissolve") || lower.contains("pixel") { return .fadeOut }
-        if lower.contains("zoom") || lower.contains("shrink") { return .zoomOut }
-        if lower.contains("drop") || lower.contains("fall") || lower.contains("down") { return .dropDown }
-        if lower.contains("whip") || lower.contains("slide") || lower.contains("right") { return .whipOut }
-        if lower.contains("tv") || lower.contains("tivi") || lower.contains("crt") { return .tvOff }
-        return .none
-    }
+        if let exact = TextAnimationScriptRegistry.shared.script(for: trimmed) {
+            return exact.id
+        }
+        if let byLowerId = TextAnimationScriptRegistry.shared.script(for: lower) {
+            return byLowerId.id
+        }
+        if let byDisplayName = TextAnimationScriptRegistry.shared.scripts.first(where: {
+            $0.displayName.lowercased() == lower || $0.id.lowercased() == lower
+        }) {
+            return byDisplayName.id
+        }
 
-    /// Phân giải chuỗi hoạt ảnh lặp lại (Loop Animation).
-    public static func resolveLoopAnimation(_ raw: String) -> TextLoopAnimationType {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let exact = TextLoopAnimationType(rawValue: trimmed) { return exact }
-        let lower = trimmed.lowercased()
-        if lower.contains("flicker") || lower.contains("flash") || lower.contains("neon") || lower.contains("chop") { return .flicker }
-        if lower.contains("breathe") || lower.contains("tho") { return .breathe }
-        if lower.contains("wave") || lower.contains("song") || lower.contains("float") { return .wave }
-        if lower.contains("pulse") || lower.contains("heart") || lower.contains("tim") { return .pulse }
-        if lower.contains("shake") || lower.contains("wobble") || lower.contains("jiggle") || lower.contains("rung") { return .shake }
-        return .none
+        if lower.contains("karaoke") { return "karaoke_box_pop" }
+        if lower.contains("line") && lower.contains("cascade") { return "line_cascade_rise" }
+        if lower.contains("focus") || lower.contains("blur") { return "blur_focus_dissolve" }
+        if lower.contains("beat") { return "beat_pulse_slam" }
+        if lower.contains("tornado") || lower.contains("spiral") || lower.contains("vortex") { return "tornado_spiral_pop" }
+        if lower.contains("type") || lower.contains("danh may") || lower.contains("hand") { return "typewriter_cursor" }
+        if lower.contains("wave") || lower.contains("float") || lower.contains("song") { return "title_wave_float" }
+        if lower.contains("kinetic") || lower.contains("drop") || lower.contains("roi") { return "kinetic_drop_glow" }
+        if lower.contains("glitch") || lower.contains("rgb") || lower.contains("tv") || lower.contains("crt") { return "glitch_rgb_pop" }
+        if lower.contains("neon") || lower.contains("flicker") || lower.contains("flash") { return "neon_cyber_shift" }
+        if lower.contains("whip") || lower.contains("slam") { return "whip_echo_slam" }
+        if lower.contains("slide") || lower.contains("glide") || lower.contains("fly") || lower.contains("truot") { return "smooth_word_glide" }
+        if lower.contains("pop") || lower.contains("bounce") || lower.contains("zoom") || lower.contains("elastic") || lower.contains("nay") { return "pop_elastic_bounce" }
+        if lower.contains("fade") || lower.contains("dissolve") { return "fade_soft_glow" }
+        if lower.contains("breathe") || lower.contains("tho") { return "soft_breathe_cascade" }
+        if lower.contains("pulse") || lower.contains("heart") || lower.contains("tim") { return "liquid_wave_pulse" }
+        return "smooth_word_glide"
     }
 }

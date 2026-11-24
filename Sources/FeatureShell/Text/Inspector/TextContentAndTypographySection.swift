@@ -29,24 +29,27 @@ public struct TextContentAndTypographySection: View {
                 get: { currentConfig.content },
                 set: { newText in
                     var cfg = currentConfig
-                    cfg.content = TextConfiguration.sanitizeSingleLine(newText)
+                    cfg.content = TextConfiguration.normalizeMultilineContent(newText)
                     updateConfig(cfg, commit: false)
                 }
             )
-            TextField(String(localized: "Text..."), text: contentBinding, onCommit: {
-                commitConfig(currentConfig)
-            })
-            .textFieldStyle(.plain)
-            .font(.system(size: 12))
-            .foregroundStyle(DSColors.textPrimary)
-            .padding(.horizontal, DSSpacing.sm)
-            .frame(height: 26)
-            .background(DSColors.windowBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(DSColors.blockBorder, lineWidth: 1)
-            )
+            TextField(String(localized: "Text..."), text: contentBinding, axis: .vertical)
+                .lineLimit(1...5)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundStyle(DSColors.textPrimary)
+                .padding(.horizontal, DSSpacing.sm)
+                .padding(.vertical, 5)
+                .frame(minHeight: 28)
+                .background(DSColors.windowBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(DSColors.blockBorder, lineWidth: 1)
+                )
+                .onSubmit {
+                    commitConfig(currentConfig)
+                }
         }
     }
 

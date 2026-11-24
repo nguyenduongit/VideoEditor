@@ -6,11 +6,12 @@ public enum StickerFormat: String, Codable, Sendable, CaseIterable, Identifiable
     case png = "png"
     case gif = "gif"
     case apng = "apng"
+    case audiogram = "audiogram"
 
     public var id: String { rawValue }
 
     public var isAnimated: Bool {
-        self == .gif || self == .apng
+        self == .gif || self == .apng || self == .audiogram
     }
 
     public var displayName: String {
@@ -19,6 +20,7 @@ public enum StickerFormat: String, Codable, Sendable, CaseIterable, Identifiable
         case .png: return "PNG Image"
         case .gif: return "Animated GIF"
         case .apng: return "Animated APNG"
+        case .audiogram: return "Audio Visualizer"
         }
     }
 }
@@ -39,7 +41,7 @@ public enum StickerLoopMode: String, Codable, Sendable, CaseIterable, Identifiab
     }
 }
 
-/// Cấu hình thuộc tính lõi, đồ họa Vector SVG, hòa trộn, đổ bóng và hoạt ảnh `In / Out / Loop` của Sticker Clip.
+/// Cấu hình thuộc tính lõi, đồ họa Vector SVG, hòa trộn, đổ bóng và hoạt ảnh lặp của Sticker Clip.
 /// Tuân thủ quy tắc R2.3 (thuần Domain), R3.1 (<= 300 dòng), và R5.5 (Serialization tương thích tiến/lùi) của AGENTS.md.
 public struct StickerConfiguration: Codable, Sendable, Equatable {
     public var format: StickerFormat
@@ -56,7 +58,8 @@ public struct StickerConfiguration: Codable, Sendable, Equatable {
     public var shadowBlur: Double
     public var shadowDistance: Double
     public var shadowAngleDegrees: Double
-    public var animation: TextAnimationConfiguration
+    public var animation: StickerAnimationConfiguration
+    public var audiogram: StickerAudiogramConfiguration?
 
     public init(
         format: StickerFormat = .apng,
@@ -73,7 +76,8 @@ public struct StickerConfiguration: Codable, Sendable, Equatable {
         shadowBlur: Double = 8.0,
         shadowDistance: Double = 4.0,
         shadowAngleDegrees: Double = -45.0,
-        animation: TextAnimationConfiguration = TextAnimationConfiguration()
+        animation: StickerAnimationConfiguration = StickerAnimationConfiguration(),
+        audiogram: StickerAudiogramConfiguration? = nil
     ) {
         self.format = format
         self.loopMode = loopMode
@@ -90,13 +94,14 @@ public struct StickerConfiguration: Codable, Sendable, Equatable {
         self.shadowDistance = max(0.0, min(80.0, shadowDistance))
         self.shadowAngleDegrees = max(-180.0, min(180.0, shadowAngleDegrees))
         self.animation = animation
+        self.audiogram = audiogram
     }
 
     private enum CodingKeys: String, CodingKey {
         case format, loopMode, playbackSpeed, flipHorizontal, flipVertical
         case sourceURLString, svgMarkup, systemSymbolFallback
         case blendMode, hasShadow, shadowColorHex, shadowBlur, shadowDistance, shadowAngleDegrees
-        case animation
+        case animation, audiogram
     }
 
     public init(from decoder: Decoder) throws {
@@ -116,7 +121,8 @@ public struct StickerConfiguration: Codable, Sendable, Equatable {
         self.shadowBlur = max(0.0, min(50.0, (try? c.decodeIfPresent(Double.self, forKey: .shadowBlur)) ?? 8.0))
         self.shadowDistance = max(0.0, min(80.0, (try? c.decodeIfPresent(Double.self, forKey: .shadowDistance)) ?? 4.0))
         self.shadowAngleDegrees = max(-180.0, min(180.0, (try? c.decodeIfPresent(Double.self, forKey: .shadowAngleDegrees)) ?? -45.0))
-        self.animation = (try? c.decodeIfPresent(TextAnimationConfiguration.self, forKey: .animation)) ?? TextAnimationConfiguration()
+        self.animation = (try? c.decodeIfPresent(StickerAnimationConfiguration.self, forKey: .animation)) ?? StickerAnimationConfiguration()
+        self.audiogram = try? c.decodeIfPresent(StickerAudiogramConfiguration.self, forKey: .audiogram)
     }
 
     public var shadowOffsetX: Double {

@@ -8,7 +8,7 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
     private var rawContent: String
     public var content: String {
         get { rawContent }
-        set { rawContent = Self.sanitizeSingleLine(newValue) }
+        set { rawContent = Self.normalizeMultilineContent(newValue) }
     }
     public var fontName: String
     public var fontSize: Double
@@ -44,6 +44,11 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
     public var glitchIntensity: Double
     public var noiseIntensity: Double
     public var animation: TextAnimationConfiguration
+
+    public static func normalizeMultilineContent(_ text: String) -> String {
+        text.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+    }
 
     public static func sanitizeSingleLine(_ text: String) -> String {
         text.replacingOccurrences(of: "\r\n", with: " ")
@@ -82,7 +87,7 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
         noiseIntensity: Double = 0.0,
         animation: TextAnimationConfiguration = TextAnimationConfiguration()
     ) {
-        self.rawContent = Self.sanitizeSingleLine(content)
+        self.rawContent = Self.normalizeMultilineContent(content)
         self.fontName = fontName
         self.fontSize = max(8.0, fontSize)
         self.isBold = isBold
@@ -158,7 +163,7 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: DynamicCodingKey.self)
         let decodedText = (try? c.decodeIfPresent(String.self, forKey: .init("content"))) ?? "Text"
-        self.rawContent = Self.sanitizeSingleLine(decodedText)
+        self.rawContent = Self.normalizeMultilineContent(decodedText)
         self.fontName = (try? c.decodeIfPresent(String.self, forKey: .init("fontName"))) ?? "Helvetica"
         self.fontSize = max(8.0, (try? c.decodeIfPresent(Double.self, forKey: .init("fontSize"))) ?? 48.0)
         self.isBold = (try? c.decodeIfPresent(Bool.self, forKey: .init("isBold"))) ?? false

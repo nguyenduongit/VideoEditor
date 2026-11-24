@@ -183,13 +183,9 @@ public final class InspectorViewModel {
         guard let clip = selectedClip, let timelineViewModel else { return }
         dragInitialProperties = nil
         liveProperties[key] = .string(text)
-        var targetDurationSec: Double?
+        let targetDurationSec: Double? = nil
         if key == "textConfig", let cfg = TextConfiguration.decode(from: text) {
             syncTextFlatProperties(from: cfg)
-            if clip.kind == .text, cfg.animation.hasScriptAnimation,
-               abs(clip.timeRange.duration.seconds - cfg.animation.scriptDuration) > 0.02 {
-                targetDurationSec = cfg.animation.scriptDuration
-            }
         }
         let propCmd = TimelineCommand.updateClipProperties(clipID: clip.id, properties: liveProperties)
         if let targetDurationSec {

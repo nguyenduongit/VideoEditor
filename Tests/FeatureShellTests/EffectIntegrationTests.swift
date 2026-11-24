@@ -204,10 +204,9 @@ struct EffectIntegrationTests {
         #expect(tab?.makeSidebarView() != nil)
     }
 
-    @Test("11 Danh mục EffectTemplateCategory và Beat-Sync Engine hoạt động chuẩn xác")
+    @Test("11 EffectCategory assignable cases and Beat-Sync Engine operate accurately")
     func testElevenCategoriesAndBeatSyncEngine() throws {
-        // 1. Kiểm tra đủ 11 danh mục hiển thị
-        let cats = EffectTemplateCategory.assignableCases
+        let cats = EffectCategory.assignableCases
         #expect(cats.count == 11)
         #expect(!cats.contains(.all))
         #expect(cats.contains(.basic))

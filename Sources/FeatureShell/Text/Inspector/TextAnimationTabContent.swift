@@ -2,89 +2,74 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Tab `"Animation"` cho Text Clip:
-/// Hiển thị danh mục các Kịch Bản Hoạt Ảnh đóng gói sẵn do Dev thiết kế (Script-Driven Animation),
-/// can thiệp sâu vào Transform, Typography, Appearance, Effects và chạy xuyên suốt thời lượng.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
+/// Text `"Animation"` Inspector tab:
+/// Displays the curated continuous `TextAnimationScript` catalog (`Intro -> Loop -> Outro` unified block)
+/// and continuous parameter controls (`Loop`, `Time Scale`, `Intensity`, `Unit`, `Order`, `Beat Sync`).
 public struct TextAnimationTabContent: View {
     @Bindable private var viewModel: InspectorViewModel
-
-    public enum AnimationSubTab: String, CaseIterable, Sendable {
-        case inAnimation = "In"
-        case loopAnimation = "Loop"
-        case outAnimation = "Out"
-    }
 
     public init(viewModel: InspectorViewModel) {
         self.viewModel = viewModel
     }
 
-    public var body: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.none) {
-            TextScriptAnimationCardsGrid(
-                selectedScriptId: currentConfig.animation.scriptId,
-                onSelectScript: selectScript,
-                onClearScript: clearScript
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            if currentConfig.animation.hasScriptAnimation {
-                Divider()
-                    .background(DSColors.blockBorder)
-
-                animationBottomBar
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DSColors.blockBackground)
+    private var clipDurationSeconds: Double {
+        let sec = viewModel.selectedClip?.timeRange.duration.seconds ?? currentConfig.animation.scriptDuration
+        return max(0.5, sec)
     }
 
-    @ViewBuilder
+    private var audioTempo: ResolvedAudioTempo {
+        viewModel.resolvedAudioTempoForSelectedClip
+    }
+
+    private var resolvedPhases: ResolvedAnimationPhases {
+        var anim = currentConfig.animation
+        if anim.isBeatSyncEnabled, let detected = audioTempo.bpm {
+            anim.beatBPM = detected
+        }
+        let cycleSec = TextAnimationScriptRegistry.shared.script(for: anim.scriptId)?.loopCycleDuration ?? 1.0
+        return anim.resolvedPhases(forClipDuration: clipDurationSeconds, baseCycleSeconds: cycleSec)
+    }
+
+    public var body: some View {
+        TextScriptAnimationCardsGrid(
+            selectedScriptId: currentConfig.animation.scriptId,
+            showBottomPanel: currentConfig.animation.hasScriptAnimation,
+            onSelectScript: selectScript,
+            onClearScript: clearScript
+        ) {
+            animationBottomBar
+        }
+        .onAppear { viewModel.ensureAudioBeatsAnalyzedForSelectedClip() }
+        .onChange(of: viewModel.selectedClip?.id) { _, _ in
+            viewModel.ensureAudioBeatsAnalyzedForSelectedClip()
+        }
+        .onChange(of: currentConfig.animation.isBeatSyncEnabled) { _, enabled in
+            if enabled { viewModel.ensureAudioBeatsAnalyzedForSelectedClip() }
+        }
+        .onChange(of: audioTempo.bpm) { _, newBPM in
+            if currentConfig.animation.isBeatSyncEnabled,
+               let detectedBPM = newBPM,
+               abs(currentConfig.animation.beatBPM - detectedBPM) > 0.5 {
+                var cfg = currentConfig
+                cfg.animation.beatBPM = detectedBPM
+                updateConfig(cfg, commit: true)
+            }
+        }
+    }
+
     private var animationBottomBar: some View {
         let padding: CGFloat = DSSpacing.md
-        let anim = currentConfig.animation
-        VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            HStack(spacing: padding) {
-                DSNumberInput(
-                    value: baseLoopSecondsBinding,
-                    step: 1.0,
-                    min: 1.0,
-                    max: 20.0,
-                    unit: "s",
-                    prefix: "Loop:",
-                    fractionDigits: 0,
-                    isFlexibleWidth: true,
-                    onEditingChanged: onSliderEditingEnded
-                )
-                .frame(maxWidth: .infinity)
-
-                DSNumberInput(
-                    value: scriptSpeedBinding,
-                    step: 0.1,
-                    min: 0.2,
-                    max: 4.0,
-                    unit: "x",
-                    prefix: "Time Scale:",
-                    fractionDigits: 1,
-                    isFlexibleWidth: true,
-                    onEditingChanged: onSliderEditingEnded
-                )
-                .frame(maxWidth: .infinity)
-            }
-
-            HStack(spacing: DSSpacing.sm) {
-                Text("In: \(formatSeconds(anim.scriptInDuration))s")
-                Text("•")
-                Text("Loop: \(formatSeconds(anim.scriptLoopDuration))s")
-                Text("•")
-                Text("Out: \(formatSeconds(anim.scriptOutDuration))s")
-                Spacer()
-                Text("Total: \(formatSeconds(anim.scriptDuration))s")
-                    .fontWeight(.semibold)
-                    .foregroundStyle(DSColors.toggleCyan)
-            }
-            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-            .foregroundStyle(DSColors.textSecondary)
+        return VStack(alignment: .leading, spacing: DSSpacing.xs) {
+            speedAndIntensityRow(padding: padding)
+            shapingControlsRow(padding: padding)
+            AnimationBeatSyncRowView(
+                isBeatSyncEnabled: beatSyncBinding,
+                beatBarMode: beatBarModeBinding,
+                beatBPM: beatBPMBinding,
+                audioTempo: audioTempo,
+                onEditingChanged: onSliderEditingEnded
+            )
+            AnimationTimingSummaryRowView(phases: resolvedPhases)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, padding)
@@ -92,40 +77,158 @@ public struct TextAnimationTabContent: View {
         .background(DSColors.blockBackground)
     }
 
-    private var baseLoopSecondsBinding: Binding<Double> {
-        Binding(
-            get: { Double(currentConfig.animation.scriptBaseLoopSeconds) },
-            set: { val in
-                var cfg = currentConfig
-                let steps = max(1, min(20, Int(val.rounded())))
-                cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: steps, speed: cfg.animation.scriptSpeed)
-                updateConfig(cfg, commit: false)
-            }
-        )
+    private func speedAndIntensityRow(padding: CGFloat) -> some View {
+        HStack(spacing: padding) {
+            DSNumberInput(
+                value: scriptSpeedBinding,
+                step: 0.1, min: 0.25, max: 4.0, unit: "x", prefix: "Time Scale:", fractionDigits: 1,
+                isFlexibleWidth: true, onEditingChanged: onSliderEditingEnded
+            )
+            .frame(maxWidth: .infinity)
+
+            DSNumberInput(
+                value: intensityBinding,
+                step: 10.0, min: 20.0, max: 200.0, unit: "%", prefix: "Intensity:", fractionDigits: 0,
+                isFlexibleWidth: true, onEditingChanged: onSliderEditingEnded
+            )
+            .frame(maxWidth: .infinity)
+        }
     }
+
+    private func shapingControlsRow(padding: CGFloat) -> some View {
+        HStack(spacing: padding) {
+            HStack(spacing: DSSpacing.xs) {
+                Text("Unit:")
+                    .font(.system(size: 11))
+                    .foregroundStyle(DSColors.textSecondary)
+                Picker("Unit", selection: scopeOverrideBinding) {
+                    Text("Auto").tag(TextAnimationScope?.none)
+                    ForEach(TextAnimationScope.allCases) { scope in
+                        Text(scope.title).tag(TextAnimationScope?.some(scope))
+                    }
+                }
+                .labelsHidden()
+                .controlSize(.small)
+                .frame(maxWidth: .infinity)
+                .help("Animation Segmentation Unit")
+            }
+            .frame(maxWidth: .infinity)
+
+            HStack(spacing: DSSpacing.xs) {
+                Text("Order:")
+                    .font(.system(size: 11))
+                    .foregroundStyle(DSColors.textSecondary)
+                Picker("Order", selection: staggerDirectionBinding) {
+                    ForEach(TextStaggerDirection.allCases) { dir in
+                        Text(dir.title).tag(dir)
+                    }
+                }
+                .labelsHidden()
+                .controlSize(.small)
+                .frame(maxWidth: .infinity)
+                .help("Stagger Reveal Direction")
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    // MARK: - Bindings
 
     private var scriptSpeedBinding: Binding<Double> {
         Binding(
             get: { currentConfig.animation.scriptSpeed },
             set: { val in
                 var cfg = currentConfig
-                let steps = cfg.animation.scriptBaseLoopSeconds
-                cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: steps, speed: val)
+                let cycleSec = TextAnimationScriptRegistry.shared.script(for: cfg.animation.scriptId)?.loopCycleDuration ?? 1.0
+                cfg.animation.updateTimingForSpeed(val, clipDuration: clipDurationSeconds, baseCycleSeconds: cycleSec)
                 updateConfig(cfg, commit: false)
             }
         )
     }
 
-    private func formatSeconds(_ value: Double) -> String {
-        String(format: "%.1f", value)
+    private var intensityBinding: Binding<Double> {
+        Binding(
+            get: { currentConfig.animation.scriptIntensity * 100.0 },
+            set: { val in
+                var cfg = currentConfig
+                cfg.animation.scriptIntensity = max(0.2, min(2.0, val / 100.0))
+                updateConfig(cfg, commit: false)
+            }
+        )
     }
+
+    private var scopeOverrideBinding: Binding<TextAnimationScope?> {
+        Binding(
+            get: { currentConfig.animation.scopeOverride },
+            set: { val in
+                var cfg = currentConfig
+                cfg.animation.scopeOverride = val
+                updateConfig(cfg, commit: true)
+            }
+        )
+    }
+
+    private var staggerDirectionBinding: Binding<TextStaggerDirection> {
+        Binding(
+            get: { currentConfig.animation.staggerDirection },
+            set: { val in
+                var cfg = currentConfig
+                cfg.animation.staggerDirection = val
+                updateConfig(cfg, commit: true)
+            }
+        )
+    }
+
+    private var beatSyncBinding: Binding<Bool> {
+        Binding(
+            get: { currentConfig.animation.isBeatSyncEnabled },
+            set: { enabled in
+                var cfg = currentConfig
+                cfg.animation.isBeatSyncEnabled = enabled
+                if enabled, let detectedBPM = audioTempo.bpm {
+                    cfg.animation.beatBPM = detectedBPM
+                }
+                updateConfig(cfg, commit: true)
+                if enabled {
+                    viewModel.ensureAudioBeatsAnalyzedForSelectedClip()
+                }
+            }
+        )
+    }
+
+    private var beatBarModeBinding: Binding<AnimationBeatBarMode> {
+        Binding(
+            get: { currentConfig.animation.beatBarMode },
+            set: { mode in
+                var cfg = currentConfig
+                cfg.animation.beatBarMode = mode
+                updateConfig(cfg, commit: true)
+            }
+        )
+    }
+
+    private var beatBPMBinding: Binding<Double> {
+        Binding(
+            get: { currentConfig.animation.beatBPM },
+            set: { val in
+                var cfg = currentConfig
+                cfg.animation.beatBPM = max(40.0, min(240.0, val))
+                updateConfig(cfg, commit: false)
+            }
+        )
+    }
+
+    // MARK: - Actions
 
     private func selectScript(_ script: any TextAnimationScript) {
         var cfg = currentConfig
         cfg.animation.scriptId = script.id
-        let baseSteps = max(1, Int(script.defaultLoopDuration.rounded()))
-        cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: baseSteps, speed: 1.0)
+        if let detectedBPM = audioTempo.bpm {
+            cfg.animation.beatBPM = detectedBPM
+        }
+        cfg.animation.updateTimingForSpeed(1.0, clipDuration: clipDurationSeconds, baseCycleSeconds: script.loopCycleDuration)
         updateConfig(cfg, commit: true)
+        viewModel.ensureAudioBeatsAnalyzedForSelectedClip()
 
         if let clip = viewModel.selectedClip, clip.timeRange.duration > .zero {
             viewModel.timelineViewModel?.onLoopRangeRequested?(clip.timeRange)
@@ -135,25 +238,13 @@ public struct TextAnimationTabContent: View {
     private func clearScript() {
         var cfg = currentConfig
         cfg.animation.scriptId = "none"
+        cfg.animation.scopeOverride = nil
         updateConfig(cfg, commit: true)
         viewModel.timelineViewModel?.onStopPlaybackRequested?()
     }
 
-    private var selectedClipDuration: Double {
-        if let clip = viewModel.selectedClip {
-            let sec = clip.timeRange.duration.seconds
-            return sec > 0.1 ? sec : 3.0
-        }
-        return 3.0
-    }
-
-    private var currentConfig: TextConfiguration {
-        viewModel.textConfiguration
-    }
-
-    private func updateConfig(_ config: TextConfiguration, commit: Bool) {
-        viewModel.updateTextConfiguration(config, commit: commit)
-    }
+    private var currentConfig: TextConfiguration { viewModel.textConfiguration }
+    private func updateConfig(_ config: TextConfiguration, commit: Bool) { viewModel.updateTextConfiguration(config, commit: commit) }
 
     private func onSliderEditingEnded(isEditing: Bool) {
         if !isEditing {

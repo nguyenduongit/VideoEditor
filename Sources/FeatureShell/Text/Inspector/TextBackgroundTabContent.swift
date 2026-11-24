@@ -284,6 +284,23 @@ public struct TextBackgroundLayoutSection: View {
                 ),
                 onEditingChanged: { if !$0 { onUpdate(config, true) } }
             )
+
+            Divider().background(DSColors.blockBorder)
+
+            Toggle(isOn: Binding(
+                get: { bg.animateWithText },
+                set: { val in
+                    var u = config
+                    u.background.animateWithText = val
+                    onUpdate(u, true)
+                }
+            )) {
+                Text("Follow Text Animation")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(DSColors.textPrimary)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
         }
         .padding(DSSpacing.md)
         .background(DSColors.blockBackground)

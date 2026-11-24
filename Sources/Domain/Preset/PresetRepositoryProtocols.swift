@@ -15,39 +15,11 @@ public protocol TextPresetRepositoryProtocol: Sendable {
     func deletePreset(id: String) async throws
 }
 
-/// Hợp đồng quản lý nạp, lưu trữ và đồng bộ mẫu thiết lập sẵn hiệu ứng thị giác (Effect Presets)
-public protocol EffectPresetRepositoryProtocol: Sendable {
-    func fetchPresets() async throws -> [EffectPreset]
-    func savePreset(_ preset: EffectPreset) async throws
-    func deletePreset(id: String) async throws
-}
-
-/// Hợp đồng quản lý nạp, lưu trữ và đồng bộ gói hoạt ảnh sáng tạo mở (Animation Presets)
-public protocol AnimationPresetRepositoryProtocol: Sendable {
-    func fetchPresets() async throws -> [AnimationPreset]
-    func savePreset(_ preset: AnimationPreset) async throws
-    func deletePreset(id: String) async throws
-}
-
-/// Hợp đồng quản lý nạp, lưu trữ và đồng bộ mẫu nhãn dán Vector SVG / GIF / APNG (Sticker Presets)
-public protocol StickerPresetRepositoryProtocol: Sendable {
-    func fetchPresets() async throws -> [StickerPreset]
-    func savePreset(_ preset: StickerPreset) async throws
-    func deletePreset(id: String) async throws
-}
-
-/// Hợp đồng quản lý nạp, lưu trữ và đồng bộ mẫu chuyển cảnh (Transition Presets)
-public protocol TransitionPresetRepositoryProtocol: Sendable {
-    func fetchPresets() async throws -> [TransitionPreset]
-    func savePreset(_ preset: TransitionPreset) async throws
-    func deletePreset(id: String) async throws
-}
-
-/// Hợp đồng quản lý nạp, lưu trữ và đồng bộ mẫu Audio BGM / SFX qua Cloud URL
-public protocol AudioPresetRepositoryProtocol: Sendable {
-    func fetchPresets() async throws -> [AudioPreset]
-    func savePreset(_ preset: AudioPreset) async throws
-    func deletePreset(id: String) async throws
+/// Hợp đồng quản lý nạp và đồng bộ thư viện Audio BGM / SFX qua Cloud URL (`audio_library`)
+public protocol AudioLibraryRepositoryProtocol: Sendable {
+    func fetchAudioItems() async throws -> [AudioLibraryItem]
+    func saveAudioItem(_ item: AudioLibraryItem) async throws
+    func deleteAudioItem(id: String) async throws
 }
 
 /// Hợp đồng quản lý nạp, lưu trữ và đồng bộ mẫu Stock Media (Videos, Backgrounds, SFX) qua Cloud URL
@@ -72,11 +44,7 @@ public final class PresetRepositoryProvider: @unchecked Sendable {
     private let lock = NSLock()
     private var _adjustmentRepository: (any AdjustmentPresetRepositoryProtocol)?
     private var _textRepository: (any TextPresetRepositoryProtocol)?
-    private var _effectRepository: (any EffectPresetRepositoryProtocol)?
-    private var _animationRepository: (any AnimationPresetRepositoryProtocol)?
-    private var _stickerRepository: (any StickerPresetRepositoryProtocol)?
-    private var _transitionRepository: (any TransitionPresetRepositoryProtocol)?
-    private var _audioRepository: (any AudioPresetRepositoryProtocol)?
+    private var _audioRepository: (any AudioLibraryRepositoryProtocol)?
     private var _stockMediaRepository: (any StockMediaRepositoryProtocol)?
     private var _favoriteRepository: (any FavoriteRepositoryProtocol)?
 
@@ -92,27 +60,7 @@ public final class PresetRepositoryProvider: @unchecked Sendable {
         set { lock.lock(); defer { lock.unlock() }; _textRepository = newValue }
     }
 
-    public var effectRepository: (any EffectPresetRepositoryProtocol)? {
-        get { lock.lock(); defer { lock.unlock() }; return _effectRepository }
-        set { lock.lock(); defer { lock.unlock() }; _effectRepository = newValue }
-    }
-
-    public var animationRepository: (any AnimationPresetRepositoryProtocol)? {
-        get { lock.lock(); defer { lock.unlock() }; return _animationRepository }
-        set { lock.lock(); defer { lock.unlock() }; _animationRepository = newValue }
-    }
-
-    public var stickerRepository: (any StickerPresetRepositoryProtocol)? {
-        get { lock.lock(); defer { lock.unlock() }; return _stickerRepository }
-        set { lock.lock(); defer { lock.unlock() }; _stickerRepository = newValue }
-    }
-
-    public var transitionRepository: (any TransitionPresetRepositoryProtocol)? {
-        get { lock.lock(); defer { lock.unlock() }; return _transitionRepository }
-        set { lock.lock(); defer { lock.unlock() }; _transitionRepository = newValue }
-    }
-
-    public var audioRepository: (any AudioPresetRepositoryProtocol)? {
+    public var audioRepository: (any AudioLibraryRepositoryProtocol)? {
         get { lock.lock(); defer { lock.unlock() }; return _audioRepository }
         set { lock.lock(); defer { lock.unlock() }; _audioRepository = newValue }
     }

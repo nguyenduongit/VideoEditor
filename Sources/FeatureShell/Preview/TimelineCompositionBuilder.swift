@@ -8,6 +8,20 @@ import os
 struct TimelineCompositionBuilder {
     static let logger = Logger(subsystem: "com.videoeditor", category: "TimelineCompositionBuilder")
     static let metadataCache = VideoMetadataCache()
+    private static let reactiveLock = NSLock()
+    private static let reactiveProfileCache = LRUCache<String, AudioReactiveProfile>(capacity: 64)
+
+    static func storeAudioReactiveProfile(_ profile: AudioReactiveProfile, for url: URL) {
+        reactiveLock.lock()
+        reactiveProfileCache[url.absoluteString] = profile
+        reactiveLock.unlock()
+    }
+
+    static func cachedAudioReactiveProfile(for url: URL) -> AudioReactiveProfile? {
+        reactiveLock.lock()
+        defer { reactiveLock.unlock() }
+        return reactiveProfileCache[url.absoluteString]
+    }
 
     static func buildTracks(
         for composition: AVMutableComposition,

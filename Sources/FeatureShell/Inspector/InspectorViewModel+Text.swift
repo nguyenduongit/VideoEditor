@@ -4,15 +4,8 @@ import Domain
 /// Mở rộng `InspectorViewModel` cho cấu hình lõi đơn dòng hợp nhất của Module `Text` và cầu nối `Sticker` (`StickerConfiguration` + `Animation`).
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, Hàm <= 50 dòng).
 extension InspectorViewModel {
-    /// Cấu hình văn bản đơn dòng hiện hành của Text Clip (hoặc cấu hình mang `animation` của Sticker Clip đang chọn).
+    /// Cấu hình văn bản đơn dòng hiện hành của Text Clip.
     public var textConfiguration: TextConfiguration {
-        if selectedClip?.kind == .sticker {
-            let sCfg = stickerConfiguration
-            var carrier = TextConfiguration(content: selectedClip?.name ?? "Sticker")
-            carrier.animation = sCfg.animation
-            carrier.animation.scope = .wholeBlock
-            return carrier
-        }
         let str = liveProperties["textConfig"]?.asString
             ?? selectedClip?.properties["textConfig"]?.asString ?? ""
         return TextConfiguration.decode(from: str) ?? TextConfiguration()
@@ -44,15 +37,8 @@ extension InspectorViewModel {
         textConfiguration
     }
 
-    /// Cập nhật cấu hình văn bản hiện hành (hoặc `animation` của Sticker khi đang chọn Sticker Clip).
+    /// Cập nhật cấu hình văn bản hiện hành của Text Clip.
     public func updateTextConfiguration(_ config: TextConfiguration, commit: Bool) {
-        if selectedClip?.kind == .sticker {
-            var sCfg = stickerConfiguration
-            sCfg.animation = config.animation
-            sCfg.animation.scope = .wholeBlock
-            updateStickerConfiguration(sCfg, commit: commit)
-            return
-        }
         guard let json = config.encodeToJSON() else { return }
         if commit {
             commitTextProperty(key: "textConfig", text: json)
@@ -124,5 +110,28 @@ extension InspectorViewModel {
         if let json = cfg.encodeToJSON() {
             liveProperties["textConfig"] = .string(json)
         }
+    }
+
+    /// Resolves detected BPM from the active audio/video clip underneath `selectedClip`.
+    public var resolvedAudioTempoForSelectedClip: ResolvedAudioTempo {
+        guard let clip = selectedClip, let timelineViewModel else {
+            return ResolvedAudioTempo()
+        }
+        return AudioTempoResolver.resolveTempo(overlapping: clip.timeRange, in: timelineViewModel.layers)
+    }
+
+    /// Triggers background beat & FFT spectral analysis on the overlapping audio/video clip if needed.
+    public func ensureAudioBeatsAnalyzedForSelectedClip() {
+        let tempo = resolvedAudioTempoForSelectedClip
+        guard let sourceClipID = tempo.sourceClipID,
+              let timelineViewModel,
+              let sourceClip = timelineViewModel.clip(by: sourceClipID),
+              let mediaURL = sourceClip.mediaURL else {
+            return
+        }
+        if tempo.needsBeatAnalysis {
+            timelineViewModel.backgroundAnalyzeBeats(for: sourceClip.id, url: mediaURL)
+        }
+        timelineViewModel.backgroundExtractReactiveProfile(for: mediaURL)
     }
 }

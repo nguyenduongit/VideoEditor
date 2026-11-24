@@ -26,6 +26,7 @@ public final class TimelineViewModel {
     public var selectedTransitionID: UUID?
     public var activeTransitionDropTarget: TransitionDropJoinTarget?
     public var presetSaveTargetClip: TimelineClip?
+    public var presetOverwriteTargetClip: TimelineClip?
     public var clipboardClips: [ClipScript] = []
     public var attributeClipboardClip: TimelineClip?
     public var isPasteAttributesPresented: Bool = false
@@ -71,6 +72,7 @@ public final class TimelineViewModel {
     public let waveformService: (any AudioWaveformServiceProtocol)?
     public let audioAlignmentService: (any AudioAlignmentServiceProtocol)?
     public var audioBeatDetectionService: (any AudioBeatDetectionServiceProtocol)?
+    public var audioReactiveAnalysisService: (any AudioReactiveAnalysisServiceProtocol)?
     public let subjectTrackingService: (any SubjectTrackingServiceProtocol)?
     public let dependencies: EditorDependencies
     public let fontManager: CustomFontManager
@@ -143,6 +145,7 @@ public final class TimelineViewModel {
         waveformService: (any AudioWaveformServiceProtocol)? = nil,
         audioAlignmentService: (any AudioAlignmentServiceProtocol)? = nil,
         audioBeatDetectionService: (any AudioBeatDetectionServiceProtocol)? = nil,
+        audioReactiveAnalysisService: (any AudioReactiveAnalysisServiceProtocol)? = nil,
         subjectTrackingService: (any SubjectTrackingServiceProtocol)? = nil,
         dependencies: EditorDependencies = EditorDependencies(),
         fontManager: CustomFontManager = CustomFontManager(),
@@ -152,6 +155,7 @@ public final class TimelineViewModel {
         self.waveformService = waveformService
         self.audioAlignmentService = audioAlignmentService
         self.audioBeatDetectionService = audioBeatDetectionService
+        self.audioReactiveAnalysisService = audioReactiveAnalysisService
         self.subjectTrackingService = subjectTrackingService
         self.dependencies = dependencies
         self.fontManager = fontManager
@@ -198,6 +202,10 @@ public final class TimelineViewModel {
 
     public func addClip(_ clip: TimelineClip, to targetLayerID: UUID? = nil) {
         checkAutoAdjustAspectRatio(for: clip)
+        if clip.kind == .audio, let url = clip.mediaURL {
+            backgroundAnalyzeBeats(for: clip.id, url: url)
+            backgroundExtractReactiveProfile(for: url)
+        }
         if let targetLayerID,
            let index = layers.firstIndex(where: { $0.id == targetLayerID && $0.kind == clip.kind && !$0.isLocked && !$0.isHidden }),
            layers[index].appendClip(clip) {

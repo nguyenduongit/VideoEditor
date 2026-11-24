@@ -53,27 +53,27 @@ public final class TransitionThumbnailAssetProvider: @unchecked Sendable {
         pairsByID[id]
     }
 
-    /// Thực thi chính thuật toán chuyển cảnh GPU Metal Compute Kernel của `preset` tại tiến độ `rawProgress` (0.0 -> 1.0)
-    /// giữa Cảnh 1 và Cảnh 2 thuộc đúng cặp ảnh demo của danh mục chuyển cảnh đó.
-    public func renderTransitionFrame(for preset: TransitionPreset, rawProgress: Double) -> CGImage? {
-        let pair = assetPair(for: preset.category)
+    /// Executes the GPU Metal Compute Kernel transition algorithm of `item` at `rawProgress` (0.0 -> 1.0)
+    /// between Scene A and Scene B of its category demo pair.
+    public func renderTransitionFrame(for item: TransitionLibraryItem, rawProgress: Double) -> CGImage? {
+        let pair = assetPair(for: item.category)
         let size = Self.thumbnailPixelSize
         let rect = CGRect(origin: .zero, size: size)
         let clampedRaw = max(0.0, min(1.0, rawProgress))
-        let easedProgress = preset.defaultEasing.apply(to: clampedRaw)
+        let easedProgress = item.defaultEasing.apply(to: clampedRaw)
 
         let outCI: CIImage
         if MetalComputeRuntimeEngine.shared.isAvailable {
             let params = TimelineVideoCompositor.resolveTransitionUniformSlots(
-                shaderType: preset.shaderType,
-                parameterValues: preset.parameterValues,
-                customMetalSource: preset.customMetalSource
+                shaderType: item.shaderType,
+                parameterValues: item.parameterValues,
+                customMetalSource: item.customMetalSource
             )
             outCI = DynamicShaderRuntimeEngine.shared.executeTransition(
                 from: pair.ciImageA,
                 to: pair.ciImageB,
-                kernelName: preset.shaderType.metalKernelName,
-                customSource: preset.customMetalSource,
+                kernelName: item.shaderType.metalKernelName,
+                customSource: item.customMetalSource,
                 progress: easedProgress,
                 parameters: params,
                 canvasSize: size

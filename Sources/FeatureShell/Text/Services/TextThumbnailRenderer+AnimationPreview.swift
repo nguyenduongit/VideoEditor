@@ -9,70 +9,7 @@ import Domain
 extension TextThumbnailRenderer {
     private static let animationPreviewFrameCache = LRUCache<String, NSImage>(capacity: 360)
 
-    /// Kết xuất khung hình hoạt ảnh chân thực 1:1 cho AnimationPreset trên chữ mẫu "Text"
-    /// Sử dụng trực tiếp `TextRendererEngine` và `TextSegmentRenderer` để phản ánh đúng per-character,
-    /// độ trễ stagger, mặt nạ quét (reveal) và đường cong gia tốc toán học.
-    public static func renderAnimationPreviewFrame(
-        preset: AnimationPreset,
-        localTime: Double,
-        duration: Double,
-        targetSize: CGSize = CGSize(width: 320, height: 160)
-    ) -> NSImage? {
-        let frameBucket = Int((localTime * 30.0).rounded())
-        let frameKey = "anim_thumb_\(preset.id)_\(frameBucket)"
-        if let cached = animationPreviewFrameCache[frameKey] {
-            return cached
-        }
-
-        var config = TextConfiguration(
-            content: "Text",
-            fontName: "Helvetica-Bold",
-            fontSize: 38.0,
-            textColorHex: "#FFFFFF",
-            isBold: true
-        )
-        config.positionX = 0.0
-        config.positionY = 0.0
-        config.scale = 1.0
-        config.rotation = 0.0
-        config.opacity = 1.0
-
-        switch preset.phase {
-        case .inAnimation:
-            config.animation.inManifest = preset.manifest
-            config.animation.inDuration = 1.0
-            config.animation.scope = preset.manifest.defaultScope
-            config.animation.staggerDirection = preset.manifest.defaultStaggerDirection
-        case .loopAnimation:
-            config.animation.loopManifest = preset.manifest
-            config.animation.loopSpeed = 1.0
-            config.animation.scope = preset.manifest.defaultScope
-            config.animation.staggerDirection = preset.manifest.defaultStaggerDirection
-        case .outAnimation:
-            config.animation.outManifest = preset.manifest
-            config.animation.outDuration = 1.0
-            config.animation.scope = preset.manifest.defaultScope
-            config.animation.staggerDirection = preset.manifest.defaultStaggerDirection
-        }
-
-        let effectiveTime = Double(frameBucket) / 30.0
-        guard let ciImage = sharedEngine.renderAnimatedImage(
-            for: config,
-            localTime: effectiveTime,
-            duration: max(0.5, duration),
-            canvasSize: targetSize
-        ),
-        let cgImage = ciContext.createCGImage(ciImage, from: CGRect(origin: .zero, size: targetSize)) else {
-            return nil
-        }
-
-        let image = NSImage(cgImage: cgImage, size: targetSize)
-        animationPreviewFrameCache[frameKey] = image
-        return image
-    }
-
-    /// Kết xuất khung hình xem trước đồng nhất 100% với Canvas cho Kịch bản Hoạt ảnh (`TextAnimationScript`).
-    /// Không thêm bất kỳ màu/viền giả lập nào để Thumbnail phản ánh trung thực tuyệt đối chuyển động thực tế.
+    /// Renders a 1:1 canvas-accurate animated preview frame for a unified `TextAnimationScript`.
     public static func renderScriptPreviewFrame(
         scriptId: String,
         localTime: Double,
@@ -86,12 +23,16 @@ extension TextThumbnailRenderer {
         }
 
         let script = TextAnimationScriptRegistry.shared.script(for: scriptId)
-        let isPerWord = script?.scope == .perWord
-        let sampleContent = isPerWord ? "New Text" : "Text"
+        let sampleContent: String
+        switch script?.scope {
+        case .perLine: sampleContent = "Line 1\nLine 2"
+        case .perWord: sampleContent = "New Text"
+        default: sampleContent = "Text"
+        }
         var config = TextConfiguration(
             content: sampleContent,
             fontName: "Helvetica-Bold",
-            fontSize: 36.0,
+            fontSize: script?.scope == .perLine ? 28.0 : 36.0,
             textColorHex: "#FFFFFF",
             isBold: true
         )
@@ -146,6 +87,23 @@ extension TextThumbnailRenderer {
         case "shutter_blind_reveal": return 0.44
         case "soft_breathe_cascade": return 0.40
         case "flip_counter_roll": return 0.42
+        case "karaoke_box_pop": return 1.35
+        case "karaoke_glow_flow": return 1.35
+        case "line_cascade_rise": return 0.48
+        case "blur_focus_dissolve": return 0.36
+        case "beat_pulse_slam": return 1.25
+        case "three_d_tumble_drop": return 0.42
+        case "three_d_swinging_door": return 0.40
+        case "three_d_depth_rush": return 0.45
+        case "fx_metallic_sweep": return 1.48
+        case "fx_pixel_dissolve": return 0.36
+        case "fx_neon_ignition": return 1.40
+        case "fx_chromatic_vapor": return 0.42
+        case "slide_directional_whip": return 0.32
+        case "slide_zipper_cross": return 0.34
+        case "wave_flag_flutter": return 1.30
+        case "wave_liquid_ripple": return 1.28
+        case "glitch_crt_slice_tear": return 0.36
         default: return 0.50
         }
     }

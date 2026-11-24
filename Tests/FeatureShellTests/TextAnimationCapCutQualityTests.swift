@@ -12,84 +12,82 @@ import AppKit
 @MainActor
 struct TextAnimationCapCutQualityTests {
 
-    @Test("Kinetic typography animations are automatically recognized for segmented rendering")
+    @Test("Unified script scope determines segmented vs whole-block rendering")
     func testKineticTypographyDetection() {
         let engine = TextRendererEngine()
 
-        // 1. Slide Up should be segmented
-        var cfgSlide = TextConfiguration(content: "Slide Up Test")
-        cfgSlide.animation.inType = .slideUp
-        #expect(engine.shouldRenderSegmented(for: cfgSlide) == true)
-
-        // 2. Drop should be segmented
-        var cfgDrop = TextConfiguration(content: "Drop Test")
-        cfgDrop.animation.inType = .kineticDrop
-        #expect(engine.shouldRenderSegmented(for: cfgDrop) == true)
-
-        // 3. Wave Loop should be segmented
-        var cfgWave = TextConfiguration(content: "Wave Loop Test")
-        cfgWave.animation.loopType = .wave
+        var cfgWave = TextConfiguration(content: "Wave Float Test")
+        cfgWave.animation.scriptId = "title_wave_float"
         #expect(engine.shouldRenderSegmented(for: cfgWave) == true)
 
-        // 4. Default / None should NOT be segmented
+        var cfgDrop = TextConfiguration(content: "Drop Test")
+        cfgDrop.animation.scriptId = "kinetic_drop_glow"
+        #expect(engine.shouldRenderSegmented(for: cfgDrop) == true)
+
+        var cfgTypewriter = TextConfiguration(content: "Typewriter Test")
+        cfgTypewriter.animation.scriptId = "typewriter_cursor"
+        #expect(engine.shouldRenderSegmented(for: cfgTypewriter) == true)
+
+        var cfgFade = TextConfiguration(content: "Cinematic Fade Test")
+        cfgFade.animation.scriptId = "fade_cinematic"
+        #expect(engine.shouldRenderSegmented(for: cfgFade) == false)
+
         let cfgDefault = TextConfiguration(content: "Static Text")
         #expect(engine.shouldRenderSegmented(for: cfgDefault) == false)
     }
 
-    @Test("Slide Up animation applies spring overshoot and arc offset")
+    @Test("Smooth Word Glide script evaluates continuous Intro -> Loop -> Outro motion")
     func testSlideUpSpringOvershootAndArc() {
         var cfg = TextConfiguration(content: "CapCut Motion")
-        cfg.animation.inType = .slideUp
-        cfg.animation.inDuration = 0.5
+        cfg.animation.scriptId = "smooth_word_glide"
+        cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: 2, speed: 1.0)
 
         let canvasSize = CGSize(width: 854, height: 480)
 
-        // At t = 0.0, positionY > 0 (starts below baseline)
-        let eval0 = TextAnimationEvaluator.evaluate(config: cfg, localTime: 0.0, duration: 3.0, canvasSize: canvasSize)
-        #expect(eval0.config.positionY > 50.0)
+        let evalIntro = TextAnimationEvaluator.evaluate(config: cfg, localTime: 0.1, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalIntro.config.opacity <= 1.0)
 
-        // At end (0.5s), position settles at 0.0
-        let evalDone = TextAnimationEvaluator.evaluate(config: cfg, localTime: 0.5, duration: 3.0, canvasSize: canvasSize)
-        #expect(abs(evalDone.config.positionY) < 0.01)
+        let evalMid = TextAnimationEvaluator.evaluate(config: cfg, localTime: 2.0, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalMid.config.opacity > 0.9)
+
+        let evalOutro = TextAnimationEvaluator.evaluate(config: cfg, localTime: 3.9, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalOutro.config.opacity < 0.9)
     }
 
-    @Test("Wave Loop animation produces sinusoidal vertical oscillation per phase")
+    @Test("Title Wave Float script produces sinusoidal oscillation in continuous loop phase")
     func testWaveLoopSinusoidalOscillation() {
         var cfg = TextConfiguration(content: "Dancing Wave")
-        cfg.animation.loopType = .wave
-        cfg.animation.loopSpeed = 1.0
+        cfg.animation.scriptId = "title_wave_float"
+        cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: 3, speed: 1.0)
 
         let canvasSize = CGSize(width: 854, height: 480)
 
-        // Mid-phase (pi / 2): sin(phase) = 1.0 -> positionY should be positive
-        let evalPeak = TextAnimationEvaluator.evaluate(config: cfg, localTime: 0.25, duration: 3.0, canvasSize: canvasSize)
+        let evalPeak = TextAnimationEvaluator.evaluate(config: cfg, localTime: 1.25, duration: 5.0, canvasSize: canvasSize)
         #expect(abs(evalPeak.config.positionY) > 0.1)
 
-        // Opposite phase (3pi / 2): sin(phase) = -1.0 -> positionY should be negative
-        let evalTrough = TextAnimationEvaluator.evaluate(config: cfg, localTime: 0.75, duration: 3.0, canvasSize: canvasSize)
+        let evalTrough = TextAnimationEvaluator.evaluate(config: cfg, localTime: 1.75, duration: 5.0, canvasSize: canvasSize)
         #expect(abs(evalTrough.config.positionY) > 0.1)
     }
 
-    @Test("TextRendererEngine renders valid CIImage for kinetic segmented animated text")
+    @Test("TextRendererEngine renders valid CIImage for unified kinetic segmented script")
     func testSegmentedAnimatedImageRendering() {
         let engine = TextRendererEngine()
         var cfg = TextConfiguration(content: "Default text")
-        cfg.animation.inType = .slideUp
-        cfg.animation.inDuration = 0.5
+        cfg.animation.scriptId = "kinetic_drop_glow"
+        cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: 2, speed: 1.0)
 
         let canvasSize = CGSize(width: 854, height: 480)
 
-        // Render at t = 0.25s (during flight with spring overshoot)
-        let ciImage = engine.renderAnimatedImage(for: cfg, localTime: 0.25, duration: 3.0, canvasSize: canvasSize)
+        let ciImage = engine.renderAnimatedImage(for: cfg, localTime: 0.35, duration: 4.0, canvasSize: canvasSize)
         #expect(ciImage != nil)
         #expect(ciImage?.extent.width ?? 0 > 0)
         #expect(ciImage?.extent.height ?? 0 > 0)
     }
 
-    @Test("All 19 active TextAnimationScripts maintain phase continuity at In-Loop and Loop-Out boundaries")
+    @Test("All 48 active TextAnimationScripts maintain phase continuity at In-Loop and Loop-Out boundaries")
     func testAll19ActiveScriptsMaintainPhaseContinuityAtBoundaries() {
         let scripts = TextAnimationScriptRegistry.shared.scripts
-        #expect(scripts.count == 19)
+        #expect(scripts.count == 48)
         let base = TextConfiguration(content: "Hello", fontSize: 60.0)
         let unitTotal = 4
 
@@ -106,9 +104,56 @@ struct TextAnimationCapCutQualityTests {
         }
     }
 
+    @Test("Follow Text Animation moves background with script, and multi-line Per Line + Gaussian Blur scripts render cleanly")
+    func testAnimateWithTextBackgroundAndMultilinePerLineRendering() throws {
+        let engine = TextRendererEngine()
+        let canvas = CGSize(width: 640, height: 360)
+
+        // 1. Background with animateWithText = true must change frame pixels over animation time
+        var followCfg = TextConfiguration(content: "FollowBox", fontSize: 56.0)
+        followCfg.textColorHex = "#00000000"
+        followCfg.background = TextBackgroundStyle(
+            isEnabled: true, sourceKind: .solid, solidColorHex: "#EF4444",
+            paddingX: 20, paddingY: 12, animateWithText: true
+        )
+        followCfg.animation.scriptId = "beat_pulse_slam"
+        let followT0 = try #require(engine.renderAnimatedImage(for: followCfg, localTime: 0.15, duration: 5.0, canvasSize: canvas))
+        let followT1 = try #require(engine.renderAnimatedImage(for: followCfg, localTime: 1.50, duration: 5.0, canvasSize: canvas))
+        #expect(renderRGBABytes(followT0, size: canvas) != renderRGBABytes(followT1, size: canvas))
+
+        // 2. Multi-line content preserves newline and Per Line scope tokenizes distinct Y lines
+        var multiCfg = TextConfiguration(content: "First Line\nSecond Line", fontSize: 48.0)
+        multiCfg.animation.scriptId = "line_cascade_rise"
+        multiCfg.animation.scriptIntensity = 1.4
+        multiCfg.animation.isBeatSyncEnabled = true
+        multiCfg.animation.beatBPM = 128.0
+        #expect(multiCfg.content.contains("\n"))
+        #expect(engine.shouldRenderSegmented(for: multiCfg) == true)
+
+        let font = NSFont.systemFont(ofSize: 48.0)
+        let (lineTokens, _) = TextSegmentRenderer.tokenize(
+            content: multiCfg.content, scope: .perLine, font: font, spacing: 0.0, alignment: .center
+        )
+        #expect(lineTokens.count == 2)
+        #expect(lineTokens[0].relativeY > lineTokens[1].relativeY)
+
+        let multiImg = engine.renderAnimatedImage(for: multiCfg, localTime: 0.45, duration: 5.0, canvasSize: canvas)
+        #expect(multiImg != nil)
+
+        // 3. Optical blur & Karaoke scripts render non-empty animated frames
+        for specialScriptId in ["blur_focus_dissolve", "karaoke_box_pop", "karaoke_glow_flow"] {
+            var spCfg = TextConfiguration(content: "Pro Upgrade", fontSize: 52.0)
+            spCfg.animation.scriptId = specialScriptId
+            let img = engine.renderAnimatedImage(for: spCfg, localTime: 0.4, duration: 5.0, canvasSize: canvas)
+            #expect(img != nil, "Failed to render \(specialScriptId)")
+        }
+    }
+
     private func assertPhaseMatches(_ a: TextUnitDelta, _ b: TextUnitDelta, label: String) {
         #expect(abs(a.offsetX - b.offsetX) < 0.5, "\(label) offsetX")
         #expect(abs(a.offsetY - b.offsetY) < 0.5, "\(label) offsetY")
+        #expect(abs(a.canvasOffsetXRatio - b.canvasOffsetXRatio) < 0.01, "\(label) canvasOffsetXRatio")
+        #expect(abs(a.canvasOffsetYRatio - b.canvasOffsetYRatio) < 0.01, "\(label) canvasOffsetYRatio")
         #expect(abs(a.scaleX - b.scaleX) < 0.02, "\(label) scaleX")
         #expect(abs(a.scaleY - b.scaleY) < 0.02, "\(label) scaleY")
         #expect(abs(a.rotation - b.rotation) < 0.5, "\(label) rotation")

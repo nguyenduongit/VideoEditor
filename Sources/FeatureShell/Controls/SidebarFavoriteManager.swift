@@ -12,6 +12,8 @@ public final class SidebarFavoriteManager: Sendable {
     public static let shared = SidebarFavoriteManager()
     public static let favoritesCategory = "favorites"
     public static let dividerCategory = "---"
+    private static let allTabs = ["media", "audio", "text", "effect", "transition", "adjustment", "sticker"]
+    private static let cloudSyncedTabs = ["media", "audio", "text", "adjustment"]
 
     public private(set) var favoriteMap: [String: Set<String>] = [:]
 
@@ -47,7 +49,7 @@ public final class SidebarFavoriteManager: Sendable {
         favoriteMap[tab] = current
         saveFavoritesToDisk(for: tab)
 
-        if let repository {
+        if let repository, Self.cloudSyncedTabs.contains(tab) {
             Task {
                 try? await repository.addFavorite(id: id, for: tab)
             }
@@ -60,7 +62,7 @@ public final class SidebarFavoriteManager: Sendable {
         favoriteMap[tab] = current
         saveFavoritesToDisk(for: tab)
 
-        if let repository {
+        if let repository, Self.cloudSyncedTabs.contains(tab) {
             Task {
                 try? await repository.removeFavorite(id: id, for: tab)
             }
@@ -72,18 +74,18 @@ public final class SidebarFavoriteManager: Sendable {
     }
 
     public func syncWithCloud() {
-        guard let repository else { return }
-        let tabs = ["media", "audio", "text", "effect", "transition", "adjustment", "sticker"]
         Task { [weak self] in
-            for tab in tabs {
-                if let cloudFavs = try? await repository.fetchFavorites(for: tab) {
-                    await MainActor.run { [weak self] in
-                        guard let self else { return }
-                        let localDefaults = (self.favoriteMap[tab] ?? []).filter { $0.hasPrefix("default") }
-                        self.favoriteMap[tab] = cloudFavs.union(localDefaults)
-                        self.saveFavoritesToDisk(for: tab)
-                    }
-                }
+            await self?.syncWithCloudNow()
+        }
+    }
+
+    public func syncWithCloudNow() async {
+        guard let repository else { return }
+        for tab in Self.cloudSyncedTabs {
+            if let cloudFavs = try? await repository.fetchFavorites(for: tab) {
+                let localDefaults = (favoriteMap[tab] ?? []).filter { $0.hasPrefix("default") }
+                favoriteMap[tab] = cloudFavs.union(localDefaults)
+                saveFavoritesToDisk(for: tab)
             }
         }
     }
@@ -99,9 +101,8 @@ public final class SidebarFavoriteManager: Sendable {
     }
 
     private func loadAllFavoritesFromDisk() {
-        let tabs = ["media", "audio", "text", "effect", "transition", "adjustment", "sticker"]
         var loaded: [String: Set<String>] = [:]
-        for tab in tabs {
+        for tab in Self.allTabs {
             if let array = userDefaults.stringArray(forKey: key(for: tab)) {
                 loaded[tab] = Set(array)
             } else {

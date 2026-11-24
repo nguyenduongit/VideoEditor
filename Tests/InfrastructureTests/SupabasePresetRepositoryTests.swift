@@ -6,55 +6,29 @@ import Infrastructure
 @Suite("Supabase Preset Repository Safe Upsert & Offline SWR Tests", .serialized)
 struct SupabasePresetRepositoryTests {
 
-    @Test("Safe seeding preserves custom user presets while populating all built-in creative catalogs")
+    @Test("Safe seeding preserves custom user presets while populating Text and Adjustment cloud catalogs")
     func testSafeSeedPreservesUserPresetsAcrossRepositories() async throws {
-        let effectRepo = SupabaseEffectPresetRepository(client: nil)
         let adjustmentRepo = SupabaseAdjustmentPresetRepository(client: nil)
         let textRepo = SupabaseTextPresetRepository(client: nil)
-        let animationRepo = SupabaseAnimationPresetRepository(client: nil)
-        let stickerRepo = SupabaseStickerPresetRepository(client: nil)
-        let transitionRepo = SupabaseTransitionPresetRepository(client: nil)
 
         let userTextPreset = TextPreset(
             id: "community_user_saved_1",
-            name: "Mẫu Cộng Đồng Đã Lưu",
-            description: "Không được xóa khi seed lại mẫu hệ thống",
+            name: "Sample Community Preset",
+            description: "Must be preserved when reseeding system catalog",
             category: .vlog,
             config: TextConfiguration(content: "USER PRESET"),
             isSystem: false
         )
 
-        try await effectRepo.seedSystemCatalogSafely()
         try await adjustmentRepo.seedSystemCatalogSafely()
         try await textRepo.seedSystemCatalogSafely(preserving: [userTextPreset])
-        try await animationRepo.seedSystemCatalogSafely()
-        try await stickerRepo.seedSystemCatalogSafely()
-        try await transitionRepo.seedSystemCatalogSafely()
-
-        let stickers = try await stickerRepo.fetchPresets()
-        #expect(!stickers.isEmpty)
-        let transitions = try await transitionRepo.fetchPresets()
-        #expect(transitions.count == 83)
-        #expect(transitions.contains(where: { $0.id == "dissolve_default" }))
-        #expect(transitions.contains(where: { $0.id == "trans_basic_white_flash" }))
-        #expect(transitions.contains(where: { $0.id == "trans_light_white_flash" }))
-
-        let animations = try await animationRepo.fetchPresets()
-        #expect(animations.count >= 15)
-        #expect(animations.filter { $0.phase == .inAnimation }.count >= 5)
-        #expect(animations.filter { $0.phase == .outAnimation }.count >= 5)
-        #expect(animations.filter { $0.phase == .loopAnimation }.count >= 5)
-
-        let effects = try await effectRepo.fetchPresets()
-        #expect(effects.count == 1)
-        #expect(effects.contains(where: { $0.id == "creative_fx_rgb_glitch" }))
 
         let adjustments = try await adjustmentRepo.fetchPresets()
         #expect(adjustments.count == 2)
         #expect(adjustments.contains(where: { $0.id == "creative_color_kodak_2383" }))
 
         let texts = try await textRepo.fetchPresets()
-        #expect(texts.count == 2) // 1 default + 1 preserved user preset
+        #expect(texts.count == 2)
         #expect(texts.contains(where: { $0.id == "community_user_saved_1" }))
     }
 
@@ -128,42 +102,19 @@ struct SupabasePresetRepositoryTests {
         #expect(reloaded.contains(where: { $0.id == testID }) == false)
     }
 
-    @Test("Built-in templates are flagged as isSystem = true")
+    @Test("Built-in Text and Adjustment templates are flagged as isSystem = true")
     func testBuiltInTemplatesAreFlaggedAsSystem() {
         #expect(AdjustmentPreset.default.isSystem == true)
         #expect(TextPreset.default.isSystem == true)
         let allCreativeAreSystem = AdjustmentPreset.creativeCatalog.allSatisfy { $0.isSystem }
             && TextPreset.creativeCatalog.allSatisfy { $0.isSystem }
-            && EffectPreset.systemTemplates.allSatisfy { $0.isSystem }
-            && AnimationPreset.systemTemplates.allSatisfy { $0.isSystem }
         #expect(allCreativeAreSystem == true)
     }
 
-    @Test("Seed live animation presets to Supabase if configured")
-    func testSeedLiveAnimationPresetsToSupabase() async throws {
-        guard let client = SupabaseConfig.makeClient() else { return }
-        let repo = SupabaseAnimationPresetRepository(client: client)
-        let presets = try await repo.fetchPresets()
-        #expect(presets.count >= 49)
-    }
-
-    @Test("Seed and synchronize all 83 live transition presets to Supabase if configured")
-    func testSeedLiveTransitionPresetsToSupabase() async throws {
-        guard let client = SupabaseConfig.makeClient() else { return }
-        let repo = SupabaseTransitionPresetRepository(client: client)
-        let presets = try await repo.fetchPresets()
-        #expect(presets.count >= 83)
-        let whiteFlashBasic = presets.first(where: { $0.id == "trans_basic_white_flash" })
-        #expect(whiteFlashBasic?.parameterValues["mode"] == 6.0)
-        let whiteFlashLight = presets.first(where: { $0.id == "trans_light_white_flash" })
-        #expect(whiteFlashLight?.parameterValues["warmth"] == 0.0)
-        #expect(whiteFlashLight?.parameterValues["mode"] == 1.0)
-    }
-
-    @Test("Audio Preset Repository saves, fetches and deletes audio presets deterministically")
-    func testAudioPresetRepositoryOperations() async throws {
-        let repo = SupabaseAudioPresetRepository(client: nil)
-        let initial = try await repo.fetchPresets()
+    @Test("Audio Library Repository saves, fetches and deletes audio items deterministically")
+    func testAudioLibraryRepositoryOperations() async throws {
+        let repo = SupabaseAudioLibraryRepository(client: nil)
+        let initial = try await repo.fetchAudioItems()
         #expect(!initial.isEmpty)
         #expect(initial.contains(where: { $0.id == "audio_bgm_sunny_day" }))
         #expect(initial.contains(where: { $0.id == "audio_dance_beat" }))
@@ -171,7 +122,7 @@ struct SupabasePresetRepositoryTests {
         #expect(danceBeat?.category == "Dance Beat")
         #expect(danceBeat?.durationFormatted == "8-Beat")
 
-        let custom = AudioPreset(
+        let custom = AudioLibraryItem(
             id: "audio_custom_rock",
             name: "Rock Anthem",
             category: "Music",
@@ -180,15 +131,15 @@ struct SupabasePresetRepositoryTests {
             icon: "guitars.fill",
             isSystem: false
         )
-        try await repo.savePreset(custom)
+        try await repo.saveAudioItem(custom)
 
-        let updated = try await repo.fetchPresets()
+        let updated = try await repo.fetchAudioItems()
         #expect(updated.contains(where: { $0.id == "audio_custom_rock" }))
         let found = updated.first(where: { $0.id == "audio_custom_rock" })
         #expect(found?.durationFormatted == "03:00")
 
-        try await repo.deletePreset(id: "audio_custom_rock")
-        let afterDelete = try await repo.fetchPresets()
+        try await repo.deleteAudioItem(id: "audio_custom_rock")
+        let afterDelete = try await repo.fetchAudioItems()
         #expect(!afterDelete.contains(where: { $0.id == "audio_custom_rock" }))
     }
 
@@ -217,15 +168,15 @@ struct SupabasePresetRepositoryTests {
         #expect(!afterDelete.contains(where: { $0.id == "stock_custom_drone" }))
     }
 
-    @Test("Favorite Repository maps all 7 library tabs directly to item tables and manages favorites deterministically")
+    @Test("Favorite Repository maps only Cloud tabs to Supabase tables and leaves System Library tabs local")
     func testFavoriteRepositoryOperations() async throws {
         #expect(SupabaseFavoriteRepository.tableName(for: "media") == "stock_media")
-        #expect(SupabaseFavoriteRepository.tableName(for: "audio") == "audio_presets")
+        #expect(SupabaseFavoriteRepository.tableName(for: "audio") == "audio_library")
         #expect(SupabaseFavoriteRepository.tableName(for: "text") == "text_presets")
-        #expect(SupabaseFavoriteRepository.tableName(for: "effect") == "effect_presets")
-        #expect(SupabaseFavoriteRepository.tableName(for: "transition") == "transition_presets")
         #expect(SupabaseFavoriteRepository.tableName(for: "adjustment") == "adjustment_presets")
-        #expect(SupabaseFavoriteRepository.tableName(for: "sticker") == "sticker_presets")
+        #expect(SupabaseFavoriteRepository.tableName(for: "effect") == nil)
+        #expect(SupabaseFavoriteRepository.tableName(for: "transition") == nil)
+        #expect(SupabaseFavoriteRepository.tableName(for: "sticker") == nil)
         #expect(SupabaseFavoriteRepository.tableName(for: "unknown") == nil)
 
         let repo = SupabaseFavoriteRepository(client: nil)

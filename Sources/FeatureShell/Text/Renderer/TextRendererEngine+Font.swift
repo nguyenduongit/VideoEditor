@@ -53,12 +53,11 @@ extension TextRendererEngine {
         for config: TextConfiguration,
         em: Double
     ) -> (dx: Double, dy: Double, sx: Double, sy: Double) {
-        if config.animation.hasScriptAnimation,
-           let script = TextAnimationScriptRegistry.shared.script(for: config.animation.scriptId) {
-            return measureScriptEnvelopeDelta(for: config, script: script, em: em)
+        guard config.animation.hasScriptAnimation,
+              let script = TextAnimationScriptRegistry.shared.script(for: config.animation.scriptId) else {
+            return (0.0, 0.0, 1.0, 1.0)
         }
-        guard !config.animation.isDefault else { return (0.0, 0.0, 1.0, 1.0) }
-        return measureLegacyEnvelopeDelta(for: config, em: em)
+        return measureScriptEnvelopeDelta(for: config, script: script, em: em)
     }
 
     private func measureScriptEnvelopeDelta(
@@ -88,32 +87,6 @@ extension TextRendererEngine {
                 let dy = abs(effDy) + rot.y
                 maxDx = max(maxDx, dx); maxDy = max(maxDy, dy)
                 maxSX = max(maxSX, d.scaleX); maxSY = max(maxSY, d.scaleY)
-            }
-        }
-        return (min(em * 1.25, maxDx), min(em * 1.0, maxDy), min(1.35, max(1.0, maxSX)), min(1.35, max(1.0, maxSY)))
-    }
-
-    private func measureLegacyEnvelopeDelta(
-        for config: TextConfiguration,
-        em: Double
-    ) -> (dx: Double, dy: Double, sx: Double, sy: Double) {
-        let unitTotal = max(1, min(12, config.content.count))
-        let sampleIndices = Array(Set([0, unitTotal / 2, max(0, unitTotal - 1)]))
-        let canvas = CGSize(width: 1920, height: 1080)
-        var maxDx = 0.0, maxDy = 0.0, maxSX = 1.0, maxSY = 1.0
-        for t in [0.3, 0.7, 1.5, 2.2, 2.8, 4.3, 4.7] {
-            for uIdx in sampleIndices {
-                let ev = TextAnimationEvaluator.evaluate(
-                    config: config, localTime: t, duration: 5.0, canvasSize: canvas, charIndex: uIdx, charCount: unitTotal
-                )
-                guard ev.config.opacity > 0.10 else { continue }
-                let rot = rotationEnvelopeExpansion(
-                    degrees: ev.config.rotation - config.rotation, scaleX: ev.overlay.scaleX, scaleY: ev.overlay.scaleY, em: em
-                )
-                maxDx = max(maxDx, abs(ev.config.positionX - config.positionX) + rot.x)
-                maxDy = max(maxDy, abs(ev.config.positionY - config.positionY) + rot.y)
-                maxSX = max(maxSX, ev.overlay.scaleX * (ev.config.scale / max(0.01, config.scale)))
-                maxSY = max(maxSY, ev.overlay.scaleY * (ev.config.scale / max(0.01, config.scale)))
             }
         }
         return (min(em * 1.25, maxDx), min(em * 1.0, maxDy), min(1.35, max(1.0, maxSX)), min(1.35, max(1.0, maxSY)))
@@ -166,10 +139,19 @@ extension TextRendererEngine {
             let maxSafeW = CGFloat(TextAutoFitter.maxSafeWidth(for: canvasSize))
             let safeguard: CGFloat = (coreBounds.width > maxSafeW && coreBounds.width > 0) ? (maxSafeW / coreBounds.width) : 1.0
 
+            let followText = config.background.animateWithText
+            let evaluated = followText
+                ? TextAnimationEvaluator.evaluate(config: config, localTime: localTime, duration: duration, canvasSize: canvasSize)
+                : TextAnimationEvaluator.EvaluationResult(config: config)
             var result = canvas
             if let bgImg = TextCompositeLayerRenderer.renderBackground(
-                background: config.background, anchorConfig: config, overlay: TextTransformOverlay(),
-                textRawSize: envelopeBounds, safeguardScale: safeguard, canvasSize: canvasSize, localTime: localTime
+                background: config.background,
+                anchorConfig: followText ? evaluated.config : config,
+                overlay: followText ? evaluated.overlay : TextTransformOverlay(),
+                textRawSize: followText ? coreBounds : envelopeBounds,
+                safeguardScale: safeguard,
+                canvasSize: canvasSize,
+                localTime: localTime
             ) {
                 result = TextCompositeLayerRenderer.blend(
                     layerImage: bgImg, over: result, mode: config.background.blendMode

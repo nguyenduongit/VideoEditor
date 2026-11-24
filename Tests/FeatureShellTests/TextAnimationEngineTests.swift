@@ -12,15 +12,16 @@ import AppKit
 @Suite("TextAnimationEngineTests")
 @MainActor
 struct TextAnimationEngineTests {
-    @Test("TextAnimationConfiguration defaults to none and isDefault returns true")
+    @Test("TextAnimationConfiguration defaults to unified script 'none' and isDefault returns true")
     func testTextAnimationConfigurationDefaults() {
         let config = TextAnimationConfiguration()
-        #expect(config.inType == .none)
-        #expect(config.outType == .none)
-        #expect(config.loopType == .none)
-        #expect(config.inDuration == 1.0)
-        #expect(config.outDuration == 1.0)
-        #expect(config.loopSpeed == 1.0)
+        #expect(config.scriptId == "none")
+        #expect(config.hasScriptAnimation == false)
+        #expect(config.scriptDuration == 5.0)
+        #expect(config.scriptInDuration == 1.0)
+        #expect(config.scriptLoopDuration == 3.0)
+        #expect(config.scriptOutDuration == 1.0)
+        #expect(config.scriptSpeed == 1.0)
         #expect(config.isTypewriterCursorVisible == true)
         #expect(config.motionEasing == .smooth)
         #expect(config.isDefault == true)
@@ -48,107 +49,98 @@ struct TextAnimationEngineTests {
         #expect(decoded.isItalic == false)
     }
 
-    @Test("Typewriter animation generates substring progression with optional cursor")
+    @Test("Typewriter unified script progresses per character with trailing cursor and smooth exit")
     func testTypewriterAnimationProgression() {
-        var config = TextConfiguration(content: "Hello World")
-        config.animation.inType = .typewriter
-        config.animation.inDuration = 1.0
-        config.animation.isTypewriterCursorVisible = true
+        var config = TextConfiguration(content: "Hello")
+        config.animation.scriptId = "typewriter_cursor"
+        config.animation.applyUnifiedScriptTiming(baseLoopSeconds: 3, speed: 1.0)
 
         let canvasSize = CGSize(width: 1920, height: 1080)
 
-        let eval0 = TextAnimationEvaluator.evaluate(config: config, localTime: 0.0, duration: 5.0, canvasSize: canvasSize)
-        #expect(eval0.config.content == "|")
+        let evalFirstStart = TextAnimationEvaluator.evaluate(
+            config: config, localTime: 0.05, duration: 5.0, canvasSize: canvasSize, charIndex: 0, charCount: 5
+        )
+        #expect(evalFirstStart.overlay.trailingCursorOpacity > 0.5)
 
-        let evalHalf = TextAnimationEvaluator.evaluate(config: config, localTime: 0.5, duration: 5.0, canvasSize: canvasSize)
-        #expect(evalHalf.config.content.hasPrefix("Hello"))
-        #expect(evalHalf.config.content.hasSuffix("|"))
+        let evalLastEarly = TextAnimationEvaluator.evaluate(
+            config: config, localTime: 0.05, duration: 5.0, canvasSize: canvasSize, charIndex: 4, charCount: 5
+        )
+        #expect(evalLastEarly.config.opacity == 0.0)
 
-        let evalFull = TextAnimationEvaluator.evaluate(config: config, localTime: 1.0, duration: 5.0, canvasSize: canvasSize)
-        #expect(evalFull.config.content == "Hello World")
+        let evalLoopMid = TextAnimationEvaluator.evaluate(
+            config: config, localTime: 2.0, duration: 5.0, canvasSize: canvasSize, charIndex: 4, charCount: 5
+        )
+        #expect(evalLoopMid.config.opacity == 1.0)
     }
 
-    @Test("FadeIn and SlideUp animations interpolate opacity and position correctly")
+    @Test("Fade and Slide unified scripts interpolate opacity and position across phases")
     func testFadeInAndSlideUpEvaluation() {
         var configFade = TextConfiguration(content: "Test Fade")
-        configFade.animation.inType = .fadeIn
-        configFade.animation.inDuration = 1.0
+        configFade.animation.scriptId = "fade_soft_glow"
+        configFade.animation.applyUnifiedScriptTiming(baseLoopSeconds: 2, speed: 1.0)
 
         let canvasSize = CGSize(width: 1000, height: 1000)
         let evalFade0 = TextAnimationEvaluator.evaluate(config: configFade, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
         #expect(evalFade0.config.opacity == 0.0)
 
-        let evalFadeHalf = TextAnimationEvaluator.evaluate(config: configFade, localTime: 0.5, duration: 4.0, canvasSize: canvasSize)
-        #expect(abs(evalFadeHalf.config.opacity - 0.5) < 0.001)
+        let evalFadeMid = TextAnimationEvaluator.evaluate(config: configFade, localTime: 2.0, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalFadeMid.config.opacity > 0.9)
 
         var configSlide = TextConfiguration(content: "Test Slide")
-        configSlide.animation.inType = .slideUp
-        configSlide.animation.inDuration = 1.0
+        configSlide.animation.scriptId = "smooth_word_glide"
+        configSlide.animation.applyUnifiedScriptTiming(baseLoopSeconds: 2, speed: 1.0)
 
         let evalSlide0 = TextAnimationEvaluator.evaluate(config: configSlide, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalSlide0.config.positionY > 0.0)
+        #expect(abs(evalSlide0.config.positionY) > 0.0 || evalSlide0.config.opacity < 1.0)
 
-        let evalSlideDone = TextAnimationEvaluator.evaluate(config: configSlide, localTime: 1.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(abs(evalSlideDone.config.positionY - 0.0) < 0.001)
+        let evalSlideDone = TextAnimationEvaluator.evaluate(config: configSlide, localTime: 2.0, duration: 4.0, canvasSize: canvasSize)
+        #expect(evalSlideDone.config.opacity > 0.95)
     }
 
-    @Test("Pro In Animations evaluate transforms: SlideUp, WhipRight, KineticDrop")
+    @Test("Unified kinetic scripts evaluate intro transforms cleanly")
     func testProInAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
-        var cfgSlide = TextConfiguration(content: "Slide Up")
-        cfgSlide.animation.inType = .slideUp
-        cfgSlide.animation.inDuration = 1.0
-        let evalSlide0 = TextAnimationEvaluator.evaluate(config: cfgSlide, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalSlide0.config.positionY > 50.0)
+        var cfgDrop = TextConfiguration(content: "Drop")
+        cfgDrop.animation.scriptId = "kinetic_drop_glow"
+        let evalDrop = TextAnimationEvaluator.evaluate(config: cfgDrop, localTime: 0.15, duration: 5.0, canvasSize: canvasSize, charIndex: 0, charCount: 4)
+        #expect(abs(evalDrop.config.positionY) > 1.0 || evalDrop.config.opacity < 1.0)
 
         var cfgWhip = TextConfiguration(content: "Whip")
-        cfgWhip.animation.inType = .whipRight
-        cfgWhip.animation.inDuration = 1.0
-        let evalWhip0 = TextAnimationEvaluator.evaluate(config: cfgWhip, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalWhip0.config.positionX < -50.0)
-
-        var cfgDrop = TextConfiguration(content: "Drop")
-        cfgDrop.animation.inType = .kineticDrop
-        cfgDrop.animation.inDuration = 1.0
-        let evalDrop0 = TextAnimationEvaluator.evaluate(config: cfgDrop, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalDrop0.config.positionY < -50.0)
+        cfgWhip.animation.scriptId = "whip_echo_slam"
+        let evalWhip = TextAnimationEvaluator.evaluate(config: cfgWhip, localTime: 0.1, duration: 5.0, canvasSize: canvasSize, charIndex: 0, charCount: 4)
+        #expect(abs(evalWhip.config.positionX) > 1.0 || evalWhip.overlay.echoCount > 0)
     }
 
-    @Test("Pro Out Animations evaluate exit transitions: DropDown, WhipOut")
+    @Test("Unified scripts evaluate outro transitions smoothly back to exit")
     func testProOutAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
-        let dur = 4.0
+        let dur = 5.0
 
         var cfgDrop = TextConfiguration(content: "Drop Down")
-        cfgDrop.animation.outType = .dropDown
-        cfgDrop.animation.outDuration = 1.0
-        let evalDropEnd = TextAnimationEvaluator.evaluate(config: cfgDrop, localTime: 4.0, duration: dur, canvasSize: canvasSize)
-        #expect(evalDropEnd.config.positionY > 50.0)
+        cfgDrop.animation.scriptId = "kinetic_drop_glow"
+        let evalDropEnd = TextAnimationEvaluator.evaluate(config: cfgDrop, localTime: 5.0, duration: dur, canvasSize: canvasSize, charIndex: 0, charCount: 8)
         #expect(evalDropEnd.config.opacity <= 0.05)
 
         var cfgWhip = TextConfiguration(content: "Whip Out")
-        cfgWhip.animation.outType = .whipOut
-        cfgWhip.animation.outDuration = 1.0
-        let evalWhipEnd = TextAnimationEvaluator.evaluate(config: cfgWhip, localTime: 4.0, duration: dur, canvasSize: canvasSize)
-        #expect(evalWhipEnd.config.positionX > 50.0)
+        cfgWhip.animation.scriptId = "whip_echo_slam"
+        let evalWhipEnd = TextAnimationEvaluator.evaluate(config: cfgWhip, localTime: 5.0, duration: dur, canvasSize: canvasSize, charIndex: 0, charCount: 8)
         #expect(evalWhipEnd.config.opacity <= 0.05)
     }
 
-    @Test("Pro Loop Animations evaluate heart and shake effects")
+    @Test("Unified wave & liquid pulse scripts animate continuously during loop window")
     func testProLoopAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
-        var cfgShake = TextConfiguration(content: "Shake")
-        cfgShake.animation.loopType = .shake
-        cfgShake.animation.loopSpeed = 1.0
-        let evalShake = TextAnimationEvaluator.evaluate(config: cfgShake, localTime: 0.35, duration: 5.0, canvasSize: canvasSize)
-        #expect(abs(evalShake.config.rotation) > 0.001 || abs(evalShake.config.positionX) > 0.001)
+        var cfgWave = TextConfiguration(content: "Wave")
+        cfgWave.animation.scriptId = "title_wave_float"
+        let evalWave = TextAnimationEvaluator.evaluate(config: cfgWave, localTime: 1.25, duration: 5.0, canvasSize: canvasSize, charIndex: 0, charCount: 4)
+        #expect(abs(evalWave.config.positionY) > 0.1 || abs(evalWave.config.rotation) > 0.1)
 
-        var cfgHeart = TextConfiguration(content: "Heart")
-        cfgHeart.animation.loopType = .pulse
-        let evalHeart = TextAnimationEvaluator.evaluate(config: cfgHeart, localTime: 0.25, duration: 5.0, canvasSize: canvasSize)
-        #expect(evalHeart.config.scale > 1.0)
+        var cfgPulse = TextConfiguration(content: "Pulse")
+        cfgPulse.animation.scriptId = "liquid_wave_pulse"
+        let evalPulse = TextAnimationEvaluator.evaluate(config: cfgPulse, localTime: 1.35, duration: 5.0, canvasSize: canvasSize, charIndex: 0, charCount: 5)
+        #expect(evalPulse.overlay.scaleX != 1.0 || evalPulse.config.positionY != 0.0)
     }
 
     @Test("Motion Easing curves produce bounded ease values")
@@ -161,21 +153,20 @@ struct TextAnimationEngineTests {
         #expect(TextAnimationCurves.apply(progress: 1.0, easing: .elastic) == 1.0)
     }
 
-    @Test("TextRendererEngine renders valid animated CIImage with pixelation and glow")
+    @Test("TextRendererEngine renders valid animated CIImage with glow and unified script")
     func testTextRendererEngineRendering() {
         var config = TextConfiguration(content: "AWESOME MOTION")
         config.isBold = true
         config.hasGlow = true
         config.glowColorHex = "#00FFFF"
         config.glowRadius = 12.0
-        config.animation.outType = .fadeOut
-        config.animation.outDuration = 1.0
+        config.animation.scriptId = "fade_soft_glow"
 
         let canvasSize = CGSize(width: 600, height: 400)
         let image = TextRendererEngine().renderAnimatedImage(
             for: config,
-            localTime: 2.8,
-            duration: 3.0,
+            localTime: 0.6,
+            duration: 5.0,
             canvasSize: canvasSize
         )
         #expect(image != nil)
@@ -199,9 +190,8 @@ struct TextAnimationEngineTests {
         guard let ciImg = renderer.renderAnimatedImage(for: config, localTime: 1.0, duration: 5.0, canvasSize: canvasSize),
               let ciAnim = {
                   var animCfg = config
-                  animCfg.animation.inType = .slideUp
-                  animCfg.animation.inDuration = 0.5
-                  return renderer.renderAnimatedImage(for: animCfg, localTime: 1.0, duration: 5.0, canvasSize: canvasSize)
+                  animCfg.animation.scriptId = "smooth_word_glide"
+                  return renderer.renderAnimatedImage(for: animCfg, localTime: 1.2, duration: 5.0, canvasSize: canvasSize)
               }() else {
             Issue.record("Failed to render background images")
             return
@@ -218,9 +208,8 @@ struct TextAnimationEngineTests {
         guard let ciGlowStatic = renderer.renderAnimatedImage(for: glowConfig, localTime: 1.0, duration: 5.0, canvasSize: canvasSize),
               let ciGlowAnim = {
                   var animGlow = glowConfig
-                  animGlow.animation.inType = .slideUp
-                  animGlow.animation.inDuration = 0.5
-                  return renderer.renderAnimatedImage(for: animGlow, localTime: 1.0, duration: 5.0, canvasSize: canvasSize)
+                  animGlow.animation.scriptId = "smooth_word_glide"
+                  return renderer.renderAnimatedImage(for: animGlow, localTime: 1.2, duration: 5.0, canvasSize: canvasSize)
               }() else {
             Issue.record("Failed to render glow images")
             return

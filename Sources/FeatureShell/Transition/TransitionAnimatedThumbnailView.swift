@@ -10,7 +10,7 @@ import DesignSystem
 public struct TransitionAnimatedThumbnailView: View {
     public static let hoverDurationSeconds: Double = 2.0
 
-    let preset: TransitionPreset
+    let item: TransitionLibraryItem
     let externalIsHovered: Bool?
 
     @State private var localIsHovered: Bool = false
@@ -20,8 +20,8 @@ public struct TransitionAnimatedThumbnailView: View {
         externalIsHovered ?? localIsHovered
     }
 
-    public init(preset: TransitionPreset, isHovered: Bool? = nil) {
-        self.preset = preset
+    public init(item: TransitionLibraryItem, isHovered: Bool? = nil) {
+        self.item = item
         self.externalIsHovered = isHovered
     }
 
@@ -63,7 +63,7 @@ public struct TransitionAnimatedThumbnailView: View {
             let rawP = elapsed.truncatingRemainder(dividingBy: cycle) / cycle
 
             if let cgFrame = TransitionThumbnailAssetProvider.shared.renderTransitionFrame(
-                for: preset,
+                for: item,
                 rawProgress: rawP
             ) {
                 Image(decorative: cgFrame, scale: 1.0)
@@ -77,7 +77,7 @@ public struct TransitionAnimatedThumbnailView: View {
     }
 
     private var sceneAView: some View {
-        TransitionThumbnailAssetProvider.shared.imageA(for: preset.category)
+        TransitionThumbnailAssetProvider.shared.imageA(for: item.category)
             .resizable()
             .scaledToFill()
     }

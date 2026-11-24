@@ -29,6 +29,7 @@ public final class TextRenderPerformanceCache: @unchecked Sendable {
         let curve: TextCurveStyle
         let isUnderlined: Bool
         let preserveBaseline: Bool
+        let alignment: TextAlignmentType
     }
 
     private struct TokenizeKey: Hashable {
@@ -36,6 +37,7 @@ public final class TextRenderPerformanceCache: @unchecked Sendable {
         let scope: TextAnimationScope
         let fontKey: FontKey
         let spacingCentipoints: Int
+        let alignment: TextAlignmentType
     }
 
     private let lock = NSLock()
@@ -115,7 +117,8 @@ public final class TextRenderPerformanceCache: @unchecked Sendable {
             spacingCentipoints: Int((config.characterSpacing * 100.0).rounded()),
             curve: effectiveCurve,
             isUnderlined: config.isUnderlined,
-            preserveBaseline: preserveBaseline
+            preserveBaseline: preserveBaseline,
+            alignment: config.alignment
         )
 
         lock.lock()
@@ -131,7 +134,8 @@ public final class TextRenderPerformanceCache: @unchecked Sendable {
             characterSpacing: config.characterSpacing,
             curve: effectiveCurve,
             isUnderlined: config.isUnderlined,
-            preserveBaseline: preserveBaseline
+            preserveBaseline: preserveBaseline,
+            alignment: config.alignment
         )
 
         lock.lock()
@@ -159,7 +163,8 @@ public final class TextRenderPerformanceCache: @unchecked Sendable {
             content: content,
             scope: scope,
             fontKey: fKey,
-            spacingCentipoints: Int((config.characterSpacing * 100.0).rounded())
+            spacingCentipoints: Int((config.characterSpacing * 100.0).rounded()),
+            alignment: config.alignment
         )
 
         lock.lock()
@@ -173,7 +178,8 @@ public final class TextRenderPerformanceCache: @unchecked Sendable {
             content: content,
             scope: scope,
             font: font,
-            spacing: config.characterSpacing
+            spacing: config.characterSpacing,
+            alignment: config.alignment
         )
 
         lock.lock()

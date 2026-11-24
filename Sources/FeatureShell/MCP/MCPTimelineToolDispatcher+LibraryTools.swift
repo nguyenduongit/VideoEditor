@@ -13,13 +13,13 @@ extension MCPTimelineToolDispatcher {
         let adjustmentPresets: [[String: String]] = dependencies.adjustmentTemplates.loadAllTemplates().map {
             ["id": $0.id, "name": $0.name, "category": $0.category.rawValue, "description": $0.description]
         }
-        let effectPresets: [[String: String]] = dependencies.effectTemplates.loadAllTemplates().map {
+        let effectItems: [[String: String]] = dependencies.effectLibrary.loadAllItems().map {
             ["id": $0.id, "name": $0.name, "category": $0.category.rawValue, "description": $0.description]
         }
-        let transitionPresets: [[String: String]] = dependencies.transitionTemplates.loadAllTemplates().map {
+        let transitionItems: [[String: String]] = dependencies.transitionLibrary.loadAllItems().map {
             ["id": $0.id, "name": $0.name, "category": $0.category.rawValue, "description": $0.description]
         }
-        let stickerPresets: [[String: String]] = dependencies.stickerTemplates.loadAllTemplates().map {
+        let stickerItems: [[String: String]] = dependencies.stickerLibrary.loadAllItems().map {
             ["id": $0.id, "name": $0.name, "category": $0.category.rawValue, "description": $0.description]
         }
         let vm = scriptEngine.currentViewModel
@@ -30,9 +30,9 @@ extension MCPTimelineToolDispatcher {
             "mediaAssets": assetsList,
             "textTemplates": textPresets,
             "adjustmentTemplates": adjustmentPresets,
-            "effectTemplates": effectPresets,
-            "transitionTemplates": transitionPresets,
-            "stickerTemplates": stickerPresets,
+            "effectLibrary": effectItems,
+            "transitionLibrary": transitionItems,
+            "stickerLibrary": stickerItems,
             "favoriteFonts": favoriteFonts,
             "availableFonts": popularFonts
         ]
@@ -85,22 +85,22 @@ extension MCPTimelineToolDispatcher {
             return try applyOrUpdateAdjustmentConfiguration(dict)
         } else if kind == "effect" {
             let templateId = (dict["templateId"] as? String) ?? ""
-            let presets = dependencies.effectTemplates.loadAllTemplates()
-            let matched = presets.first { $0.id.caseInsensitiveCompare(templateId) == .orderedSame } ?? presets.first
+            let items = dependencies.effectLibrary.loadAllItems()
+            let matched = items.first { $0.id.caseInsensitiveCompare(templateId) == .orderedSame } ?? items.first
             if let matched {
                 scriptEngine.currentViewModel.addEffectClip(
                     named: matched.name,
                     config: matched.config,
                     durationSeconds: matched.defaultDuration,
-                    originPresetID: matched.id
+                    originPresetID: nil
                 )
                 return "{\"status\":\"success\",\"appliedEffect\":\"\(matched.name)\"}"
             }
-            throw AppError.invalidParameter("Effect preset not found")
+            throw AppError.invalidParameter("Effect library item not found")
         } else if kind == "transition" {
             let templateId = (dict["templateId"] as? String) ?? ""
-            let presets = dependencies.transitionTemplates.loadAllTemplates()
-            let matched = presets.first { $0.id.caseInsensitiveCompare(templateId) == .orderedSame } ?? TransitionPreset.default
+            let items = dependencies.transitionLibrary.loadAllItems()
+            let matched = items.first { $0.id.caseInsensitiveCompare(templateId) == .orderedSame } ?? TransitionLibraryItem.default
             let vm = scriptEngine.currentViewModel
             if let firstLayer = vm.layers.first(where: { ($0.kind == .video || $0.kind == .image) && $0.clips.count >= 2 }) {
                 vm.addOrUpdateCutTransition(matched, between: firstLayer.clips[0].id, and: firstLayer.clips[1].id)
@@ -109,13 +109,13 @@ extension MCPTimelineToolDispatcher {
             throw AppError.invalidParameter("No adjacent video/image clips found for transition")
         } else if kind == "sticker" {
             let templateId = (dict["templateId"] as? String) ?? ""
-            let presets = dependencies.stickerTemplates.loadAllTemplates()
-            let matched = presets.first { $0.id.caseInsensitiveCompare(templateId) == .orderedSame } ?? presets.first
+            let items = dependencies.stickerLibrary.loadAllItems()
+            let matched = items.first { $0.id.caseInsensitiveCompare(templateId) == .orderedSame } ?? items.first
             if let matched {
-                scriptEngine.currentViewModel.addStickerPreset(matched)
+                scriptEngine.currentViewModel.addStickerItem(matched)
                 return "{\"status\":\"success\",\"appliedSticker\":\"\(matched.name)\"}"
             }
-            throw AppError.invalidParameter("Sticker preset not found")
+            throw AppError.invalidParameter("Sticker library item not found")
         } else {
             throw AppError.invalidParameter("Unsupported kind: \(kind). Expected text, adjustment, effect, transition, or sticker.")
         }
@@ -150,19 +150,19 @@ extension MCPTimelineToolDispatcher {
                 return "{\"status\":\"success\",\"registered\":\"adjustment\",\"id\":\"\(preset.id)\"}"
             }
         case "effect":
-            if let preset = EffectPreset.decode(from: payloadString) {
-                dependencies.effectTemplates.updateInMemoryPreset(preset)
-                return "{\"status\":\"success\",\"registered\":\"effect\",\"id\":\"\(preset.id)\"}"
+            if let item = EffectLibraryItem.decode(from: payloadString) {
+                dependencies.effectLibrary.registerRuntimeItem(item)
+                return "{\"status\":\"success\",\"registered\":\"effect\",\"id\":\"\(item.id)\"}"
             }
         case "transition":
-            if let preset = TransitionPreset.decode(from: payloadString) {
-                dependencies.transitionTemplates.updateInMemoryPreset(preset)
-                return "{\"status\":\"success\",\"registered\":\"transition\",\"id\":\"\(preset.id)\"}"
+            if let item = TransitionLibraryItem.decode(from: payloadString) {
+                dependencies.transitionLibrary.registerRuntimeItem(item)
+                return "{\"status\":\"success\",\"registered\":\"transition\",\"id\":\"\(item.id)\"}"
             }
         case "sticker":
-            if let preset = StickerPreset.decode(from: payloadString) {
-                dependencies.stickerTemplates.updateInMemoryPreset(preset)
-                return "{\"status\":\"success\",\"registered\":\"sticker\",\"id\":\"\(preset.id)\"}"
+            if let item = StickerLibraryItem.decode(from: payloadString) {
+                dependencies.stickerLibrary.registerRuntimeItem(item)
+                return "{\"status\":\"success\",\"registered\":\"sticker\",\"id\":\"\(item.id)\"}"
             }
         default:
             throw AppError.invalidParameter("Unsupported template kind: \(kind)")

@@ -7,20 +7,20 @@ import DesignSystem
 /// đồng thời cung cấp hàm vẽ khối overlay màu xanh lơ (Cyan) cho phiên kéo thả Transition.
 /// Tuân thủ AGENTS.md R1 (File <= 300 dòng, Hàm <= 50 dòng).
 public struct TransitionDragBridgeView: NSViewRepresentable {
-    private let preset: TransitionPreset
+    private let item: TransitionLibraryItem
     private let onSelect: () -> Void
     private let onAddToTimeline: () -> Void
     private let onToggleFavorite: () -> Void
     private let onHover: ((Bool) -> Void)?
 
     public init(
-        preset: TransitionPreset,
+        item: TransitionLibraryItem,
         onSelect: @escaping () -> Void = {},
         onAddToTimeline: @escaping () -> Void = {},
         onToggleFavorite: @escaping () -> Void = {},
         onHover: ((Bool) -> Void)? = nil
     ) {
-        self.preset = preset
+        self.item = item
         self.onSelect = onSelect
         self.onAddToTimeline = onAddToTimeline
         self.onToggleFavorite = onToggleFavorite
@@ -38,7 +38,7 @@ public struct TransitionDragBridgeView: NSViewRepresentable {
     }
 
     private func configure(_ view: MediaAssetDragSourceNSView) {
-        view.dragPayload = .transition(preset)
+        view.dragPayload = .transition(item)
         view.onSelect = { _ in onSelect() }
         view.onAddToTimeline = onAddToTimeline
         view.onToggleFavorite = onToggleFavorite
@@ -49,9 +49,9 @@ public struct TransitionDragBridgeView: NSViewRepresentable {
 // MARK: - TransitionDragSourceNSView (Cyan Preview Renderer)
 
 public enum TransitionDragSourceNSView {
-    /// Vẽ khối hình chữ nhật overlay màu xanh lơ (Cyan) có vạch chia trung tâm và biểu tượng đồng hồ cát.
+    /// Draws a Cyan rectangle overlay with center line marker and hourglass badge.
     public static func renderCyanOverlayImage(
-        for preset: TransitionPreset,
+        for item: TransitionLibraryItem,
         width: CGFloat,
         height: CGFloat
     ) -> NSImage {

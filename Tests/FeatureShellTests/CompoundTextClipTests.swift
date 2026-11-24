@@ -38,15 +38,15 @@ struct CompoundTextClipTests {
         #expect(inspectorVM.availableTabs == ["Text", "Appearance", "Background", "Animation"])
     }
 
-    @Test("Single-line sanitization flattens CR/LF newlines into clean spaces")
+    @Test("Multiline normalization preserves line breaks while sanitizeSingleLine flattens when needed")
     func singleLineSanitizationFlattensNewlines() {
         var config = TextConfiguration(content: "Dòng 1\r\nDòng 2\nDòng 3")
-        #expect(!config.content.contains("\n"))
         #expect(!config.content.contains("\r"))
-        #expect(config.content == "Dòng 1 Dòng 2 Dòng 3")
+        #expect(config.content == "Dòng 1\nDòng 2\nDòng 3")
 
         config.content = "Chào\nbạn\rmới"
-        #expect(config.content == "Chào bạn mới")
+        #expect(config.content == "Chào\nbạn\nmới")
+        #expect(TextConfiguration.sanitizeSingleLine(config.content) == "Chào bạn mới")
     }
 
     @Test("InspectorViewModel updates unified TextConfiguration and syncs flat transform properties")
@@ -62,7 +62,7 @@ struct CompoundTextClipTests {
         updated.positionX = 120.0
         updated.positionY = -180.0
         updated.scale = 1.35
-        updated.animation.inType = .typewriter
+        updated.animation.scriptId = "typewriter_cursor"
         inspectorVM.updateTextConfiguration(updated, commit: true)
 
         let committed = inspectorVM.textConfiguration
@@ -71,7 +71,7 @@ struct CompoundTextClipTests {
         #expect(committed.positionX == 120.0)
         #expect(committed.positionY == -180.0)
         #expect(committed.scale == 1.35)
-        #expect(committed.animation.inType == .typewriter)
+        #expect(committed.animation.scriptId == "typewriter_cursor")
         #expect(inspectorVM.liveNumber(for: "positionX", default: 0) == 120.0)
         #expect(inspectorVM.liveNumber(for: "scale", default: 1) == 1.35)
     }

@@ -41,7 +41,9 @@ extension TimelineView {
                 viewModel.selectClip(id)
                 viewModel.clearSelectedBeatMarkers()
             },
-            onSetAudioFade: { viewModel.setAudioFadePreset(clipID: $0, seconds: $1) }
+            onSetAudioFade: { viewModel.setAudioFadePreset(clipID: $0, seconds: $1) },
+            canOverwriteOriginPreset: { canOverwriteOriginPreset(for: $0) },
+            onOverwritePreset: { viewModel.presetOverwriteTargetClip = $0 }
         )
     }
 
@@ -194,5 +196,123 @@ extension TimelineView {
         default:
             return nil
         }
+    }
+
+    func canOverwriteOriginPreset(for clip: TimelineClip) -> Bool {
+        guard let originID = clip.properties["originPresetId"]?.asString,
+              let originName = clip.properties["originPresetName"]?.asString,
+              !originID.isEmpty, !originName.isEmpty else {
+            return false
+        }
+        let authorID = CommunityIdentity.currentAuthorID
+        switch clip.kind {
+        case .adjustment:
+            guard let existing = viewModel.dependencies.adjustmentTemplates.loadAllTemplates()
+                .first(where: { $0.id == originID }) else { return true }
+            return existing.canBeModified(by: authorID)
+        case .text:
+            guard let existing = viewModel.dependencies.textTemplates.loadAllTemplates()
+                .first(where: { $0.id == originID }) else { return true }
+            return existing.canBeModified(by: authorID)
+        default:
+            return false
+        }
+    }
+
+    func overwriteOriginPreset(for clip: TimelineClip) {
+        guard canOverwriteOriginPreset(for: clip),
+              let originID = clip.properties["originPresetId"]?.asString,
+              let originName = clip.properties["originPresetName"]?.asString,
+              let presetKind = savePresetKind(for: clip) else { return }
+
+        let deps = viewModel.dependencies
+        Task { @MainActor in
+            do {
+                switch presetKind {
+                case .adjustment(let cfg):
+                    try await overwriteAdjustmentPreset(id: originID, name: originName, config: cfg, deps: deps)
+                case .text(let cfg):
+                    try await overwriteTextPreset(id: originID, name: originName, config: cfg, deps: deps)
+                }
+            } catch {
+                presetOverwriteErrorMessage = "Failed to overwrite \"\(originName)\": \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func overwriteAdjustmentPreset(
+        id: String,
+        name: String,
+        config: AdjustmentConfiguration,
+        deps: EditorDependencies
+    ) async throws {
+        let existing = deps.adjustmentTemplates.loadAllTemplates().first(where: { $0.id == id })
+        let updated = AdjustmentPreset(
+            id: id,
+            name: name,
+            description: existing?.description ?? "Updated from timeline",
+            category: existing?.category ?? .cinematic,
+            tags: existing?.tags ?? [name.lowercased()],
+            previewBadge: existing?.previewBadge,
+            previewColorsHex: existing?.previewColorsHex ?? ["#27272A", "#52525B"],
+            config: config,
+            isSystem: false,
+            community: existing?.community
+        )
+        _ = deps.adjustmentTemplates.saveTemplateToUserCache(updated)
+        try await deps.presetRepositories.adjustmentRepository?.savePreset(updated)
+    }
+
+    private func overwriteTextPreset(
+        id: String,
+        name: String,
+        config: TextConfiguration,
+        deps: EditorDependencies
+    ) async throws {
+        let existing = deps.textTemplates.loadAllTemplates().first(where: { $0.id == id })
+        let updated = TextPreset(
+            id: id,
+            name: name,
+            description: existing?.description ?? "Updated from timeline",
+            category: existing?.category ?? .trending,
+            tags: existing?.tags ?? [name.lowercased()],
+            defaultDuration: existing?.defaultDuration ?? 4.0,
+            previewBadge: existing?.previewBadge,
+            previewBackgroundHex: existing?.previewBackgroundHex ?? "#18181B",
+            fallbackFontName: existing?.fallbackFontName,
+            remoteFontURL: existing?.remoteFontURL,
+            config: config,
+            isSystem: false,
+            community: existing?.community
+        )
+        _ = deps.textTemplates.saveTemplateToUserCache(updated)
+        try await deps.presetRepositories.textRepository?.savePreset(updated)
+    }
+    var presetOverwriteAlertsView: some View {
+        Color.clear
+            .alert(
+                String(localized: "Confirm Preset Overwrite"),
+                isPresented: Binding(get: { viewModel.presetOverwriteTargetClip != nil }, set: { if !$0 { viewModel.presetOverwriteTargetClip = nil } }),
+                presenting: viewModel.presetOverwriteTargetClip
+            ) { clip in
+                Button(String(localized: "Overwrite"), role: .destructive) {
+                    overwriteOriginPreset(for: clip)
+                    viewModel.presetOverwriteTargetClip = nil
+                }
+                Button(String(localized: "Cancel"), role: .cancel) {
+                    viewModel.presetOverwriteTargetClip = nil
+                }
+            } message: { clip in
+                let originName = clip.properties["originPresetName"]?.asString ?? clip.name
+                Text(String(localized: "Are you sure you want to update all new parameters to preset \"\(originName)\" on Supabase?"))
+            }
+            .alert(
+                String(localized: "Preset Overwrite Failed"),
+                isPresented: Binding(get: { presetOverwriteErrorMessage != nil }, set: { if !$0 { presetOverwriteErrorMessage = nil } })
+            ) {
+                Button(String(localized: "OK"), role: .cancel) { presetOverwriteErrorMessage = nil }
+            } message: {
+                Text(presetOverwriteErrorMessage ?? "")
+            }
     }
 }

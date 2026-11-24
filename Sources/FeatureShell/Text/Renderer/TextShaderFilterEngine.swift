@@ -78,7 +78,7 @@ public enum TextShaderFilterEngine: Sendable {
             result = applyMotionBlur(to: result, radius: overlay.motionBlurRadius, angle: overlay.motionBlurAngle)
         }
         if blurRadius > 0.001 {
-            result = applyBlur(to: result, radius: blurRadius)
+            result = applyGaussianBlur(to: result, radius: blurRadius)
         }
         if abs(hueAngle) > 0.001 {
             result = applyHue(to: result, angle: hueAngle)
@@ -96,11 +96,14 @@ public enum TextShaderFilterEngine: Sendable {
         return result.cropped(to: canvasExtent)
     }
 
-    private static func applyBlur(to image: CIImage, radius: Double) -> CIImage {
-        guard let filter = CIFilter(name: "CIGaussianBlur", parameters: [
-            kCIInputImageKey: image,
-            kCIInputRadiusKey: radius
-        ]) else { return image }
+    /// Làm mờ Gaussian chuẩn trên GPU CoreImage (tái sử dụng cho cả Text và Sticker).
+    public static func applyGaussianBlur(to image: CIImage, radius: Double) -> CIImage {
+        let clampedRadius = max(0.0, min(60.0, radius))
+        guard clampedRadius > 0.001,
+              let filter = CIFilter(name: "CIGaussianBlur", parameters: [
+                  kCIInputImageKey: image,
+                  kCIInputRadiusKey: clampedRadius
+              ]) else { return image }
         return (filter.outputImage ?? image).cropped(to: image.extent)
     }
 

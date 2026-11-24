@@ -66,7 +66,7 @@ extension TimelineClipView {
             textSpecificMenu
         case .adjustment:
             durationSubmenu(includeMatchBelow: true)
-            saveAsPresetButton
+            presetContextMenuItems
         case .effect:
             durationSubmenu(includeMatchBelow: true)
         case .sticker:
@@ -102,7 +102,7 @@ extension TimelineClipView {
             Label(String(localized: "Apply Style to All Text in Track"), systemImage: "textformat.size")
         }
         durationSubmenu(includeMatchBelow: true)
-        saveAsPresetButton
+        presetContextMenuItems
     }
 
     private var muteClipAudioButton: some View {
@@ -115,7 +115,17 @@ extension TimelineClipView {
         }
     }
 
-    private var saveAsPresetButton: some View {
+    @ViewBuilder
+    private var presetContextMenuItems: some View {
+        if let originName = clip.properties["originPresetName"]?.asString,
+           contextActions?.canOverwriteOriginPreset(clip) == true {
+            Button { contextActions?.onOverwritePreset(clip) } label: {
+                Label(
+                    String(localized: "Overwrite \"\(originName)\"..."),
+                    systemImage: "arrow.triangle.2.circlepath"
+                )
+            }
+        }
         Button { onSavePreset?(clip) } label: {
             Label(String(localized: "Save as Preset..."), systemImage: "square.and.arrow.down")
         }

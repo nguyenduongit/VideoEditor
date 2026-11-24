@@ -92,9 +92,8 @@ extension MCPTimelineToolDispatcher {
             shadow: TextShadowStyle(isEnabled: true, colorHex: "#000000", opacity: 70.0, blur: 8.0, distance: 3.0, angleDegrees: -90.0),
             positionY: defaultPosY
         )
-        fallback.animation.inType = .slideUp
-        fallback.animation.outType = .fadeOut
-        fallback.animation.loopType = .none
+        fallback.animation.scriptId = "smooth_word_glide"
+        fallback.animation.applyUnifiedScriptTiming(baseLoopSeconds: 3, speed: 1.0)
         return (fallback, nil)
     }
 
@@ -213,11 +212,22 @@ extension MCPTimelineToolDispatcher {
         } else if let posY = dict["positionY"] as? Double {
             cfg.positionY = posY
         }
-        if let inAnim = dict["inAnimation"] as? String { cfg.animation.inType = MCPTextPropertyResolver.resolveInAnimation(inAnim) }
-        if let outAnim = dict["outAnimation"] as? String { cfg.animation.outType = MCPTextPropertyResolver.resolveOutAnimation(outAnim) }
-        if let loopAnim = dict["loopAnimation"] as? String { cfg.animation.loopType = MCPTextPropertyResolver.resolveLoopAnimation(loopAnim) }
-        if let easingStr = dict["motionEasing"] as? String, let easing = TextMotionEasing(rawValue: easingStr) {
-            cfg.animation.motionEasing = easing
+        let rawScript = (dict["animationScript"] as? String)
+            ?? (dict["scriptId"] as? String)
+            ?? (dict["inAnimation"] as? String)
+            ?? (dict["loopAnimation"] as? String)
+            ?? (dict["outAnimation"] as? String)
+        if let rawScript {
+            let resolvedId = MCPTextPropertyResolver.resolveScriptId(rawScript)
+            cfg.animation.scriptId = resolvedId
+            if let script = TextAnimationScriptRegistry.shared.script(for: resolvedId) {
+                let speed = (dict["animationSpeed"] as? Double) ?? cfg.animation.scriptSpeed
+                let baseSteps = max(1, Int(script.defaultLoopDuration.rounded()))
+                cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: baseSteps, speed: speed)
+            }
+        } else if let speed = dict["animationSpeed"] as? Double, cfg.animation.hasScriptAnimation {
+            let steps = cfg.animation.scriptBaseLoopSeconds
+            cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: steps, speed: speed)
         }
     }
 }

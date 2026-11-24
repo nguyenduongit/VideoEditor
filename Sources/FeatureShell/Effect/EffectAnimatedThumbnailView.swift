@@ -10,7 +10,7 @@ import DesignSystem
 public struct EffectAnimatedThumbnailView: View {
     public static let hoverDurationSeconds: Double = 2.0
 
-    let preset: EffectPreset
+    let item: EffectLibraryItem
     let externalIsHovered: Bool?
 
     @State private var localIsHovered: Bool = false
@@ -20,8 +20,8 @@ public struct EffectAnimatedThumbnailView: View {
         externalIsHovered ?? localIsHovered
     }
 
-    public init(preset: EffectPreset, isHovered: Bool? = nil) {
-        self.preset = preset
+    public init(item: EffectLibraryItem, isHovered: Bool? = nil) {
+        self.item = item
         self.externalIsHovered = isHovered
     }
 
@@ -33,7 +33,7 @@ public struct EffectAnimatedThumbnailView: View {
                 staticThumbnailContent
             }
 
-            if preset.config.isBeatSynced {
+            if item.config.isBeatSynced {
                 beatBadgeOverlay
             }
         }
@@ -101,20 +101,20 @@ public struct EffectAnimatedThumbnailView: View {
     }
 
     private var sceneAView: some View {
-        TransitionThumbnailAssetProvider.shared.imageA(for: transitionCategory(for: preset.category))
+        TransitionThumbnailAssetProvider.shared.imageA(for: transitionCategory(for: item.category))
             .resizable()
             .scaledToFill()
     }
 
     private func renderEffectFrame(localTime: Double, duration: Double) -> CGImage? {
-        let transCat = transitionCategory(for: preset.category)
+        let transCat = transitionCategory(for: item.category)
         let pair = TransitionThumbnailAssetProvider.shared.assetPair(for: transCat)
         let size = TransitionThumbnailAssetProvider.thumbnailPixelSize
         let rect = CGRect(origin: .zero, size: size)
 
         let outCI = EffectEngine.shared.applyEffect(
             to: pair.ciImageA,
-            config: preset.config,
+            config: item.config,
             localTime: localTime,
             duration: duration,
             canvasSize: size
@@ -123,7 +123,7 @@ public struct EffectAnimatedThumbnailView: View {
         return MetalComputeRuntimeEngine.shared.renderCGImage(from: outCI, rect: rect)
     }
 
-    private func transitionCategory(for effectCat: EffectTemplateCategory) -> TransitionCategory {
+    private func transitionCategory(for effectCat: EffectCategory) -> TransitionCategory {
         switch effectCat {
         case .basic, .color, .nature:
             return .basic

@@ -18,7 +18,7 @@ public enum TextAutoFitter: Sendable {
         return Double(canvasSize.width) * ratio
     }
 
-    /// Đo bề ngang thực tế của chuỗi trên một dòng đơn (Single-line width)
+    /// Measures widest line width across single-line or multi-line (`\n`) text content.
     public static func measureSingleLineWidth(for config: TextConfiguration) -> Double {
         guard !config.content.isEmpty else { return 0.0 }
         #if os(macOS)
@@ -33,8 +33,8 @@ public enum TextAutoFitter: Sendable {
             .font: font,
             .kern: CGFloat(config.characterSpacing)
         ]
-        let attr = NSAttributedString(string: safeContent, attributes: attrs)
-        var w = ceil(Double(attr.size().width))
+        let lines = safeContent.components(separatedBy: "\n")
+        var w = lines.map { ceil(Double(NSAttributedString(string: $0, attributes: attrs).size().width)) }.max() ?? 0.0
         if config.outerStroke.isEnabled && config.outerStroke.width > 0 {
             w += config.outerStroke.width * 2.0
         }

@@ -22,7 +22,7 @@ extension TimelineViewModel {
     /// Thêm hoặc thay thế (ghi đè) hiệu ứng chuyển cảnh (`CutTransition`) giữa 2 clip nối sát nhau (không có khoảng cách).
     @discardableResult
     public func addOrUpdateCutTransition(
-        _ preset: TransitionPreset,
+        _ item: TransitionLibraryItem,
         between leadingClipID: UUID,
         and trailingClipID: UUID
     ) -> CutTransition? {
@@ -46,21 +46,21 @@ extension TimelineViewModel {
         let leadDuration = layer.clips[leadIdx].timeRange.duration.seconds
         let trailDuration = layer.clips[leadIdx + 1].timeRange.duration.seconds
         let maxAllowed = max(0.1, 2.0 * min(leadDuration, trailDuration))
-        let targetDuration = min(preset.defaultDuration, maxAllowed)
+        let targetDuration = min(item.defaultDuration, maxAllowed)
         let durationRational = RationalTime(cmTime: CMTime(seconds: targetDuration, preferredTimescale: 600))
         let transition = CutTransition(
             id: existing?.id ?? UUID(),
-            presetID: preset.id,
-            name: preset.name,
+            presetID: item.id,
+            name: item.name,
             leadingClipID: leadingClipID,
             trailingClipID: trailingClipID,
             duration: durationRational,
             alignment: existing?.alignment ?? .center,
-            shaderType: preset.shaderType,
-            easing: preset.defaultEasing,
+            shaderType: item.shaderType,
+            easing: item.defaultEasing,
             crossfadeAudio: existing?.crossfadeAudio ?? true,
-            parameterValues: preset.parameterValues,
-            customMetalSource: preset.customMetalSource
+            parameterValues: item.parameterValues,
+            customMetalSource: item.customMetalSource
         )
 
         if let executor = commandExecutor {
@@ -75,10 +75,8 @@ extension TimelineViewModel {
         return transition
     }
 
-    /// Xác định vùng điểm nối hợp lệ của 2 video/image clip nối sát nhau tại tọa độ `(canvasX, canvasY)` trên Timeline.
-    /// Chỉ trả về kết quả khi 2 clip nối nhau không có khoảng cách và vị trí thả nằm trong vùng chứa điểm nối.
     public func resolveTransitionDropTarget(
-        preset: TransitionPreset? = nil,
+        item: TransitionLibraryItem? = nil,
         canvasX: CGFloat,
         canvasY: CGFloat,
         topSpacerHeight: CGFloat
@@ -97,7 +95,7 @@ extension TimelineViewModel {
                   layer.clips.count >= 2 else {
                 return nil
             }
-            return findJoinTargetInLayer(layer, layerHeight: h, layerMidY: minY + h * 0.5, preset: preset, canvasX: canvasX)
+            return findJoinTargetInLayer(layer, layerHeight: h, layerMidY: minY + h * 0.5, item: item, canvasX: canvasX)
         }
         return nil
     }
@@ -106,7 +104,7 @@ extension TimelineViewModel {
         _ layer: TimelineLayer,
         layerHeight: CGFloat,
         layerMidY: CGFloat,
-        preset: TransitionPreset?,
+        item: TransitionLibraryItem?,
         canvasX: CGFloat
     ) -> TransitionDropJoinTarget? {
         var bestTarget: TransitionDropJoinTarget?
@@ -120,7 +118,7 @@ extension TimelineViewModel {
             let cutTime = lead.timeRange.end
             let cutX = CGFloat(cutTime.seconds) * pixelsPerSecond
             let maxAllowed = max(0.1, 2.0 * min(lead.timeRange.duration.seconds, trail.timeRange.duration.seconds))
-            let targetDur = min(preset?.defaultDuration ?? 2.0, maxAllowed)
+            let targetDur = min(item?.defaultDuration ?? 2.0, maxAllowed)
             let existing = layer.transition(between: lead.id, and: trail.id)
             let existingDur = existing?.duration.seconds ?? 0.0
             let overlayW = max(14.0, CGFloat(targetDur) * pixelsPerSecond)
@@ -147,31 +145,27 @@ extension TimelineViewModel {
         return bestTarget
     }
 
-    /// Thực thi thả một `TransitionPreset` vào vị trí `(canvasX, canvasY)` trên Timeline (hỗ trợ thêm mới hoặc ghi đè transition cũ).
     @discardableResult
     public func dropTransition(
-        _ preset: TransitionPreset,
+        _ item: TransitionLibraryItem,
         atCanvasX canvasX: CGFloat,
         canvasY: CGFloat,
         topSpacerHeight: CGFloat
     ) -> CutTransition? {
         guard let target = resolveTransitionDropTarget(
-            preset: preset,
+            item: item,
             canvasX: canvasX,
             canvasY: canvasY,
             topSpacerHeight: topSpacerHeight
         ) else {
             return nil
         }
-        return addOrUpdateCutTransition(preset, between: target.leadingClipID, and: target.trailingClipID)
+        return addOrUpdateCutTransition(item, between: target.leadingClipID, and: target.trailingClipID)
     }
 
-    /// Tìm kiếm `TransitionPreset` theo ID từ kho mẫu hiện hành hoặc danh mục tích hợp.
-    public func lookupTransitionPreset(by id: String) -> TransitionPreset? {
-        if let found = dependencies.transitionTemplates.loadAllTemplates().first(where: { $0.id == id }) {
-            return found
-        }
-        return TransitionPreset.builtInCatalog.first(where: { $0.id == id })
+    /// Looks up a `TransitionLibraryItem` by ID from the system catalog or active runtime library.
+    public func lookupTransitionItem(by id: String) -> TransitionLibraryItem? {
+        dependencies.transitionLibrary.item(withID: id)
     }
 
     /// Cập nhật thông số `CutTransition` và ghi nhận lệnh Undo/Redo (hoặc cập nhật tức thời `commit == false` khi đang kéo thanh trượt).

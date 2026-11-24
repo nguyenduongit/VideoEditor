@@ -113,7 +113,8 @@ extension TimelineCompositionBuilder {
 
     static func makeStickerRenderInfo(
         layer: TimelineLayer,
-        range: CMTimeRange
+        range: CMTimeRange,
+        allLayers: [TimelineLayer] = []
     ) -> TimelineCustomVideoCompositionInstruction.LayerRenderInfo? {
         guard let clip = findActiveClip(in: layer, range: range) else { return nil }
         var config = clip.properties["stickerConfig"]?.asString.flatMap {
@@ -127,6 +128,13 @@ extension TimelineCompositionBuilder {
         if let loopRaw = clip.properties["loopMode"]?.asString, let loop = StickerLoopMode(rawValue: loopRaw) {
             config.loopMode = loop
         }
+        let tempo = AudioTempoResolver.resolveTempo(overlapping: clip.timeRange, in: allLayers)
+        if config.animation.hasScriptAnimation, config.animation.isBeatSyncEnabled, let audioBPM = tempo.bpm {
+            config.animation.beatBPM = audioBPM
+        }
+        let reactiveTracks = config.format == .audiogram
+            ? resolveAudioReactiveTracks(overlapping: clip.timeRange, in: allLayers)
+            : []
         let opacity = Float(clip.properties["opacity"]?.asNumber ?? 1.0)
         return TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
             trackID: kCMPersistentTrackID_Invalid,
@@ -136,8 +144,46 @@ extension TimelineCompositionBuilder {
             clipTimeRange: clip.timeRange,
             isSticker: true,
             stickerConfig: config,
-            clip: clip
+            clip: clip,
+            audioReactiveTracks: reactiveTracks
         )
+    }
+
+    static func resolveAudioReactiveTracks(
+        overlapping range: CMTimeRange,
+        in layers: [TimelineLayer]
+    ) -> [AudioReactiveTrackSnapshot] {
+        let rStart = CMTimeGetSeconds(range.start)
+        let rEnd = CMTimeGetSeconds(range.end)
+        var snapshots: [AudioReactiveTrackSnapshot] = []
+        for layer in layers where (layer.kind == .audio || layer.kind == .video) && !layer.isMuted && !layer.isHidden {
+            for clip in layer.clips {
+                if layer.kind == .audio && (clip.properties["isBeatCounter"]?.asBool ?? false) { continue }
+                let volume = clip.properties["volume"]?.asNumber ?? 1.0
+                guard volume > 0.001 else { continue }
+                let cStart = CMTimeGetSeconds(clip.timeRange.start)
+                let cEnd = CMTimeGetSeconds(clip.timeRange.end)
+                guard min(rEnd, cEnd) - max(rStart, cStart) > 0.02 else { continue }
+
+                let speed = max(0.1, clip.properties["speed"]?.asNumber ?? 1.0)
+                let beatCfg = AudioBeatConfiguration.from(clip: clip)
+                let beatTimes = beatCfg?.timelineBeatTimes(for: clip).map { CMTimeGetSeconds($0) } ?? []
+                let bpm = beatCfg.flatMap { AudioTempoResolver.extractBPM(from: $0, clipSpeed: speed) }
+                let profile = clip.mediaURL.flatMap { cachedAudioReactiveProfile(for: $0) }
+                snapshots.append(AudioReactiveTrackSnapshot(
+                    clipName: clip.name,
+                    timelineStart: cStart,
+                    timelineDuration: CMTimeGetSeconds(clip.timeRange.duration),
+                    sourceStart: max(0.0, CMTimeGetSeconds(clip.sourceStartTime)),
+                    speed: speed,
+                    volume: volume,
+                    beatTimesSeconds: beatTimes,
+                    detectedBPM: bpm,
+                    profile: profile
+                ))
+            }
+        }
+        return snapshots
     }
 
     static func makeStillImageRenderInfo(
@@ -257,12 +303,19 @@ extension TimelineCompositionBuilder {
 
     static func makeTextRenderInfo(
         layer: TimelineLayer,
-        range: CMTimeRange
+        range: CMTimeRange,
+        allLayers: [TimelineLayer] = []
     ) -> TimelineCustomVideoCompositionInstruction.LayerRenderInfo? {
         guard let clip = findActiveClip(in: layer, range: range) else { return nil }
         var config = clip.properties["textConfig"]?.asString.flatMap {
             TextConfiguration.decode(from: $0)
         } ?? TextConfiguration(content: clip.properties["textContent"]?.asString ?? clip.name)
+        if config.animation.isBeatSyncEnabled, !allLayers.isEmpty {
+            let resolved = AudioTempoResolver.resolveTempo(overlapping: clip.timeRange, in: allLayers)
+            if let audioBPM = resolved.bpm {
+                config.animation.beatBPM = audioBPM
+            }
+        }
 
         if let px = clip.properties["positionX"]?.asNumber { config.positionX = px }
         if let py = clip.properties["positionY"]?.asNumber { config.positionY = py }

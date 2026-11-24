@@ -119,11 +119,26 @@ extension TimelineViewModel {
                     for lIdx in self.layers.indices {
                         if let cIdx = self.layers[lIdx].clips.firstIndex(where: { $0.id == clipID }) {
                             self.layers[lIdx].clips[cIdx].properties = updated
+                            self.onClipsTrimmed?()
                             break
                         }
                     }
                 }
             }
+        }
+    }
+
+    /// Phân tích ngầm phổ tần số đa băng tần (30Hz FFT) cho clip âm thanh/video để Sticker Audiogram nhảy đồng bộ.
+    public func backgroundExtractReactiveProfile(for url: URL) {
+        guard let service = audioReactiveAnalysisService else { return }
+        if let existing = service.cachedProfile(for: url) {
+            TimelineCompositionBuilder.storeAudioReactiveProfile(existing, for: url)
+            return
+        }
+        Task { @MainActor [weak self] in
+            guard let profile = await service.extractReactiveProfile(from: url) else { return }
+            TimelineCompositionBuilder.storeAudioReactiveProfile(profile, for: url)
+            self?.onClipsTrimmed?()
         }
     }
 

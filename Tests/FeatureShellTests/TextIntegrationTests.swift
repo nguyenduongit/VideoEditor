@@ -300,16 +300,20 @@ struct TextIntegrationTests {
 
     @Test func testScriptDrivenContinuousAnimationEvaluation() {
         let registry = TextAnimationScriptRegistry.shared
-        #expect(TextAnimationCategory.allCases == [.fade, .slide, .pop, .wave, .glitch, .typewriter])
+        #expect(TextAnimationCategory.allCases == [.fade, .slide, .pop, .wave, .glitch, .typewriter, .threeD, .lightFX])
         #expect(TextTemplateCategory.assignableCases == [.title, .sub, .music])
-        #expect(registry.scripts.count == 19)
-        #expect(registry.scripts(in: .wave).count == 4)
-        #expect(registry.scripts(in: .fade).count == 3)
-        #expect(registry.scripts(in: .slide).count == 3)
-        #expect(registry.scripts(in: .pop).count == 3)
-        #expect(registry.scripts(in: .glitch).count == 3)
-        #expect(registry.scripts(in: .typewriter).count == 3)
+        #expect(registry.scripts.count == 48)
+        #expect(registry.scripts(in: .wave).count >= 10)
+        #expect(registry.scripts(in: .fade).count >= 7)
+        #expect(registry.scripts(in: .slide).count == 7)
+        #expect(registry.scripts(in: .pop).count >= 7)
+        #expect(registry.scripts(in: .glitch).count >= 6)
+        #expect(registry.scripts(in: .typewriter).count >= 5)
+        #expect(registry.scripts(in: .threeD).count >= 5)
+        #expect(registry.scripts(in: .lightFX).count >= 6)
         #expect(registry.script(for: "wave_cascade_flow") != nil)
+        #expect(registry.script(for: "karaoke_box_pop") != nil)
+        #expect(registry.script(for: "line_cascade_rise") != nil)
 
         guard let titleWave = registry.script(for: "title_wave_float") else {
             Issue.record("Missing title_wave_float script")
@@ -497,5 +501,145 @@ struct TextIntegrationTests {
         #expect(eval3Left.config.opacity > 0.0)
         #expect(eval3Left.config.positionY != eval3Right.config.positionY)
         #expect(abs(eval3Left.config.rotation) > 0.5 || abs(eval3Right.config.rotation) > 0.5)
+    }
+
+    @Test("Integer-cycle Loop & symmetric In=Out split, Auto/2-Bar Beat Sync, Text clip preservation, and Audio BPM compositor injection")
+    func testIntegerLoopSymmetricEdgesAndTextBeatSync() {
+        // 1. Odd timeline duration (5.47s) in free time scale -> exact integer cycles + symmetric R/2 edges
+        let freeAnim = TextAnimationConfiguration(scriptId: "title_wave_float", scriptSpeed: 1.0)
+        let freePhases = freeAnim.resolvedPhases(forClipDuration: 5.47, baseCycleSeconds: 1.0)
+        #expect(freePhases.cycleCount == 4)
+        #expect(abs(freePhases.loopDuration - 4.0) < 0.001)
+        #expect(abs(freePhases.inDuration - 0.735) < 0.001)
+        #expect(abs(freePhases.outDuration - 0.735) < 0.001)
+
+        // 2. Beat Sync @ 128 BPM: 7.35s selects 1 Bar (3×1.875s = 5.625s); 8.80s upgrades cleanly to 2 Bars (2×3.75s = 7.50s)
+        var beatAnim = TextAnimationConfiguration(scriptId: "title_wave_float", isBeatSyncEnabled: true, beatBPM: 128.0, beatBarMode: .auto)
+        let barPhases735 = beatAnim.resolvedPhases(forClipDuration: 7.35, baseCycleSeconds: 1.0)
+        #expect(barPhases735.cycleCount == 3)
+        #expect(barPhases735.beatsPerCycle == 4)
+        #expect(abs(barPhases735.loopDuration - 5.625) < 0.001)
+        #expect(abs(barPhases735.inDuration - barPhases735.outDuration) < 0.0001)
+        #expect(abs(barPhases735.inDuration - 0.8625) < 0.001)
+
+        let barPhases880 = beatAnim.resolvedPhases(forClipDuration: 8.80, baseCycleSeconds: 1.0)
+        #expect(barPhases880.cycleCount == 2)
+        #expect(barPhases880.beatsPerCycle == 8)
+        #expect(abs(barPhases880.loopDuration - 7.50) < 0.001)
+        #expect(abs(barPhases880.inDuration - 0.65) < 0.001)
+        #expect(abs(barPhases880.outDuration - 0.65) < 0.001)
+
+        beatAnim.beatBarMode = .oneBeat
+        let oneBeatPhases = beatAnim.resolvedPhases(forClipDuration: 3.0, baseCycleSeconds: 1.0)
+        #expect(oneBeatPhases.beatsPerCycle == 1)
+        #expect(oneBeatPhases.cycleLabel == "\(oneBeatPhases.cycleCount)×1 Beat")
+
+        // 3. Committing TextConfiguration animation must NEVER overwrite Timeline clip length
+        let customDur = CMTime(seconds: 7.35, preferredTimescale: 600)
+        var initialCfg = TextConfiguration(content: "Preserve My Length")
+        let textClip = TimelineClip(
+            name: "Text",
+            kind: .text,
+            timeRange: CMTimeRange(start: .zero, duration: customDur),
+            properties: ["textConfig": .string(initialCfg.encodeToJSON() ?? "")]
+        )
+        let textLayer = TimelineLayer(name: "Text 1", kind: .text, clips: [textClip])
+        let timelineVM = TimelineViewModel(initialLayers: [textLayer])
+        timelineVM.selectClip(textClip.id)
+        let inspectorVM = InspectorViewModel(timelineViewModel: timelineVM)
+        inspectorVM.syncWithSelection()
+
+        initialCfg.animation.scriptId = "title_wave_float"
+        initialCfg.animation.updateTimingForSpeed(1.2, clipDuration: 7.35, baseCycleSeconds: 1.0)
+        inspectorVM.updateTextConfiguration(initialCfg, commit: true)
+        let afterDur = timelineVM.clip(by: textClip.id)?.timeRange.duration.seconds ?? 0.0
+        #expect(abs(afterDur - 7.35) < 0.01)
+
+        // 5. All Slide category scripts genuinely translate across full Preview canvas dimensions
+        let slideScripts = TextAnimationScriptRegistry.shared.scripts(in: .slide)
+        #expect(slideScripts.count == 7)
+        let smallCanvas = CGSize(width: 640, height: 360)
+        let largeCanvas = CGSize(width: 1920, height: 1080)
+        for slideScript in slideScripts {
+            var scfg = TextConfiguration(content: "Hello\nWorld")
+            scfg.animation.scriptId = slideScript.id
+            let evalSmall = TextAnimationEvaluator.evaluate(config: scfg, localTime: 0.0, duration: 5.0, canvasSize: smallCanvas)
+            let evalLarge = TextAnimationEvaluator.evaluate(config: scfg, localTime: 0.0, duration: 5.0, canvasSize: largeCanvas)
+            let magSmall = hypot(evalSmall.config.positionX, evalSmall.config.positionY)
+            let magLarge = hypot(evalLarge.config.positionX, evalLarge.config.positionY)
+            #expect(magSmall > 250.0, "Slide script \(slideScript.id) did not start off-screen on 640x360: \(magSmall)")
+            #expect(magLarge > magSmall * 2.5, "Slide script \(slideScript.id) must scale travel with Preview canvasSize")
+        }
+        #expect(TextAnimationScriptRegistry.shared.script(for: "elastic_flip_3d")?.category == .pop)
+        #expect(TextAnimationScriptRegistry.shared.script(for: "pendulum_hinge_swing")?.category == .wave)
+        #expect(TextAnimationScriptRegistry.shared.script(for: "curtain_baseline_rise")?.category == .fade)
+
+        // 6. Phase 1 GPU shader scripts wire perspective3D, motionBlur, pixelate, lightSweep, liquidWave, glitchSlices, hue and render non-empty frames
+        let renderEngine = TextRendererEngine()
+        let shaderProbeCases: [(String, Double)] = [
+            ("three_d_tumble_drop", 0.25),
+            ("three_d_swinging_door", 0.25),
+            ("three_d_depth_rush", 0.25),
+            ("fx_metallic_sweep", 1.50),
+            ("fx_pixel_dissolve", 0.20),
+            ("fx_neon_ignition", 1.40),
+            ("fx_chromatic_vapor", 1.25),
+            ("slide_directional_whip", 0.20),
+            ("slide_zipper_cross", 0.25),
+            ("wave_flag_flutter", 1.25),
+            ("wave_liquid_ripple", 1.25),
+            ("glitch_crt_slice_tear", 0.15)
+        ]
+        for (sid, probeT) in shaderProbeCases {
+            var pcfg = TextConfiguration(content: "GPU FX")
+            pcfg.animation.scriptId = sid
+            let img = renderEngine.renderAnimatedImage(for: pcfg, localTime: probeT, duration: 5.0, canvasSize: smallCanvas)
+            #expect(img != nil, "Failed rendering Phase 1 script \(sid)")
+        }
+        var sweepCfg = TextConfiguration(content: "SWEEP")
+        sweepCfg.animation.scriptId = "fx_metallic_sweep"
+        #expect(TextAnimationEvaluator.evaluate(config: sweepCfg, localTime: 1.5, duration: 5.0, canvasSize: smallCanvas).overlay.lightSweepPhase >= 0.0)
+        var pxCfg = TextConfiguration(content: "PIXEL")
+        pxCfg.animation.scriptId = "fx_pixel_dissolve"
+        #expect(TextAnimationEvaluator.evaluate(config: pxCfg, localTime: 0.2, duration: 5.0, canvasSize: smallCanvas).pixelateScale > 1.0)
+        var perspCfg = TextConfiguration(content: "3D")
+        perspCfg.animation.scriptId = "three_d_tumble_drop"
+        #expect(abs(TextAnimationEvaluator.evaluate(config: perspCfg, localTime: 0.2, duration: 5.0, canvasSize: smallCanvas).overlay.perspectiveX) > 0.05)
+
+        // 4. TimelineCompositionBuilder.makeTextRenderInfo injects detected Audio BPM (with audio clip speed) when Beat Sync is enabled
+        let period128 = 60.0 / 128.0
+        let beatMarkers = (0..<24).map { i in
+            AudioBeatMarker(sourceTime: CMTime(seconds: Double(i) * period128, preferredTimescale: 600), kind: .major)
+        }
+        let audioBeatCfg = AudioBeatConfiguration(mode: .majorOnly, markers: beatMarkers, isVisible: false)
+        var audioClip = TimelineClip(
+            name: "BGM",
+            kind: .audio,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 10.0, preferredTimescale: 600)),
+            properties: [
+                AudioBeatConfiguration.propertyKey: .string(audioBeatCfg.encodeToJSON() ?? ""),
+                "speed": .number(1.25)
+            ]
+        )
+        audioClip.properties["volume"] = .number(1.0)
+        let audioLayer = TimelineLayer(name: "Audio 1", kind: .audio, clips: [audioClip])
+
+        var syncedTextCfg = TextConfiguration(content: "Beat Synced")
+        syncedTextCfg.animation.scriptId = "title_wave_float"
+        syncedTextCfg.animation.isBeatSyncEnabled = true
+        syncedTextCfg.animation.beatBPM = 120.0
+        let syncedTextClip = TimelineClip(
+            name: "Synced Text",
+            kind: .text,
+            timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 5.0, preferredTimescale: 600)),
+            properties: ["textConfig": .string(syncedTextCfg.encodeToJSON() ?? "")]
+        )
+        let syncedTextLayer = TimelineLayer(name: "Text 1", kind: .text, clips: [syncedTextClip])
+        let renderInfo = TimelineCompositionBuilder.makeTextRenderInfo(
+            layer: syncedTextLayer,
+            range: syncedTextClip.timeRange,
+            allLayers: [syncedTextLayer, audioLayer]
+        )
+        #expect(renderInfo?.textConfig?.animation.beatBPM == 160.0)
     }
 }

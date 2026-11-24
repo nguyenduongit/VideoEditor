@@ -77,6 +77,7 @@ extension TimelineCompositionBuilder {
         let customInstructions = buildInstructions(
             timeRanges: timeRanges,
             layers: activeLayers,
+            allLayers: layers,
             composition: composition,
             layerTrackIDs: layerTrackIDs,
             secondaryTrackIDs: secondaryTrackIDs,
@@ -99,6 +100,7 @@ extension TimelineCompositionBuilder {
     private static func buildInstructions(
         timeRanges: [CMTimeRange],
         layers: [TimelineLayer],
+        allLayers: [TimelineLayer],
         composition: AVMutableComposition,
         layerTrackIDs: [UUID: CMPersistentTrackID],
         secondaryTrackIDs: [UUID: CMPersistentTrackID],
@@ -118,11 +120,11 @@ extension TimelineCompositionBuilder {
                         layerInfos.append(effectInfo)
                     }
                 case .text:
-                    if let textInfo = makeTextRenderInfo(layer: layer, range: range) {
+                    if let textInfo = makeTextRenderInfo(layer: layer, range: range, allLayers: allLayers) {
                         layerInfos.append(textInfo)
                     }
                 case .sticker:
-                    if let stickerInfo = makeStickerRenderInfo(layer: layer, range: range) {
+                    if let stickerInfo = makeStickerRenderInfo(layer: layer, range: range, allLayers: allLayers) {
                         layerInfos.append(stickerInfo)
                     }
                 case .image:

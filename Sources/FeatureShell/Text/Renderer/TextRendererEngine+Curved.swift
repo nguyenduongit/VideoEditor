@@ -33,23 +33,38 @@ public enum TextCurvedPathBuilder: Sendable {
         characterSpacing: Double,
         curve: TextCurveStyle,
         isUnderlined: Bool = false,
-        preserveBaseline: Bool = false
+        preserveBaseline: Bool = false,
+        alignment: TextAlignmentType = .center
     ) -> ShapedLayout {
         let safeText = text.precomposedStringWithCanonicalMapping
         guard !safeText.isEmpty else {
             return ShapedLayout(combinedPath: CGMutablePath(), bounds: .zero, lineAdvanceWidth: 0, lineHeight: 0, emojiGlyphs: [])
         }
+        let lines = safeText.components(separatedBy: "\n")
+        if lines.count <= 1 {
+            return buildSingleLineLayout(
+                safeText: safeText, font: font, characterSpacing: characterSpacing,
+                curve: curve, isUnderlined: isUnderlined, preserveBaseline: preserveBaseline
+            )
+        }
+        return buildMultiLineLayout(
+            lines: lines, font: font, characterSpacing: characterSpacing,
+            curve: curve, isUnderlined: isUnderlined, alignment: alignment
+        )
+    }
 
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .kern: CGFloat(characterSpacing)
-        ]
-        let attrStr = NSAttributedString(string: safeText, attributes: attrs)
-        let ctLine = CTLineCreateWithAttributedString(attrStr)
+    private static func buildSingleLineLayout(
+        safeText: String,
+        font: NSFont,
+        characterSpacing: Double,
+        curve: TextCurveStyle,
+        isUnderlined: Bool,
+        preserveBaseline: Bool
+    ) -> ShapedLayout {
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .kern: CGFloat(characterSpacing)]
+        let ctLine = CTLineCreateWithAttributedString(NSAttributedString(string: safeText, attributes: attrs))
 
-        var ascent: CGFloat = 0
-        var descent: CGFloat = 0
-        var leading: CGFloat = 0
+        var ascent: CGFloat = 0, descent: CGFloat = 0, leading: CGFloat = 0
         let rawWidth = CGFloat(CTLineGetTypographicBounds(ctLine, &ascent, &descent, &leading))
         let totalWidth = max(1.0, rawWidth)
         let lineHeight = max(8.0, ascent + descent + leading)
@@ -59,15 +74,10 @@ public enum TextCurvedPathBuilder: Sendable {
         let combined = CGMutablePath()
         var emojis: [EmojiGlyphDraw] = []
         let runs = (CTLineGetGlyphRuns(ctLine) as? [CTRun]) ?? []
-
         for run in runs {
             appendRunGlyphs(
-                run: run,
-                totalWidth: totalWidth,
-                baselineOffset: baselineOffset,
-                curve: curve,
-                into: combined,
-                emojis: &emojis
+                run: run, totalWidth: totalWidth, baselineOffset: baselineOffset,
+                curve: curve, into: combined, emojis: &emojis
             )
         }
         if isUnderlined && !curve.isActive && !combined.isEmpty {
@@ -78,26 +88,85 @@ public enum TextCurvedPathBuilder: Sendable {
             combined.addRoundedRect(in: barRect, cornerWidth: thickness / 2.0, cornerHeight: thickness / 2.0)
         }
         if preserveBaseline {
-            let typographicBounds = CGRect(
-                x: -totalWidth / 2.0,
-                y: -lineHeight / 2.0,
-                width: totalWidth,
-                height: lineHeight
-            )
-            return ShapedLayout(
-                combinedPath: combined,
-                bounds: typographicBounds,
-                lineAdvanceWidth: totalWidth,
-                lineHeight: lineHeight,
-                emojiGlyphs: emojis
+            let typographicBounds = CGRect(x: -totalWidth / 2.0, y: -lineHeight / 2.0, width: totalWidth, height: lineHeight)
+            return ShapedLayout(combinedPath: combined, bounds: typographicBounds, lineAdvanceWidth: totalWidth, lineHeight: lineHeight, emojiGlyphs: emojis)
+        }
+        return makeCenteredLayout(combined: combined, totalWidth: totalWidth, lineHeight: lineHeight, emojis: emojis)
+    }
+
+    private struct MeasuredMultiLine {
+        let ctLine: CTLine
+        let width: CGFloat
+        let descent: CGFloat
+        let height: CGFloat
+    }
+
+    private static func buildMultiLineLayout(
+        lines: [String],
+        font: NSFont,
+        characterSpacing: Double,
+        curve: TextCurveStyle,
+        isUnderlined: Bool,
+        alignment: TextAlignmentType
+    ) -> ShapedLayout {
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .kern: CGFloat(characterSpacing)]
+        let measured: [MeasuredMultiLine] = lines.map { lineText in
+            let ct = CTLineCreateWithAttributedString(NSAttributedString(string: lineText, attributes: attrs))
+            var asc: CGFloat = 0, desc: CGFloat = 0, lead: CGFloat = 0
+            let w = lineText.isEmpty ? 0.0 : CGFloat(CTLineGetTypographicBounds(ct, &asc, &desc, &lead))
+            return MeasuredMultiLine(ctLine: ct, width: max(0.0, w), descent: desc, height: max(8.0, asc + desc + lead))
+        }
+        let maxW = max(1.0, measured.map(\.width).max() ?? 1.0)
+        let baseH = max(font.pointSize * 1.24, (measured.map(\.height).max() ?? font.pointSize) * 1.15)
+        let totalBlockSpan = CGFloat(max(0, measured.count - 1)) * baseH
+        let combined = CGMutablePath()
+        var emojis: [EmojiGlyphDraw] = []
+
+        for (idx, item) in measured.enumerated() where item.width > 0.5 {
+            let centerY = (totalBlockSpan * 0.5) - CGFloat(idx) * baseH
+            let shiftX: CGFloat = alignment == .center ? 0.0 : (alignment == .left ? -(maxW - item.width) * 0.5 : (maxW - item.width) * 0.5)
+            appendSingleLineToBlock(
+                item: item, font: font, curve: curve, isUnderlined: isUnderlined,
+                shiftX: shiftX, centerY: centerY, into: combined, emojis: &emojis
             )
         }
-        return makeCenteredLayout(
-            combined: combined,
-            totalWidth: totalWidth,
-            lineHeight: lineHeight,
-            emojis: emojis
-        )
+        return makeCenteredLayout(combined: combined, totalWidth: maxW, lineHeight: totalBlockSpan + baseH, emojis: emojis)
+    }
+
+    private static func appendSingleLineToBlock(
+        item: MeasuredMultiLine,
+        font: NSFont,
+        curve: TextCurveStyle,
+        isUnderlined: Bool,
+        shiftX: CGFloat,
+        centerY: CGFloat,
+        into combined: CGMutablePath,
+        emojis: inout [EmojiGlyphDraw]
+    ) {
+        let capH = font.capHeight > 1.0 ? font.capHeight : font.pointSize * 0.72
+        let linePath = CGMutablePath()
+        var lineEmojis: [EmojiGlyphDraw] = []
+        let runs = (CTLineGetGlyphRuns(item.ctLine) as? [CTRun]) ?? []
+        for run in runs {
+            appendRunGlyphs(
+                run: run, totalWidth: item.width, baselineOffset: -capH / 2.0,
+                curve: curve, into: linePath, emojis: &lineEmojis
+            )
+        }
+        if isUnderlined && !curve.isActive && !linePath.isEmpty {
+            let thickness = max(2.0, font.pointSize * 0.065)
+            let underlineY = -capH / 2.0 - max(3.0, item.descent * 0.45) - thickness / 2.0
+            linePath.addRoundedRect(in: CGRect(x: -item.width / 2.0, y: underlineY, width: item.width, height: thickness), cornerWidth: thickness / 2.0, cornerHeight: thickness / 2.0)
+        }
+        var t = CGAffineTransform(translationX: shiftX, y: centerY)
+        if let shifted = linePath.copy(using: &t) { combined.addPath(shifted) }
+        for e in lineEmojis {
+            emojis.append(EmojiGlyphDraw(
+                font: e.font, glyph: e.glyph,
+                position: CGPoint(x: e.position.x + shiftX, y: e.position.y + centerY),
+                rotationRadians: e.rotationRadians
+            ))
+        }
     }
 
     private static func makeCenteredLayout(

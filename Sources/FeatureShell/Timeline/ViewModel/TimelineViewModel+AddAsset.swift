@@ -41,14 +41,14 @@ extension TimelineViewModel {
             onPreviewTextPreset?(nil)
             onPreviewTextPresetCleared?()
             addTextClip(named: "Default Text", config: TextConfiguration(), durationSeconds: 5.0, at: dropTime)
-        case .sticker(let preset):
-            addStickerPreset(preset, at: dropTime)
-        case .effect(let preset):
+        case .sticker(let item):
+            addStickerItem(item, at: dropTime)
+        case .effect(let item):
             addEffectClip(
-                named: preset.name,
-                config: preset.config,
-                durationSeconds: preset.defaultDuration,
-                originPresetID: preset.isSystem ? nil : preset.id,
+                named: item.name,
+                config: item.config,
+                durationSeconds: item.defaultDuration,
+                originPresetID: nil,
                 at: dropTime
             )
         case .adjustment(let preset):
@@ -155,6 +155,7 @@ extension TimelineViewModel {
         for item in items {
             if item.clip.kind == .audio, let url = item.clip.mediaURL {
                 backgroundAnalyzeBeats(for: item.clip.id, url: url)
+                backgroundExtractReactiveProfile(for: url)
             }
         }
 

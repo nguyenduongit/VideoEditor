@@ -239,4 +239,69 @@ struct TimelineClipContextMenuAndShortcutsTests {
         #expect(view.savePresetKind(for: TimelineClip(name: "Audio", kind: .audio, timeRange: dur)) == nil)
         #expect(view.savePresetKind(for: TimelineClip(name: "Image", kind: .image, timeRange: dur)) == nil)
     }
+
+    @Test("Context Menu Overwrite Preset checks origin ownership across Text, Adjustment, System, and non-preset clips")
+    func testContextMenuOverwriteOriginPresetGating() {
+        let adjLoader = AdjustmentTemplateLoader()
+        let textLoader = TextTemplateLoader()
+        let deps = EditorDependencies(textTemplates: textLoader, adjustmentTemplates: adjLoader)
+        let vm = TimelineViewModel(dependencies: deps, initialLayers: [])
+        let view = TimelineView(viewModel: vm)
+        let dur = range(0, 3)
+
+        // Plain clips without originPresetId -> Save as Preset only, no Overwrite
+        #expect(view.canOverwriteOriginPreset(for: TimelineClip(name: "Plain Text", kind: .text, timeRange: dur)) == false)
+        #expect(view.canOverwriteOriginPreset(for: TimelineClip(name: "Plain Adj", kind: .adjustment, timeRange: dur)) == false)
+
+        // System-locked presets -> cannot overwrite
+        if let sysText = textLoader.loadAllTemplates().first(where: { $0.isSystem }) {
+            let sysTextClip = TimelineClip(
+                name: sysText.name, kind: .text, timeRange: dur,
+                properties: ["originPresetId": .string(sysText.id), "originPresetName": .string(sysText.name)]
+            )
+            #expect(view.canOverwriteOriginPreset(for: sysTextClip) == false)
+        }
+        if let sysAdj = adjLoader.loadAllTemplates().first(where: { $0.isSystem }) {
+            let sysAdjClip = TimelineClip(
+                name: sysAdj.name, kind: .adjustment, timeRange: dur,
+                properties: ["originPresetId": .string(sysAdj.id), "originPresetName": .string(sysAdj.name)]
+            )
+            #expect(view.canOverwriteOriginPreset(for: sysAdjClip) == false)
+        }
+
+        // User-created custom presets -> allowed to overwrite via Context Menu
+        let userAdjID = "test_user_adj_\(UUID().uuidString)"
+        let userAdj = AdjustmentPreset(
+            id: userAdjID, name: "User Grade", description: "Test user adj",
+            category: .cinematic, config: AdjustmentConfiguration(), isSystem: false
+        )
+        _ = adjLoader.saveTemplateToUserCache(userAdj)
+        let userAdjClip = TimelineClip(
+            name: "User Grade", kind: .adjustment, timeRange: dur,
+            properties: ["originPresetId": .string(userAdjID), "originPresetName": .string("User Grade")]
+        )
+        #expect(view.canOverwriteOriginPreset(for: userAdjClip) == true)
+
+        let userTextID = "test_user_text_\(UUID().uuidString)"
+        let userText = TextPreset(
+            id: userTextID, name: "User Title", description: "Test user text",
+            category: .trending, config: TextConfiguration(), isSystem: false
+        )
+        _ = textLoader.saveTemplateToUserCache(userText)
+        let userTextClip = TimelineClip(
+            name: "User Title", kind: .text, timeRange: dur,
+            properties: ["originPresetId": .string(userTextID), "originPresetName": .string("User Title")]
+        )
+        #expect(view.canOverwriteOriginPreset(for: userTextClip) == true)
+
+        // Non-Text / Non-Adjustment kinds never allow overwrite even with metadata
+        let stickerClip = TimelineClip(
+            name: "Sticker", kind: .sticker, timeRange: dur,
+            properties: ["originPresetId": .string(userAdjID), "originPresetName": .string("User Grade")]
+        )
+        #expect(view.canOverwriteOriginPreset(for: stickerClip) == false)
+
+        adjLoader.deleteTemplateFromUserCache(id: userAdjID)
+        textLoader.deleteTemplateFromUserCache(id: userTextID)
+    }
 }

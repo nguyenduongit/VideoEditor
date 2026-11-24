@@ -22,25 +22,29 @@ extension TextSegmentRenderer {
         let clampedOrder = max(0, min(visibleIndices.count - 1, activeOrder))
         let currentToken = tokens[visibleIndices[clampedOrder]]
         var boxX = startX + currentToken.relativeX
+        var boxY = currentToken.relativeY
         var boxW = currentToken.width
 
-        // Nội suy trượt mượt sang từ kế tiếp ở 25% cuối thời lượng mỗi từ
+        // Smoothly slide highlight box toward the next word in the last 28% of its slot
         if localFrac > 0.72, clampedOrder + 1 < visibleIndices.count {
             let nextToken = tokens[visibleIndices[clampedOrder + 1]]
             let slideT = TextAnimationCurves.springOvershoot((localFrac - 0.72) / 0.28, tension: 1.5)
             let nextX = startX + nextToken.relativeX
             boxX += (nextX - boxX) * CGFloat(slideT)
+            boxY += (nextToken.relativeY - boxY) * CGFloat(slideT)
             boxW += (nextToken.width - boxW) * CGFloat(slideT)
         }
 
+        let lineH = max(16.0, CGFloat(baseConfig.fontSize) * 1.24)
         let padX: CGFloat = max(8.0, CGFloat(baseConfig.fontSize) * 0.16)
         let padY: CGFloat = max(4.0, CGFloat(baseConfig.fontSize) * 0.10)
         let bounceScale = 1.0 + CGFloat(sin(localFrac * .pi) * 0.08)
+        let halfH = (lineH / 2.0 + padY) * bounceScale
         let rect = CGRect(
             x: boxX - padX,
-            y: (-totalHeight / 2.0 - padY) * bounceScale,
+            y: boxY - halfH,
             width: boxW + padX * 2.0,
-            height: (totalHeight + padY * 2.0) * bounceScale
+            height: halfH * 2.0
         )
         let corner = max(6.0, CGFloat(baseConfig.backgroundCornerRadius))
         context.saveGState()
@@ -107,6 +111,7 @@ extension TextSegmentRenderer {
         evaluated: inout TextAnimationEvaluator.EvaluationResult,
         baseConfig: TextConfiguration,
         tokenCenter: CGFloat,
+        tokenRelativeY: CGFloat = 0.0,
         totalWidth: CGFloat,
         orderIndex: Int,
         visibleCount: Int
@@ -137,7 +142,7 @@ extension TextSegmentRenderer {
         let (curvePt, curveTangentRad) = TextCurvedPathBuilder.evaluateCurve(
             x: tokenCenter,
             totalWidth: totalWidth,
-            baselineOffset: 0.0,
+            baselineOffset: tokenRelativeY,
             curve: baseConfig.curve
         )
         if baseConfig.curve.isActive && baseConfig.curve.followTangent {

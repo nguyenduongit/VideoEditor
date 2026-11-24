@@ -3,14 +3,14 @@ import CoreMedia
 import Observation
 import Domain
 
-/// Quản lý trạng thái và thao tác nạp tài nguyên âm thanh (Music, SFX) từ Supabase hoặc Local Seed.
-/// Tuân thủ AGENTS.md (Cấp 3 ViewModel, @Observable, @MainActor, File <= 300 dòng).
+/// Manages Audio Library items (`AudioLibraryItem` — Music, SFX, Dance Beat Counter) from Supabase or local fallback.
+/// Read-only Cloud Media Feed to end users per AGENTS.md Article 15.
 @Observable
 @MainActor
 public final class AudioSidebarViewModel {
     public var selectedCategory: String = "Music"
     public var searchQuery: String = ""
-    public private(set) var presets: [AudioPreset] = []
+    public private(set) var items: [AudioLibraryItem] = []
     public private(set) var isLoading: Bool = false
 
     public let categories = ["Music", "Sound Effects", "Dance Beat"]
@@ -25,10 +25,10 @@ public final class AudioSidebarViewModel {
     ) {
         self.timelineViewModel = timelineViewModel
         self.dependencies = dependencies ?? timelineViewModel?.dependencies ?? EditorDependencies()
-        self.presets = AudioPreset.builtInCatalog
+        self.items = AudioLibraryItem.builtInCatalog
 
         setupNotificationObserver()
-        syncPresetsFromSupabase()
+        syncFromSupabase()
     }
 
     deinit {
@@ -37,16 +37,16 @@ public final class AudioSidebarViewModel {
         }
     }
 
-    public var filteredItems: [AudioPreset] {
+    public var filteredItems: [AudioLibraryItem] {
         let trimmedQuery = searchQuery.trimmingCharacters(in: .whitespaces)
-        let base: [AudioPreset]
+        let base: [AudioLibraryItem]
         if selectedCategory == SidebarFavoriteManager.favoritesCategory {
             let favs = SidebarFavoriteManager.shared.favorites(for: "audio")
-            base = presets.filter { favs.contains($0.id) }
+            base = items.filter { favs.contains($0.id) }
         } else if !trimmedQuery.isEmpty {
-            base = presets
+            base = items
         } else {
-            base = presets.filter { $0.category == selectedCategory }
+            base = items.filter { $0.category == selectedCategory }
         }
         guard !trimmedQuery.isEmpty else { return base }
         return base.filter {
@@ -55,14 +55,14 @@ public final class AudioSidebarViewModel {
         }
     }
 
-    public func syncPresetsFromSupabase() {
+    public func syncFromSupabase() {
         guard let repo = dependencies.presetRepositories.audioRepository else { return }
         isLoading = true
         Task { [weak self] in
             do {
-                let fetched = try await repo.fetchPresets()
+                let fetched = try await repo.fetchAudioItems()
                 guard let self else { return }
-                self.presets = fetched
+                self.items = fetched
                 self.isLoading = false
             } catch {
                 guard let self else { return }
@@ -71,19 +71,19 @@ public final class AudioSidebarViewModel {
         }
     }
 
-    public func addPresetToTimeline(_ preset: AudioPreset) {
-        if preset.id == "audio_dance_beat" {
+    public func addToTimeline(_ item: AudioLibraryItem) {
+        if item.id == "audio_dance_beat" {
             timelineViewModel?.addDanceBeatCounter()
         } else {
-            let durSeconds = preset.duration > 0 ? preset.duration : 5.0
+            let durSeconds = item.duration > 0 ? item.duration : 5.0
             let clip = TimelineClip(
-                name: preset.name,
+                name: item.name,
                 kind: .audio,
                 timeRange: .init(
                     start: timelineViewModel?.currentTime ?? .zero,
                     duration: CMTime(seconds: durSeconds, preferredTimescale: 600)
                 ),
-                mediaURL: preset.audioURL
+                mediaURL: item.audioURL
             )
             timelineViewModel?.addClip(clip)
         }
@@ -96,9 +96,8 @@ public final class AudioSidebarViewModel {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.syncPresetsFromSupabase()
+                self?.syncFromSupabase()
             }
         }
     }
 }
-

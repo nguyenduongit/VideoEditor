@@ -56,29 +56,28 @@ struct CommunityPresetHubTests {
         #expect(decodedAdj?.canBeModified(by: "any_user") == true)
     }
 
-    @Test("DynamicShaderRuntimeEngine executes single demo Open Creative Effect Package at 60fps")
-    func testAllEightCreativeEffectPackagesRenderCleanly() {
-        let packages = EffectPreset.systemTemplates
-        #expect(packages.count == 1)
-        #expect(packages.allSatisfy { !$0.id.hasPrefix("system_effect_") })
-        #expect(packages.allSatisfy { !$0.config.filterPipeline.isEmpty })
-        #expect(packages.allSatisfy { !$0.config.customParameters.isEmpty })
+    @Test("DynamicShaderRuntimeEngine executes all 9 Dev-Authored Effect Library items at 60fps")
+    func testAllNineSystemEffectItemsRenderCleanly() {
+        let items = EffectLibraryItem.systemItems
+        #expect(items.count == 9)
+        #expect(items.allSatisfy { !$0.config.filterPipeline.isEmpty })
+        #expect(items.allSatisfy { !$0.config.customParameters.isEmpty })
 
         let canvasSize = CGSize(width: 320, height: 180)
         let inputImage = CIImage(color: CIColor(red: 0.75, green: 0.35, blue: 0.55, alpha: 1.0))
             .cropped(to: CGRect(origin: .zero, size: canvasSize))
         let engine = EffectEngine()
 
-        for pkg in packages {
+        for item in items {
             let output = engine.applyEffect(
                 to: inputImage,
-                config: pkg.config,
+                config: item.config,
                 localTime: 0.8,
                 duration: 3.0,
                 canvasSize: canvasSize
             )
-            #expect(output.extent.width == 320, "Failed extent width for \(pkg.id)")
-            #expect(output.extent.height == 180, "Failed extent height for \(pkg.id)")
+            #expect(output.extent.width == 320, "Failed extent width for \(item.id)")
+            #expect(output.extent.height == 180, "Failed extent height for \(item.id)")
         }
     }
 
@@ -100,75 +99,53 @@ struct CommunityPresetHubTests {
         #expect(textCatalog.first?.id == "default")
     }
 
-    @Test("OpenAnimationRuntimeEngine executes all 15 next-gen Open Creative Animation Packages (5 In, 5 Out, 5 Loop) with custom parameters")
-    func testAllFifteenCreativeAnimationPackagesEvaluateCleanly() {
-        #expect(AnimationPreset.inCatalog.count >= 5)
-        #expect(AnimationPreset.outCatalog.count >= 5)
-        #expect(AnimationPreset.loopCatalog.count >= 5)
-        #expect(AnimationPreset.systemTemplates.count >= 15)
+    @Test("Unified TextAnimationScriptRegistry executes all active continuous scripts across Intro, Loop and Outro")
+    func testAllUnifiedAnimationScriptsEvaluateCleanly() {
+        let scripts = TextAnimationScriptRegistry.shared.scripts
+        #expect(scripts.count >= 19)
 
         let canvasSize = CGSize(width: 640, height: 360)
-
-        for inPreset in AnimationPreset.inCatalog {
+        for script in scripts {
             var cfg = TextConfiguration(content: "CREATIVE", fontSize: 48.0, isBold: true)
-            cfg.animation.inManifest = inPreset.manifest
-            cfg.animation.inDuration = 1.0
-            if let firstParam = inPreset.manifest.customParameters.first {
-                cfg.animation.setValue(firstParam.maxValue, forParameter: firstParam.id, in: inPreset.manifest)
-                #expect(cfg.animation.value(forParameter: firstParam.id, in: inPreset.manifest) == firstParam.maxValue)
+            cfg.animation.scriptId = script.id
+            cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: 2, speed: 1.0)
+
+            for sampleTime in [0.35, 2.0, 3.65] {
+                let eval = TextAnimationEvaluator.evaluate(config: cfg, localTime: sampleTime, duration: 4.0, canvasSize: canvasSize)
+                #expect(eval.config.opacity >= 0.0 && eval.config.opacity <= 1.0, "Invalid opacity for \(script.id) at \(sampleTime)")
+                #expect(!eval.config.positionX.isNaN && !eval.config.positionY.isNaN, "NaN offset for \(script.id)")
             }
-            let eval = TextAnimationEvaluator.evaluate(config: cfg, localTime: 0.35, duration: 3.0, canvasSize: canvasSize)
-            #expect(eval.config.opacity > 0.0 && eval.config.opacity <= 1.0, "Invalid opacity for \(inPreset.id)")
-        }
-
-        for outPreset in AnimationPreset.outCatalog {
-            var cfg = TextConfiguration(content: "CREATIVE", fontSize: 48.0, isBold: true)
-            cfg.animation.outManifest = outPreset.manifest
-            cfg.animation.outDuration = 1.0
-            let eval = TextAnimationEvaluator.evaluate(config: cfg, localTime: 2.5, duration: 3.0, canvasSize: canvasSize)
-            #expect(eval.config.opacity >= 0.0 && eval.config.opacity <= 1.0, "Invalid opacity for \(outPreset.id)")
-        }
-
-        for loopPreset in AnimationPreset.loopCatalog {
-            var cfg = TextConfiguration(content: "CREATIVE", fontSize: 48.0, isBold: true)
-            cfg.animation.loopManifest = loopPreset.manifest
-            cfg.animation.loopSpeed = 1.5
-            let eval = TextAnimationEvaluator.evaluate(config: cfg, localTime: 1.5, duration: 3.0, canvasSize: canvasSize)
-            #expect(eval.config.opacity >= 0.0 && eval.config.opacity <= 1.0, "Invalid opacity for \(loopPreset.id)")
         }
     }
 
-    @Test("EffectLibraryViewModel loads single demo Open Creative Package, filters by author, and adds to timeline")
-    func testEffectLibraryCommunityWorkflow() {
+    @Test("EffectLibraryViewModel loads all 9 System Library items, searches cleanly, and adds to timeline without user preset origin")
+    func testEffectLibrarySystemWorkflow() {
         let deps = EditorDependencies()
         let timelineVM = TimelineViewModel(dependencies: deps)
         let effectLibraryVM = EffectLibraryViewModel(timelineViewModel: timelineVM, dependencies: deps)
 
-        #expect(effectLibraryVM.filteredPresets.count == 1)
+        #expect(effectLibraryVM.filteredItems.count == 9)
 
         effectLibraryVM.searchQuery = "glitch"
-        #expect(effectLibraryVM.filteredPresets.map(\.id) == ["creative_fx_rgb_glitch"])
+        #expect(effectLibraryVM.filteredItems.map(\.id) == ["creative_fx_rgb_glitch"])
 
-        if let glitchPkg = effectLibraryVM.filteredPresets.first {
-            effectLibraryVM.addPresetToTimeline(glitchPkg)
+        if let glitchItem = effectLibraryVM.filteredItems.first {
+            effectLibraryVM.addToTimeline(glitchItem)
         }
         let addedClip = timelineVM.layers.flatMap(\.clips).first(where: { $0.kind == .effect })
         #expect(addedClip != nil)
+        #expect(addedClip?.originPresetID == nil)
         let decodedClipConfig = EffectConfiguration.decode(from: addedClip?.properties["effectConfig"]?.asString ?? "")
         #expect(decodedClipConfig?.customParameters.count == 2)
         #expect(decodedClipConfig?.filterPipeline.first?.filterName == "RGBSplit")
     }
 
-    @Test("Single-user personal mode unlocks all custom presets across devices and uses fixed personalOwnerID")
+    @Test("Single-user personal mode unlocks all custom Text and Adjustment presets across devices and uses fixed personalOwnerID")
     func testSingleUserPersonalOwnershipModel() {
         #expect(CommunityIdentity.currentAuthorID == CommunityIdentity.personalOwnerID)
         #expect(CommunityIdentity.personalOwnerID == "personal")
 
         let legacyMachineMeta = CommunityMetadata(authorID: "old-mac-uuid-1234", authorName: "Old Mac")
-        let customEffect = EffectPreset(
-            id: "user_fx_1", name: "User FX", description: "", category: .basic,
-            config: EffectConfiguration(), isSystem: false, community: legacyMachineMeta
-        )
         let customAdj = AdjustmentPreset(
             id: "user_adj_1", name: "User Adj", description: "", category: .cinematic,
             config: AdjustmentConfiguration(), isSystem: false, community: legacyMachineMeta
@@ -178,9 +155,8 @@ struct CommunityPresetHubTests {
             config: TextConfiguration(), isSystem: false, community: legacyMachineMeta
         )
 
-        #expect(customEffect.canBeModified(by: CommunityIdentity.currentAuthorID) == true)
         #expect(customAdj.canBeModified(by: CommunityIdentity.currentAuthorID) == true)
         #expect(customText.canBeModified(by: CommunityIdentity.currentAuthorID) == true)
-        #expect(EffectPreset.systemTemplates.first?.canBeModified(by: CommunityIdentity.currentAuthorID) == false)
+        #expect(AdjustmentPreset.default.canBeModified(by: CommunityIdentity.currentAuthorID) == false)
     }
 }

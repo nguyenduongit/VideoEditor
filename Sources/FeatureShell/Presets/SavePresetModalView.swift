@@ -2,13 +2,12 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Hộp thoại popover lưu Preset cá nhân (Text, Adjustment, Effect) lên Supabase của bạn.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
+/// Popover modal to save a personal User Preset (`Text` or `Adjustment`) to Supabase.
+/// Complies with AGENTS.md (Article 15: Only Text & Adjustment support User Presets).
 public struct SavePresetModalView: View {
     public enum PresetKind {
         case adjustment(config: AdjustmentConfiguration)
         case text(config: TextConfiguration)
-        case effect(config: EffectConfiguration)
     }
 
     public let kind: PresetKind
@@ -22,7 +21,6 @@ public struct SavePresetModalView: View {
     @State private var description: String = ""
     @State private var selectedAdjustmentCategory: AdjustmentTemplateCategory = .cinematic
     @State private var selectedTextCategory: TextTemplateCategory = .trending
-    @State private var selectedEffectCategory: EffectTemplateCategory = .lightTransition
     @State private var isSaving: Bool = false
     @State private var errorMessage: String?
 
@@ -136,18 +134,6 @@ public struct SavePresetModalView: View {
                     }
                 }
             )
-        case .effect:
-            DSDropdown(
-                selectedTitle: selectedEffectCategory.displayName,
-                options: EffectTemplateCategory.assignableCases.map {
-                    DSDropdownOption(id: $0.rawValue, title: $0.displayName)
-                },
-                onSelect: { val in
-                    if let cat = EffectTemplateCategory(rawValue: val) {
-                        selectedEffectCategory = cat
-                    }
-                }
-            )
         }
     }
 
@@ -219,14 +205,6 @@ public struct SavePresetModalView: View {
                     )
                     _ = dependencies.textTemplates.saveTemplateToUserCache(preset)
                     try await dependencies.presetRepositories.textRepository?.savePreset(preset)
-                case .effect(let config):
-                    let preset = EffectPreset(
-                        id: newID, name: trimmedName, description: description,
-                        category: selectedEffectCategory, tags: tags,
-                        config: config, isSystem: false, community: communityMeta
-                    )
-                    dependencies.effectTemplates.updateInMemoryPreset(preset)
-                    try await dependencies.presetRepositories.effectRepository?.savePreset(preset)
                 }
                 await MainActor.run {
                     isSaving = false

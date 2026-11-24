@@ -200,10 +200,10 @@ extension TimelineView {
             },
             onDragGuideChanged: { dragGuideCanvasX = $0 },
             snapCandidatesProvider: { viewModel.snapCandidateTimes(playheadTime: playheadState.currentTime) },
-            resolveTransitionJoinTarget: { presetID, canvasX, canvasY in
-                let preset = viewModel.lookupTransitionPreset(by: presetID)
+            resolveTransitionJoinTarget: { itemID, canvasX, canvasY in
+                let item = viewModel.lookupTransitionItem(by: itemID)
                 let target = viewModel.resolveTransitionDropTarget(
-                    preset: preset,
+                    item: item,
                     canvasX: canvasX,
                     canvasY: canvasY,
                     topSpacerHeight: topSpacerHeight
@@ -211,10 +211,10 @@ extension TimelineView {
                 viewModel.activeTransitionDropTarget = target
                 return target
             },
-            onDropTransition: { presetID, canvasX, canvasY in
-                guard let preset = viewModel.lookupTransitionPreset(by: presetID) else { return false }
+            onDropTransition: { itemID, canvasX, canvasY in
+                guard let item = viewModel.lookupTransitionItem(by: itemID) else { return false }
                 guard viewModel.dropTransition(
-                    preset,
+                    item,
                     atCanvasX: canvasX,
                     canvasY: canvasY,
                     topSpacerHeight: topSpacerHeight

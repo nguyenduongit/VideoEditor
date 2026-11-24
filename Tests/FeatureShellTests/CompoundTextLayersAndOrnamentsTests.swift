@@ -85,7 +85,7 @@ struct CompoundTextLayersAndOrnamentsTests {
         """
 
         let decoded = try #require(TextConfiguration.decode(from: legacyJSON))
-        #expect(decoded.content == "Legacy Multi Line")
+        #expect(decoded.content == "Legacy Multi\nLine")
         #expect(decoded.colorFillMode == .solid)
         #expect(decoded.innerStroke.isEnabled == true)
         #expect(decoded.innerStroke.colorHex == "#112233")

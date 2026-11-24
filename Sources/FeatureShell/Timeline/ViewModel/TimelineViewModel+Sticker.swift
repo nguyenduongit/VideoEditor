@@ -3,18 +3,18 @@ import CoreMedia
 import Domain
 
 extension TimelineViewModel {
-    /// Thêm một clip Sticker (GIF / APNG) vào Timeline tại thời điểm chỉ định hoặc playhead hiện tại.
-    /// Tuân thủ quy tắc R3.1 (Hàm <= 50 dòng) và R7.1 (Transaction Command) của AGENTS.md.
-    public func addStickerPreset(_ preset: StickerPreset, at time: CMTime? = nil) {
+    /// Adds a System Library sticker clip to the Timeline at the specified time or playhead.
+    /// Complies with AGENTS.md (Function <= 50 lines, Transaction Command).
+    public func addStickerItem(_ item: StickerLibraryItem, at time: CMTime? = nil) {
         let proposedStart = time ?? currentTime
         let targetStart = TimeRational.snapToFrame(time: proposedStart)
-        let durSeconds = preset.defaultDuration > 0.05 ? preset.defaultDuration : 3.0
+        let durSeconds = item.defaultDuration > 0.05 ? item.defaultDuration : 3.0
         let frames = max(15, Int64(round(durSeconds * Double(TimeRational.defaultFPS))))
         let resolvedDuration = CMTime(value: frames, timescale: TimeRational.defaultFPS)
         let timeRange = CMTimeRange(start: targetStart, duration: resolvedDuration)
 
         var properties = dependencies.propertyRegistry.defaultProperties(for: .sticker)
-        if let json = preset.config.encodeToJSON() {
+        if let json = item.config.encodeToJSON() {
             properties["stickerConfig"] = .string(json)
         }
         properties["scale"] = .number(1.0)
@@ -22,17 +22,17 @@ extension TimelineViewModel {
         properties["positionY"] = .number(0.0)
         properties["rotation"] = .number(0.0)
         properties["opacity"] = .number(1.0)
-        properties["flipHorizontal"] = .bool(preset.config.flipHorizontal)
-        properties["flipVertical"] = .bool(preset.config.flipVertical)
-        properties["speed"] = .number(preset.config.playbackSpeed)
-        properties["loopMode"] = .string(preset.config.loopMode.rawValue)
-        properties["systemSymbolFallback"] = .string(preset.systemSymbolFallback)
-        properties["originPresetId"] = .string(preset.id)
-        properties["originPresetName"] = .string(preset.name)
+        properties["flipHorizontal"] = .bool(item.config.flipHorizontal)
+        properties["flipVertical"] = .bool(item.config.flipVertical)
+        properties["speed"] = .number(item.config.playbackSpeed)
+        properties["loopMode"] = .string(item.config.loopMode.rawValue)
+        properties["systemSymbolFallback"] = .string(item.systemSymbolFallback)
+        properties["originPresetId"] = .string(item.id)
+        properties["originPresetName"] = .string(item.name)
 
         let clip = TimelineClip(
             assetID: nil,
-            name: preset.name,
+            name: item.name,
             kind: .sticker,
             timeRange: timeRange,
             properties: properties
@@ -42,6 +42,15 @@ extension TimelineViewModel {
         let layerID = allocateLayerID(for: clip, in: &simulatedLayers)
         applyAddedClips([(clip, layerID)])
         selectedClipIDs = [clip.id]
+
+        if item.format == .audiogram {
+            let tempo = AudioTempoResolver.resolveTempo(overlapping: clip.timeRange, in: layers)
+            if let sourceID = tempo.sourceClipID, let url = self.clip(by: sourceID)?.mediaURL {
+                if tempo.needsBeatAnalysis {
+                    backgroundAnalyzeBeats(for: sourceID, url: url)
+                }
+                backgroundExtractReactiveProfile(for: url)
+            }
+        }
     }
 }
-

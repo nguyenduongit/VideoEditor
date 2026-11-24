@@ -2,16 +2,16 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Bảng Thư viện Hiệu ứng thị giác (Effects Library) ở thanh Sidebar bên trái.
-/// Gồm 11 danh mục chuẩn quốc tế, lưới 2 cột thẻ hiệu ứng, nút Yêu thích góc trên và nút Thêm góc dưới.
-/// Hỗ trợ Thumbnail động 2.0s kết xuất trực tiếp bằng Hybrid GPU Engine khi hover chuột.
-/// Tuân thủ AGENTS.md (File <= 300 dòng, View body <= 40 dòng).
+/// Left Sidebar view for the Dev-Authored Effects System Library (`EffectLibrary`).
+/// Read-only to end users per AGENTS.md Article 15 (local Favorites via `UserDefaults`, no delete/save preset actions).
 public struct EffectLibraryView: View {
     @Bindable private var viewModel: EffectLibraryViewModel
-    @State private var selectedCategory: String = EffectTemplateCategory.basic.displayName
-    @State private var selectedPresetID: String?
+    @State private var selectedCategory: String = EffectCategory.assignableCases.first(where: { cat in
+        EffectLibraryItem.systemItems.contains(where: { $0.category == cat })
+    })?.displayName ?? EffectCategory.basic.displayName
+    @State private var selectedItemID: String?
 
-    private let categories = EffectTemplateCategory.assignableCases.map(\.displayName)
+    private let categories = EffectCategory.assignableCases.map(\.displayName)
 
     private let columns = [
         GridItem(.flexible(), spacing: DSSpacing.sm),
@@ -22,18 +22,18 @@ public struct EffectLibraryView: View {
         self.viewModel = viewModel
     }
 
-    private var displayedPresets: [EffectPreset] {
+    private var displayedItems: [EffectLibraryItem] {
         let trimmed = viewModel.searchQuery.trimmingCharacters(in: .whitespaces)
-        let base: [EffectPreset]
+        let base: [EffectLibraryItem]
         if selectedCategory == SidebarFavoriteManager.favoritesCategory {
             let favs = SidebarFavoriteManager.shared.favorites(for: "effect")
-            base = viewModel.templatePresets.filter { favs.contains($0.id) }
+            base = viewModel.items.filter { favs.contains($0.id) }
         } else if !trimmed.isEmpty {
-            base = viewModel.templatePresets
-        } else if let cat = EffectTemplateCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
-            base = viewModel.templatePresets.filter { $0.category == cat }
+            base = viewModel.items
+        } else if let cat = EffectCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
+            base = viewModel.items.filter { $0.category == cat }
         } else {
-            base = viewModel.templatePresets
+            base = viewModel.items
         }
         guard !trimmed.isEmpty else { return base }
         return base.filter {
@@ -48,60 +48,34 @@ public struct EffectLibraryView: View {
             searchQuery: $viewModel.searchQuery,
             searchPlaceholder: "Search effects, tags...",
             categories: categories,
-            selectedCategory: $selectedCategory,
-            trailingAction: AnyView(reloadButton)
+            selectedCategory: $selectedCategory
         ) {
             contentScrollView
         }
     }
 
-    private var reloadButton: some View {
-        let size = LibraryScaffoldView<EmptyView>.searchControlHeight
-        return Button(action: { viewModel.reloadTemplates() }) {
-            ZStack {
-                RoundedRectangle(cornerRadius: DSRadius.small)
-                    .fill(DSColors.windowBackground)
-                RoundedRectangle(cornerRadius: DSRadius.small)
-                    .stroke(DSColors.blockBorder, lineWidth: 1)
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(DSColors.textSecondary)
-            }
-            .frame(width: size, height: size)
-        }
-        .buttonStyle(.plain)
-        .help("Reload Effects")
-    }
-
     private var contentScrollView: some View {
         DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-            let presets = displayedPresets
-            if presets.isEmpty {
-                emptyTemplatesView
+            let items = displayedItems
+            if items.isEmpty {
+                emptyLibraryView
             } else {
                 LazyVGrid(columns: columns, spacing: DSSpacing.sm) {
-                    ForEach(presets) { preset in
-                        let isFav = SidebarFavoriteManager.shared.isFavorite(id: preset.id, for: "effect")
+                    ForEach(items) { item in
+                        let isFav = SidebarFavoriteManager.shared.isFavorite(id: item.id, for: "effect")
                         UnifiedLibraryCardItemView(
-                            title: preset.name,
+                            title: item.name,
                             isFavorite: isFav,
-                            isSelected: selectedPresetID == preset.id,
-                            showsDeleteButton: !preset.isSystem,
-                            dragPayload: .effect(preset),
-                            onSelect: {
-                                selectedPresetID = preset.id
-                            },
-                            onAdd: {
-                                viewModel.addPresetToTimeline(preset)
-                            },
+                            isSelected: selectedItemID == item.id,
+                            showsDeleteButton: false,
+                            dragPayload: .effect(item),
+                            onSelect: { selectedItemID = item.id },
+                            onAdd: { viewModel.addToTimeline(item) },
                             onToggleFavorite: {
-                                SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "effect")
-                            },
-                            onDelete: {
-                                viewModel.deletePreset(preset)
+                                SidebarFavoriteManager.shared.toggleFavorite(id: item.id, for: "effect")
                             }
                         ) { isCardHovered in
-                            EffectAnimatedThumbnailView(preset: preset, isHovered: isCardHovered)
+                            EffectAnimatedThumbnailView(item: item, isHovered: isCardHovered)
                         }
                     }
                 }
@@ -110,7 +84,7 @@ public struct EffectLibraryView: View {
         }
     }
 
-    private var emptyTemplatesView: some View {
+    private var emptyLibraryView: some View {
         VStack(spacing: DSSpacing.sm) {
             Image(systemName: "sparkles")
                 .font(.system(size: 28))

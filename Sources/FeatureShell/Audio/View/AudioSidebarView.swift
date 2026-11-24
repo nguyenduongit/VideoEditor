@@ -8,7 +8,7 @@ import DesignSystem
 /// Complies with AGENTS.md rules (File <= 300 lines, View body <= 40 lines).
 public struct AudioSidebarView: View {
     @State private var viewModel: AudioSidebarViewModel
-    @State private var selectedPresetID: String?
+    @State private var selectedItemID: String?
 
     private let columns = [
         GridItem(.flexible(), spacing: DSSpacing.sm),
@@ -37,7 +37,7 @@ public struct AudioSidebarView: View {
     private var reloadButton: some View {
         let size = LibraryScaffoldView<EmptyView>.searchControlHeight
         return Button(action: {
-            viewModel.syncPresetsFromSupabase()
+            viewModel.syncFromSupabase()
         }) {
             ZStack {
                 RoundedRectangle(cornerRadius: DSRadius.small)
@@ -60,13 +60,13 @@ public struct AudioSidebarView: View {
                     UnifiedLibraryCardItemView(
                         title: item.name,
                         isFavorite: isFav,
-                        isSelected: selectedPresetID == item.id,
+                        isSelected: selectedItemID == item.id,
                         dragPayload: .audio(item),
                         onSelect: {
-                            selectedPresetID = item.id
+                            selectedItemID = item.id
                         },
                         onAdd: {
-                            viewModel.addPresetToTimeline(item)
+                            viewModel.addToTimeline(item)
                         },
                         onToggleFavorite: {
                             SidebarFavoriteManager.shared.toggleFavorite(id: item.id, for: "audio")
@@ -81,7 +81,7 @@ public struct AudioSidebarView: View {
     }
 
     @ViewBuilder
-    private func thumbnail(for item: AudioPreset) -> some View {
+    private func thumbnail(for item: AudioLibraryItem) -> some View {
         VStack(spacing: 6) {
             Image(systemName: item.icon)
                 .font(.system(size: 26, weight: .semibold))

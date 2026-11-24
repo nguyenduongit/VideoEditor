@@ -3,14 +3,12 @@ import AppKit
 import Domain
 import DesignSystem
 
-/// Left Sidebar view for the Stickers Library (SVG Vector & GIF / APNG).
-/// Features a 100pt vertical category sidebar, 2-column square card grid,
-/// top-right 26pt Favorites button, and bottom-right 26pt Add button.
-/// Complies with AGENTS.md rules (File <= 300 lines, View body <= 40 lines).
+/// Left Sidebar view for the Dev-Authored Stickers System Library (`StickerLibrary`).
+/// Read-only to end users per AGENTS.md Article 15 (local Favorites via `UserDefaults`, no Supabase sync).
 public struct StickerLibraryView: View {
     @Bindable private var viewModel: StickerLibraryViewModel
     @State private var selectedCategory: String = StickerCategory.emoji.displayName
-    @State private var selectedPresetID: String?
+    @State private var selectedItemID: String?
 
     private let categories = StickerCategory.assignableCases.map(\.displayName)
 
@@ -23,26 +21,26 @@ public struct StickerLibraryView: View {
         self.viewModel = viewModel
     }
 
-    private var displayedPresets: [StickerPreset] {
-        let trimmedQuery = viewModel.searchQuery.trimmingCharacters(in: .whitespaces)
-        let matchesQuery: (StickerPreset) -> Bool = { preset in
-            preset.name.localizedCaseInsensitiveContains(trimmedQuery)
-                || preset.description.localizedCaseInsensitiveContains(trimmedQuery)
-                || preset.tags.contains { $0.localizedCaseInsensitiveContains(trimmedQuery) }
+    private var displayedItems: [StickerLibraryItem] {
+        let trimmed = viewModel.searchQuery.trimmingCharacters(in: .whitespaces)
+        let matchesQuery: (StickerLibraryItem) -> Bool = { item in
+            item.name.localizedCaseInsensitiveContains(trimmed)
+                || item.description.localizedCaseInsensitiveContains(trimmed)
+                || item.tags.contains { $0.localizedCaseInsensitiveContains(trimmed) }
         }
-        if !trimmedQuery.isEmpty && selectedCategory != SidebarFavoriteManager.favoritesCategory {
-            return viewModel.templatePresets.filter(matchesQuery)
+        if !trimmed.isEmpty && selectedCategory != SidebarFavoriteManager.favoritesCategory {
+            return viewModel.items.filter(matchesQuery)
         }
-        let base: [StickerPreset]
+        let base: [StickerLibraryItem]
         if selectedCategory == SidebarFavoriteManager.favoritesCategory {
             let favs = SidebarFavoriteManager.shared.favorites(for: "sticker")
-            base = viewModel.templatePresets.filter { favs.contains($0.id) }
+            base = viewModel.items.filter { favs.contains($0.id) }
         } else if let cat = StickerCategory.assignableCases.first(where: { $0.displayName == selectedCategory }) {
-            base = viewModel.templatePresets.filter { $0.category == cat }
+            base = viewModel.items.filter { $0.category == cat }
         } else {
-            base = viewModel.templatePresets
+            base = viewModel.items
         }
-        guard !trimmedQuery.isEmpty else { return base }
+        guard !trimmed.isEmpty else { return base }
         return base.filter(matchesQuery)
     }
 
@@ -51,62 +49,33 @@ public struct StickerLibraryView: View {
             searchQuery: $viewModel.searchQuery,
             searchPlaceholder: "Search stickers...",
             categories: categories,
-            selectedCategory: $selectedCategory,
-            trailingAction: AnyView(reloadButton)
+            selectedCategory: $selectedCategory
         ) {
             contentScrollView
         }
-        .task {
-            await viewModel.syncFromRemoteIfAvailable()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .presetStoreDidUpdate)) { _ in
-            viewModel.reloadTemplates()
-        }
-    }
-
-    private var reloadButton: some View {
-        let size = LibraryScaffoldView<EmptyView>.searchControlHeight
-        return Button(action: { viewModel.reloadTemplates() }) {
-            ZStack {
-                RoundedRectangle(cornerRadius: DSRadius.small)
-                    .fill(DSColors.windowBackground)
-                RoundedRectangle(cornerRadius: DSRadius.small)
-                    .stroke(DSColors.blockBorder, lineWidth: 1)
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(DSColors.textSecondary)
-            }
-            .frame(width: size, height: size)
-        }
-        .buttonStyle(.plain)
-        .help("Reload Stickers")
     }
 
     private var contentScrollView: some View {
         DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-            let presets = displayedPresets
-            if presets.isEmpty {
+            let items = displayedItems
+            if items.isEmpty {
                 emptyView
             } else {
                 LazyVGrid(columns: columns, spacing: DSSpacing.sm) {
-                    ForEach(presets) { preset in
-                        let isFav = SidebarFavoriteManager.shared.isFavorite(id: preset.id, for: "sticker")
+                    ForEach(items) { item in
+                        let isFav = SidebarFavoriteManager.shared.isFavorite(id: item.id, for: "sticker")
                         UnifiedLibraryCardItemView(
-                            title: preset.name,
+                            title: item.name,
                             isFavorite: isFav,
-                            isSelected: selectedPresetID == preset.id,
-                            dragPayload: .sticker(preset),
-                            onSelect: {
-                                selectedPresetID = preset.id
-                            },
-                            onAdd: {
-                                viewModel.addStickerToTimeline(preset)
-                            },
+                            isSelected: selectedItemID == item.id,
+                            dragPayload: .sticker(item),
+                            onSelect: { selectedItemID = item.id },
+                            onAdd: { viewModel.addStickerToTimeline(item) },
                             onToggleFavorite: {
-                                SidebarFavoriteManager.shared.toggleFavorite(id: preset.id, for: "sticker")
+                                SidebarFavoriteManager.shared.toggleFavorite(id: item.id, for: "sticker")
                             }
                         ) {
-                            stickerThumbnail(for: preset)
+                            stickerThumbnail(for: item)
                         }
                     }
                 }
@@ -116,16 +85,20 @@ public struct StickerLibraryView: View {
     }
 
     @ViewBuilder
-    private func stickerThumbnail(for preset: StickerPreset) -> some View {
+    private func stickerThumbnail(for item: StickerLibraryItem) -> some View {
         ZStack {
-            if let svg = preset.config.svgMarkup, !svg.isEmpty {
+            if item.format == .audiogram {
+                AudiogramStickerThumbnailView(
+                    config: item.config.audiogram ?? StickerAudiogramConfiguration()
+                )
+            } else if let svg = item.config.svgMarkup, !svg.isEmpty {
                 SVGStickerThumbnailView(
                     svgMarkup: svg,
-                    fallbackSymbol: preset.systemSymbolFallback
+                    fallbackSymbol: item.systemSymbolFallback
                 )
                 .padding(DSSpacing.xs)
             } else {
-                Image(systemName: preset.systemSymbolFallback)
+                Image(systemName: item.systemSymbolFallback)
                     .font(.system(size: 32))
                     .foregroundStyle(DSColors.toggleCyan)
             }

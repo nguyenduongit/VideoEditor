@@ -31,13 +31,13 @@ struct MetalComputeRuntimeEngineTests {
         let inputImage = makeTestImage()
         let expectedRect = CGRect(origin: .zero, size: sampleCanvas)
 
-        let packages: [EffectPreset] = [
-            EffectPreset.rgbGlitchPackage,
-            EffectPreset.vhsRetroTapePackage,
-            EffectPreset.thermalVisionPackage,
-            EffectPreset.comicHalftonePackage,
-            EffectPreset.pixelRetroArcadePackage,
-            EffectPreset.shockwaveRipplePackage
+        let packages: [EffectLibraryItem] = [
+            EffectLibraryItem.rgbGlitchPackage,
+            EffectLibraryItem.vhsRetroTapePackage,
+            EffectLibraryItem.thermalVisionPackage,
+            EffectLibraryItem.comicHalftonePackage,
+            EffectLibraryItem.pixelRetroArcadePackage,
+            EffectLibraryItem.shockwaveRipplePackage
         ]
 
         for pkg in packages {

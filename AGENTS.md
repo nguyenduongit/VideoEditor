@@ -115,6 +115,8 @@ Danh sách ADR ngoại lệ (docs/adr/): []
   * `*ViewModel`: Quản lý trạng thái và luồng dữ liệu cho màn hình/tính năng.
   * `*State`: Struct/Enum định nghĩa trạng thái dữ liệu thuần.
   * `*Command`: Thao tác nghiệp vụ có thể Undo/Redo.
+  * `*Preset`: **Chỉ** dùng cho mẫu tổ hợp thuộc tính do người dùng có thể tự lưu, sửa, xóa và đồng bộ Cloud (`TextPreset`, `AdjustmentPreset`).
+  * `*LibraryItem` & `*Library`: Dùng cho các mục và kho **Thư viện Hệ thống do Dev tác giả hóa** (`EffectLibraryItem`/`EffectLibrary`, `TransitionLibraryItem`/`TransitionLibrary`, `StickerLibraryItem`/`StickerLibrary`, `AudioLibraryItem`), hoàn toàn read-only đối với người dùng.
   * `*RepositoryProtocol` (Domain) & `*Repository` (Infrastructure): Quản lý lưu trữ/truy xuất dữ liệu.
   * `*ServiceProtocol` (Domain) & `*Service` (Infrastructure): Giao tiếp phần cứng / OS / Bên ngoài.
 * **Quy chuẩn đặt tên Hàm và Biến:**
@@ -325,6 +327,18 @@ public enum ViewState<T: Sendable>: Sendable {
    defer { url.stopAccessingSecurityScopedResource() }
    // Thực hiện I/O
    ```
+
+## ĐIỀU 14: KIẾN TRÚC TEXT ANIMATION ĐƠN NHẤT (SCRIPT-DRIVEN CONTINUOUS ONLY)
+1. **Một khối liền mạch duy nhất (`TextAnimationScript`):** Toàn bộ Text Animation chỉ được phép sử dụng kiến trúc Script-Driven hiện tại (`TextAnimationScript`), nơi ba pha `Intro → Loop → Outro` được tác giả hóa và tính toán **liền một khối thống nhất** trong cùng một script để triệt tiêu hoàn toàn hiện tượng giật khựng (stutter/jump) tại điểm chuyển pha.
+2. **Cấm vĩnh viễn cơ chế In–Loop–Out tách rời:** Tuyệt đối không sử dụng, khôi phục, hoặc tái giới thiệu các phiên bản Text Animation lắp ghép In / Loop / Out rời (ví dụ: `TextInAnimationType`, `TextOutAnimationType`, các bộ evaluator/catalog In–Loop–Out rời, `CreativeAnimationManifest` V2, `OpenAnimationRuntimeEngine`, hoặc UI Mix-and-Match từng pha độc lập).
+3. **Decode dự án cũ & Giao diện mở rộng:** Mọi tính năng mới, preset cộng đồng, hay MCP override cho Text Animation đều phải ánh xạ vào `scriptId` và tham số thuộc hệ thống `TextAnimationScript`. Khi đọc file/project cũ còn chứa key JSON In/Out rời, chỉ map sang `scriptId` tương đương (hoặc bỏ qua key thừa), cấm giữ lại đường chạy runtime/renderer In–Loop–Out rời.
+4. **Tách biệt phạm vi Sticker (`StickerAnimationScript`):** Hệ thống Sticker Animation bắt buộc áp dụng kiến trúc Script-Driven liên khối (`Intro → Loop → Outro`) tương đương chất lượng với Text Animation (`StickerAnimationScript`), nhưng tách biệt hoàn toàn thành các kiểu dữ liệu và module riêng trong `Domain/Sticker/` & `FeatureShell/Sticker/`, không dùng chung hoặc làm vướng bận mô hình `TextAnimationScript` của Text.
+
+## ĐIỀU 15: PHÂN TÁCH USER PRESETS & DEV-ONLY SYSTEM LIBRARIES
+1. **User & Cloud Presets (`*Preset` — chỉ `Text` & `Adjustment`):** Chỉ duy nhất `Text` (`TextPreset`) và `Adjustment` (`AdjustmentPreset`) là User Presets cho phép người dùng lưu mới, ghi đè, xóa từ Inspector / Timeline Context Menu và đồng bộ hai chiều với Supabase (`text_presets`, `adjustment_presets`).
+2. **Dev-Only System Libraries (`*LibraryItem` / `*Library`, `TextAnimationScript` & `StickerAnimationScript`):** `Text Animation` (`TextAnimationScript`), `Sticker Animation` (`StickerAnimationScript`), `Effect` (`EffectLibraryItem` / `EffectLibrary`), `Transition` (`TransitionLibraryItem` / `TransitionLibrary`), và `Sticker` (`StickerLibraryItem` / `StickerLibrary`) là **Thư viện Hệ thống 100% do Dev phát triển trong code/bundle (`Domain`)**. Tuyệt đối **CẤM** thêm nút Save/Overwrite/Delete Preset trên UI, Inspector, Context Menu, hoặc tạo Supabase Preset CRUD Repository cho các đối tượng này.
+3. **Favorites cho System Libraries (Local-Only `UserDefaults`):** Trạng thái yêu thích (⭐) của các tab System Library cục bộ (`effect`, `transition`, `sticker`) phải lưu hoàn toàn cục bộ trong `UserDefaults` qua `SidebarFavoriteManager`, tuyệt đối không đồng bộ hoặc bị ghi đè bởi Supabase. `SupabaseFavoriteRepository` chỉ ánh xạ và đồng bộ cột `is_favorite` trên các bảng Cloud thực tế (`text_presets`, `adjustment_presets`, `audio_library`, `stock_media`).
+4. **Cloud Media Feeds (`Audio`, `Stock Media`):** `Audio` (`AudioLibraryItem` — `audio_library`) và `Stock Media` (`StockMediaItem` — `stock_media`) là nguồn cấp tài nguyên media tĩnh từ Cloud URL, chỉ phục vụ duyệt và nạp vào Timeline (read-only đối với người dùng), không cho phép người dùng tự tạo hoặc xóa preset từ Inspector.
 
 ---
 

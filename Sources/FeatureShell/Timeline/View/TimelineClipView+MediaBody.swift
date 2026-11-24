@@ -57,54 +57,62 @@ extension TimelineClipView {
         }
     }
 
-    /// Đường line mảnh hiển thị trực quan tỷ lệ thời lượng `[In (Cyan) | Loop (Mint Green) | Out (Amber)]`
-    /// ngay dưới đáy khối Text / Sticker Clip trên Timeline.
+    /// Thin indicator bar showing `[In (Cyan) | Loop (Mint Green) | Out (Amber)]` phase proportions
+    /// at the bottom of a Text or Sticker clip on the Timeline.
     @ViewBuilder
     func clipAnimationDurationLine(width: CGFloat, duration: CMTime) -> some View {
-        if let anim = resolvedClipAnimation,
-           anim.hasInAnimation || anim.hasOutAnimation || anim.hasLoopAnimation {
-            let totalSec = max(0.1, CMTimeGetSeconds(duration))
-            let inRatio = anim.hasInAnimation ? min(1.0, max(0.0, anim.inDuration / totalSec)) : 0.0
-            let outRatio = anim.hasOutAnimation ? min(max(0.0, 1.0 - inRatio), max(0.0, anim.outDuration / totalSec)) : 0.0
-            let loopRatio = max(0.0, 1.0 - inRatio - outRatio)
-
-            let inW = width * CGFloat(inRatio)
-            let loopW = width * CGFloat(loopRatio)
-            let outW = width * CGFloat(outRatio)
-
-            HStack(spacing: 0) {
-                if inW > 0.5 {
-                    Rectangle()
-                        .fill(Color(red: 0.18, green: 0.82, blue: 0.95))
-                        .frame(width: inW, height: 2.5)
-                }
-                if loopW > 0.5 {
-                    Rectangle()
-                        .fill(anim.hasLoopAnimation ? Color(red: 0.20, green: 0.88, blue: 0.55) : Color.clear)
-                        .frame(width: loopW, height: 2.5)
-                }
-                if outW > 0.5 {
-                    Rectangle()
-                        .fill(Color(red: 0.98, green: 0.68, blue: 0.20))
-                        .frame(width: outW, height: 2.5)
-                }
-            }
-            .frame(width: width, height: 2.5, alignment: .leading)
+        let totalSec = max(0.1, CMTimeGetSeconds(duration))
+        if clip.kind == .text, let anim = resolvedTextAnimation, anim.hasScriptAnimation {
+            let cycleSec = TextAnimationScriptRegistry.shared.script(for: anim.scriptId)?.loopCycleDuration ?? 1.0
+            let phases = anim.resolvedPhases(forClipDuration: totalSec, baseCycleSeconds: cycleSec)
+            phaseStrip(inSec: phases.inDuration, outSec: phases.outDuration, totalSec: totalSec, width: width)
+        } else if clip.kind == .sticker, let stickerAnim = resolvedStickerAnimation, stickerAnim.hasScriptAnimation {
+            let cycleSec = StickerAnimationScriptRegistry.shared.script(for: stickerAnim.scriptId)?.baseCycleSeconds ?? 1.0
+            let phases = stickerAnim.resolvedPhases(forClipDuration: totalSec, baseCycleSeconds: cycleSec)
+            phaseStrip(inSec: phases.inDuration, outSec: phases.outDuration, totalSec: totalSec, width: width)
         }
     }
 
-    private var resolvedClipAnimation: TextAnimationConfiguration? {
-        if clip.kind == .text,
-           let json = clip.properties["textConfig"]?.asString,
-           let cfg = TextConfiguration.decode(from: json) {
-            return cfg.animation
+    private func phaseStrip(inSec: Double, outSec: Double, totalSec: Double, width: CGFloat) -> some View {
+        let inW = width * CGFloat(min(1.0, max(0.0, inSec / totalSec)))
+        let outW = width * CGFloat(min(1.0, max(0.0, outSec / totalSec)))
+        let loopW = max(0.0, width - inW - outW)
+        return HStack(spacing: 0) {
+            if inW > 0.5 {
+                Rectangle()
+                    .fill(Color(red: 0.18, green: 0.82, blue: 0.95))
+                    .frame(width: inW, height: 2.5)
+            }
+            if loopW > 0.5 {
+                Rectangle()
+                    .fill(Color(red: 0.20, green: 0.88, blue: 0.55))
+                    .frame(width: loopW, height: 2.5)
+            }
+            if outW > 0.5 {
+                Rectangle()
+                    .fill(Color(red: 0.98, green: 0.68, blue: 0.20))
+                    .frame(width: outW, height: 2.5)
+            }
         }
-        if clip.kind == .sticker,
-           let json = clip.properties["stickerConfig"]?.asString,
-           let cfg = StickerConfiguration.decode(from: json) {
-            return cfg.animation
+        .frame(width: width, height: 2.5, alignment: .leading)
+    }
+
+    private var resolvedTextAnimation: TextAnimationConfiguration? {
+        guard clip.kind == .text,
+              let json = clip.properties["textConfig"]?.asString,
+              let cfg = TextConfiguration.decode(from: json) else {
+            return nil
         }
-        return nil
+        return cfg.animation
+    }
+
+    private var resolvedStickerAnimation: StickerAnimationConfiguration? {
+        guard clip.kind == .sticker,
+              let json = clip.properties["stickerConfig"]?.asString,
+              let cfg = StickerConfiguration.decode(from: json) else {
+            return nil
+        }
+        return cfg.animation
     }
 }
 

@@ -61,7 +61,7 @@ struct SevenModulesAndTemplateLockTests {
         timelineViewModel.layers = [layer]
 
         let transition = timelineViewModel.addOrUpdateCutTransition(
-            TransitionPreset.default,
+            TransitionLibraryItem.default,
             between: clip1.id,
             and: clip2.id
         )
@@ -86,7 +86,7 @@ struct SevenModulesAndTemplateLockTests {
         let timelineViewModel = TimelineViewModel()
         let inspectorViewModel = InspectorViewModel(timelineViewModel: timelineViewModel)
 
-        let stickerPreset = StickerPreset(
+        let stickerItem = StickerLibraryItem(
             id: "test_heart_sticker",
             name: "Heart Like",
             description: "Heart animation",
@@ -97,7 +97,7 @@ struct SevenModulesAndTemplateLockTests {
             systemSymbolFallback: "heart.fill"
         )
 
-        timelineViewModel.addStickerPreset(stickerPreset)
+        timelineViewModel.addStickerItem(stickerItem)
         inspectorViewModel.syncWithSelection()
 
         guard let clip = inspectorViewModel.selectedClip else {
@@ -121,10 +121,10 @@ struct SevenModulesAndTemplateLockTests {
             dependencies: dependencies
         )
 
-        let newTransition = TransitionPreset(
+        let newTransition = TransitionLibraryItem(
             id: "custom_agent_wipe",
             name: "AI Agent Wipe",
-            description: "Mẫu sinh tự động bởi Agent",
+            description: "Generated transition item for MCP session",
             category: .motion,
             shaderType: .whipPanRight
         )
@@ -142,7 +142,7 @@ struct SevenModulesAndTemplateLockTests {
 
         let catalogJSON = try dispatcher.handleToolCall(toolName: "library_get_catalog", argumentsJSON: "{}")
         #expect(catalogJSON.contains("custom_agent_wipe"))
-        #expect(catalogJSON.contains("transitionTemplates"))
-        #expect(catalogJSON.contains("stickerTemplates"))
+        #expect(catalogJSON.contains("transitionLibrary"))
+        #expect(catalogJSON.contains("stickerLibrary"))
     }
 }

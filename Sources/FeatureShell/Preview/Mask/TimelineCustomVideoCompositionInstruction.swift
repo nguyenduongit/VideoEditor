@@ -41,6 +41,7 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
         public let blendMode: TextLayerBlendMode
         public let perspectiveX: Double
         public let perspectiveY: Double
+        public let audioReactiveTracks: [AudioReactiveTrackSnapshot]
 
         public init(
             trackID: CMPersistentTrackID,
@@ -74,7 +75,8 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
             activeTransition: ActiveTransitionRenderInfo? = nil,
             blendMode: TextLayerBlendMode = .normal,
             perspectiveX: Double = 0.0,
-            perspectiveY: Double = 0.0
+            perspectiveY: Double = 0.0,
+            audioReactiveTracks: [AudioReactiveTrackSnapshot] = []
         ) {
             self.trackID = trackID
             self.transform = transform
@@ -108,6 +110,7 @@ public final class TimelineCustomVideoCompositionInstruction: NSObject, AVVideoC
             self.blendMode = blendMode
             self.perspectiveX = perspectiveX
             self.perspectiveY = perspectiveY
+            self.audioReactiveTracks = audioReactiveTracks
         }
     }
 

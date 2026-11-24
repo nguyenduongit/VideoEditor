@@ -2,140 +2,204 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Tab `"Animation"` chuyên dụng cho Nhãn dán (Sticker):
-/// Chỉ hỗ trợ Loop Animation (Vòng lặp vô tận) tinh tuyển, loại bỏ hoàn toàn In và Out.
-/// Cho phép điều chỉnh tốc độ Loop (Loop Speed 0.25x – 4.0x) và xem trước trực quan.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 40 dòng) của AGENTS.md.
+/// Sticker `"Animation"` Inspector tab:
+/// Uses the shared `DSAnimationScriptBrowser` layout with a compact Sticker-specific bottom bar:
+/// - `Loop` and `Total` derive automatically from the actual Timeline clip length dragged by the user.
+/// - `Beat Sync` automatically syncs to the overlapping Audio clip's detected BPM underneath.
 public struct StickerAnimationTabView: View {
-    @Bindable private var viewModel: InspectorViewModel
+    @Bindable var viewModel: InspectorViewModel
 
     public init(viewModel: InspectorViewModel) {
         self.viewModel = viewModel
-    }
-
-    public var body: some View {
-        DSVerticalScrollView(backgroundColor: DSColors.blockBackground) {
-            VStack(alignment: .leading, spacing: DSSpacing.md) {
-                loopGridSection
-                speedSection
-            }
-            .padding(DSSize.inspectorContentPadding)
-        }
     }
 
     private var currentConfig: StickerConfiguration {
         viewModel.stickerConfiguration
     }
 
-    private let loopTypes: [TextLoopAnimationType] = [
-        .none,
-        .pulse,
-        .sway,
-        .wobble,
-        .bounce,
-        .spin,
-        .float,
-        .shake,
-        .breathe,
-        .wave,
-        .flicker
-    ]
+    private var currentAnimation: StickerAnimationConfiguration {
+        currentConfig.animation
+    }
 
-    private let gridColumns = [
-        GridItem(.flexible(), spacing: DSSpacing.sm),
-        GridItem(.flexible(), spacing: DSSpacing.sm),
-        GridItem(.flexible(), spacing: DSSpacing.sm)
-    ]
+    private var clipDurationSeconds: Double {
+        max(0.2, viewModel.selectedClip?.timeRange.duration.seconds ?? 3.0)
+    }
 
-    private var loopGridSection: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            Text(String(localized: "LOOP ANIMATION"))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DSColors.textSecondary)
+    private var audioTempo: ResolvedAudioTempo {
+        viewModel.resolvedAudioTempoForSelectedClip
+    }
 
-            LazyVGrid(columns: gridColumns, spacing: DSSpacing.sm) {
-                ForEach(loopTypes) { type in
-                    let isSelected = currentConfig.animation.loopType == type
-                    loopCard(type: type, isSelected: isSelected)
-                }
+    private var resolvedPhases: ResolvedAnimationPhases {
+        var anim = currentAnimation
+        if anim.isBeatSyncEnabled, let detected = audioTempo.bpm {
+            anim.beatBPM = detected
+        }
+        let cycleSec = StickerAnimationScriptRegistry.shared.script(for: anim.scriptId)?.baseCycleSeconds ?? 1.0
+        return anim.resolvedPhases(forClipDuration: clipDurationSeconds, baseCycleSeconds: cycleSec)
+    }
+
+    public var body: some View {
+        StickerScriptAnimationCardsGrid(
+            selectedScriptId: currentAnimation.scriptId,
+            sourceStickerConfig: currentConfig,
+            showBottomPanel: currentAnimation.hasScriptAnimation,
+            onSelectScript: selectScript,
+            onClearScript: clearScript
+        ) {
+            animationBottomBar
+        }
+        .onAppear {
+            viewModel.ensureAudioBeatsAnalyzedForSelectedClip()
+        }
+        .onChange(of: viewModel.selectedClip?.id) { _, _ in
+            viewModel.ensureAudioBeatsAnalyzedForSelectedClip()
+        }
+        .onChange(of: currentAnimation.isBeatSyncEnabled) { _, enabled in
+            if enabled {
+                viewModel.ensureAudioBeatsAnalyzedForSelectedClip()
             }
         }
-        .padding(DSSpacing.md)
-        .background(DSColors.blockBackground)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
-        .overlay(RoundedRectangle(cornerRadius: DSRadius.block).stroke(DSColors.blockBorder, lineWidth: 1))
-    }
-
-    private func loopCard(type: TextLoopAnimationType, isSelected: Bool) -> some View {
-        Button(action: { selectLoopType(type) }) {
-            VStack(spacing: DSSpacing.xs) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: DSRadius.small)
-                        .fill(isSelected ? DSColors.toggleCyan.opacity(0.18) : DSColors.windowBackground)
-                        .frame(height: 44)
-
-                    Image(systemName: type.iconName)
-                        .font(.system(size: 17, weight: isSelected ? .bold : .medium))
-                        .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.textSecondary)
-                }
-
-                Text(type.displayName)
-                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
-                    .lineLimit(1)
+        .onChange(of: audioTempo.bpm) { _, newBPM in
+            if currentAnimation.isBeatSyncEnabled, let detectedBPM = newBPM, abs(currentAnimation.beatBPM - detectedBPM) > 0.5 {
+                var cfg = currentConfig
+                cfg.animation.beatBPM = detectedBPM
+                viewModel.updateStickerConfiguration(cfg, commit: true)
             }
-            .padding(DSSpacing.xs)
-            .background(isSelected ? DSColors.toggleCyan.opacity(0.08) : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
-            .overlay(
-                RoundedRectangle(cornerRadius: DSRadius.small)
-                    .stroke(isSelected ? DSColors.toggleCyan : DSColors.blockBorder, lineWidth: isSelected ? 1.5 : 1)
-            )
         }
-        .buttonStyle(.plain)
     }
 
-    private var speedSection: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            Text(String(localized: "LOOP SPEED"))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DSColors.textSecondary)
+    private var animationBottomBar: some View {
+        let padding: CGFloat = DSSpacing.md
+        return VStack(alignment: .leading, spacing: DSSpacing.xs) {
+            speedAndIntensityRow(padding: padding)
+            AnimationBeatSyncRowView(
+                isBeatSyncEnabled: beatSyncBinding,
+                beatBarMode: beatBarModeBinding,
+                beatBPM: beatBPMBinding,
+                audioTempo: audioTempo,
+                onEditingChanged: commitOnFinish
+            )
+            AnimationTimingSummaryRowView(phases: resolvedPhases)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, padding)
+        .padding(.vertical, DSSpacing.sm)
+        .background(DSColors.blockBackground)
+    }
 
-            DSSliderWithInput(
-                title: "Speed",
-                value: Binding(
-                    get: { currentConfig.animation.loopSpeed },
-                    set: { val in
-                        var cfg = currentConfig
-                        cfg.animation.loopSpeed = val
-                        cfg.playbackSpeed = val
-                        viewModel.updateStickerConfiguration(cfg, commit: false)
-                    }
-                ),
-                range: 0.25...4.0,
-                step: 0.05,
-                defaultValue: 1.0,
-                unit: "x",
-                onEditingChanged: { isEditing in
-                    if !isEditing {
-                        viewModel.updateStickerConfiguration(currentConfig, commit: true)
+    private func speedAndIntensityRow(padding: CGFloat) -> some View {
+        HStack(spacing: padding) {
+            DSNumberInput(
+                value: speedScaleBinding,
+                step: 0.1, min: 0.25, max: 4.0, unit: "x", prefix: "Time Scale:", fractionDigits: 1,
+                isFlexibleWidth: true, onEditingChanged: commitOnFinish
+            )
+            .frame(maxWidth: .infinity)
+
+            DSNumberInput(
+                value: intensityBinding,
+                step: 10.0, min: 10.0, max: 200.0, unit: "%", prefix: "Intensity:", fractionDigits: 0,
+                isFlexibleWidth: true, onEditingChanged: commitOnFinish
+            )
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    // MARK: - Bindings
+
+    private var speedScaleBinding: Binding<Double> {
+        Binding(
+            get: { currentAnimation.scriptSpeed },
+            set: { newSpeed in
+                var cfg = currentConfig
+                let script = StickerAnimationScriptRegistry.shared.script(for: cfg.animation.scriptId)
+                cfg.animation.updateTimingForSpeed(
+                    newSpeed,
+                    clipDuration: clipDurationSeconds,
+                    baseCycleSeconds: script?.baseCycleSeconds ?? 1.0
+                )
+                viewModel.updateStickerConfiguration(cfg, commit: false)
+            }
+        )
+    }
+
+    private var intensityBinding: Binding<Double> {
+        Binding(
+            get: { currentAnimation.scriptIntensity * 100.0 },
+            set: { val in
+                var cfg = currentConfig
+                cfg.animation.scriptIntensity = max(0.1, min(2.0, val / 100.0))
+                viewModel.updateStickerConfiguration(cfg, commit: false)
+            }
+        )
+    }
+
+    private var beatSyncBinding: Binding<Bool> {
+        Binding(
+            get: { currentAnimation.isBeatSyncEnabled },
+            set: { enabled in
+                var cfg = currentConfig
+                cfg.animation.isBeatSyncEnabled = enabled
+                if enabled {
+                    viewModel.ensureAudioBeatsAnalyzedForSelectedClip()
+                    if let detectedBPM = audioTempo.bpm {
+                        cfg.animation.beatBPM = detectedBPM
                     }
                 }
-            )
-        }
-        .padding(DSSpacing.md)
-        .background(DSColors.blockBackground)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.block))
-        .overlay(RoundedRectangle(cornerRadius: DSRadius.block).stroke(DSColors.blockBorder, lineWidth: 1))
+                viewModel.updateStickerConfiguration(cfg, commit: true)
+            }
+        )
     }
 
-    private func selectLoopType(_ type: TextLoopAnimationType) {
+    private var beatBarModeBinding: Binding<AnimationBeatBarMode> {
+        Binding(
+            get: { currentAnimation.beatBarMode },
+            set: { mode in
+                var cfg = currentConfig
+                cfg.animation.beatBarMode = mode
+                viewModel.updateStickerConfiguration(cfg, commit: true)
+            }
+        )
+    }
+
+    private var beatBPMBinding: Binding<Double> {
+        Binding(
+            get: { currentAnimation.beatBPM },
+            set: { val in
+                var cfg = currentConfig
+                cfg.animation.beatBPM = max(40.0, min(240.0, val))
+                viewModel.updateStickerConfiguration(cfg, commit: false)
+            }
+        )
+    }
+
+    // MARK: - Actions
+
+    private func commitOnFinish(_ isEditing: Bool) {
+        if !isEditing {
+            viewModel.updateStickerConfiguration(currentConfig, commit: true)
+        }
+    }
+
+    private func selectScript(_ id: String) {
+        guard let script = StickerAnimationScriptRegistry.shared.script(for: id) else { return }
         var cfg = currentConfig
-        cfg.animation.loopType = type
-        cfg.animation.inType = .none
-        cfg.animation.outType = .none
-        cfg.animation.scriptId = "none"
+        let speed = cfg.animation.hasScriptAnimation ? cfg.animation.scriptSpeed : 1.0
+        cfg.animation.scriptId = script.id
+        cfg.animation.updateTimingForSpeed(
+            speed,
+            clipDuration: clipDurationSeconds,
+            baseCycleSeconds: script.baseCycleSeconds
+        )
+        if cfg.animation.isBeatSyncEnabled, let detectedBPM = audioTempo.bpm {
+            cfg.animation.beatBPM = detectedBPM
+        }
+        viewModel.updateStickerConfiguration(cfg, commit: true)
+    }
+
+    private func clearScript() {
+        var cfg = currentConfig
+        cfg.animation.scriptId = ""
         viewModel.updateStickerConfiguration(cfg, commit: true)
     }
 }
-

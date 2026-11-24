@@ -2,181 +2,66 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Lưới thẻ hiển thị 25 kịch bản diễn hoạt đóng gói sẵn chia theo 5 chủ đề (Script-Driven Animation Catalog).
-/// Cả ảnh tĩnh (Hero Frame) lẫn Live Hover Preview đều kết xuất 1:1 từ `TextRendererEngine` để đồng nhất tuyệt đối với Canvas.
-/// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
-public struct TextScriptAnimationCardsGrid: View {
+/// Text Script-Driven Animation catalog powered by the shared `DSAnimationScriptBrowser` layout.
+/// Both static Hero thumbnails and live hover previews render 1:1 via `TextRendererEngine`.
+public struct TextScriptAnimationCardsGrid<BottomPanel: View>: View {
     public let selectedScriptId: String
+    public let showBottomPanel: Bool
     public let onSelectScript: (any TextAnimationScript) -> Void
     public let onClearScript: () -> Void
+    private let bottomPanel: BottomPanel
 
-    @State private var selectedCategory: TextAnimationCategory?
-    @State private var hoveredScriptId: String?
+    @State private var selectedCategoryId: String?
 
     public init(
         selectedScriptId: String,
+        showBottomPanel: Bool,
         onSelectScript: @escaping (any TextAnimationScript) -> Void,
-        onClearScript: @escaping () -> Void
+        onClearScript: @escaping () -> Void,
+        @ViewBuilder bottomPanel: () -> BottomPanel
     ) {
         self.selectedScriptId = selectedScriptId
+        self.showBottomPanel = showBottomPanel
         self.onSelectScript = onSelectScript
         self.onClearScript = onClearScript
+        self.bottomPanel = bottomPanel()
     }
 
-    private var filteredScripts: [any TextAnimationScript] {
+    private var selectedCategory: TextAnimationCategory? {
+        selectedCategoryId.flatMap(TextAnimationCategory.init(rawValue:))
+    }
+
+    private var browserCategories: [DSAnimationBrowserCategory] {
+        TextAnimationCategory.allCases.map { cat in
+            DSAnimationBrowserCategory(
+                id: cat.rawValue,
+                title: cat.displayName,
+                count: TextAnimationScriptRegistry.shared.scripts(in: cat).count
+            )
+        }
+    }
+
+    private var filteredItems: [TextBrowserScriptItem] {
         TextAnimationScriptRegistry.shared.scripts(in: selectedCategory)
+            .map { TextBrowserScriptItem(id: $0.id, script: $0) }
     }
-
-    private let gridColumns = [
-        GridItem(.flexible(), spacing: DSSpacing.xs),
-        GridItem(.flexible(), spacing: DSSpacing.xs),
-        GridItem(.flexible(), spacing: DSSpacing.xs)
-    ]
 
     public var body: some View {
-        HStack(spacing: DSSpacing.none) {
-            categorySidebar
-                .frame(width: 82)
-                .background(DSColors.windowBackground.opacity(0.45))
-
-            Divider()
-                .background(DSColors.blockBorder)
-
-            cardsScrollView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    private var categorySidebar: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 0) {
-                sidebarButton(
-                    title: "All",
-                    count: TextAnimationScriptRegistry.shared.scripts.count,
-                    isSelected: selectedCategory == nil
-                ) {
-                    selectedCategory = nil
-                }
-
-                ForEach(TextAnimationCategory.allCases, id: \.rawValue) { category in
-                    let count = TextAnimationScriptRegistry.shared.scripts(in: category).count
-                    sidebarButton(
-                        title: category.displayName,
-                        count: count,
-                        isSelected: selectedCategory == category
-                    ) {
-                        selectedCategory = category
-                    }
-                }
-            }
-            .padding(.vertical, 0)
-        }
-    }
-
-    private func sidebarButton(
-        title: String,
-        count: Int,
-        isSelected: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Text(title)
-                    .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: 9, weight: .semibold, design: .rounded))
-                        .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.textSecondary.opacity(0.8))
-                }
-            }
-            .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
-            .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
-            .contentShape(Rectangle())
-            .background(isSelected ? DSColors.toggleCyan.opacity(0.18) : Color.clear)
-            .overlay(
-                Rectangle()
-                    .stroke(isSelected ? DSColors.toggleCyan.opacity(0.85) : Color.clear, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var cardsScrollView: some View {
-        ScrollView {
-            LazyVGrid(columns: gridColumns, spacing: DSSpacing.xs) {
-                if selectedCategory == nil {
-                    noneCard(isSelected: selectedScriptId == "none" || selectedScriptId.isEmpty)
-                }
-
-                ForEach(filteredScripts, id: \.id) { script in
-                    let isSelected = selectedScriptId == script.id
-                    let isHovered = hoveredScriptId == script.id
-                    scriptCard(script: script, isSelected: isSelected, isHovered: isHovered)
-                }
-            }
-            .padding(.horizontal, DSSpacing.sm)
-            .padding(.vertical, DSSpacing.xs)
-        }
-    }
-
-    private func noneCard(isSelected: Bool) -> some View {
-        Button(action: onClearScript) {
-            VStack(spacing: DSSpacing.xs) {
-                Image(systemName: "slash.circle")
-                    .font(.system(size: 20))
-                    .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.textSecondary)
-                    .frame(height: 42)
-                Text(String(localized: "None"))
-                    .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, minHeight: 74)
-            .background(isSelected ? DSColors.windowBackground : DSColors.blockBackground)
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
-            .overlay(
-                RoundedRectangle(cornerRadius: DSRadius.small)
-                    .stroke(isSelected ? DSColors.toggleCyan : DSColors.blockBorder, lineWidth: isSelected ? 1.5 : 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func scriptCard(script: any TextAnimationScript, isSelected: Bool, isHovered: Bool) -> some View {
-        Button(action: { onSelectScript(script) }) {
-            VStack(spacing: 3) {
-                scriptPreviewStage(script: script, isSelected: isSelected, isHovered: isHovered)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 42)
-                    .clipped()
-
-                Text(script.displayName)
-                    .font(.system(size: 10, weight: isSelected ? .semibold : .medium))
-                    .foregroundStyle(isSelected ? DSColors.textPrimary : DSColors.textSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 4)
-            .frame(maxWidth: .infinity, minHeight: 74)
-            .background(isSelected ? DSColors.windowBackground : (isHovered ? DSColors.tabHoverBackground : DSColors.blockBackground))
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.small))
-            .overlay(
-                RoundedRectangle(cornerRadius: DSRadius.small)
-                    .stroke(isSelected ? DSColors.toggleCyan : (isHovered ? DSColors.toggleCyan.opacity(0.45) : DSColors.blockBorder), lineWidth: isSelected ? 1.5 : 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            if hovering {
-                hoveredScriptId = script.id
-            } else if hoveredScriptId == script.id {
-                hoveredScriptId = nil
-            }
-        }
+        DSAnimationScriptBrowser(
+            selectedCategoryId: $selectedCategoryId,
+            totalCount: TextAnimationScriptRegistry.shared.scripts.count,
+            categories: browserCategories,
+            items: filteredItems,
+            selectedItemId: selectedScriptId,
+            showBottomPanel: showBottomPanel,
+            onClearSelection: onClearScript,
+            onSelectItem: { onSelectScript($0.script) },
+            itemTitle: { $0.script.displayName },
+            itemPreview: { item, isSelected, isHovered in
+                scriptPreviewStage(script: item.script, isSelected: isSelected, isHovered: isHovered)
+            },
+            bottomPanel: { bottomPanel }
+        )
     }
 
     @ViewBuilder
@@ -254,7 +139,29 @@ public struct TextScriptAnimationCardsGrid: View {
         case "shutter_blind_reveal": return "sidebar.left"
         case "soft_breathe_cascade": return "aqi.medium"
         case "flip_counter_roll": return "123.rectangle"
+        case "karaoke_box_pop": return "rectangle.fill.on.rectangle.angled.fill"
+        case "karaoke_glow_flow": return "mic.and.signal.meter.fill"
+        case "line_cascade_rise": return "text.alignleft"
+        case "blur_focus_dissolve": return "camera.aperture"
+        case "beat_pulse_slam": return "metronome.fill"
+        case "three_d_tumble_drop": return "rotate.3d"
+        case "three_d_swinging_door": return "door.left.hand.open"
+        case "three_d_depth_rush": return "view.3d"
+        case "fx_metallic_sweep": return "sun.max.fill"
+        case "fx_pixel_dissolve": return "square.grid.3x3.fill"
+        case "fx_neon_ignition": return "lightbulb.max.fill"
+        case "fx_chromatic_vapor": return "rainbow"
+        case "slide_directional_whip": return "arrow.forward.circle"
+        case "slide_zipper_cross": return "arrow.left.and.right"
+        case "wave_flag_flutter": return "flag.fill"
+        case "wave_liquid_ripple": return "drop.halffull"
+        case "glitch_crt_slice_tear": return "tv.fill"
         default: return script.category.iconName
         }
     }
+}
+
+private struct TextBrowserScriptItem: Identifiable {
+    let id: String
+    let script: any TextAnimationScript
 }

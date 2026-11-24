@@ -16,6 +16,7 @@ public struct TimelineView: View {
     @State var dragGuideCanvasX: CGFloat?
     @State var marqueeRect: CGRect?
     @FocusState var isTimelineFocused: Bool
+    @State var presetOverwriteErrorMessage: String?
 
     public init(
         viewModel: TimelineViewModel = TimelineViewModel(),
@@ -74,6 +75,7 @@ public struct TimelineView: View {
         .sheet(isPresented: Binding(get: { viewModel.isPasteAttributesPresented }, set: { viewModel.isPasteAttributesPresented = $0 })) {
             makePasteAttributesSheet()
         }
+        .background { presetOverwriteAlertsView }
     }
 
     private var timelineBody: some View {

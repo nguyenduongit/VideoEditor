@@ -61,43 +61,43 @@ public struct DNAHelixTwistScript: TextAnimationScript {
         let em = max(16.0, base.fontSize)
         let strandSign = unitIndex.isMultiple(of: 2) ? 1.0 : -1.0
         let total = max(1, unitTotal)
+        let loopAt: (Double) -> TextUnitDelta = { prog in
+            let theta = prog * .pi * 2.0 - Double(unitIndex) * 0.58
+            let waveY = sin(theta) * strandSign * (0.32 * em), depthZ = cos(theta) * strandSign
+            return TextUnitDelta(
+                offsetY: waveY, scaleX: 1.0 + depthZ * 0.18, scaleY: 1.0 + depthZ * 0.18,
+                rotation: depthZ * 8.5, opacity: 0.82 + 0.18 * ((depthZ + 1.0) * 0.5)
+            )
+        }
         switch phase {
         case .intro(let progress):
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.40 / Double(total))) / 0.60))
-            guard p > 0.0 else { return TextUnitDelta(scaleX: 0.1, scaleY: 0.1, opacity: 0.0) }
-            let ease = 1.0 - pow(1.0 - p, 3.0)
-            let theta = (1.0 - ease) * .pi * 1.5 + Double(unitIndex) * 0.55
-            let depth = cos(theta) * strandSign
-            return TextUnitDelta(
-                offsetY: sin(theta) * strandSign * (0.48 * em) * (1.0 - ease * 0.35),
-                scaleX: max(0.25, ease * (1.0 + depth * 0.22 * (1.0 - ease * 0.5))),
-                scaleY: max(0.25, ease * (1.0 + depth * 0.22 * (1.0 - ease * 0.5))),
-                rotation: cos(theta) * strandSign * 14.0 * (1.0 - ease * 0.4),
-                opacity: min(1.0, p * 3.5)
-            )
+            let raw: TextUnitDelta
+            if p <= 0.0 {
+                raw = TextUnitDelta(scaleX: 0.1, scaleY: 0.1, opacity: 0.0)
+            } else {
+                let ease = 1.0 - pow(1.0 - p, 3.0), theta = (1.0 - ease) * .pi * 1.5 + Double(unitIndex) * 0.55
+                let depth = cos(theta) * strandSign, sc = max(0.25, ease * (1.0 + depth * 0.22 * (1.0 - ease * 0.5)))
+                raw = TextUnitDelta(
+                    offsetY: sin(theta) * strandSign * (0.48 * em) * (1.0 - ease * 0.35),
+                    scaleX: sc, scaleY: sc, rotation: cos(theta) * strandSign * 14.0 * (1.0 - ease * 0.4),
+                    opacity: min(1.0, p * 3.5)
+                )
+            }
+            guard progress > 0.72 else { return raw }
+            let t = (progress - 0.72) / 0.28
+            return TextUnitDelta.lerp(raw, loopAt(progress), t: t * t * (3.0 - 2.0 * t))
         case .loop(_, let cycleProgress):
-            let theta = cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.58
-            let waveY = sin(theta) * strandSign * (0.32 * em)
-            let depthZ = cos(theta) * strandSign
-            let depthScale = 1.0 + depthZ * 0.18
-            return TextUnitDelta(
-                offsetY: waveY,
-                scaleX: depthScale,
-                scaleY: depthScale,
-                rotation: depthZ * 8.5,
-                opacity: 0.82 + 0.18 * ((depthZ + 1.0) * 0.5)
-            )
+            return loopAt(cycleProgress)
         case .outro(let progress):
-            let p = min(1.0, max(0.0, progress))
-            let ease = p * p
+            let p = min(1.0, max(0.0, progress)), ease = p * p
             let theta = ease * .pi * 1.5 + Double(unitIndex) * 0.55
-            return TextUnitDelta(
+            let outDelta = TextUnitDelta(
                 offsetY: sin(theta) * strandSign * (0.60 * em) * ease,
-                scaleX: max(0.08, 1.0 - ease * 0.90),
-                scaleY: max(0.08, 1.0 - ease * 0.90),
-                rotation: strandSign * ease * 35.0,
-                opacity: 1.0 - ease
+                scaleX: max(0.08, 1.0 - ease * 0.90), scaleY: max(0.08, 1.0 - ease * 0.90),
+                rotation: strandSign * ease * 35.0, opacity: 1.0 - ease
             )
+            return TextUnitDelta.lerp(loopAt(progress), outDelta, t: min(1.0, progress / 0.25))
         }
     }
 }
@@ -116,48 +116,41 @@ public struct JellyTrampolineWaveScript: TextAnimationScript {
         let em = max(16.0, base.fontSize)
         let centerIdx = Double(max(1, unitTotal - 1)) * 0.5
         let charEmX = (Double(unitIndex) - centerIdx) * 0.62
-        let k = 0.88
-        let amp = 0.34
+        let k = 0.88, amp = 0.34
+        let loopAt: (Double) -> TextUnitDelta = { prog in
+            let phaseRad = prog * .pi * 2.0, theta = -charEmX * k + phaseRad
+            let wave = sin(theta), stretch = wave * 0.22
+            return TextUnitDelta(
+                offsetY: -amp * em * wave, scaleX: 1.0 - stretch * 0.55, scaleY: 1.0 + stretch,
+                rotation: atan(amp * k * cos(theta)) * 180.0 / .pi, opacity: 1.0,
+                waveAmplitudeEm: amp, waveFrequencyEm: -k, wavePhaseRadians: phaseRad, anchorOverride: .bottom
+            )
+        }
         switch phase {
         case .intro(let progress):
             let total = max(1, unitTotal)
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.42 / Double(total))) / 0.58))
-            guard p > 0.0 else { return TextUnitDelta(scaleX: 1.35, scaleY: 0.08, opacity: 0.0, anchorOverride: .bottom) }
-            let decay = exp(-p * 3.8)
-            let bounce = decay * sin(p * .pi * 3.2)
-            return TextUnitDelta(
-                offsetY: -max(0.0, bounce) * (0.48 * em),
-                scaleX: max(0.4, 1.0 - bounce * 0.22),
-                scaleY: max(0.1, 1.0 + bounce * 0.36),
-                opacity: min(1.0, p * 4.2),
-                anchorOverride: .bottom
-            )
+            let raw: TextUnitDelta
+            if p <= 0.0 {
+                raw = TextUnitDelta(scaleX: 1.35, scaleY: 0.08, opacity: 0.0, anchorOverride: .bottom)
+            } else {
+                let decay = exp(-p * 3.8), bounce = decay * sin(p * .pi * 3.2)
+                raw = TextUnitDelta(
+                    offsetY: -max(0.0, bounce) * (0.48 * em), scaleX: max(0.4, 1.0 - bounce * 0.22),
+                    scaleY: max(0.1, 1.0 + bounce * 0.36), opacity: min(1.0, p * 4.2), anchorOverride: .bottom
+                )
+            }
+            guard progress > 0.72 else { return raw }
+            let t = (progress - 0.72) / 0.28
+            return TextUnitDelta.lerp(raw, loopAt(progress), t: t * t * (3.0 - 2.0 * t))
         case .loop(_, let cycleProgress):
-            let phaseRad = cycleProgress * .pi * 2.0
-            let theta = -charEmX * k + phaseRad
-            let wave = sin(theta)
-            let stretch = wave * 0.22
-            return TextUnitDelta(
-                offsetY: -amp * em * wave,
-                scaleX: 1.0 - stretch * 0.55,
-                scaleY: 1.0 + stretch,
-                rotation: atan(amp * k * cos(theta)) * 180.0 / .pi,
-                opacity: 1.0,
-                waveAmplitudeEm: amp,
-                waveFrequencyEm: -k,
-                wavePhaseRadians: phaseRad,
-                anchorOverride: .bottom
-            )
+            return loopAt(cycleProgress)
         case .outro(let progress):
             let total = max(1, unitTotal)
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.36 / Double(total))) / 0.64))
             let ease = p * p
-            return TextUnitDelta(
-                scaleX: 1.0 + ease * 0.35,
-                scaleY: max(0.06, 1.0 - ease * 0.94),
-                opacity: 1.0 - ease,
-                anchorOverride: .bottom
-            )
+            let outDelta = TextUnitDelta(scaleX: 1.0 + ease * 0.35, scaleY: max(0.06, 1.0 - ease * 0.94), opacity: 1.0 - ease, anchorOverride: .bottom)
+            return TextUnitDelta.lerp(loopAt(progress), outDelta, t: min(1.0, progress / 0.25))
         }
     }
 }

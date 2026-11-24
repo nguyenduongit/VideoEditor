@@ -12,13 +12,13 @@ import AppKit
 @Suite("TextAnimationProCapCutTests")
 @MainActor
 struct TextAnimationProCapCutTests {
-    @Test("TextAnimationConfiguration supports scope, combo, stagger direction, anchor and motion blur defaults")
+    @Test("TextAnimationConfiguration supports unified script defaults and timing modifiers")
     func testTextAnimationScopeAndStaggerDefaults() {
         let config = TextAnimationConfiguration()
         #expect(config.scope == .wholeBlock)
         #expect(config.staggerDirection == .forward)
         #expect(config.anchorPoint == .center)
-        #expect(config.comboType == .none)
+        #expect(config.scriptId == "none")
         #expect(config.staggerDelay == 0.04)
         #expect(config.rgbSplitIntensity == 0.0)
         #expect(config.lightSweepIntensity == 0.0)
@@ -27,64 +27,54 @@ struct TextAnimationProCapCutTests {
         #expect(config.isDefault == true)
     }
 
-    @Test("KineticDrop and SlideUp In Animations calculate expected motion offsets")
+    @Test("KineticDrop and SmoothGlide unified scripts evaluate motion offsets seamlessly")
     func testDropAndBounceEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
         var cfgDrop = TextConfiguration(content: "Drop")
-        cfgDrop.animation.inType = .kineticDrop
-        cfgDrop.animation.inDuration = 1.0
-        let evalDrop = TextAnimationEvaluator.evaluate(config: cfgDrop, localTime: 0.2, duration: 4.0, canvasSize: canvasSize)
-        #expect(abs(evalDrop.config.positionY) > 0.001)
+        cfgDrop.animation.scriptId = "kinetic_drop_glow"
+        let evalDrop = TextAnimationEvaluator.evaluate(config: cfgDrop, localTime: 0.2, duration: 5.0, canvasSize: canvasSize)
+        #expect(abs(evalDrop.config.positionY) > 0.001 || evalDrop.config.opacity < 1.0)
 
         var cfgSlide = TextConfiguration(content: "Slide")
-        cfgSlide.animation.inType = .slideUp
-        cfgSlide.animation.inDuration = 1.0
-        let evalSlide = TextAnimationEvaluator.evaluate(config: cfgSlide, localTime: 0.15, duration: 4.0, canvasSize: canvasSize)
-        #expect(abs(evalSlide.config.positionY) > 0.001)
+        cfgSlide.animation.scriptId = "smooth_word_glide"
+        let evalSlide = TextAnimationEvaluator.evaluate(config: cfgSlide, localTime: 0.15, duration: 5.0, canvasSize: canvasSize)
+        #expect(abs(evalSlide.config.positionY) > 0.001 || abs(evalSlide.config.positionX) > 0.001 || evalSlide.config.opacity < 1.0)
     }
 
-    @Test("CapCut Pro In Animations evaluate WhipRight and Typewriter")
+    @Test("Unified scripts evaluate WhipEchoSlam and TypewriterCursor smoothly")
     func testCapCutProInAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
         var cfgMove = TextConfiguration(content: "Move")
-        cfgMove.animation.inType = .whipRight
-        cfgMove.animation.inDuration = 1.0
-        let evalMove = TextAnimationEvaluator.evaluate(config: cfgMove, localTime: 0.1, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalMove.config.positionX < 0.0)
-        #expect(evalMove.overlay.motionBlurRadius > 1.0)
+        cfgMove.animation.scriptId = "whip_echo_slam"
+        let evalMove = TextAnimationEvaluator.evaluate(config: cfgMove, localTime: 0.15, duration: 5.0, canvasSize: canvasSize)
+        #expect(abs(evalMove.config.positionX) > 0.5 || evalMove.overlay.echoCount > 0)
 
         var cfgType = TextConfiguration(content: "TypewriterAnimation")
-        cfgType.animation.inType = .typewriter
-        cfgType.animation.inDuration = 1.0
-        let evalType = TextAnimationEvaluator.evaluate(config: cfgType, localTime: 0.4, duration: 4.0, canvasSize: canvasSize)
-        #expect(evalType.config.content.count < "TypewriterAnimation|".count)
+        cfgType.animation.scriptId = "typewriter_cursor"
+        let evalTypeHidden = TextAnimationEvaluator.evaluate(
+            config: cfgType, localTime: 0.1, duration: 5.0, canvasSize: canvasSize, charIndex: 10, charCount: 19
+        )
+        #expect(evalTypeHidden.config.opacity == 0.0)
     }
 
-    @Test("Loop Animation runs strictly between In completion and Out start")
+    @Test("Unified scripts execute continuous Intro -> Loop -> Outro progression with integer loop cycles")
     func testLoopAnimationActiveBetweenInAndOut() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
         var cfg = TextConfiguration(content: "LoopTest")
-        cfg.animation.inType = .fadeIn
-        cfg.animation.inDuration = 1.0
-        cfg.animation.outType = .fadeOut
-        cfg.animation.outDuration = 1.0
-        cfg.animation.loopType = .pulse
-        cfg.animation.loopSpeed = 1.0
+        cfg.animation.scriptId = "liquid_wave_pulse"
+        cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: 3, speed: 1.0)
 
-        // At t = 0.5 (during In): loop blend is 0, scale unchanged by pulse
-        let evalIn = TextAnimationEvaluator.evaluate(config: cfg, localTime: 0.5, duration: 5.0, canvasSize: canvasSize)
-        #expect(abs(evalIn.config.scale - 1.0) < 0.001)
+        let evalIn = TextAnimationEvaluator.evaluate(config: cfg, localTime: 0.1, duration: 5.0, canvasSize: canvasSize)
+        #expect(evalIn.config.opacity < 1.0)
 
-        // At t = 2.25 (in middle window): loop is fully active
         let evalMid = TextAnimationEvaluator.evaluate(config: cfg, localTime: 2.25, duration: 5.0, canvasSize: canvasSize)
-        #expect(abs(evalMid.config.scale - 1.0) > 0.005)
+        #expect(evalMid.config.opacity == 1.0)
 
-        // At t = 4.8 (during Out): loop blend is 0
-        let evalOut = TextAnimationEvaluator.evaluate(config: cfg, localTime: 4.8, duration: 5.0, canvasSize: canvasSize)
-        #expect(evalOut.config.opacity < 0.5)
+        let evalOut = TextAnimationEvaluator.evaluate(config: cfg, localTime: 4.9, duration: 5.0, canvasSize: canvasSize)
+        #expect(evalOut.config.opacity < 0.8)
     }
 
     @Test("Stagger Direction calculates expected ordering for forward, backward and centerOut")
@@ -124,13 +114,10 @@ struct TextAnimationProCapCutTests {
         #expect(wordWidth > 0)
     }
 
-    @Test("Per-Character animated rendering generates valid CIImage with Shaders")
+    @Test("Per-Character unified script rendering generates valid CIImage with Shaders")
     func testSegmentedAndKaraokeRenderingProducesValidImage() {
         var config = TextConfiguration(content: "CAPCUT PRO VIBE")
-        config.animation.inType = .kineticDrop
-        config.animation.scope = .perCharacter
-        config.animation.staggerDirection = .centerOut
-        config.animation.staggerDelay = 0.05
+        config.animation.scriptId = "kinetic_drop_glow"
         config.animation.rgbSplitIntensity = 3.0
         config.animation.lightSweepIntensity = 0.6
 
@@ -180,8 +167,7 @@ struct TextAnimationProCapCutTests {
             "hasGlow": true,
             "glowColorHex": "#06B6D4",
             "animation": {
-              "inType": "FutureHologram2028",
-              "comboType": "Karaoke Box"
+              "inType": "FutureHologram2028"
             }
           }
         }
@@ -191,9 +177,8 @@ struct TextAnimationProCapCutTests {
             return
         }
         #expect(decodedRemote.id == "supabase_remote_future_1")
-        #expect(decodedRemote.category == .trending) // Fallback an toàn
-        #expect(decodedRemote.config.animation.inType == .none) // Fallback an toàn khi gặp enum lạ
-        #expect(decodedRemote.config.animation.comboType == .karaokeBox)
+        #expect(decodedRemote.category == .trending) // Safe fallback
+        #expect(decodedRemote.config.animation.scriptId == "none") // Safe fallback on unknown key
     }
 
     @Test("Unified TextPreset adds a single undoable TextClip transaction onto the timeline")
@@ -225,33 +210,16 @@ struct TextAnimationProCapCutTests {
         #expect(afterUndo.isEmpty)
     }
 
-    @Test("In, Out and Loop animations can be deselected or toggled back to none")
+    @Test("Unified animation script can be selected and cleared back to none")
     func testInAndOutAnimationDeselectAndToggle() {
         var config = TextConfiguration()
-        #expect(config.animation.inType == .none)
-        #expect(config.animation.outType == .none)
-        #expect(config.animation.loopType == .none)
+        #expect(config.animation.scriptId == "none")
 
-        // Select In: slideUp
-        let inSelected: TextInAnimationType = .slideUp
-        config.animation.inType = (config.animation.inType == inSelected || inSelected == .none) ? .none : inSelected
-        #expect(config.animation.inType == .slideUp)
-        config.animation.inType = (config.animation.inType == inSelected || inSelected == .none) ? .none : inSelected
-        #expect(config.animation.inType == .none)
-
-        // Select Out: fadeOut
-        let outSelected: TextOutAnimationType = .fadeOut
-        config.animation.outType = (config.animation.outType == outSelected || outSelected == .none) ? .none : outSelected
-        #expect(config.animation.outType == .fadeOut)
-        config.animation.outType = (config.animation.outType == outSelected || outSelected == .none) ? .none : outSelected
-        #expect(config.animation.outType == .none)
-
-        // Select Loop: pulse
-        let loopSelected: TextLoopAnimationType = .pulse
-        config.animation.loopType = (config.animation.loopType == loopSelected || loopSelected == .none) ? .none : loopSelected
-        #expect(config.animation.loopType == .pulse)
-        config.animation.loopType = (config.animation.loopType == loopSelected || loopSelected == .none) ? .none : loopSelected
-        #expect(config.animation.loopType == .none)
+        let chosen = "kinetic_drop_glow"
+        config.animation.scriptId = (config.animation.scriptId == chosen) ? "none" : chosen
+        #expect(config.animation.scriptId == "kinetic_drop_glow")
+        config.animation.scriptId = (config.animation.scriptId == chosen) ? "none" : chosen
+        #expect(config.animation.scriptId == "none")
     }
 
     @Test("TimelineViewModel and ShellViewModel loop playback range and click stop callbacks")

@@ -82,7 +82,9 @@ extension TimelineVideoCompositor {
                 over: canvas,
                 localTime: localTime,
                 duration: clipDuration,
-                canvasSize: outputSize
+                canvasSize: outputSize,
+                compTime: CMTimeGetSeconds(compTime),
+                audioTracks: info.audioReactiveTracks
             )
         }
 

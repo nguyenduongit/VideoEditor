@@ -38,6 +38,7 @@ struct VideoEditorApp: App {
             waveformService: audioWaveformService,
             audioAlignmentService: AudioAlignmentService(),
             audioBeatDetectionService: AudioBeatDetectionService(),
+            audioReactiveAnalysisService: AudioReactiveAnalysisService(),
             subjectTrackingService: VisionSubjectTrackingService(),
             dependencies: dependencies
         )
@@ -168,21 +169,13 @@ struct VideoEditorApp: App {
         let sharedClient = SupabaseConfig.sharedClient
         let adjustmentRepo = SupabaseAdjustmentPresetRepository(client: sharedClient, templateLoader: dependencies.adjustmentTemplates)
         let textRepo = SupabaseTextPresetRepository(client: sharedClient, templateLoader: dependencies.textTemplates)
-        let animationRepo = SupabaseAnimationPresetRepository(client: sharedClient, templateLoader: dependencies.animationTemplates)
-        let effectRepo = SupabaseEffectPresetRepository(client: sharedClient, templateLoader: dependencies.effectTemplates)
-        let stickerRepo = SupabaseStickerPresetRepository(client: sharedClient, templateLoader: dependencies.stickerTemplates)
-        let transitionRepo = SupabaseTransitionPresetRepository(client: sharedClient, templateLoader: dependencies.transitionTemplates)
         let actionRepo = SupabaseActionRepository(client: sharedClient)
-        let audioRepo = SupabaseAudioPresetRepository(client: sharedClient)
+        let audioRepo = SupabaseAudioLibraryRepository(client: sharedClient)
         let stockRepo = SupabaseStockMediaRepository(client: sharedClient)
         let favRepo = SupabaseFavoriteRepository(client: sharedClient)
 
         dependencies.presetRepositories.adjustmentRepository = adjustmentRepo
         dependencies.presetRepositories.textRepository = textRepo
-        dependencies.presetRepositories.animationRepository = animationRepo
-        dependencies.presetRepositories.effectRepository = effectRepo
-        dependencies.presetRepositories.stickerRepository = stickerRepo
-        dependencies.presetRepositories.transitionRepository = transitionRepo
         dependencies.presetRepositories.audioRepository = audioRepo
         dependencies.presetRepositories.stockMediaRepository = stockRepo
         dependencies.presetRepositories.favoriteRepository = favRepo
@@ -192,8 +185,7 @@ struct VideoEditorApp: App {
 
         Task {
             await prefetchPresetsSafely(
-                adjustmentRepo: adjustmentRepo, textRepo: textRepo, animationRepo: animationRepo,
-                effectRepo: effectRepo, stickerRepo: stickerRepo, transitionRepo: transitionRepo,
+                adjustmentRepo: adjustmentRepo, textRepo: textRepo,
                 actionRepo: actionRepo, audioRepo: audioRepo, stockRepo: stockRepo
             )
         }
@@ -202,23 +194,15 @@ struct VideoEditorApp: App {
     private static func prefetchPresetsSafely(
         adjustmentRepo: SupabaseAdjustmentPresetRepository,
         textRepo: SupabaseTextPresetRepository,
-        animationRepo: SupabaseAnimationPresetRepository,
-        effectRepo: SupabaseEffectPresetRepository,
-        stickerRepo: SupabaseStickerPresetRepository,
-        transitionRepo: SupabaseTransitionPresetRepository,
         actionRepo: SupabaseActionRepository,
-        audioRepo: SupabaseAudioPresetRepository,
+        audioRepo: SupabaseAudioLibraryRepository,
         stockRepo: SupabaseStockMediaRepository
     ) async {
         await withTaskGroup(of: Void.self) { group in
             group.addTask { do { _ = try await adjustmentRepo.fetchPresets() } catch { appLogger.warning("Prefetch adjustment_presets failed: \(String(describing: error))") } }
             group.addTask { do { _ = try await textRepo.fetchPresets() } catch { appLogger.warning("Prefetch text_presets failed: \(String(describing: error))") } }
-            group.addTask { do { _ = try await animationRepo.fetchPresets() } catch { appLogger.warning("Prefetch animation_presets failed: \(String(describing: error))") } }
-            group.addTask { do { _ = try await effectRepo.fetchPresets() } catch { appLogger.warning("Prefetch effect_presets failed: \(String(describing: error))") } }
-            group.addTask { do { _ = try await stickerRepo.fetchPresets() } catch { appLogger.warning("Prefetch sticker_presets failed: \(String(describing: error))") } }
-            group.addTask { do { _ = try await transitionRepo.fetchPresets() } catch { appLogger.warning("Prefetch transition_presets failed: \(String(describing: error))") } }
             group.addTask { do { _ = try await actionRepo.fetchActions() } catch { appLogger.warning("Prefetch actions failed: \(String(describing: error))") } }
-            group.addTask { do { _ = try await audioRepo.fetchPresets() } catch { appLogger.warning("Prefetch audio_presets failed: \(String(describing: error))") } }
+            group.addTask { do { _ = try await audioRepo.fetchAudioItems() } catch { appLogger.warning("Prefetch audio_library failed: \(String(describing: error))") } }
             group.addTask { do { _ = try await stockRepo.fetchStockItems() } catch { appLogger.warning("Prefetch stock_media failed: \(String(describing: error))") } }
         }
     }

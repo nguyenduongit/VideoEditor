@@ -18,23 +18,18 @@ public final class SupabaseFavoriteRepository: FavoriteRepositoryProtocol, @unch
         self.client = client
     }
 
-    /// Ánh xạ tên tab Sidebar trái sang tên bảng Supabase tương ứng.
+    /// Ánh xạ các tab Cloud Supabase sang tên bảng tương ứng.
+    /// Các tab System Library cục bộ (`effect`, `transition`, `sticker`) trả về `nil` để lưu 100% ở `UserDefaults`.
     public static func tableName(for tab: String) -> String? {
         switch tab {
         case "media":
             return "stock_media"
         case "audio":
-            return "audio_presets"
+            return "audio_library"
         case "text":
             return "text_presets"
-        case "effect":
-            return "effect_presets"
-        case "transition":
-            return "transition_presets"
         case "adjustment":
             return "adjustment_presets"
-        case "sticker":
-            return "sticker_presets"
         default:
             return nil
         }

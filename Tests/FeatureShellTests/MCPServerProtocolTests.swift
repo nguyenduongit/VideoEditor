@@ -108,7 +108,7 @@ struct MCPServerProtocolTests {
         #expect(catalogJSON.contains("cinematic"))
 
         let applyTextArgs = """
-        {"kind":"text","templateId":"neon_cyber_pulse","customText":"TÌNH CA NGƯỜI ĐI BIỂN","textColorHex":"#FFE66D","strokeColorHex":"#023047","strokeWidth":4.0,"glowColorHex":"#00F5D4","glowRadius":18.0,"inAnimation":"wave3D","startTimeSeconds":1.0,"durationSeconds":3.0}
+        {"kind":"text","templateId":"neon_cyber_pulse","customText":"TÌNH CA NGƯỜI ĐI BIỂN","textColorHex":"#FFE66D","strokeColorHex":"#023047","strokeWidth":4.0,"glowColorHex":"#00F5D4","glowRadius":18.0,"animationScript":"title_wave_float","startTimeSeconds":1.0,"durationSeconds":3.0}
         """
         let textRes = try dispatcher.handleToolCall(toolName: "timeline_apply_template", argumentsJSON: applyTextArgs)
         #expect(textRes.contains("success"))
@@ -168,14 +168,14 @@ struct MCPServerProtocolTests {
         let font2 = MCPTextPropertyResolver.resolveFontName("da lat")
         #expect(font2.localizedCaseInsensitiveContains("da") || font2 == "UVNDaLat")
 
-        let inAnim = MCPTextPropertyResolver.resolveInAnimation("vortex spin")
-        #expect(inAnim == .whipRight || inAnim == .slideUp)
+        let script1 = MCPTextPropertyResolver.resolveScriptId("wave float")
+        #expect(script1 == "title_wave_float")
 
-        let outAnim = MCPTextPropertyResolver.resolveOutAnimation("pixelate")
-        #expect(outAnim == .fadeOut)
+        let script2 = MCPTextPropertyResolver.resolveScriptId("typewriter")
+        #expect(script2 == "typewriter_cursor")
 
-        let loopAnim = MCPTextPropertyResolver.resolveLoopAnimation("neon pulse")
-        #expect(loopAnim == .flicker)
+        let script3 = MCPTextPropertyResolver.resolveScriptId("neon pulse")
+        #expect(script3 == "neon_cyber_shift")
     }
 
     @Test func testMCPApplyTemplateAppliesCustomFontAndBackground() async throws {
@@ -197,9 +197,8 @@ struct MCPServerProtocolTests {
           "hasBackground": true,
           "backgroundColorHex": "#000000",
           "backgroundOpacity": 0.75,
-          "inAnimation": "slideUp",
-          "outAnimation": "slideDown",
-          "motionEasing": "Bounce"
+          "animationScript": "smooth_word_glide",
+          "animationSpeed": 1.2
         }
         """
         let res = try await dispatcher.handleToolCallAsync(toolName: "timeline_apply_template", argumentsJSON: args)
@@ -213,8 +212,7 @@ struct MCPServerProtocolTests {
         #expect(cfg?.content == "Lời Tự Tình Mùa Thu")
         #expect(cfg?.fontName.contains("Bay") == true)
         #expect(cfg?.hasBackground == true)
-        #expect(cfg?.animation.inType == .slideUp)
-        #expect(cfg?.animation.outType == .dropDown)
-        #expect(cfg?.animation.motionEasing == .bounce)
+        #expect(cfg?.animation.scriptId == "smooth_word_glide")
+        #expect(cfg?.animation.scriptSpeed == 1.2)
     }
 }

@@ -6,10 +6,9 @@ public struct EditorDependencies: Sendable {
     public let propertyRegistry: ClipPropertyRegistry
     public let textTemplates: TextTemplateLoader
     public let adjustmentTemplates: AdjustmentTemplateLoader
-    public let effectTemplates: EffectTemplateLoader
-    public let animationTemplates: AnimationTemplateLoader
-    public let transitionTemplates: TransitionTemplateLoader
-    public let stickerTemplates: StickerTemplateLoader
+    public let effectLibrary: EffectLibrary
+    public let transitionLibrary: TransitionLibrary
+    public let stickerLibrary: StickerLibrary
     public let presetRepositories: PresetRepositoryProvider
     public let actionRepositories: ActionRepositoryProvider
 
@@ -19,20 +18,18 @@ public struct EditorDependencies: Sendable {
         propertyRegistry: ClipPropertyRegistry = ClipPropertyRegistry(),
         textTemplates: TextTemplateLoader = TextTemplateLoader(),
         adjustmentTemplates: AdjustmentTemplateLoader = AdjustmentTemplateLoader(),
-        effectTemplates: EffectTemplateLoader = EffectTemplateLoader(),
-        animationTemplates: AnimationTemplateLoader = AnimationTemplateLoader(),
-        transitionTemplates: TransitionTemplateLoader = TransitionTemplateLoader(),
-        stickerTemplates: StickerTemplateLoader = StickerTemplateLoader(),
+        effectLibrary: EffectLibrary = EffectLibrary(),
+        transitionLibrary: TransitionLibrary = TransitionLibrary(),
+        stickerLibrary: StickerLibrary = StickerLibrary(),
         presetRepositories: PresetRepositoryProvider = PresetRepositoryProvider(),
         actionRepositories: ActionRepositoryProvider = ActionRepositoryProvider()
     ) {
         self.propertyRegistry = propertyRegistry
         self.textTemplates = textTemplates
         self.adjustmentTemplates = adjustmentTemplates
-        self.effectTemplates = effectTemplates
-        self.animationTemplates = animationTemplates
-        self.transitionTemplates = transitionTemplates
-        self.stickerTemplates = stickerTemplates
+        self.effectLibrary = effectLibrary
+        self.transitionLibrary = transitionLibrary
+        self.stickerLibrary = stickerLibrary
         self.presetRepositories = presetRepositories
         self.actionRepositories = actionRepositories
     }

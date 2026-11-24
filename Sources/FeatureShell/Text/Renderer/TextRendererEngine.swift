@@ -45,16 +45,7 @@ public final class TextRendererEngine: Sendable {
             return false
         }
         let anim = config.animation
-        if anim.isDefault { return true }
-        if anim.hasScriptAnimation {
-            return false
-        }
-        if anim.hasLoopAnimation || anim.comboType != .none || anim.lightSweepIntensity > 0.01 || anim.rgbSplitIntensity > 0.01 {
-            return false
-        }
-        let inEnd = anim.hasInAnimation ? anim.inDuration : 0.0
-        let outStart = anim.hasOutAnimation ? max(inEnd, max(0.1, duration) - anim.outDuration) : .greatestFiniteMagnitude
-        return localTime >= inEnd && localTime <= outStart
+        return !anim.hasScriptAnimation && anim.lightSweepIntensity <= 0.01 && anim.rgbSplitIntensity <= 0.01
     }
 
     private func renderDynamicComposite(
@@ -132,11 +123,12 @@ public final class TextRendererEngine: Sendable {
             ? (maxSafeW / rawGlyphBounds.width)
             : 1.0
 
+        let followText = baseConfig.background.animateWithText
         guard let bgImg = TextCompositeLayerRenderer.renderBackground(
             background: baseConfig.background,
-            anchorConfig: baseConfig,
-            overlay: TextTransformOverlay(),
-            textRawSize: envelopeBounds,
+            anchorConfig: followText ? evaluated.config : baseConfig,
+            overlay: followText ? evaluated.overlay : TextTransformOverlay(),
+            textRawSize: followText ? rawGlyphBounds : envelopeBounds,
             safeguardScale: safeguard,
             canvasSize: canvasSize,
             localTime: localTime

@@ -9,82 +9,78 @@ import Domain
 @MainActor
 struct TransitionLibraryMasterCatalogTests {
 
-    @Test("TransitionPreset builtInCatalog contains exactly 83 presets across 8 international NLE categories with 2.0s default duration")
+    @Test("TransitionLibraryItem systemItems contains exactly 83 items across 8 international NLE categories with 2.0s default duration")
     func testCatalogSizeCategoriesAndDefaults() {
-        let catalog = TransitionPreset.builtInCatalog
+        let catalog = TransitionLibraryItem.systemItems
         #expect(catalog.count == 83, "Thư viện phải có chính xác 83 mẫu chuyển cảnh")
 
         let ids = catalog.map(\.id)
         #expect(Set(ids).count == 83, "Tất cả 83 mẫu chuyển cảnh phải có ID duy nhất không trùng lặp")
 
-        // 1. Basic (10 mẫu)
+        // 1. Basic (10 items)
         let basic = catalog.filter { $0.category == .basic }
         #expect(basic.count == 10)
 
-        // 2. Slide & Wipe (12 mẫu)
+        // 2. Slide & Wipe (12 items)
         let slideWipe = catalog.filter { $0.category == .slideWipe }
         #expect(slideWipe.count == 12)
 
-        // 3. Zoom (9 mẫu)
+        // 3. Zoom (9 items)
         let zoom = catalog.filter { $0.category == .zoom }
         #expect(zoom.count == 9)
 
-        // 4. Blur (9 mẫu)
+        // 4. Blur (9 items)
         let blur = catalog.filter { $0.category == .blur }
         #expect(blur.count == 9)
 
-        // 5. Camera & Motion (10 mẫu)
+        // 5. Camera & Motion (10 items)
         let camera = catalog.filter { $0.category == .camera }
         #expect(camera.count == 10)
 
-        // 6. Glitch & Distortion (11 mẫu)
+        // 6. Glitch & Distortion (11 items)
         let glitch = catalog.filter { $0.category == .glitch }
         #expect(glitch.count == 11)
 
-        // 7. Light Effects (10 mẫu)
+        // 7. Light Effects (10 items)
         let light = catalog.filter { $0.category == .light }
         #expect(light.count == 10)
 
-        // 8. 3D & Mask (12 mẫu)
+        // 8. 3D & Mask (12 items)
         let advanced3D = catalog.filter { $0.category == .advanced3D }
         #expect(advanced3D.count == 12)
 
-        // Kiểm tra thời lượng mặc định 2.0s và tính hợp lệ của metadata
-        for preset in catalog {
-            #expect(preset.defaultDuration == 2.0, "Preset \(preset.id) phải có thời lượng mặc định là 2.0s")
-            #expect(!preset.name.isEmpty)
-            #expect(!preset.description.isEmpty)
-            #expect(!preset.iconName.isEmpty)
-            #expect(preset.isSystem == true)
+        for item in catalog {
+            #expect(item.defaultDuration == 2.0, "Item \(item.id) must default to 2.0s")
+            #expect(!item.name.isEmpty)
+            #expect(!item.description.isEmpty)
+            #expect(!item.iconName.isEmpty)
         }
     }
 
-    @Test("TransitionAnimatedThumbnailView uses 2.0s hover duration and executes exact GPU transition algorithm for all 83 presets")
+    @Test("TransitionAnimatedThumbnailView uses 2.0s hover duration and executes exact GPU transition algorithm for all 83 items")
     func testAnimatedThumbnailViewAndRealGPUAlgorithmExecution() throws {
         #expect(TransitionAnimatedThumbnailView.hoverDurationSeconds == 2.0)
 
         let provider = TransitionThumbnailAssetProvider.shared
-        for preset in TransitionPreset.builtInCatalog {
-            let view = TransitionAnimatedThumbnailView(preset: preset)
+        for item in TransitionLibraryItem.systemItems {
+            let view = TransitionAnimatedThumbnailView(item: item)
             _ = view.body
-            let frameMid = provider.renderTransitionFrame(for: preset, rawProgress: 0.5)
-            #expect(frameMid != nil, "GPU transition frame must render for preset \(preset.id)")
+            let frameMid = provider.renderTransitionFrame(for: item, rawProgress: 0.5)
+            #expect(frameMid != nil, "GPU transition frame must render for item \(item.id)")
         }
 
-        // Xác minh White Flash (Basic & Light) tại đỉnh chuyển cảnh (0.5) chớp trắng tinh khiết (RGB ~ 255,255,255), KHÔNG chớp vàng
         for whiteFlashID in ["trans_basic_white_flash", "trans_light_white_flash"] {
-            let preset = try #require(TransitionPreset.builtInCatalog.first(where: { $0.id == whiteFlashID }))
-            let cgImg = try #require(provider.renderTransitionFrame(for: preset, rawProgress: 0.5))
+            let item = try #require(TransitionLibraryItem.systemItems.first(where: { $0.id == whiteFlashID }))
+            let cgImg = try #require(provider.renderTransitionFrame(for: item, rawProgress: 0.5))
             let (r, g, b) = sampleCenterPixelRGB(of: cgImg)
-            #expect(r >= 245 && g >= 245 && b >= 245, "Preset \(whiteFlashID) tại p=0.5 phải chớp trắng tinh khiết, thực tế RGB=(\(r),\(g),\(b))")
-            #expect(abs(Int(r) - Int(b)) <= 3, "Preset \(whiteFlashID) không được ám vàng (R và B phải cân bằng)")
+            #expect(r >= 245 && g >= 245 && b >= 245, "Item \(whiteFlashID) at p=0.5 must flash pure white, RGB=(\(r),\(g),\(b))")
+            #expect(abs(Int(r) - Int(b)) <= 3, "Item \(whiteFlashID) must not tint yellow")
         }
 
-        // Xác minh Black Fade tại đỉnh chuyển cảnh (0.5) chìm về màu đen
-        let blackFade = try #require(TransitionPreset.builtInCatalog.first(where: { $0.id == "trans_basic_black_fade" }))
+        let blackFade = try #require(TransitionLibraryItem.systemItems.first(where: { $0.id == "trans_basic_black_fade" }))
         let blackCG = try #require(provider.renderTransitionFrame(for: blackFade, rawProgress: 0.5))
         let (br, bg, bb) = sampleCenterPixelRGB(of: blackCG)
-        #expect(br <= 15 && bg <= 15 && bb <= 15, "Black Fade tại p=0.5 phải tối đen, thực tế RGB=(\(br),\(bg),\(bb))")
+        #expect(br <= 15 && bg <= 15 && bb <= 15, "Black Fade at p=0.5 must be black, RGB=(\(br),\(bg),\(bb))")
     }
 
     private func sampleCenterPixelRGB(of cgImage: CGImage) -> (UInt8, UInt8, UInt8) {
@@ -140,17 +136,17 @@ struct TransitionLibraryMasterCatalogTests {
         #expect(TransitionDemoAssetCatalog.pairID(for: .light) == "coastal")
         #expect(TransitionDemoAssetCatalog.pairID(for: .advanced3D) == "coastal")
 
-        // 3. Kiểm tra GPU transition frame sinh ra hợp lệ cho từng danh mục
-        if let fadePreset = TransitionPreset.builtInCatalog.first(where: { $0.id == "trans_basic_fade" }) {
-            let frame = provider.renderTransitionFrame(for: fadePreset, rawProgress: 0.5)
+        // 3. Verify valid GPU transition frames across categories
+        if let fadeItem = TransitionLibraryItem.systemItems.first(where: { $0.id == "trans_basic_fade" }) {
+            let frame = provider.renderTransitionFrame(for: fadeItem, rawProgress: 0.5)
             #expect(frame != nil)
         }
-        if let slidePreset = TransitionPreset.builtInCatalog.first(where: { $0.id == "trans_slide_right" }) {
-            let frame = provider.renderTransitionFrame(for: slidePreset, rawProgress: 0.5)
+        if let slideItem = TransitionLibraryItem.systemItems.first(where: { $0.id == "trans_slide_right" }) {
+            let frame = provider.renderTransitionFrame(for: slideItem, rawProgress: 0.5)
             #expect(frame != nil)
         }
-        if let flashPreset = TransitionPreset.builtInCatalog.first(where: { $0.id == "trans_light_white_flash" }) {
-            let frame = provider.renderTransitionFrame(for: flashPreset, rawProgress: 0.5)
+        if let flashItem = TransitionLibraryItem.systemItems.first(where: { $0.id == "trans_light_white_flash" }) {
+            let frame = provider.renderTransitionFrame(for: flashItem, rawProgress: 0.5)
             #expect(frame != nil)
         }
     }
@@ -163,7 +159,7 @@ struct TransitionLibraryMasterCatalogTests {
         let layer1 = TimelineLayer(name: "V1", kind: .video, clips: [c0, c1])
         let vm = TimelineViewModel(initialLayers: [layer1])
 
-        let preset = try #require(TransitionPreset.builtInCatalog.first(where: { $0.id == "trans_slide_right" }))
+        let preset = try #require(TransitionLibraryItem.systemItems.first(where: { $0.id == "trans_slide_right" }))
         let trans1 = try #require(vm.addOrUpdateCutTransition(preset, between: c0.id, and: c1.id))
         #expect(abs(trans1.duration.seconds - 2.0) < 0.001)
 
@@ -179,19 +175,19 @@ struct TransitionLibraryMasterCatalogTests {
 
     @Test("Transition enforces zero-gap contiguous clips, validates drag-drop join zone, and supports overwriting existing transition with Undo/Redo")
     func testContiguousConstraintDragDropJoinZoneAndOverwrite() throws {
-        let fadePreset = try #require(TransitionPreset.builtInCatalog.first(where: { $0.id == "trans_basic_fade" }))
-        let flashPreset = try #require(TransitionPreset.builtInCatalog.first(where: { $0.id == "trans_light_white_flash" }))
+        let fadeItem = try #require(TransitionLibraryItem.systemItems.first(where: { $0.id == "trans_basic_fade" }))
+        let flashItem = try #require(TransitionLibraryItem.systemItems.first(where: { $0.id == "trans_light_white_flash" }))
 
-        // 1. Hai video clip CÓ khoảng cách (0..4s và 4.5..8.5s -> gap = 0.5s) -> KHÔNG THỂ thêm transition
+        // 1. Two video clips with a 0.5s gap -> cannot add transition
         let g0 = TimelineClip(name: "G0", kind: .video, timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 4.0, preferredTimescale: 600)))
         let g1 = TimelineClip(name: "G1", kind: .video, timeRange: CMTimeRange(start: CMTime(seconds: 4.5, preferredTimescale: 600), duration: CMTime(seconds: 4.0, preferredTimescale: 600)))
         let gapLayer = TimelineLayer(name: "VGap", kind: .video, clips: [g0, g1])
         let gapVM = TimelineViewModel(initialLayers: [gapLayer])
         #expect(gapLayer.areClipsContiguous(leadingID: g0.id, trailingID: g1.id) == false)
-        #expect(gapVM.addOrUpdateCutTransition(fadePreset, between: g0.id, and: g1.id) == nil)
+        #expect(gapVM.addOrUpdateCutTransition(fadeItem, between: g0.id, and: g1.id) == nil)
         #expect(gapVM.layers[0].transitions.isEmpty)
 
-        // 2. Hai video clip NỐI SÁT NHAU không khoảng cách (0..5s và 5..10s, điểm nối tại t = 5.0s)
+        // 2. Two contiguous video clips
         let c0 = TimelineClip(name: "C0", kind: .video, timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 5.0, preferredTimescale: 600)))
         let c1 = TimelineClip(name: "C1", kind: .video, timeRange: CMTimeRange(start: CMTime(seconds: 5.0, preferredTimescale: 600), duration: CMTime(seconds: 5.0, preferredTimescale: 600)))
         let contLayer = TimelineLayer(name: "V1", kind: .video, clips: [c0, c1])
@@ -202,48 +198,41 @@ struct TransitionLibraryMasterCatalogTests {
         let trackHeight = vm.layerHeight(for: .video)
         let midY = topSpacer + trackHeight * 0.5
 
-        // Thả ngoài vùng điểm nối (ví dụ tại t = 1.0s -> canvasX = 1.0 * pps) -> Bị từ chối
-        #expect(vm.resolveTransitionDropTarget(preset: fadePreset, canvasX: 1.0 * pps, canvasY: midY, topSpacerHeight: topSpacer) == nil)
-        #expect(vm.dropTransition(fadePreset, atCanvasX: 1.0 * pps, canvasY: midY, topSpacerHeight: topSpacer) == nil)
+        #expect(vm.resolveTransitionDropTarget(item: fadeItem, canvasX: 1.0 * pps, canvasY: midY, topSpacerHeight: topSpacer) == nil)
+        #expect(vm.dropTransition(fadeItem, atCanvasX: 1.0 * pps, canvasY: midY, topSpacerHeight: topSpacer) == nil)
 
-        // Thả trong vùng chứa điểm nối (t = 5.0s -> cutX, thả tại cutX - 15pt) -> Thành công
-        let target = try #require(vm.resolveTransitionDropTarget(preset: fadePreset, canvasX: cutX - 15.0, canvasY: midY, topSpacerHeight: topSpacer))
+        let target = try #require(vm.resolveTransitionDropTarget(item: fadeItem, canvasX: cutX - 15.0, canvasY: midY, topSpacerHeight: topSpacer))
         #expect(target.leadingClipID == c0.id)
         #expect(target.trailingClipID == c1.id)
         #expect(abs(target.cutCanvasX - cutX) < 0.01)
 
-        let added = try #require(vm.dropTransition(fadePreset, atCanvasX: cutX - 15.0, canvasY: midY, topSpacerHeight: topSpacer))
+        let added = try #require(vm.dropTransition(fadeItem, atCanvasX: cutX - 15.0, canvasY: midY, topSpacerHeight: topSpacer))
         #expect(added.presetID == "trans_basic_fade")
         #expect(vm.layers[0].transitions.count == 1)
 
-        // 3. Thả đè (thay thế) transition mới (White Flash) vào vị trí đã có transition -> Thay thế thành công & hỗ trợ Undo/Redo
-        let replaced = try #require(vm.dropTransition(flashPreset, atCanvasX: cutX + 12.0, canvasY: midY, topSpacerHeight: topSpacer))
+        let replaced = try #require(vm.dropTransition(flashItem, atCanvasX: cutX + 12.0, canvasY: midY, topSpacerHeight: topSpacer))
         #expect(replaced.id == added.id)
         #expect(replaced.presetID == "trans_light_white_flash")
         #expect(vm.layers[0].transitions.count == 1)
         #expect(vm.layers[0].transitions[0].name == "White Flash")
 
-        // Kiểm tra Undo quay lại Fade & Redo tiến tới White Flash
         #expect(vm.undo() == true)
         #expect(vm.layers[0].transitions.first?.presetID == "trans_basic_fade")
         #expect(vm.redo() == true)
         #expect(vm.layers[0].transitions.first?.presetID == "trans_light_white_flash")
 
-        // 4. Nếu dịch chuyển clip thứ 2 ra xa tạo khoảng trống (t = 6.0s) -> Transition tự động bị loại bỏ
         vm.moveClip(clipID: c1.id, from: contLayer.id, to: contLayer.id, insertAtIndex: nil, newStartTime: CMTime(seconds: 6.0, preferredTimescale: 600))
         #expect(vm.layers[0].transitions.isEmpty)
     }
 
     @Test("Transition drag representation renders cyan overlay rectangle image and highlights active seam on timeline")
     func testTransitionDragCyanOverlayAndTimelineHighlight() throws {
-        let preset = try #require(TransitionPreset.builtInCatalog.first(where: { $0.id == "trans_basic_fade" }))
+        let item = try #require(TransitionLibraryItem.systemItems.first(where: { $0.id == "trans_basic_fade" }))
 
-        // 1. Kiểm tra hình ảnh kéo thả đi theo chuột là khối hình chữ nhật overlay Cyan (không phải thumbnail ảnh)
-        let dragImg = TransitionDragSourceNSView.renderCyanOverlayImage(for: preset, width: 100, height: 32)
+        let dragImg = TransitionDragSourceNSView.renderCyanOverlayImage(for: item, width: 100, height: 32)
         #expect(dragImg.size.width == 100)
         #expect(dragImg.size.height == 32)
 
-        // 2. Kiểm tra activeTransitionDropTarget cập nhật chuẩn xác khi hover vào mối nối và xóa khi ra ngoài
         let c0 = TimelineClip(name: "A", kind: .video, timeRange: CMTimeRange(start: .zero, duration: CMTime(seconds: 4.0, preferredTimescale: 600)))
         let c1 = TimelineClip(name: "B", kind: .video, timeRange: CMTimeRange(start: CMTime(seconds: 4.0, preferredTimescale: 600), duration: CMTime(seconds: 4.0, preferredTimescale: 600)))
         let layer = TimelineLayer(name: "V1", kind: .video, clips: [c0, c1])
@@ -253,13 +242,12 @@ struct TransitionLibraryMasterCatalogTests {
         let trackH = vm.layerHeight(for: .video)
         let midY = topSpacer + trackH * 0.5
 
-        // Vị trí không khả dụng (ngoài mối nối) -> activeTransitionDropTarget = nil
-        let targetOutside = vm.resolveTransitionDropTarget(preset: preset, canvasX: 50.0, canvasY: midY, topSpacerHeight: topSpacer)
+        let targetOutside = vm.resolveTransitionDropTarget(item: item, canvasX: 50.0, canvasY: midY, topSpacerHeight: topSpacer)
         vm.activeTransitionDropTarget = targetOutside
         #expect(vm.activeTransitionDropTarget == nil)
 
-        // Vị trí khả dụng (ngay tại mối nối) -> activeTransitionDropTarget có giá trị và snap đúng vào cutX
-        let targetInside = vm.resolveTransitionDropTarget(preset: preset, canvasX: cutX - 10.0, canvasY: midY, topSpacerHeight: topSpacer)
+        // Valid target right on seam -> resolves activeTransitionDropTarget and snaps to cutX
+        let targetInside = vm.resolveTransitionDropTarget(item: item, canvasX: cutX - 10.0, canvasY: midY, topSpacerHeight: topSpacer)
         vm.activeTransitionDropTarget = targetInside
         #expect(vm.activeTransitionDropTarget != nil)
         #expect(vm.activeTransitionDropTarget?.cutCanvasX == cutX)
