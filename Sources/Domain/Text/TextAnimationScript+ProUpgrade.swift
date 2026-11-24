@@ -1,55 +1,12 @@
 import Foundation
 
-// MARK: - Pro Script 1: Karaoke Box Pop (Hộp màu Highlight trượt mượt theo nhịp từ)
-public struct KaraokeBoxPopScript: TextAnimationScript {
-    public let id = "karaoke_box_pop"
-    public let displayName = "Karaoke Box"
-    public let description = "Continuous pop-in with sliding lyric highlight box and smooth fade-out"
-    public let category = TextAnimationCategory.typewriter
-    public let tags: [TextAnimationTag] = [.typewriter, .pop]
-    public let loopCycleDuration: Double = 1.0
-    public let scope = TextAnimationScope.perWord
-
-    public init() {}
-
-    public func evaluatePhase(base: TextConfiguration, phase: TextScriptPhase, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
-        let em = max(16.0, base.fontSize)
-        switch phase {
-        case .intro(let progress):
-            let total = max(1, unitTotal)
-            let startP = (Double(unitIndex) / Double(max(1, total))) * 0.40
-            guard progress > startP else { return TextUnitDelta(scaleX: 0.72, scaleY: 0.72, opacity: 0.0) }
-            let localP = min(1.0, (progress - startP) / (1.0 - startP))
-            let ease = 1.0 - pow(1.0 - localP, 3.0)
-            let pop = 1.0 + sin(localP * .pi) * 0.14
-            return TextUnitDelta(
-                offsetY: (1.0 - ease) * (0.35 * em),
-                scaleX: pop,
-                scaleY: pop,
-                opacity: min(1.0, localP * 3.0)
-            )
-        case .loop(_, let cycleProgress):
-            let s = sin(cycleProgress * .pi * 2.0) * 0.02
-            return TextUnitDelta(scaleX: 1.0 + s, scaleY: 1.0 + s, opacity: 1.0)
-        case .outro(let progress):
-            let ease = pow(min(1.0, max(0.0, progress)), 2.2)
-            return TextUnitDelta(
-                offsetY: ease * (0.28 * em),
-                scaleX: max(0.6, 1.0 - ease * 0.25),
-                scaleY: max(0.6, 1.0 - ease * 0.25),
-                opacity: 1.0 - ease
-            )
-        }
-    }
-}
-
-// MARK: - Pro Script 2: Karaoke Glow Flow (Chữ phát sáng từng từ theo nhịp)
+// MARK: - Pro Script 2: Karaoke Pulse (Nhấn nảy từng từ theo nhịp, bảo toàn màu Appearance)
 public struct KaraokeGlowFlowScript: TextAnimationScript {
     public let id = "karaoke_glow_flow"
-    public let displayName = "Karaoke Glow"
-    public let description = "Luminous word-by-word lyric glow synchronized inside a continuous block"
-    public let category = TextAnimationCategory.fade
-    public let tags: [TextAnimationTag] = [.fade, .typewriter]
+    public let displayName = "Karaoke Pulse"
+    public let description = "Rhythmic word-by-word motion pulse preserving your Appearance text color"
+    public let category = TextAnimationCategory.typewriter
+    public let tags: [TextAnimationTag] = [.typewriter, .pop]
     public let loopCycleDuration: Double = 1.0
     public let scope = TextAnimationScope.perWord
 
@@ -206,7 +163,8 @@ public struct BeatPulseSlamScript: TextAnimationScript {
                 scaleY: max(0.2, 0.35 + 0.65 * spring),
                 opacity: min(1.0, p * 4.5),
                 glowIntensityDelta: decay * 28.0,
-                blurRadius: (1.0 - min(1.0, p * 2.5)) * (0.14 * em)
+                blurRadius: (1.0 - min(1.0, p * 2.5)) * (0.14 * em),
+                bloomIntensity: decay * 0.85
             )
         case .loop(_, let cycleProgress):
             let beat = pow(sin(cycleProgress * .pi), 3.0)
@@ -214,7 +172,8 @@ public struct BeatPulseSlamScript: TextAnimationScript {
                 scaleX: 1.0 + beat * 0.12,
                 scaleY: 1.0 + beat * 0.12,
                 opacity: 1.0,
-                glowIntensityDelta: beat * 24.0
+                glowIntensityDelta: beat * 24.0,
+                bloomIntensity: beat * 0.85
             )
         case .outro(let progress):
             let ease = pow(min(1.0, max(0.0, progress)), 2.4)

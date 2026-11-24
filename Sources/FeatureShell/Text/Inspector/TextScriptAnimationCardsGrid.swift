@@ -57,6 +57,7 @@ public struct TextScriptAnimationCardsGrid<BottomPanel: View>: View {
             onClearSelection: onClearScript,
             onSelectItem: { onSelectScript($0.script) },
             itemTitle: { $0.script.displayName },
+            itemTooltip: { $0.script.description },
             itemPreview: { item, isSelected, isHovered in
                 scriptPreviewStage(script: item.script, isSelected: isSelected, isHovered: isHovered)
             },
@@ -67,18 +68,11 @@ public struct TextScriptAnimationCardsGrid<BottomPanel: View>: View {
     @ViewBuilder
     private func scriptPreviewStage(script: any TextAnimationScript, isSelected: Bool, isHovered: Bool) -> some View {
         if isHovered || isSelected {
-            SwiftUI.TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { context in
-                let cycle = script.defaultDuration
-                let t = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycle)
-                if let frame = TextThumbnailRenderer.renderScriptPreviewFrame(scriptId: script.id, localTime: t, duration: cycle) {
-                    Image(nsImage: frame)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    staticHeroStage(script: script, isSelected: isSelected)
-                }
-            }
+            TextScriptLivePreviewStage(
+                script: script,
+                isSelected: isSelected,
+                isHovered: isHovered
+            )
         } else {
             staticHeroStage(script: script, isSelected: isSelected)
         }
@@ -112,51 +106,101 @@ public struct TextScriptAnimationCardsGrid<BottomPanel: View>: View {
     }
 
     private func iconName(for script: any TextAnimationScript) -> String {
-        switch script.id {
-        case "title_wave_float": return "water.waves"
-        case "typewriter_cursor": return "character.cursor.ibeam"
-        case "kinetic_drop_glow": return "arrow.down.to.line"
-        case "curved_arc_roller": return "skew"
-        case "neon_cyber_shift": return "sparkles"
-        case "liquid_wave_pulse": return "water.waves"
-        case "glitch_rgb_pop": return "bolt.horizontal.fill"
-        case "smooth_word_glide": return "arrow.up.right"
-        case "elastic_flip_3d": return "cube.transparent"
-        case "pop_up_hinge_3d": return "rectangle.portrait.bottomhalf.inset.filled"
-        case "whip_echo_slam": return "wind"
-        case "tornado_spiral_pop": return "tornado"
-        case "trailer_tracking_expand": return "arrow.left.and.right.text.vertical"
-        case "pendulum_hinge_swing": return "metronome"
-        case "anamorphic_split_reveal": return "rectangle.split.1x2"
-        case "ripple_drop_wave": return "drop.circle"
-        case "dna_helix_twist": return "waveform.path.ecg"
-        case "jelly_trampoline_wave": return "figure.jumprope"
-        case "hologram_scan_beam": return "barcode.viewfinder"
-        case "vhs_tracking_drift": return "recordingtape"
-        case "quantum_teleport_flicker": return "sparkle.magnifyingglass"
-        case "cyber_shutter_slice": return "slider.horizontal.below.square.and.square.filled"
-        case "curtain_baseline_rise": return "arrow.up.to.line.compact"
-        case "shutter_blind_reveal": return "sidebar.left"
-        case "soft_breathe_cascade": return "aqi.medium"
-        case "flip_counter_roll": return "123.rectangle"
-        case "karaoke_box_pop": return "rectangle.fill.on.rectangle.angled.fill"
-        case "karaoke_glow_flow": return "mic.and.signal.meter.fill"
-        case "line_cascade_rise": return "text.alignleft"
-        case "blur_focus_dissolve": return "camera.aperture"
-        case "beat_pulse_slam": return "metronome.fill"
-        case "three_d_tumble_drop": return "rotate.3d"
-        case "three_d_swinging_door": return "door.left.hand.open"
-        case "three_d_depth_rush": return "view.3d"
-        case "fx_metallic_sweep": return "sun.max.fill"
-        case "fx_pixel_dissolve": return "square.grid.3x3.fill"
-        case "fx_neon_ignition": return "lightbulb.max.fill"
-        case "fx_chromatic_vapor": return "rainbow"
-        case "slide_directional_whip": return "arrow.forward.circle"
-        case "slide_zipper_cross": return "arrow.left.and.right"
-        case "wave_flag_flutter": return "flag.fill"
-        case "wave_liquid_ripple": return "drop.halffull"
-        case "glitch_crt_slice_tear": return "tv.fill"
-        default: return script.category.iconName
+        TextScriptIconLookup.map[script.id] ?? script.category.iconName
+    }
+}
+
+private enum TextScriptIconLookup {
+    static let map: [String: String] = [
+        "title_wave_float": "water.waves",
+        "typewriter_cursor": "character.cursor.ibeam",
+        "kinetic_drop_glow": "arrow.down.to.line",
+        "curved_arc_roller": "skew",
+        "neon_cyber_shift": "sparkles",
+        "liquid_wave_pulse": "water.waves",
+        "glitch_rgb_pop": "bolt.horizontal.fill",
+        "smooth_word_glide": "arrow.up.right",
+        "elastic_flip_3d": "cube.transparent",
+        "pop_up_hinge_3d": "rectangle.portrait.bottomhalf.inset.filled",
+        "whip_echo_slam": "wind",
+        "tornado_spiral_pop": "tornado",
+        "trailer_tracking_expand": "arrow.left.and.right.text.vertical",
+        "pendulum_hinge_swing": "metronome",
+        "anamorphic_split_reveal": "rectangle.split.1x2",
+        "ripple_drop_wave": "drop.circle",
+        "dna_helix_twist": "waveform.path.ecg",
+        "jelly_trampoline_wave": "figure.jumprope",
+        "hologram_scan_beam": "barcode.viewfinder",
+        "vhs_tracking_drift": "recordingtape",
+        "quantum_teleport_flicker": "sparkle.magnifyingglass",
+        "cyber_shutter_slice": "slider.horizontal.below.square.and.square.filled",
+        "curtain_baseline_rise": "arrow.up.to.line.compact",
+        "shutter_blind_reveal": "sidebar.left",
+        "soft_breathe_cascade": "aqi.medium",
+        "flip_counter_roll": "123.rectangle",
+        "karaoke_glow_flow": "waveform.badge.mic",
+        "line_cascade_rise": "text.alignleft",
+        "blur_focus_dissolve": "camera.aperture",
+        "beat_pulse_slam": "metronome.fill",
+        "three_d_tumble_drop": "rotate.3d",
+        "three_d_swinging_door": "door.left.hand.open",
+        "three_d_depth_rush": "view.3d",
+        "fx_pixel_dissolve": "square.grid.3x3.fill",
+        "slide_directional_whip": "arrow.forward.circle",
+        "slide_zipper_cross": "arrow.left.and.right",
+        "wave_flag_flutter": "flag.fill",
+        "wave_liquid_ripple": "drop.halffull",
+        "typewriter_neon_draw": "scribble.variable",
+        "typewriter_cipher_decode": "lock.rotation",
+        "three_d_card_carousel": "square.3.layers.3d",
+        "fade_diagonal_slash": "line.diagonal",
+        "slide_center_split": "arrow.left.and.right.square",
+        "pop_collision_slam": "bolt.horizontal.circle.fill",
+        "slide_up_up": "arrow.up",
+        "slide_down_down": "arrow.down",
+        "slide_up_down": "arrow.uturn.down",
+        "slide_down_up": "arrow.uturn.up",
+        "slide_left_left": "arrow.left",
+        "slide_left_right": "arrow.uturn.right",
+        "slide_right_left": "arrow.uturn.left",
+        "slide_right_right": "arrow.right"
+    ]
+}
+
+private struct TextScriptLivePreviewStage: View {
+    let script: any TextAnimationScript
+    let isSelected: Bool
+    let isHovered: Bool
+
+    @State private var previewStartDate = Date()
+
+    var body: some View {
+        SwiftUI.TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { context in
+            let cycle = TextThumbnailRenderer.scriptPreviewDuration(for: script)
+            let t = TextThumbnailRenderer.scriptPreviewLocalTime(
+                startDate: previewStartDate,
+                currentDate: context.date,
+                duration: cycle
+            )
+            if let frame = TextThumbnailRenderer.renderScriptPreviewFrame(
+                scriptId: script.id,
+                localTime: t,
+                duration: cycle
+            ) {
+                Image(nsImage: frame)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                Text("Text")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.textPrimary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .onAppear { previewStartDate = Date() }
+        .onChange(of: isHovered) { _, hovering in
+            if hovering { previewStartDate = Date() }
         }
     }
 }

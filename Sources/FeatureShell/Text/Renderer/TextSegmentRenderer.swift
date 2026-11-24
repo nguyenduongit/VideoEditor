@@ -9,7 +9,6 @@ import Domain
 
 /// Segmented text renderer for Per-Line, Per-Word, Per-Character, and Karaoke Highlight animation.
 public enum TextSegmentRenderer: Sendable {
-    nonisolated(unsafe) private static let blurCIContext = CIContext(options: [.useSoftwareRenderer: false])
 
     public struct TextToken: Sendable {
         public let text: String
@@ -72,12 +71,8 @@ public enum TextSegmentRenderer: Sendable {
     }
 
     private static func appendLineTokens(
-        _ line: MeasuredTokenLine,
-        lineIdx: Int,
-        centerY: CGFloat,
-        alignX: CGFloat,
-        scope: TextAnimationScope,
-        into tokens: inout [TextToken]
+        _ line: MeasuredTokenLine, lineIdx: Int, centerY: CGFloat, alignX: CGFloat,
+        scope: TextAnimationScope, into tokens: inout [TextToken]
     ) {
         if scope == .perLine || scope == .wholeBlock {
             tokens.append(TextToken(text: line.text, relativeX: alignX, width: line.width, relativeY: centerY, lineIndex: lineIdx))
@@ -96,27 +91,8 @@ public enum TextSegmentRenderer: Sendable {
         }
     }
 
-    private static func splitWordsPreservingSpaces(_ text: String) -> [String] {
-        var result: [String] = []
-        var current = ""
-        for char in text {
-            if char.isWhitespace {
-                if !current.isEmpty {
-                    result.append(current)
-                    current = ""
-                }
-                result.append(String(char))
-            } else {
-                current.append(char)
-            }
-        }
-        if !current.isEmpty {
-            result.append(current)
-        }
-        return result
-    }
-
-    /// Vẽ danh sách tokens với độ trễ theo hướng (stagger direction) và Karaoke Highlight
+    /// Vẽ danh sách tokens với độ trễ theo hướng (stagger direction), Karaoke Highlight và shader riêng từng đơn vị.
+    @discardableResult
     public static func drawSegmentedText(
         tokens: [TextToken],
         totalWidth: CGFloat,
@@ -126,30 +102,28 @@ public enum TextSegmentRenderer: Sendable {
         localTime: Double,
         duration: Double,
         canvasSize: CGSize,
+        animationInputs: [String: Double] = [:],
+        renderPlugins: TextAnimationRenderPluginPipeline = TextAnimationRenderPluginPipeline(),
         in context: CGContext
-    ) {
+    ) -> TextShaderFilterEngine.AppliedStagesMask {
         let startX = -totalWidth / 2.0
         applySegmentedClipMask(
-            totalWidth: totalWidth, totalHeight: totalHeight,
-            baseConfig: baseConfig, localTime: localTime, duration: duration, canvasSize: canvasSize, in: context
+            totalWidth: totalWidth, totalHeight: totalHeight, baseConfig: baseConfig,
+            localTime: localTime, duration: duration, canvasSize: canvasSize,
+            animationInputs: animationInputs, in: context
         )
         let visibleIndices = tokens.indices.filter { !tokens[$0].text.trimmingCharacters(in: .whitespaces).isEmpty }
-        guard !visibleIndices.isEmpty else { return }
+        guard !visibleIndices.isEmpty else { return [] }
 
         let globalProgress = min(0.9999, max(0.0, localTime / max(0.1, duration)))
         let exactWordPos = globalProgress * Double(visibleIndices.count)
         let activeOrder = Int(floor(exactWordPos))
         let wordLocalFrac = exactWordPos - Double(activeOrder)
 
-        if baseConfig.animation.scriptId == "karaoke_box_pop" {
-            drawKaraokeHighlightBox(
-                tokens: tokens, visibleIndices: visibleIndices, activeOrder: activeOrder,
-                localFrac: wordLocalFrac, startX: startX, totalHeight: totalHeight, baseConfig: baseConfig, in: context
-            )
-        }
-        renderTokenLoop(
+        return renderTokenLoop(
             tokens: tokens, visibleIndices: visibleIndices, activeOrder: activeOrder, wordLocalFrac: wordLocalFrac,
-            startX: startX, baseConfig: baseConfig, font: font, localTime: localTime, duration: duration, canvasSize: canvasSize, in: context
+            startX: startX, baseConfig: baseConfig, font: font, localTime: localTime, duration: duration,
+            canvasSize: canvasSize, animationInputs: animationInputs, renderPlugins: renderPlugins, in: context
         )
     }
 
@@ -160,12 +134,16 @@ public enum TextSegmentRenderer: Sendable {
         localTime: Double,
         duration: Double,
         canvasSize: CGSize,
+        animationInputs: [String: Double],
         in context: CGContext
     ) {
         if baseConfig.animation.isMaskEnabled {
             context.clip(to: CGRect(x: -totalWidth / 2.0 - 24, y: -totalHeight / 2.0 - 12, width: totalWidth + 48, height: totalHeight + 24))
         }
-        let blockEval = TextAnimationEvaluator.evaluate(config: baseConfig, localTime: localTime, duration: duration, canvasSize: canvasSize)
+        let blockEval = TextAnimationEvaluator.evaluate(
+            config: baseConfig, localTime: localTime, duration: duration,
+            canvasSize: canvasSize, externalInputs: animationInputs
+        )
         if blockEval.overlay.revealProgress >= 0.0 {
             let wipeW = (totalWidth + 48.0) * CGFloat(blockEval.overlay.revealProgress)
             context.clip(to: CGRect(x: -totalWidth / 2.0 - 24.0, y: -totalHeight / 2.0 - 24.0, width: wipeW, height: totalHeight + 48.0))
@@ -183,35 +161,51 @@ public enum TextSegmentRenderer: Sendable {
         localTime: Double,
         duration: Double,
         canvasSize: CGSize,
+        animationInputs: [String: Double],
+        renderPlugins: TextAnimationRenderPluginPipeline,
         in context: CGContext
-    ) {
-        let isKaraokeBox = baseConfig.animation.scriptId == "karaoke_box_pop"
+    ) -> TextShaderFilterEngine.AppliedStagesMask {
         let isKaraokeGlow = baseConfig.animation.scriptId == "karaoke_glow_flow"
         let visibleCount = visibleIndices.count
         let tokenLineHeight = max(16.0, font.pointSize * 1.24)
+        var appliedMask: TextShaderFilterEngine.AppliedStagesMask = []
 
         for (orderIndex, tokenIdx) in visibleIndices.enumerated() {
             let token = tokens[tokenIdx]
             var evaluated = evaluateTokenConfig(
                 token: token, baseConfig: baseConfig, orderIndex: orderIndex, visibleCount: visibleCount,
-                localTime: localTime, duration: duration, canvasSize: canvasSize
+                localTime: localTime, duration: duration, canvasSize: canvasSize, animationInputs: animationInputs
             )
             if evaluated.config.opacity <= 0.005 && evaluated.overlay.trailingCursorOpacity <= 0.01 { continue }
-            if isKaraokeGlow || isKaraokeBox {
+            if evaluated.overlay.scrambleStrength > 0.01 {
+                evaluated.config.content = TextTokenFXRenderer.resolveDisplayText(
+                    evaluated.config.content, scrambleStrength: evaluated.overlay.scrambleStrength, unitIndex: orderIndex
+                )
+            }
+            if isKaraokeGlow {
                 applyKaraokeTokenStyle(
                     evaluated: &evaluated, isActive: orderIndex == activeOrder, localFrac: wordLocalFrac,
-                    isGlowMode: isKaraokeGlow, highlightHex: baseConfig.animation.highlightColorHex
+                    isGlowMode: true
                 )
             }
             let curvePt = resolveTokenWaveAndCurveCenter(
                 evaluated: &evaluated, baseConfig: baseConfig, tokenCenter: startX + token.relativeX + token.width / 2.0,
                 tokenRelativeY: token.relativeY, totalWidth: -startX * 2.0, orderIndex: orderIndex, visibleCount: visibleCount
             )
+            let tokenMask = TextTokenFXRenderer.perTokenStages(evaluated: evaluated, baseConfig: baseConfig, plugins: renderPlugins)
+            appliedMask.formUnion(tokenMask)
+            let pluginCtx = TextAnimationRenderPluginContext(
+                localTime: localTime, duration: duration, canvasSize: canvasSize,
+                unitIndex: orderIndex, unitCount: visibleCount
+            )
             drawSingleToken(
-                evaluated.config, font: font, overlay: evaluated.overlay, center: curvePt,
-                tokenWidth: token.width, totalHeight: tokenLineHeight, in: context
+                evaluated, baseMask: tokenMask, font: font, center: curvePt,
+                tokenWidth: token.width, totalHeight: tokenLineHeight,
+                localTime: localTime, pluginContext: pluginCtx, renderPlugins: renderPlugins,
+                blockRotationDegrees: baseConfig.rotation, in: context
             )
         }
+        return appliedMask
     }
 
     private static func evaluateTokenConfig(
@@ -221,7 +215,8 @@ public enum TextSegmentRenderer: Sendable {
         visibleCount: Int,
         localTime: Double,
         duration: Double,
-        canvasSize: CGSize
+        canvasSize: CGSize,
+        animationInputs: [String: Double]
     ) -> TextAnimationEvaluator.EvaluationResult {
         var singleConfig = baseConfig
         singleConfig.content = token.text
@@ -234,29 +229,41 @@ public enum TextSegmentRenderer: Sendable {
 
         var evaluated = TextAnimationEvaluator.evaluate(
             config: singleConfig, localTime: localTime, duration: duration,
-            canvasSize: canvasSize, charIndex: orderIndex, charCount: visibleCount
+            canvasSize: canvasSize, charIndex: orderIndex, charCount: visibleCount,
+            externalInputs: animationInputs
         )
         evaluated.config.blurRadius = evaluated.blurRadius
         return evaluated
     }
 
     private static func drawSingleToken(
-        _ config: TextConfiguration,
+        _ evaluated: TextAnimationEvaluator.EvaluationResult,
+        baseMask: TextShaderFilterEngine.AppliedStagesMask,
         font: NSFont,
-        overlay: TextTransformOverlay,
         center: CGPoint,
         tokenWidth: CGFloat,
         totalHeight: CGFloat,
+        localTime: Double,
+        pluginContext: TextAnimationRenderPluginContext,
+        renderPlugins: TextAnimationRenderPluginPipeline,
+        blockRotationDegrees: Double = 0.0,
         in context: CGContext
     ) {
+        let config = evaluated.config
+        let overlay = evaluated.overlay
         context.saveGState()
         applyTokenTransform(config, overlay: overlay, center: center, totalHeight: totalHeight, in: context)
 
         if config.opacity > 0.005 {
-            if config.blurRadius > 0.4 {
-                drawBlurredTokenGlyph(
-                    config: config, font: font, overlay: overlay,
-                    tokenWidth: tokenWidth, totalHeight: totalHeight, in: context
+            if !baseMask.isEmpty {
+                TextTokenFXRenderer.drawTokenWithFX(
+                    evaluated: evaluated, font: font, tokenWidth: tokenWidth, totalHeight: totalHeight,
+                    localTime: localTime, pluginContext: pluginContext, plugins: renderPlugins,
+                    totalRotationDegrees: blockRotationDegrees + config.rotation,
+                    renderGlyphBlock: { cfg, fnt, ov, w, h, ctx in
+                        renderTokenGlyphAndEchoes(config: cfg, font: fnt, overlay: ov, tokenWidth: w, totalHeight: h, in: ctx)
+                    },
+                    in: context
                 )
             } else {
                 renderTokenGlyphAndEchoes(
@@ -272,86 +279,6 @@ public enum TextSegmentRenderer: Sendable {
             )
         }
         context.restoreGState()
-    }
-
-    private static func applyTokenTransform(
-        _ config: TextConfiguration,
-        overlay: TextTransformOverlay,
-        center: CGPoint,
-        totalHeight: CGFloat,
-        in context: CGContext
-    ) {
-        let pivotOffsetY: CGFloat
-        switch config.animation.anchorPoint {
-        case .center: pivotOffsetY = 0.0
-        case .bottom: pivotOffsetY = -totalHeight / 2.0
-        case .top: pivotOffsetY = totalHeight / 2.0
-        }
-        context.translateBy(x: center.x + CGFloat(config.positionX), y: center.y - CGFloat(config.positionY) + pivotOffsetY)
-        if abs(config.rotation) > 0.001 {
-            context.rotate(by: CGFloat(-config.rotation * .pi / 180.0))
-        }
-        let totalSkewX = overlay.skewX + tan(config.skewX * .pi / 180.0)
-        let totalSkewY = tan(config.skewY * .pi / 180.0)
-        if abs(totalSkewX) > 0.001 || abs(totalSkewY) > 0.001 {
-            context.concatenate(CGAffineTransform(a: 1, b: CGFloat(totalSkewY), c: CGFloat(totalSkewX), d: 1, tx: 0, ty: 0))
-        }
-        let sx = CGFloat(max(0.01, config.scale * overlay.scaleX))
-        let sy = CGFloat(max(0.01, config.scale * overlay.scaleY))
-        if abs(sx - 1.0) > 0.001 || abs(sy - 1.0) > 0.001 {
-            context.scaleBy(x: sx, y: sy)
-        }
-        context.translateBy(x: 0, y: -pivotOffsetY)
-    }
-
-    private static func drawBlurredTokenGlyph(
-        config: TextConfiguration,
-        font: NSFont,
-        overlay: TextTransformOverlay,
-        tokenWidth: CGFloat,
-        totalHeight: CGFloat,
-        in context: CGContext
-    ) {
-        let blurR = min(28.0, config.blurRadius)
-        let pad = ceil(CGFloat(blurR) * 2.5 + 16.0)
-        let boxW = max(8, Int(ceil(tokenWidth + pad * 2.0)))
-        let boxH = max(8, Int(ceil(totalHeight + pad * 2.0)))
-        guard let scratch = CGContext(
-            data: nil, width: boxW, height: boxH, bitsPerComponent: 8, bytesPerRow: boxW * 4,
-            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else {
-            renderTokenGlyphAndEchoes(
-                config: config, font: font, overlay: overlay,
-                tokenWidth: tokenWidth, totalHeight: totalHeight, in: context
-            )
-            return
-        }
-        let nsScratch = NSGraphicsContext(cgContext: scratch, flipped: false)
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = nsScratch
-        scratch.translateBy(x: CGFloat(boxW) / 2.0, y: CGFloat(boxH) / 2.0)
-        renderTokenGlyphAndEchoes(
-            config: config, font: font, overlay: overlay,
-            tokenWidth: tokenWidth, totalHeight: totalHeight, in: scratch
-        )
-        NSGraphicsContext.restoreGraphicsState()
-
-        let fullRect = CGRect(x: -CGFloat(boxW) / 2.0, y: -CGFloat(boxH) / 2.0, width: CGFloat(boxW), height: CGFloat(boxH))
-        guard let cg = scratch.makeImage(),
-              let filter = CIFilter(name: "CIGaussianBlur", parameters: [
-                  kCIInputImageKey: CIImage(cgImage: cg),
-                  kCIInputRadiusKey: blurR
-              ])?.outputImage else {
-            renderTokenGlyphAndEchoes(
-                config: config, font: font, overlay: overlay,
-                tokenWidth: tokenWidth, totalHeight: totalHeight, in: context
-            )
-            return
-        }
-        let cropRect = CGRect(x: 0, y: 0, width: boxW, height: boxH)
-        if let blurredCG = blurCIContext.createCGImage(filter.cropped(to: cropRect), from: cropRect) {
-            context.draw(blurredCG, in: fullRect)
-        }
     }
     #endif
 }

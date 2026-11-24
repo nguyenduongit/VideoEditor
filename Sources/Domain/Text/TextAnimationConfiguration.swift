@@ -37,6 +37,8 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
     public var isTypewriterCursorVisible: Bool
     public var highlightColorHex: String
     public var motionEasing: TextMotionEasing
+    /// Optional data-driven animation graph; takes precedence over compiled `scriptId` when set.
+    public var graph: TextAnimationGraph?
 
     public init(
         scriptId: String = "none",
@@ -61,7 +63,8 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         isMotionBlurEnabled: Bool = true,
         isTypewriterCursorVisible: Bool = true,
         highlightColorHex: String = "#FDE047",
-        motionEasing: TextMotionEasing = .smooth
+        motionEasing: TextMotionEasing = .smooth,
+        graph: TextAnimationGraph? = nil
     ) {
         self.scriptId = scriptId
         self.scriptInDuration = max(0.0, min(20.0, scriptInDuration))
@@ -86,6 +89,7 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         self.isTypewriterCursorVisible = isTypewriterCursorVisible
         self.highlightColorHex = highlightColorHex
         self.motionEasing = motionEasing
+        self.graph = graph
     }
 
     enum CodingKeys: String, CodingKey {
@@ -93,7 +97,7 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         case isScriptLoop, scriptSpeed, scriptIntensity, scopeOverride, isBeatSyncEnabled, beatBPM, beatBarMode
         case scope, staggerDirection, staggerDelay, anchorPoint
         case rgbSplitIntensity, lightSweepIntensity, isMaskEnabled, isMotionBlurEnabled
-        case isTypewriterCursorVisible, highlightColorHex, motionEasing
+        case isTypewriterCursorVisible, highlightColorHex, motionEasing, graph
     }
 
     private enum LegacyCodingKeys: String, CodingKey {
@@ -130,10 +134,11 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         self.isTypewriterCursorVisible = (try? c.decodeIfPresent(Bool.self, forKey: .isTypewriterCursorVisible)) ?? true
         self.highlightColorHex = (try? c.decodeIfPresent(String.self, forKey: .highlightColorHex)) ?? "#FDE047"
         self.motionEasing = (try? c.decodeIfPresent(TextMotionEasing.self, forKey: .motionEasing)) ?? .smooth
+        self.graph = try? c.decodeIfPresent(TextAnimationGraph.self, forKey: .graph)
     }
 
     public var hasScriptAnimation: Bool {
-        scriptId != "none" && !scriptId.isEmpty
+        graph != nil || (scriptId != "none" && !scriptId.isEmpty)
     }
 
     /// Base loop seconds (integer multiple of 1s, default 3s) before multiplying by `scriptSpeed`.
@@ -185,7 +190,7 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
     }
 
     public var isDefault: Bool {
-        !hasScriptAnimation && rgbSplitIntensity == 0.0 && lightSweepIntensity == 0.0 && !isMaskEnabled
+        graph == nil && !hasScriptAnimation && rgbSplitIntensity == 0.0 && lightSweepIntensity == 0.0 && !isMaskEnabled
     }
 
     private static func migrateLegacyScriptId(from legacy: KeyedDecodingContainer<LegacyCodingKeys>?) -> String {
@@ -199,8 +204,7 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
 
         if inRaw.contains("typewriter") { return "typewriter_cursor" }
         if inRaw.contains("kinetic") || inRaw.contains("drop") { return "kinetic_drop_glow" }
-        if inRaw.contains("whip") { return "whip_echo_slam" }
-        if inRaw.contains("slide") { return "smooth_word_glide" }
+        if let legacySlide = migrateLegacySlidePair(inRaw: inRaw, outRaw: outRaw) { return legacySlide }
         if inRaw.contains("zoom") { return "pop_elastic_bounce" }
         if inRaw.contains("fade") { return "fade_soft_glow" }
 
@@ -212,8 +216,34 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         if outRaw.contains("fade") { return "fade_soft_glow" }
         if outRaw.contains("zoom") { return "pop_elastic_bounce" }
         if outRaw.contains("drop") { return "kinetic_drop_glow" }
-        if outRaw.contains("whip") { return "whip_echo_slam" }
         if outRaw.contains("tv") { return "glitch_rgb_pop" }
         return "none"
+    }
+
+    private static func migrateLegacySlidePair(inRaw: String, outRaw: String) -> String? {
+        let inDir = extractLegacySlideDirection(from: inRaw)
+        let outDir = extractLegacySlideDirection(from: outRaw)
+        guard inDir != nil || outDir != nil else { return nil }
+        let resolvedIn = inDir ?? outDir ?? .right
+        let resolvedOut = outDir ?? resolvedIn
+        switch (resolvedIn, resolvedOut) {
+        case (.up, .up): return "slide_up_up"
+        case (.down, .down): return "slide_down_down"
+        case (.up, .down): return "slide_up_down"
+        case (.down, .up): return "slide_down_up"
+        case (.left, .left): return "slide_left_left"
+        case (.left, .right): return "slide_left_right"
+        case (.right, .left): return "slide_right_left"
+        case (.right, .right): return "slide_right_right"
+        default: return "slide_\(resolvedIn.rawValue)_\(resolvedIn.rawValue)"
+        }
+    }
+
+    private static func extractLegacySlideDirection(from raw: String) -> TextSlideDirection? {
+        guard raw.contains("slide") || raw.contains("whip") else { return nil }
+        if raw.contains("up") { return .up }
+        if raw.contains("down") { return .down }
+        if raw.contains("left") { return .left }
+        return .right
     }
 }

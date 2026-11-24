@@ -9,59 +9,26 @@ import Domain
 /// Tuân thủ AGENTS.md R3.1 (File <= 300 dòng, Hàm <= 50 dòng).
 extension TextSegmentRenderer {
     #if os(macOS)
-    internal static func drawKaraokeHighlightBox(
-        tokens: [TextToken],
-        visibleIndices: [Int],
-        activeOrder: Int,
-        localFrac: Double,
-        startX: CGFloat,
-        totalHeight: CGFloat,
-        baseConfig: TextConfiguration,
-        in context: CGContext
-    ) {
-        let clampedOrder = max(0, min(visibleIndices.count - 1, activeOrder))
-        let currentToken = tokens[visibleIndices[clampedOrder]]
-        var boxX = startX + currentToken.relativeX
-        var boxY = currentToken.relativeY
-        var boxW = currentToken.width
-
-        // Smoothly slide highlight box toward the next word in the last 28% of its slot
-        if localFrac > 0.72, clampedOrder + 1 < visibleIndices.count {
-            let nextToken = tokens[visibleIndices[clampedOrder + 1]]
-            let slideT = TextAnimationCurves.springOvershoot((localFrac - 0.72) / 0.28, tension: 1.5)
-            let nextX = startX + nextToken.relativeX
-            boxX += (nextX - boxX) * CGFloat(slideT)
-            boxY += (nextToken.relativeY - boxY) * CGFloat(slideT)
-            boxW += (nextToken.width - boxW) * CGFloat(slideT)
+    internal static func splitWordsPreservingSpaces(_ text: String) -> [String] {
+        var result: [String] = []
+        var current = ""
+        for char in text {
+            if char.isWhitespace {
+                if !current.isEmpty { result.append(current); current = "" }
+                result.append(String(char))
+            } else {
+                current.append(char)
+            }
         }
-
-        let lineH = max(16.0, CGFloat(baseConfig.fontSize) * 1.24)
-        let padX: CGFloat = max(8.0, CGFloat(baseConfig.fontSize) * 0.16)
-        let padY: CGFloat = max(4.0, CGFloat(baseConfig.fontSize) * 0.10)
-        let bounceScale = 1.0 + CGFloat(sin(localFrac * .pi) * 0.08)
-        let halfH = (lineH / 2.0 + padY) * bounceScale
-        let rect = CGRect(
-            x: boxX - padX,
-            y: boxY - halfH,
-            width: boxW + padX * 2.0,
-            height: halfH * 2.0
-        )
-        let corner = max(6.0, CGFloat(baseConfig.backgroundCornerRadius))
-        context.saveGState()
-        let cgPath = CGPath(roundedRect: rect, cornerWidth: corner, cornerHeight: corner, transform: nil)
-        let color = TextRendererEngine.parseHexColor(baseConfig.animation.highlightColorHex)
-        context.addPath(cgPath)
-        context.setFillColor(color.cgColor)
-        context.fillPath()
-        context.restoreGState()
+        if !current.isEmpty { result.append(current) }
+        return result
     }
 
     internal static func applyKaraokeTokenStyle(
         evaluated: inout TextAnimationEvaluator.EvaluationResult,
         isActive: Bool,
         localFrac: Double,
-        isGlowMode: Bool,
-        highlightHex: String
+        isGlowMode: Bool
     ) {
         var cfg = evaluated.config
         var ov = evaluated.overlay
@@ -71,18 +38,20 @@ extension TextSegmentRenderer {
             let jelly = TextAnimationCurves.jellySquashStretch(progress: localFrac, amplitude: 0.20, frequency: 2.0)
             ov.scaleX *= jelly.scaleX
             ov.scaleY *= jelly.scaleY
-            if isGlowMode {
-                cfg.textColorHex = highlightHex
-                cfg.hasGlow = true
-                cfg.glowColorHex = highlightHex
+            if isGlowMode, cfg.hasGlow {
                 cfg.glowRadius = max(14.0, cfg.glowRadius)
             }
         } else if isGlowMode {
             cfg.opacity *= 0.65
         }
         evaluated = TextAnimationEvaluator.EvaluationResult(
-            config: cfg, blurRadius: evaluated.blurRadius, hueAngle: evaluated.hueAngle,
-            pixelateScale: evaluated.pixelateScale, rgbSplitIntensity: evaluated.rgbSplitIntensity, overlay: ov
+            config: cfg,
+            blurRadius: evaluated.blurRadius,
+            pixelateScale: evaluated.pixelateScale,
+            rgbSplitIntensity: 0.0,
+            noiseIntensity: evaluated.noiseIntensity,
+            overlay: ov,
+            animationParameters: evaluated.animationParameters
         )
     }
 
@@ -165,10 +134,11 @@ extension TextSegmentRenderer {
             let padY = max(8.0, totalHeight * 0.35)
             let fullW = tokenWidth + padX * 2.0
             let fullH = totalHeight + padY * 2.0
-            let clipW = fullW * CGFloat(max(0.0, min(1.0, overlay.clipRevealX)))
-            let clipH = fullH * CGFloat(max(0.0, min(1.0, overlay.clipRevealY)))
-            let clipRect = CGRect(x: -fullW / 2.0, y: -fullH / 2.0, width: clipW, height: clipH)
-            context.clip(to: clipRect)
+            let fullBounds = CGRect(x: -fullW / 2.0, y: -fullH / 2.0, width: fullW, height: fullH)
+            TextMaskClipHelper.applyMask(
+                bounds: fullBounds, clipRevealX: overlay.clipRevealX,
+                clipRevealY: overlay.clipRevealY, mode: overlay.maskShapeMode, in: context
+            )
         }
 
         if overlay.echoCount > 0, config.opacity > 0.01 {
@@ -190,8 +160,50 @@ extension TextSegmentRenderer {
         if config.opacity < 1.0 {
             context.setAlpha(CGFloat(max(0.0, config.opacity)))
         }
-        TextAdvancedStyleRenderer.drawStyledTokenString(config.content, font: font, config: config, in: context)
+        if overlay.strokeTrimProgress < 0.999 {
+            let layout = TextRenderPerformanceCache.shared.cachedShapedLayout(
+                text: config.content, font: font, config: config,
+                curveOverride: TextCurveStyle(shape: .none), preserveBaseline: true
+            )
+            let key = "tok|\(config.content)|\(config.fontName)|\(Int(config.fontSize * 100))|\(config.isBold)|\(config.isItalic)"
+            TextPathTrimRenderer.drawTrimmedGlyphPath(
+                layout.combinedPath, pathBounds: layout.bounds, cacheKey: key,
+                trimProgress: overlay.strokeTrimProgress, config: config, in: context
+            )
+        } else {
+            TextAdvancedStyleRenderer.drawStyledTokenString(config.content, font: font, config: config, in: context)
+        }
         context.restoreGState()
+    }
+
+    internal static func applyTokenTransform(
+        _ config: TextConfiguration,
+        overlay: TextTransformOverlay,
+        center: CGPoint,
+        totalHeight: CGFloat,
+        in context: CGContext
+    ) {
+        let pivotOffsetY: CGFloat
+        switch config.animation.anchorPoint {
+        case .center: pivotOffsetY = 0.0
+        case .bottom: pivotOffsetY = -totalHeight / 2.0
+        case .top: pivotOffsetY = totalHeight / 2.0
+        }
+        context.translateBy(x: center.x + CGFloat(config.positionX), y: center.y - CGFloat(config.positionY) + pivotOffsetY)
+        if abs(config.rotation) > 0.001 {
+            context.rotate(by: CGFloat(-config.rotation * .pi / 180.0))
+        }
+        let totalSkewX = overlay.skewX + tan(config.skewX * .pi / 180.0)
+        let totalSkewY = tan(config.skewY * .pi / 180.0)
+        if abs(totalSkewX) > 0.001 || abs(totalSkewY) > 0.001 {
+            context.concatenate(CGAffineTransform(a: 1, b: CGFloat(totalSkewY), c: CGFloat(totalSkewX), d: 1, tx: 0, ty: 0))
+        }
+        let sx = CGFloat(max(0.01, config.scale * overlay.scaleX))
+        let sy = CGFloat(max(0.01, config.scale * overlay.scaleY))
+        if abs(sx - 1.0) > 0.001 || abs(sy - 1.0) > 0.001 {
+            context.scaleBy(x: sx, y: sy)
+        }
+        context.translateBy(x: 0, y: -pivotOffsetY)
     }
     #endif
 }

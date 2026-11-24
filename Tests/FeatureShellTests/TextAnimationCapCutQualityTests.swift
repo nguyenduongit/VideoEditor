@@ -84,10 +84,10 @@ struct TextAnimationCapCutQualityTests {
         #expect(ciImage?.extent.height ?? 0 > 0)
     }
 
-    @Test("All 48 active TextAnimationScripts maintain phase continuity at In-Loop and Loop-Out boundaries")
+    @Test("All 34 curated pure-motion TextAnimationScripts maintain phase continuity at In-Loop and Loop-Out boundaries")
     func testAll19ActiveScriptsMaintainPhaseContinuityAtBoundaries() {
         let scripts = TextAnimationScriptRegistry.shared.scripts
-        #expect(scripts.count == 48)
+        #expect(scripts.count == 34)
         let base = TextConfiguration(content: "Hello", fontSize: 60.0)
         let unitTotal = 4
 
@@ -101,6 +101,49 @@ struct TextAnimationCapCutQualityTests {
                 let outroStart = script.evaluatePhase(base: base, phase: .outro(progress: 0.0), unitIndex: unitIndex, unitTotal: unitTotal)
                 assertPhaseMatches(loopEnd, outroStart, label: "\(script.id) Loop->Out u=\(unitIndex)")
             }
+        }
+    }
+
+    @Test("Legacy and pruned script IDs still resolve cleanly via registry aliases")
+    func testLegacyScriptAliasesResolve() {
+        let legacyIDs = [
+            "soft_breathe_cascade", "shutter_blind_reveal", "slide_directional_whip", "slide_zipper_cross",
+            "smooth_word_glide", "line_cascade_rise", "trailer_tracking_expand", "whip_echo_slam", "anamorphic_split_reveal",
+            "neon_cyber_shift", "wave_cascade_flow", "liquid_wave_pulse", "curved_arc_roller",
+            "jelly_trampoline_wave", "wave_flag_flutter", "quantum_teleport_flicker",
+            "cyber_shutter_slice", "glitch_crt_slice_tear", "typewriter_staccato",
+            "three_d_swinging_door", "three_d_depth_rush"
+        ]
+        for id in legacyIDs {
+            #expect(TextAnimationScriptRegistry.shared.script(for: id) != nil, "Alias missing for \(id)")
+        }
+    }
+
+    @Test("Breakthrough Metal GPU shaders, path trim, scramble, and 3D carousel render visibly on plain white text")
+    func testBreakthroughMetalAndVectorScriptsRenderCleanly() throws {
+        let engine = TextRendererEngine()
+        let canvas = CGSize(width: 480, height: 240)
+        let staticCfg = TextConfiguration(content: "SPARK", fontSize: 56.0, textColorHex: "#FFFFFF", isBold: true)
+        let staticBytes = renderRGBABytes(try #require(engine.renderAnimatedImage(for: staticCfg, localTime: 0.0, duration: 5.0, canvasSize: canvas)), size: canvas)
+
+        let breakthroughIDs: [(String, Double)] = [
+            ("typewriter_neon_draw", 0.45),
+            ("typewriter_cipher_decode", 0.35),
+            ("three_d_card_carousel", 0.35),
+            ("fade_diagonal_slash", 0.42),
+            ("slide_center_split", 0.42),
+            ("pop_collision_slam", 0.36),
+            ("fx_pixel_dissolve", 0.25),
+            ("wave_liquid_ripple", 1.25)
+        ]
+
+        for (scriptId, sampleT) in breakthroughIDs {
+            var cfg = staticCfg
+            cfg.animation.scriptId = scriptId
+            let img = try #require(engine.renderAnimatedImage(for: cfg, localTime: sampleT, duration: 5.0, canvasSize: canvas), "Nil render for \(scriptId)")
+            #expect(img.extent.size == canvas)
+            let bytes = renderRGBABytes(img, size: canvas)
+            #expect(bytes != staticBytes, "\(scriptId) must produce visibly animated output on default white text")
         }
     }
 
@@ -123,7 +166,8 @@ struct TextAnimationCapCutQualityTests {
 
         // 2. Multi-line content preserves newline and Per Line scope tokenizes distinct Y lines
         var multiCfg = TextConfiguration(content: "First Line\nSecond Line", fontSize: 48.0)
-        multiCfg.animation.scriptId = "line_cascade_rise"
+        multiCfg.animation.scriptId = "slide_up_up"
+        multiCfg.animation.scopeOverride = .perLine
         multiCfg.animation.scriptIntensity = 1.4
         multiCfg.animation.isBeatSyncEnabled = true
         multiCfg.animation.beatBPM = 128.0
@@ -192,9 +236,39 @@ struct TextAnimationCapCutQualityTests {
         let cfg = TextConfiguration(content: "Grain", fontSize: 64.0, textColorHex: "#808080")
         let baseImg = try #require(engine.renderAnimatedImage(for: cfg, localTime: 0.0, duration: 4.0, canvasSize: canvas))
         let noisyImg = TextShaderFilterEngine.applyFilters(
-            to: baseImg, blurRadius: 0, hueAngle: 0, pixelateScale: 0, rgbSplitIntensity: 0, noiseIntensity: 80.0
+            to: baseImg, blurRadius: 0, pixelateScale: 0, rgbSplitIntensity: 0, noiseIntensity: 80.0
         )
         #expect(renderRGBABytes(baseImg, size: canvas) != renderRGBABytes(noisyImg, size: canvas))
+    }
+
+    @Test("HDR bloom halo decays smoothly outward without blocky ghost rings or non-monotonic spikes")
+    func testHDRBloomHaloDecaysSmoothlyWithoutBlockyGhostRings() throws {
+        // Reproduce exact HD canvas (1280x720) and ~10px letter stroke where sparse 16-tap ring bloom stamps ghost boxes
+        let canvas = CGSize(width: 1280, height: 720)
+        let glyphRect = CGRect(x: 635, y: 310, width: 10, height: 100)
+        let glyphImg = CIImage(color: CIColor(red: 1, green: 1, blue: 1, alpha: 1))
+            .cropped(to: glyphRect)
+            .composited(over: CIImage.clear.cropped(to: CGRect(origin: .zero, size: canvas)))
+            .cropped(to: CGRect(origin: .zero, size: canvas))
+
+        let overlay = TextTransformOverlay(bloomIntensity: 0.9)
+        let bloomed = TextShaderFilterEngine.applyFilters(
+            to: glyphImg, blurRadius: 0, pixelateScale: 0, rgbSplitIntensity: 0, overlay: overlay
+        )
+        let bytes = renderRGBABytes(bloomed, size: canvas)
+        let w = Int(canvas.width)
+        let midY = 360
+
+        // Sample alpha moving outward to the right of the 10px stroke (from x = 647 to x = 710)
+        var prevAlpha = Double(bytes[(midY * w + 646) * 4 + 3]) / 255.0
+        for x in 647...710 {
+            let alpha = Double(bytes[(midY * w + x) * 4 + 3]) / 255.0
+            #expect(alpha <= prevAlpha + 0.015, "Non-monotonic ghost box jump at x=\(x): prev=\(prevAlpha), curr=\(alpha)")
+            prevAlpha = alpha
+        }
+        // Halo right outside the glyph edge (x = 649) must be smooth and visible
+        let nearAlpha = Double(bytes[(midY * w + 649) * 4 + 3]) / 255.0
+        #expect(nearAlpha > 0.05, "Expected visible smooth bloom near glyph edge, got \(nearAlpha)")
     }
 
     @Test("Fixed background envelope contains animated intro and loop tokens at 00:00:00:44")

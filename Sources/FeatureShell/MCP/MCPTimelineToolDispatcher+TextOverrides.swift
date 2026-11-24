@@ -92,7 +92,7 @@ extension MCPTimelineToolDispatcher {
             shadow: TextShadowStyle(isEnabled: true, colorHex: "#000000", opacity: 70.0, blur: 8.0, distance: 3.0, angleDegrees: -90.0),
             positionY: defaultPosY
         )
-        fallback.animation.scriptId = "smooth_word_glide"
+        fallback.animation.scriptId = "slide_right_right"
         fallback.animation.applyUnifiedScriptTiming(baseLoopSeconds: 3, speed: 1.0)
         return (fallback, nil)
     }

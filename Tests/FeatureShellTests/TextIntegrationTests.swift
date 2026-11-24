@@ -300,20 +300,18 @@ struct TextIntegrationTests {
 
     @Test func testScriptDrivenContinuousAnimationEvaluation() {
         let registry = TextAnimationScriptRegistry.shared
-        #expect(TextAnimationCategory.allCases == [.fade, .slide, .pop, .wave, .glitch, .typewriter, .threeD, .lightFX])
+        #expect(TextAnimationCategory.allCases == [.fade, .slide, .pop, .wave, .typewriter, .threeD])
         #expect(TextTemplateCategory.assignableCases == [.title, .sub, .music])
-        #expect(registry.scripts.count == 48)
-        #expect(registry.scripts(in: .wave).count >= 10)
-        #expect(registry.scripts(in: .fade).count >= 7)
-        #expect(registry.scripts(in: .slide).count == 7)
-        #expect(registry.scripts(in: .pop).count >= 7)
-        #expect(registry.scripts(in: .glitch).count >= 6)
-        #expect(registry.scripts(in: .typewriter).count >= 5)
-        #expect(registry.scripts(in: .threeD).count >= 5)
-        #expect(registry.scripts(in: .lightFX).count >= 6)
+        #expect(registry.scripts.count == 34)
+        #expect(registry.scripts(in: .wave).count >= 5)
+        #expect(registry.scripts(in: .fade).count >= 6)
+        #expect(registry.scripts(in: .slide).count == 8)
+        #expect(registry.scripts(in: .pop).count >= 5)
+        #expect(registry.scripts(in: .typewriter).count == 5)
+        #expect(registry.scripts(in: .threeD).count >= 4)
         #expect(registry.script(for: "wave_cascade_flow") != nil)
-        #expect(registry.script(for: "karaoke_box_pop") != nil)
-        #expect(registry.script(for: "line_cascade_rise") != nil)
+        #expect(registry.script(for: "karaoke_box_pop")?.id == "karaoke_glow_flow")
+        #expect(registry.script(for: "line_cascade_rise")?.id == "slide_up_up")
 
         guard let titleWave = registry.script(for: "title_wave_float") else {
             Issue.record("Missing title_wave_float script")
@@ -386,19 +384,19 @@ struct TextIntegrationTests {
         )
         #expect(hingeEval.config.animation.anchorPoint == .bottom)
 
-        var whipCfg = cfg
-        whipCfg.animation.scriptId = "whip_echo_slam"
-        let whipEval = TextAnimationEvaluator.evaluate(
-            config: whipCfg, localTime: 0.35, duration: 5.0, canvasSize: CGSize(width: 1280, height: 720), charIndex: 0, charCount: 2
+        var slideMotionCfg = cfg
+        slideMotionCfg.animation.scriptId = "slide_left_right"
+        let slideMotionEval = TextAnimationEvaluator.evaluate(
+            config: slideMotionCfg, localTime: 0.20, duration: 5.0, canvasSize: CGSize(width: 1280, height: 720)
         )
-        #expect(whipEval.overlay.echoCount == 2)
+        #expect(slideMotionEval.overlay.motionBlurRadius > 0.5)
 
-        var trailerCfg = cfg
-        trailerCfg.animation.scriptId = "trailer_tracking_expand"
-        let trailerEval = TextAnimationEvaluator.evaluate(
-            config: trailerCfg, localTime: 0.35, duration: 5.0, canvasSize: CGSize(width: 1280, height: 720), charIndex: 0, charCount: 5
+        var focusCfg = cfg
+        focusCfg.animation.scriptId = "blur_focus_dissolve"
+        let focusEval = TextAnimationEvaluator.evaluate(
+            config: focusCfg, localTime: 0.35, duration: 5.0, canvasSize: CGSize(width: 1280, height: 720), charIndex: 0, charCount: 5
         )
-        #expect(trailerEval.overlay.trackingEmDelta > 0.05)
+        #expect(focusEval.overlay.trackingEmDelta > 0.05)
 
         var curtainCfg = cfg
         curtainCfg.animation.scriptId = "curtain_baseline_rise"
@@ -557,7 +555,7 @@ struct TextIntegrationTests {
 
         // 5. All Slide category scripts genuinely translate across full Preview canvas dimensions
         let slideScripts = TextAnimationScriptRegistry.shared.scripts(in: .slide)
-        #expect(slideScripts.count == 7)
+        #expect(slideScripts.count == 8)
         let smallCanvas = CGSize(width: 640, height: 360)
         let largeCanvas = CGSize(width: 1920, height: 1080)
         for slideScript in slideScripts {
@@ -570,20 +568,18 @@ struct TextIntegrationTests {
             #expect(magSmall > 250.0, "Slide script \(slideScript.id) did not start off-screen on 640x360: \(magSmall)")
             #expect(magLarge > magSmall * 2.5, "Slide script \(slideScript.id) must scale travel with Preview canvasSize")
         }
-        #expect(TextAnimationScriptRegistry.shared.script(for: "elastic_flip_3d")?.category == .pop)
+        #expect(TextAnimationScriptRegistry.shared.script(for: "elastic_flip_3d")?.category == .threeD)
         #expect(TextAnimationScriptRegistry.shared.script(for: "pendulum_hinge_swing")?.category == .wave)
         #expect(TextAnimationScriptRegistry.shared.script(for: "curtain_baseline_rise")?.category == .fade)
 
-        // 6. Phase 1 GPU shader scripts wire perspective3D, motionBlur, pixelate, lightSweep, liquidWave, glitchSlices, hue and render non-empty frames
+        // 6. GPU shader & pure-motion scripts wire perspective3D, motionBlur, pixelate, liquidWave, slice displacement without altering colors
         let renderEngine = TextRendererEngine()
         let shaderProbeCases: [(String, Double)] = [
             ("three_d_tumble_drop", 0.25),
             ("three_d_swinging_door", 0.25),
             ("three_d_depth_rush", 0.25),
-            ("fx_metallic_sweep", 1.50),
+            ("slide_center_split", 0.45),
             ("fx_pixel_dissolve", 0.20),
-            ("fx_neon_ignition", 1.40),
-            ("fx_chromatic_vapor", 1.25),
             ("slide_directional_whip", 0.20),
             ("slide_zipper_cross", 0.25),
             ("wave_flag_flutter", 1.25),
@@ -594,11 +590,11 @@ struct TextIntegrationTests {
             var pcfg = TextConfiguration(content: "GPU FX")
             pcfg.animation.scriptId = sid
             let img = renderEngine.renderAnimatedImage(for: pcfg, localTime: probeT, duration: 5.0, canvasSize: smallCanvas)
-            #expect(img != nil, "Failed rendering Phase 1 script \(sid)")
+            #expect(img != nil, "Failed rendering pure-motion script \(sid)")
         }
-        var sweepCfg = TextConfiguration(content: "SWEEP")
-        sweepCfg.animation.scriptId = "fx_metallic_sweep"
-        #expect(TextAnimationEvaluator.evaluate(config: sweepCfg, localTime: 1.5, duration: 5.0, canvasSize: smallCanvas).overlay.lightSweepPhase >= 0.0)
+        var splitCfg = TextConfiguration(content: "SPLIT")
+        splitCfg.animation.scriptId = "slide_center_split"
+        #expect(TextAnimationEvaluator.evaluate(config: splitCfg, localTime: 0.4, duration: 5.0, canvasSize: smallCanvas).overlay.clipRevealX < 0.99)
         var pxCfg = TextConfiguration(content: "PIXEL")
         pxCfg.animation.scriptId = "fx_pixel_dissolve"
         #expect(TextAnimationEvaluator.evaluate(config: pxCfg, localTime: 0.2, duration: 5.0, canvasSize: smallCanvas).pixelateScale > 1.0)

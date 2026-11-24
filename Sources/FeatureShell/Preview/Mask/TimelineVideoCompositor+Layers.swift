@@ -62,12 +62,18 @@ extension TimelineVideoCompositor {
             let clipDuration = info.clipTimeRange?.duration.seconds ?? 5.0
             let localTime = max(0.0, CMTimeSubtract(compTime, clipStart).seconds)
             let scaledCfg = scaleTextConfigForOutput(config, sx: Double(sx), sy: Double(sy))
+            let audioInputs = TextAudioReactiveInputsBuilder.inputs(
+                atTimelineTime: CMTimeGetSeconds(compTime),
+                config: scaledCfg,
+                audioTracks: info.audioReactiveTracks
+            )
             return textRenderer.composite(
                 config: scaledCfg,
                 over: canvas,
                 localTime: localTime,
                 duration: clipDuration,
-                canvasSize: outputSize
+                canvasSize: outputSize,
+                animationInputs: audioInputs
             ).cropped(to: outputRect)
         }
 

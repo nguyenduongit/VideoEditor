@@ -26,6 +26,7 @@ public enum TextThumbnailRenderer {
     internal static let sharedEngine = TextRendererEngine()
     internal static let ciContext = CIContext(options: [
         .useSoftwareRenderer: false,
+        .highQualityDownsample: true,
         .cacheIntermediates: false
     ])
 

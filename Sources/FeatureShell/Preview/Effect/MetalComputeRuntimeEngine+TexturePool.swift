@@ -46,9 +46,14 @@ extension MetalComputeRuntimeEngine {
         encoder.dispatchThreadgroups(numGroups, threadsPerThreadgroup: threadsPerGroup)
     }
 
-    func makePrivateTexture(width: Int, height: Int, device: MTLDevice) -> MTLTexture? {
+    func makePrivateTexture(
+        width: Int,
+        height: Int,
+        device: MTLDevice,
+        pixelFormat: MTLPixelFormat = .rgba8Unorm
+    ) -> MTLTexture? {
         let desc = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: .rgba8Unorm,
+            pixelFormat: pixelFormat,
             width: width,
             height: height,
             mipmapped: false

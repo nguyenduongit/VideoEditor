@@ -48,12 +48,14 @@ public final class TimelineVideoCompositor: NSObject, AVVideoCompositing, @unche
                     .workingColorSpace: rgbSpace,
                     .outputColorSpace: rgbSpace,
                     .useSoftwareRenderer: false,
+                    .highQualityDownsample: true,
                     .cacheIntermediates: false
                 ]
             )
         } else {
             self.ciContext = CIContext(options: [
                 .useSoftwareRenderer: false,
+                .highQualityDownsample: true,
                 .cacheIntermediates: false
             ])
         }

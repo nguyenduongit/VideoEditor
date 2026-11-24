@@ -18,7 +18,7 @@ public struct SoftGlowFadeScript: TextAnimationScript {
             return evaluateIntro(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
         case .loop(_, let cycleProgress):
             let g = glowState(cycleProgress: cycleProgress, em: em)
-            return TextUnitDelta(opacity: 1.0, glowIntensityDelta: g.glow, blurRadius: g.blur)
+            return TextUnitDelta(opacity: 1.0, glowIntensityDelta: g.glow, blurRadius: g.blur, bloomIntensity: 0.28 + (g.glow / 28.0) * 0.45)
         case .outro(let progress):
             return evaluateOutro(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
         }
@@ -40,7 +40,8 @@ public struct SoftGlowFadeScript: TextAnimationScript {
         return TextUnitDelta(
             opacity: min(1.0, localP * 1.5),
             glowIntensityDelta: rem * 35.0 + ease * g.glow,
-            blurRadius: rem * (0.14 * em) + ease * g.blur
+            blurRadius: rem * (0.14 * em) + ease * g.blur,
+            bloomIntensity: rem * 0.65 + ease * (0.28 + (g.glow / 28.0) * 0.45)
         )
     }
 

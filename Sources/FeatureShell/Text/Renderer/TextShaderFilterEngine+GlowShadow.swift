@@ -97,7 +97,7 @@ extension TextShaderFilterEngine {
     }
 
     /// Làm nhòe đa tầng phần cứng (Dual-Grid Downsampling Blur) đạt tốc độ tối đa trên Metal GPU
-    private static func downsampledBlur(
+    internal static func downsampledBlur(
         image: CIImage,
         radius: Double,
         extent: CGRect

@@ -1,164 +1,44 @@
 import Foundation
 
-/// Nhóm chuyển động của kịch bản hoạt ảnh chữ theo cơ chế động lực học (Motion Mechanics).
+/// Nhóm chuyển động của kịch bản hoạt ảnh chữ theo cơ chế động lực học thuần túy (Pure Motion Mechanics).
 public enum TextAnimationCategory: String, CaseIterable, Codable, Sendable, Equatable {
     case fade = "Fade"
     case slide = "Slide"
     case pop = "Pop"
     case wave = "Wave"
-    case glitch = "Glitch"
     case typewriter = "Typewriter"
     case threeD = "3D"
-    case lightFX = "Light FX"
 
     // Legacy static aliases preserving backward compatibility
     public static let title: Self = .wave, sub: Self = .slide, music: Self = .wave
     public static let kinetic: Self = .pop, cinematic: Self = .slide, editorial: Self = .typewriter
+    public static let glitch: Self = .pop, lightFX: Self = .fade
 
     public var displayName: String { rawValue }
 
     public var iconName: String {
         switch self {
         case .fade: "sun.max"; case .slide: "arrow.right.to.line"; case .pop: "bolt.circle.fill"
-        case .wave: "water.waves"; case .glitch: "sparkles.tv"; case .typewriter: "character.cursor.ibeam"
-        case .threeD: "cube.transparent"; case .lightFX: "sparkles"
+        case .wave: "water.waves"; case .typewriter: "character.cursor.ibeam"; case .threeD: "cube.transparent"
+        }
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = (try? container.decode(String.self)) ?? ""
+        if let exact = Self(rawValue: raw) {
+            self = exact
+        } else if raw.caseInsensitiveCompare("Glitch") == .orderedSame {
+            self = .pop
+        } else if raw.caseInsensitiveCompare("Light FX") == .orderedSame {
+            self = .fade
+        } else {
+            self = .fade
         }
     }
 }
 
 public typealias TextAnimationTag = TextAnimationCategory
-
-/// Trạng thái vi phân (Delta) của một đơn vị văn bản (Ký tự, Từ, hoặc Toàn dòng) tại một khung hình.
-/// Cho phép kịch bản hoạt ảnh can thiệp sâu vào Transform, Wave, Clip Mask, Hinge Pivot, Echo và Optical Effects.
-/// Tuân thủ AGENTS.md R2.3 (thuần Domain) và R3.1 (File <= 300 dòng, Hàm <= 50 dòng).
-public struct TextUnitDelta: Sendable, Equatable {
-    // MARK: - 1. Transform & Cursor Delta (Pure Kinematics)
-    public var offsetX: Double
-    public var offsetY: Double
-    public var canvasOffsetXRatio: Double
-    public var canvasOffsetYRatio: Double
-    public var scaleX: Double
-    public var scaleY: Double
-    public var rotation: Double
-    public var skewX: Double
-    public var skewY: Double
-    public var opacity: Double
-    public var trailingCursorOpacity: Double
-
-    // MARK: - 1b. Continuous Spatial Wave Path (Evaluated at exact CTLine glyph X)
-    public var waveAmplitudeEm: Double
-    public var waveFrequencyEm: Double
-    public var wavePhaseRadians: Double
-
-    // MARK: - 1c. Advanced Rendering Primitives (Clip Mask, Tracking, Hinge Pivot, Echo Trail)
-    public var clipRevealX: Double
-    public var clipRevealY: Double
-    public var trackingEmDelta: Double
-    public var anchorOverride: TextAnchorPoint?
-    public var echoCount: Int
-    public var echoOffsetXEm: Double
-    public var echoOffsetYEm: Double
-
-    // MARK: - 2. Relative Optical Effects Delta (Preserves User Fill & Stroke 100%)
-    public var glowIntensityDelta: Double
-    public var shadowDistanceDelta: Double
-    public var blurRadius: Double
-    public var glitchIntensity: Double
-    public var noiseIntensity: Double
-
-    // MARK: - 3. GPU Shader Channels (TextShaderFilterEngine)
-    public var perspectiveX: Double
-    public var perspectiveY: Double
-    public var motionBlurRadius: Double
-    public var motionBlurAngle: Double
-    public var lightSweepPhase: Double
-    public var liquidWavePhase: Double
-    public var glitchSliceIntensity: Double
-    public var pixelateScale: Double
-    public var hueAngle: Double
-
-    public init(
-        offsetX: Double = 0.0, offsetY: Double = 0.0,
-        canvasOffsetXRatio: Double = 0.0, canvasOffsetYRatio: Double = 0.0,
-        scaleX: Double = 1.0, scaleY: Double = 1.0,
-        rotation: Double = 0.0, skewX: Double = 0.0, skewY: Double = 0.0,
-        opacity: Double = 1.0, trailingCursorOpacity: Double = 0.0,
-        waveAmplitudeEm: Double = 0.0, waveFrequencyEm: Double = 0.0, wavePhaseRadians: Double = 0.0,
-        clipRevealX: Double = 1.0, clipRevealY: Double = 1.0,
-        trackingEmDelta: Double = 0.0, anchorOverride: TextAnchorPoint? = nil,
-        echoCount: Int = 0, echoOffsetXEm: Double = 0.0, echoOffsetYEm: Double = 0.0,
-        glowIntensityDelta: Double = 0.0, shadowDistanceDelta: Double = 0.0,
-        blurRadius: Double = 0.0, glitchIntensity: Double = 0.0, noiseIntensity: Double = 0.0,
-        perspectiveX: Double = 0.0, perspectiveY: Double = 0.0,
-        motionBlurRadius: Double = 0.0, motionBlurAngle: Double = 0.0,
-        lightSweepPhase: Double = -1.0, liquidWavePhase: Double = -1.0,
-        glitchSliceIntensity: Double = 0.0, pixelateScale: Double = 0.0, hueAngle: Double = 0.0
-    ) {
-        self.offsetX = offsetX; self.offsetY = offsetY
-        self.canvasOffsetXRatio = canvasOffsetXRatio; self.canvasOffsetYRatio = canvasOffsetYRatio
-        self.scaleX = scaleX; self.scaleY = scaleY
-        self.rotation = rotation; self.skewX = skewX; self.skewY = skewY
-        self.opacity = max(0.0, min(1.0, opacity))
-        self.trailingCursorOpacity = max(0.0, min(1.0, trailingCursorOpacity))
-        self.waveAmplitudeEm = waveAmplitudeEm; self.waveFrequencyEm = waveFrequencyEm; self.wavePhaseRadians = wavePhaseRadians
-        self.clipRevealX = max(0.0, min(1.0, clipRevealX)); self.clipRevealY = max(0.0, min(1.0, clipRevealY))
-        self.trackingEmDelta = trackingEmDelta; self.anchorOverride = anchorOverride
-        self.echoCount = max(0, min(3, echoCount)); self.echoOffsetXEm = echoOffsetXEm; self.echoOffsetYEm = echoOffsetYEm
-        self.glowIntensityDelta = glowIntensityDelta; self.shadowDistanceDelta = shadowDistanceDelta
-        self.blurRadius = max(0.0, blurRadius)
-        self.glitchIntensity = max(0.0, min(100.0, glitchIntensity)); self.noiseIntensity = max(0.0, min(100.0, noiseIntensity))
-        self.perspectiveX = max(-0.85, min(0.85, perspectiveX)); self.perspectiveY = max(-0.85, min(0.85, perspectiveY))
-        self.motionBlurRadius = max(0.0, min(45.0, motionBlurRadius)); self.motionBlurAngle = motionBlurAngle
-        self.lightSweepPhase = lightSweepPhase; self.liquidWavePhase = liquidWavePhase
-        self.glitchSliceIntensity = max(0.0, glitchSliceIntensity)
-        self.pixelateScale = max(0.0, pixelateScale); self.hueAngle = hueAngle
-    }
-
-    public static let identity = TextUnitDelta()
-
-    /// Smooth linear interpolation between two deltas to guarantee exact phase-boundary continuity.
-    public static func lerp(_ a: TextUnitDelta, _ b: TextUnitDelta, t: Double) -> TextUnitDelta {
-        let k = max(0.0, min(1.0, t))
-        let inv = 1.0 - k
-        return TextUnitDelta(
-            offsetX: inv * a.offsetX + k * b.offsetX,
-            offsetY: inv * a.offsetY + k * b.offsetY,
-            canvasOffsetXRatio: inv * a.canvasOffsetXRatio + k * b.canvasOffsetXRatio,
-            canvasOffsetYRatio: inv * a.canvasOffsetYRatio + k * b.canvasOffsetYRatio,
-            scaleX: inv * a.scaleX + k * b.scaleX,
-            scaleY: inv * a.scaleY + k * b.scaleY,
-            rotation: inv * a.rotation + k * b.rotation,
-            skewX: inv * a.skewX + k * b.skewX,
-            skewY: inv * a.skewY + k * b.skewY,
-            opacity: inv * a.opacity + k * b.opacity,
-            trailingCursorOpacity: inv * a.trailingCursorOpacity + k * b.trailingCursorOpacity,
-            waveAmplitudeEm: inv * a.waveAmplitudeEm + k * b.waveAmplitudeEm,
-            waveFrequencyEm: inv * a.waveFrequencyEm + k * b.waveFrequencyEm,
-            wavePhaseRadians: inv * a.wavePhaseRadians + k * b.wavePhaseRadians,
-            clipRevealX: inv * a.clipRevealX + k * b.clipRevealX,
-            clipRevealY: inv * a.clipRevealY + k * b.clipRevealY,
-            trackingEmDelta: inv * a.trackingEmDelta + k * b.trackingEmDelta,
-            anchorOverride: k > 0.5 ? (b.anchorOverride ?? a.anchorOverride) : (a.anchorOverride ?? b.anchorOverride),
-            echoCount: k > 0.5 ? b.echoCount : a.echoCount,
-            echoOffsetXEm: inv * a.echoOffsetXEm + k * b.echoOffsetXEm,
-            echoOffsetYEm: inv * a.echoOffsetYEm + k * b.echoOffsetYEm,
-            glowIntensityDelta: inv * a.glowIntensityDelta + k * b.glowIntensityDelta,
-            shadowDistanceDelta: inv * a.shadowDistanceDelta + k * b.shadowDistanceDelta,
-            blurRadius: inv * a.blurRadius + k * b.blurRadius,
-            glitchIntensity: inv * a.glitchIntensity + k * b.glitchIntensity,
-            noiseIntensity: inv * a.noiseIntensity + k * b.noiseIntensity,
-            perspectiveX: inv * a.perspectiveX + k * b.perspectiveX,
-            perspectiveY: inv * a.perspectiveY + k * b.perspectiveY,
-            motionBlurRadius: inv * a.motionBlurRadius + k * b.motionBlurRadius,
-            motionBlurAngle: inv * a.motionBlurAngle + k * b.motionBlurAngle,
-            lightSweepPhase: (a.lightSweepPhase >= 0 && b.lightSweepPhase >= 0) ? (inv * a.lightSweepPhase + k * b.lightSweepPhase) : (k > 0.5 ? b.lightSweepPhase : a.lightSweepPhase),
-            liquidWavePhase: (a.liquidWavePhase >= 0 && b.liquidWavePhase >= 0) ? (inv * a.liquidWavePhase + k * b.liquidWavePhase) : (k > 0.5 ? b.liquidWavePhase : a.liquidWavePhase),
-            glitchSliceIntensity: inv * a.glitchSliceIntensity + k * b.glitchSliceIntensity,
-            pixelateScale: inv * a.pixelateScale + k * b.pixelateScale,
-            hueAngle: inv * a.hueAngle + k * b.hueAngle
-        )
-    }
-}
 
 /// Ba pha diễn hoạt chuyển động toàn vẹn trong 1 Script: Xuất hiện (In) -> Tuần hoàn (Loop) -> Biến mất (Out).
 public enum TextScriptPhase: Sendable, Equatable {
@@ -312,7 +192,7 @@ public struct TitleWaveFloatScript: TextAnimationScript {
     }
 }
 
-/// Kho kịch bản diễn hoạt đóng gói sẵn chia theo 6 nhóm Motion Mechanics: Fade, Slide, Pop, Wave, Glitch, Typewriter.
+/// Kho kịch bản diễn hoạt thuần chuyển động chia theo 6 nhóm Motion Mechanics: Fade, Slide, Pop, Wave, Typewriter, 3D.
 public final class TextAnimationScriptRegistry: Sendable {
     public static let shared = TextAnimationScriptRegistry()
 
@@ -320,43 +200,70 @@ public final class TextAnimationScriptRegistry: Sendable {
     private let scriptMap: [String: any TextAnimationScript]
 
     public init() {
-        let activeList: [any TextAnimationScript] = [
-            // Fade
-            SoftGlowFadeScript(), CinematicDissolveScript(), SoftBreatheCascadeScript(),
-            BlurFocusDissolveScript(), KaraokeGlowFlowScript(),
-            // Slide
-            SmoothWordGlideScript(), LineCascadeRiseScript(), TrailerTrackingExpandScript(),
-            WhipEchoSlamScript(), AnamorphicSplitRevealScript(), WhipMotionSlideScript(), ZipperCrossSlideScript(),
-            // Pop
-            ElasticBouncePopScript(), KineticDropGlowScript(), PopUpHinge3DScript(),
-            NeonCyberShiftScript(), TornadoSpiralPopScript(),
-            ElasticFlip3DScript(), BeatPulseSlamScript(),
-            // Wave
-            TitleWaveFloatScript(), CascadeWaveFlowScript(), LiquidWavePulseScript(),
-            RippleDropWaveScript(), CurvedArcRollerScript(), DNAHelixTwistScript(),
-            JellyTrampolineWaveScript(), PendulumHingeSwingScript(),
-            FlagFlutterWaveScript(), LiquidMeltRippleScript(),
-            // Glitch
-            GlitchRGBPopScript(), HologramScanBeamScript(), VHSTrackingDriftScript(),
-            QuantumTeleportFlickerScript(), CyberShutterSliceScript(), CRTSliceTearScript(),
-            // Typewriter & Karaoke
-            TypewriterCursorScript(), WordStaccatoScript(), FlipCounterRollScript(),
-            KaraokeBoxPopScript(),
-            // Fade additions (Curved/Shutter masks)
-            CurtainBaselineRiseScript(), ShutterBlindRevealScript(),
-            // 3D & Light FX
-            ThreeDTumbleDropScript(), SwingingDoor3DScript(), DepthPerspectiveZoomScript(),
-            MetallicLightSweepScript(), PixelizeDissolveScript(), NeonTubeIgnitionScript(), ChromaticVaporScript()
+        var activeList: [any TextAnimationScript] = [
+            // Fade (6)
+            SoftGlowFadeScript(), CinematicDissolveScript(), BlurFocusDissolveScript(),
+            CurtainBaselineRiseScript(), DiagonalSlashRevealScript(), PixelizeDissolveScript(),
+            CenterSplitRevealScript()
         ]
+        // Slide (8 directional variants replacing legacy Slide presets)
+        activeList.append(contentsOf: DirectionalSlideScript.allEightVariants)
+        let remainingScripts: [any TextAnimationScript] = [
+            // Pop (5)
+            ElasticBouncePopScript(), KineticDropGlowScript(), TornadoSpiralPopScript(),
+            BeatPulseSlamScript(), KineticCollisionSlamScript(),
+            // Wave (5)
+            TitleWaveFloatScript(), RippleDropWaveScript(), DNAHelixTwistScript(),
+            PendulumHingeSwingScript(), LiquidMeltRippleScript(),
+            // Typewriter & Karaoke (5)
+            TypewriterCursorScript(), FlipCounterRollScript(), KaraokeGlowFlowScript(),
+            CipherMatrixDecodeScript(), NeonStrokeDrawScript(),
+            // 3D (4)
+            ThreeDTumbleDropScript(), PopUpHinge3DScript(), ElasticFlip3DScript(),
+            ThreeDCardCarouselScript()
+        ]
+        activeList.append(contentsOf: remainingScripts)
         self.scripts = activeList
 
         var map: [String: any TextAnimationScript] = [:]
         for item in activeList { map[item.id] = item }
-        map["neon_color_shift"] = map["neon_cyber_shift"]
-        map["cyber_glitch_pop"] = map["glitch_rgb_pop"]
-        map["kinetic_wave_bounce"] = map["liquid_wave_pulse"]
-        map["retro_skew_drift"] = map["curved_arc_roller"]
-        map["rainbow_flow"] = map["neon_cyber_shift"]
+        // Legacy aliases guaranteeing backward compatibility for saved projects without color-changing animations
+        map["soft_breathe_cascade"] = map["blur_focus_dissolve"]
+        map["shutter_blind_reveal"] = map["fade_diagonal_slash"]
+        map["smooth_word_glide"] = map["slide_right_right"]
+        map["line_cascade_rise"] = map["slide_up_up"]
+        map["trailer_tracking_expand"] = map["slide_left_left"]
+        map["whip_echo_slam"] = map["slide_right_right"]
+        map["anamorphic_split_reveal"] = map["slide_up_down"]
+        map["slide_directional_whip"] = map["slide_right_right"]
+        map["slide_zipper_cross"] = map["slide_left_right"]
+        map["neon_cyber_shift"] = map["pop_elastic_bounce"]
+        map["wave_cascade_flow"] = map["title_wave_float"]
+        map["liquid_wave_pulse"] = map["title_wave_float"]
+        map["curved_arc_roller"] = map["title_wave_float"]
+        map["jelly_trampoline_wave"] = map["ripple_drop_wave"]
+        map["wave_flag_flutter"] = map["title_wave_float"]
+        map["quantum_teleport_flicker"] = map["pop_collision_slam"]
+        map["cyber_shutter_slice"] = map["curtain_baseline_rise"]
+        map["glitch_crt_slice_tear"] = map["slide_right_right"]
+        map["glitch_rgb_pop"] = map["pop_collision_slam"]
+        map["hologram_scan_beam"] = map["curtain_baseline_rise"]
+        map["vhs_tracking_drift"] = map["slide_right_right"]
+        map["glitch_signal_tear"] = map["slide_right_right"]
+        map["karaoke_box_pop"] = map["karaoke_glow_flow"]
+        map["typewriter_staccato"] = map["typewriter_cursor"]
+        map["three_d_swinging_door"] = map["elastic_flip_3d"]
+        map["three_d_depth_rush"] = map["three_d_tumble_drop"]
+        map["neon_color_shift"] = map["pop_elastic_bounce"]
+        map["cyber_glitch_pop"] = map["pop_collision_slam"]
+        map["kinetic_wave_bounce"] = map["title_wave_float"]
+        map["retro_skew_drift"] = map["title_wave_float"]
+        map["rainbow_flow"] = map["blur_focus_dissolve"]
+        map["fx_metallic_sweep"] = map["slide_center_split"]
+        map["fx_neon_ignition"] = map["fade_soft_glow"]
+        map["fx_chromatic_vapor"] = map["blur_focus_dissolve"]
+        map["fx_ember_dissolve"] = map["fade_cinematic"]
+        map["fx_liquid_chrome"] = map["wave_liquid_ripple"]
         map["elastic_drop"] = map["kinetic_drop_glow"]
         map["typewriter_glow"] = map["typewriter_cursor"]
         self.scriptMap = map

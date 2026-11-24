@@ -172,7 +172,8 @@ public struct KineticDropGlowScript: TextAnimationScript {
         return TextUnitDelta(
             offsetY: -abs(sin(t * .pi * 2.0)) * decay * (0.36 * em),
             scaleX: 1.0 + squash, scaleY: 1.0 - squash, opacity: 1.0,
-            glowIntensityDelta: decay * 20.0
+            glowIntensityDelta: decay * 20.0,
+            bloomIntensity: decay * 0.72
         )
     }
 

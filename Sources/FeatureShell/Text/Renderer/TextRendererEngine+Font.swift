@@ -53,11 +53,56 @@ extension TextRendererEngine {
         for config: TextConfiguration,
         em: Double
     ) -> (dx: Double, dy: Double, sx: Double, sy: Double) {
+        if let graph = config.animation.graph {
+            return measureGraphEnvelopeDelta(for: config, graph: graph, em: em)
+        }
         guard config.animation.hasScriptAnimation,
               let script = TextAnimationScriptRegistry.shared.script(for: config.animation.scriptId) else {
             return (0.0, 0.0, 1.0, 1.0)
         }
         return measureScriptEnvelopeDelta(for: config, script: script, em: em)
+    }
+
+    private func measureGraphEnvelopeDelta(
+        for config: TextConfiguration,
+        graph: TextAnimationGraph,
+        em: Double
+    ) -> (dx: Double, dy: Double, sx: Double, sy: Double) {
+        let effectiveScope = config.animation.scopeOverride ?? graph.scope
+        let rawUnits = effectiveScope == .wholeBlock ? 1 : max(1, min(12, config.content.count))
+        let indices = Array(Set([0, rawUnits / 2, max(0, rawUnits - 1)]))
+        let boundForBg = config.background.isActive && !config.background.animateWithText
+        let seed = graph.id.utf8.reduce(UInt64(1469598103934665603)) { ($0 ^ UInt64($1)) &* 1099511628211 }
+        let overrideDir = config.animation.staggerDirection == .forward ? nil : config.animation.staggerDirection
+        let samples = [0.0, 0.2, 0.4, 0.6, 0.8, 0.95]
+
+        var maxDx = 0.0, maxDy = 0.0, maxSX = 1.0, maxSY = 1.0
+        let totalDur = max(0.2, config.animation.scriptDuration)
+        for phase in [TextAnimationGraphPhase.intro, .loop, .outro] {
+            for p in samples {
+                let gProg = (phase == .intro ? p * 0.2 : (phase == .loop ? 0.2 + p * 0.6 : 0.8 + p * 0.2))
+                for uIdx in indices {
+                    let ctx = TextAnimationGraphContext(
+                        phase: phase, globalProgress: gProg, phaseProgress: p, loopProgress: p,
+                        elapsedSeconds: totalDur * gProg, phaseDuration: max(0.2, totalDur / 3.0),
+                        unitIndex: uIdx, unitCount: rawUnits, randomSeed: seed, staggerDirectionOverride: overrideDir
+                    )
+                    let d = TextAnimationGraphMapper.unitDelta(from: graph.evaluate(in: ctx))
+                    guard d.opacity > 0.10 else { continue }
+                    let (effDx, effDy) = boundForBg
+                        ? TextAnimationEvaluator.boundOffsetForFixedBackground(dx: d.offsetX, dy: d.offsetY, em: em)
+                        : (d.offsetX, d.offsetY)
+                    let rot = rotationEnvelopeExpansion(degrees: d.rotation, scaleX: d.scaleX, scaleY: d.scaleY, em: em)
+                    let trackDx = abs(d.trackingEmDelta) * em * Double(rawUnits) * 0.5
+                    let cursorDx = d.trailingCursorOpacity > 0.01 ? em * 0.18 : 0.0
+                    maxDx = max(maxDx, abs(effDx) + trackDx + rot.x + cursorDx)
+                    maxDy = max(maxDy, abs(effDy) + rot.y)
+                    maxSX = max(maxSX, abs(d.scaleX))
+                    maxSY = max(maxSY, abs(d.scaleY))
+                }
+            }
+        }
+        return (min(em * 1.25, maxDx), min(em * 1.0, maxDy), min(1.35, max(1.0, maxSX)), min(1.35, max(1.0, maxSY)))
     }
 
     private func measureScriptEnvelopeDelta(
@@ -128,7 +173,8 @@ extension TextRendererEngine {
         over canvas: CIImage,
         localTime: Double,
         duration: Double,
-        canvasSize: CGSize
+        canvasSize: CGSize,
+        animationInputs: [String: Double] = [:]
     ) -> CIImage {
         #if os(macOS)
         if config.background.isEnabled && config.background.blendMode != .normal {
@@ -141,7 +187,10 @@ extension TextRendererEngine {
 
             let followText = config.background.animateWithText
             let evaluated = followText
-                ? TextAnimationEvaluator.evaluate(config: config, localTime: localTime, duration: duration, canvasSize: canvasSize)
+                ? TextAnimationEvaluator.evaluate(
+                    config: config, localTime: localTime, duration: duration,
+                    canvasSize: canvasSize, externalInputs: animationInputs
+                )
                 : TextAnimationEvaluator.EvaluationResult(config: config)
             var result = canvas
             if let bgImg = TextCompositeLayerRenderer.renderBackground(
@@ -157,7 +206,10 @@ extension TextRendererEngine {
                     layerImage: bgImg, over: result, mode: config.background.blendMode
                 ).cropped(to: CGRect(origin: .zero, size: canvasSize))
             }
-            if let fg = renderAnimatedImage(for: textOnlyCfg, localTime: localTime, duration: duration, canvasSize: canvasSize) {
+            if let fg = renderAnimatedImage(
+                for: textOnlyCfg, localTime: localTime, duration: duration,
+                canvasSize: canvasSize, animationInputs: animationInputs
+            ) {
                 result = fg.composited(over: result)
             }
             return result
@@ -165,7 +217,8 @@ extension TextRendererEngine {
         #endif
 
         guard let combined = renderAnimatedImage(
-            for: config, localTime: localTime, duration: duration, canvasSize: canvasSize
+            for: config, localTime: localTime, duration: duration,
+            canvasSize: canvasSize, animationInputs: animationInputs
         ) else {
             return canvas
         }

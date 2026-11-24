@@ -43,7 +43,7 @@ public final class MetalComputeRuntimeEngine: @unchecked Sendable {
         self.commandQueue = queue
         self.ciContext = CIContext(
             mtlCommandQueue: queue,
-            options: [.workingColorSpace: rgbSpace, .outputColorSpace: rgbSpace, .cacheIntermediates: false]
+            options: [.workingColorSpace: rgbSpace, .outputColorSpace: rgbSpace, .useSoftwareRenderer: false, .highQualityDownsample: true, .cacheIntermediates: false]
         )
         compileBuiltInLibrary(with: mtlDevice)
     }

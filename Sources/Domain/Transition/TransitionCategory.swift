@@ -59,4 +59,3 @@ public enum TransitionCategory: String, Codable, Sendable, CaseIterable, Identif
         }
     }
 }
-

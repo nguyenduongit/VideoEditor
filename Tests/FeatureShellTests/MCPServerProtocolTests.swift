@@ -176,6 +176,11 @@ struct MCPServerProtocolTests {
 
         let script3 = MCPTextPropertyResolver.resolveScriptId("neon pulse")
         #expect(script3 == "neon_cyber_shift")
+
+        #expect(MCPTextPropertyResolver.resolveScriptId("slide up") == "slide_up_up")
+        #expect(MCPTextPropertyResolver.resolveScriptId("slide up down") == "slide_up_down")
+        #expect(MCPTextPropertyResolver.resolveScriptId("slide left right") == "slide_left_right")
+        #expect(MCPTextPropertyResolver.resolveScriptId("smooth_word_glide") == "slide_right_right")
     }
 
     @Test func testMCPApplyTemplateAppliesCustomFontAndBackground() async throws {
@@ -197,7 +202,7 @@ struct MCPServerProtocolTests {
           "hasBackground": true,
           "backgroundColorHex": "#000000",
           "backgroundOpacity": 0.75,
-          "animationScript": "smooth_word_glide",
+          "animationScript": "slide_right_right",
           "animationSpeed": 1.2
         }
         """
@@ -212,7 +217,7 @@ struct MCPServerProtocolTests {
         #expect(cfg?.content == "Lời Tự Tình Mùa Thu")
         #expect(cfg?.fontName.contains("Bay") == true)
         #expect(cfg?.hasBackground == true)
-        #expect(cfg?.animation.scriptId == "smooth_word_glide")
+        #expect(cfg?.animation.scriptId == "slide_right_right")
         #expect(cfg?.animation.scriptSpeed == 1.2)
     }
 }

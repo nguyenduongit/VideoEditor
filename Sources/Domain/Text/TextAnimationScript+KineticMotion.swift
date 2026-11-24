@@ -133,9 +133,9 @@ public struct FlagFlutterWaveScript: TextAnimationScript {
 public struct LiquidMeltRippleScript: TextAnimationScript {
     public let id = "wave_liquid_ripple"
     public let displayName = "Liquid Melt"
-    public let description = "GPU surface tension ripples morph across the lettering like liquid mercury"
+    public let description = "Smooth surface tension wave distortion preserving your Appearance colors"
     public let category = TextAnimationCategory.wave
-    public let tags: [TextAnimationTag] = [.wave, .lightFX]
+    public let tags: [TextAnimationTag] = [.wave]
     public let scope = TextAnimationScope.wholeBlock
 
     public init() {}
@@ -151,10 +151,11 @@ public struct LiquidMeltRippleScript: TextAnimationScript {
                 scaleY: 1.0 - rem * 0.14,
                 opacity: min(1.0, progress * 2.6),
                 blurRadius: rem * (0.14 * em),
-                liquidWavePhase: progress * .pi
+                liquidWavePhase: progress * .pi,
+                liquidMorphIntensity: 0.75 + rem * 0.55
             )
         case .loop(_, let cycleProgress):
-            return TextUnitDelta(opacity: 1.0, liquidWavePhase: cycleProgress * .pi * 2.0)
+            return TextUnitDelta(opacity: 1.0, liquidWavePhase: cycleProgress * .pi * 2.0, liquidMorphIntensity: 0.85)
         case .outro(let progress):
             let ease = pow(min(1.0, max(0.0, progress)), 2.2)
             return TextUnitDelta(
@@ -162,51 +163,8 @@ public struct LiquidMeltRippleScript: TextAnimationScript {
                 scaleY: 1.0 - ease * 0.16,
                 opacity: 1.0 - ease,
                 blurRadius: ease * (0.16 * em),
-                liquidWavePhase: progress * .pi
-            )
-        }
-    }
-}
-
-public struct CRTSliceTearScript: TextAnimationScript {
-    public let id = "glitch_crt_slice_tear"
-    public let displayName = "CRT Slice Tear"
-    public let description = "Horizontal scan-slice tearing with chromatic RGB split and neon hue flickers"
-    public let category = TextAnimationCategory.glitch
-    public let tags: [TextAnimationTag] = [.glitch, .lightFX]
-    public let scope = TextAnimationScope.wholeBlock
-
-    public init() {}
-
-    public func evaluatePhase(base: TextConfiguration, phase: TextScriptPhase, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
-        switch phase {
-        case .intro(let progress):
-            let p = min(1.0, max(0.0, progress))
-            let rem = 1.0 - p
-            let pulse = rem * abs(sin(p * .pi * 5.0))
-            return TextUnitDelta(
-                skewX: sin(p * 24.0) * rem * 18.0,
-                opacity: p < 0.25 ? 0.45 : 1.0,
-                glitchIntensity: rem * 82.0,
-                glitchSliceIntensity: 0.25 + pulse * 1.15,
-                hueAngle: rem * 1.1
-            )
-        case .loop(let time, let cycleProgress):
-            let active = cycleProgress > 0.08 && cycleProgress < 0.92 && sin(floor(time * 12.0) * 2.1) > 0.55
-            return TextUnitDelta(
-                opacity: 1.0,
-                glitchIntensity: active ? 48.0 : 0.0,
-                glitchSliceIntensity: active ? 0.85 : 0.0,
-                hueAngle: active ? 0.65 : 0.0
-            )
-        case .outro(let progress):
-            let p = min(1.0, max(0.0, progress))
-            return TextUnitDelta(
-                skewX: -sin(p * 22.0) * p * 18.0,
-                opacity: 1.0 - p,
-                glitchIntensity: p * 85.0,
-                glitchSliceIntensity: p * 1.25,
-                hueAngle: -p * 1.1
+                liquidWavePhase: progress * .pi,
+                liquidMorphIntensity: 0.75 + ease * 0.65
             )
         }
     }

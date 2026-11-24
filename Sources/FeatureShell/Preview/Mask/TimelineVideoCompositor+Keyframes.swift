@@ -190,7 +190,8 @@ extension TimelineVideoCompositor {
             clipTimeRange: info.clipTimeRange,
             isText: true,
             textConfig: config,
-            clip: info.clip
+            clip: info.clip,
+            audioReactiveTracks: info.audioReactiveTracks
         )
     }
 

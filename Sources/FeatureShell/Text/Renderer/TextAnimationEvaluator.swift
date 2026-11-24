@@ -2,107 +2,87 @@ import Foundation
 import CoreGraphics
 import Domain
 
-/// Tham số biến dạng hình học & VFX tức thời của hoạt ảnh (Scale X/Y, Skew, 3D Perspective, Motion Blur, Light Sweep).
-public struct TextTransformOverlay: Sendable, Equatable {
-    public var scaleX: Double
-    public var scaleY: Double
-    public var skewX: Double
-    public var perspectiveX: Double
-    public var perspectiveY: Double
-    public var motionBlurRadius: Double
-    public var motionBlurAngle: Double
-    public var lightSweepPhase: Double
-    public var glitchSliceIntensity: Double
-    public var liquidWavePhase: Double
-    public var revealProgress: Double
-    public var trailingCursorOpacity: Double
-    public var waveAmplitudeEm: Double
-    public var waveFrequencyEm: Double
-    public var wavePhaseRadians: Double
-    public var clipRevealX: Double
-    public var clipRevealY: Double
-    public var trackingEmDelta: Double
-    public var echoCount: Int
-    public var echoOffsetXEm: Double
-    public var echoOffsetYEm: Double
-
-    public init(
-        scaleX: Double = 1.0, scaleY: Double = 1.0, skewX: Double = 0.0,
-        perspectiveX: Double = 0.0, perspectiveY: Double = 0.0,
-        motionBlurRadius: Double = 0.0, motionBlurAngle: Double = 0.0,
-        lightSweepPhase: Double = -1.0, glitchSliceIntensity: Double = 0.0,
-        liquidWavePhase: Double = -1.0, revealProgress: Double = -1.0,
-        trailingCursorOpacity: Double = 0.0,
-        waveAmplitudeEm: Double = 0.0, waveFrequencyEm: Double = 0.0, wavePhaseRadians: Double = 0.0,
-        clipRevealX: Double = 1.0, clipRevealY: Double = 1.0, trackingEmDelta: Double = 0.0,
-        echoCount: Int = 0, echoOffsetXEm: Double = 0.0, echoOffsetYEm: Double = 0.0
-    ) {
-        self.scaleX = scaleX
-        self.scaleY = scaleY
-        self.skewX = skewX
-        self.perspectiveX = perspectiveX
-        self.perspectiveY = perspectiveY
-        self.motionBlurRadius = motionBlurRadius
-        self.motionBlurAngle = motionBlurAngle
-        self.lightSweepPhase = lightSweepPhase
-        self.glitchSliceIntensity = glitchSliceIntensity
-        self.liquidWavePhase = liquidWavePhase
-        self.revealProgress = revealProgress
-        self.trailingCursorOpacity = trailingCursorOpacity
-        self.waveAmplitudeEm = waveAmplitudeEm
-        self.waveFrequencyEm = waveFrequencyEm
-        self.wavePhaseRadians = wavePhaseRadians
-        self.clipRevealX = clipRevealX
-        self.clipRevealY = clipRevealY
-        self.trackingEmDelta = trackingEmDelta
-        self.echoCount = echoCount
-        self.echoOffsetXEm = echoOffsetXEm
-        self.echoOffsetYEm = echoOffsetYEm
-    }
-}
-
-/// Real-time Text Animation Engine driven exclusively by unified `TextAnimationScript` blocks (`Intro -> Loop -> Outro`).
+/// Real-time Text Animation Engine driven by unified `TextAnimationGraph` and compiled `TextAnimationScript` blocks (`Intro -> Loop -> Outro`).
 /// Enforces AGENTS.md Điều 14 (no detached In/Loop/Out runtime assembly).
 public enum TextAnimationEvaluator {
 
     public struct EvaluationResult: Sendable {
         public var config: TextConfiguration
         public var blurRadius: Double
-        public var hueAngle: Double
         public var pixelateScale: Double
         public var rgbSplitIntensity: Double
+        public var noiseIntensity: Double
         public var overlay: TextTransformOverlay
+        /// Preserves evaluated graph channels (built-in & custom) for shaders and modular render plugins.
+        public var animationParameters: TextAnimationParameterBag
 
         public init(
-            config: TextConfiguration, blurRadius: Double = 0.0, hueAngle: Double = 0.0,
-            pixelateScale: Double = 0.0, rgbSplitIntensity: Double = 0.0,
-            overlay: TextTransformOverlay = TextTransformOverlay()
+            config: TextConfiguration,
+            blurRadius: Double = 0.0,
+            pixelateScale: Double = 0.0,
+            rgbSplitIntensity: Double = 0.0,
+            noiseIntensity: Double = 0.0,
+            overlay: TextTransformOverlay = TextTransformOverlay(),
+            animationParameters: TextAnimationParameterBag = TextAnimationParameterBag()
         ) {
             self.config = config
             self.blurRadius = blurRadius
-            self.hueAngle = hueAngle
             self.pixelateScale = pixelateScale
             self.rgbSplitIntensity = rgbSplitIntensity
+            self.noiseIntensity = noiseIntensity
             self.overlay = overlay
+            self.animationParameters = animationParameters
         }
     }
 
-    /// Evaluates continuous unified script animation (or passive shader modifiers) at `localTime`.
     public static func evaluate(
-        config: TextConfiguration, localTime: Double, duration: Double,
-        canvasSize: CGSize, charIndex: Int = 0, charCount: Int = 1
+        config: TextConfiguration,
+        localTime: Double,
+        duration: Double,
+        canvasSize: CGSize,
+        charIndex: Int = 0,
+        charCount: Int = 1,
+        externalInputs: [String: Double] = [:]
     ) -> EvaluationResult {
-        guard !config.animation.isDefault else { return EvaluationResult(config: config) }
+        guard !config.animation.isDefault else {
+            return EvaluationResult(config: config, noiseIntensity: config.noiseIntensity)
+        }
 
         let anim = config.animation
         let safeDur = max(0.1, duration)
         let t = max(0.0, min(safeDur, localTime))
 
+        if let graph = anim.graph {
+            let mapped = TextAnimationGraphMapper.evaluate(
+                graph: graph,
+                baseConfig: config,
+                t: t,
+                totalDuration: safeDur,
+                unitIndex: charIndex,
+                unitCount: charCount,
+                externalInputs: externalInputs
+            )
+            let delta = scaleScriptDelta(mapped.delta, intensity: anim.scriptIntensity)
+            return assembleScriptResult(
+                delta: delta,
+                baseConfig: config,
+                canvasSize: canvasSize,
+                t: t,
+                linearRevealProgress: mapped.linearRevealProgress,
+                animationParameters: mapped.parameters
+            )
+        }
+
         if anim.hasScriptAnimation,
            let script = TextAnimationScriptRegistry.shared.script(for: anim.scriptId) {
             return evaluateScriptAnimation(
-                script: script, baseConfig: config, canvasSize: canvasSize, t: t,
-                totalDuration: safeDur, charIndex: charIndex, charCount: charCount
+                script: script,
+                baseConfig: config,
+                canvasSize: canvasSize,
+                t: t,
+                totalDuration: safeDur,
+                charIndex: charIndex,
+                charCount: charCount
             )
         }
 
@@ -111,8 +91,12 @@ public enum TextAnimationEvaluator {
             overlay.lightSweepPhase = (t * max(0.2, anim.scriptSpeed) * 0.7).truncatingRemainder(dividingBy: 1.0)
         }
         return EvaluationResult(
-            config: config, blurRadius: 0.0, hueAngle: 0.0,
-            pixelateScale: 0.0, rgbSplitIntensity: anim.rgbSplitIntensity, overlay: overlay
+            config: config,
+            blurRadius: 0.0,
+            pixelateScale: 0.0,
+            rgbSplitIntensity: 0.0,
+            noiseIntensity: config.noiseIntensity,
+            overlay: overlay
         )
     }
 
@@ -141,95 +125,126 @@ public enum TextAnimationEvaluator {
         delta: TextUnitDelta,
         baseConfig: TextConfiguration,
         canvasSize: CGSize,
-        t: Double
+        t: Double,
+        linearRevealProgress: Double = -1.0,
+        animationParameters: TextAnimationParameterBag = TextAnimationParameterBag()
     ) -> EvaluationResult {
         var evaluated = baseConfig
-        var overlay = TextTransformOverlay()
-        let anim = baseConfig.animation
+        var overlay = buildOverlay(from: delta, anim: baseConfig.animation, t: t)
+        if linearRevealProgress >= 0.0 {
+            overlay.revealProgress = max(0.0, min(1.0, linearRevealProgress))
+        }
         let rawDx = delta.offsetX + delta.canvasOffsetXRatio * Double(canvasSize.width)
         let rawDy = delta.offsetY + delta.canvasOffsetYRatio * Double(canvasSize.height)
         let bounded = (baseConfig.background.isActive && !baseConfig.background.animateWithText)
             ? boundOffsetForFixedBackground(dx: rawDx, dy: rawDy, em: max(16.0, baseConfig.fontSize))
             : (dx: rawDx, dy: rawDy)
 
-        evaluated.positionX += bounded.dx; evaluated.positionY += bounded.dy
-        overlay.scaleX *= delta.scaleX; overlay.scaleY *= delta.scaleY
-        evaluated.skewX += delta.skewX; evaluated.skewY += delta.skewY
+        evaluated.positionX += bounded.dx
+        evaluated.positionY += bounded.dy
+        overlay.scaleX *= delta.scaleX
+        overlay.scaleY *= delta.scaleY
+        evaluated.skewX += delta.skewX
+        evaluated.skewY += delta.skewY
         evaluated.rotation += delta.rotation
         evaluated.opacity = max(0.0, min(1.0, evaluated.opacity * delta.opacity))
-        overlay.trailingCursorOpacity = delta.trailingCursorOpacity
-        overlay.waveAmplitudeEm = delta.waveAmplitudeEm
-        overlay.waveFrequencyEm = delta.waveFrequencyEm
-        overlay.wavePhaseRadians = delta.wavePhaseRadians
-        overlay.clipRevealX = delta.clipRevealX; overlay.clipRevealY = delta.clipRevealY
-        overlay.trackingEmDelta = delta.trackingEmDelta
-        overlay.echoCount = delta.echoCount
-        overlay.echoOffsetXEm = delta.echoOffsetXEm; overlay.echoOffsetYEm = delta.echoOffsetYEm
-        overlay.perspectiveX = delta.perspectiveX
-        overlay.perspectiveY = delta.perspectiveY
-        if anim.isMotionBlurEnabled && delta.motionBlurRadius > 0.5 {
-            overlay.motionBlurRadius = delta.motionBlurRadius
-            overlay.motionBlurAngle = delta.motionBlurAngle
-        }
-        overlay.liquidWavePhase = delta.liquidWavePhase
-        overlay.glitchSliceIntensity = delta.glitchSliceIntensity
         if let anchorOverride = delta.anchorOverride { evaluated.animation.anchorPoint = anchorOverride }
-        if delta.lightSweepPhase >= 0.0 {
-            overlay.lightSweepPhase = delta.lightSweepPhase
-        } else if anim.lightSweepIntensity > 0.01 {
-            overlay.lightSweepPhase = (t * max(0.2, anim.scriptSpeed) * 0.7).truncatingRemainder(dividingBy: 1.0)
-        }
         if delta.glowIntensityDelta != 0.0, baseConfig.glow.isActive {
             evaluated.glow.intensity = max(0.0, min(100.0, baseConfig.glow.intensity + delta.glowIntensityDelta))
         }
         if delta.shadowDistanceDelta != 0.0, baseConfig.shadow.isActive {
             evaluated.shadow.distance = max(0.0, baseConfig.shadow.distance + delta.shadowDistanceDelta)
         }
+
+        let effectiveNoise = max(baseConfig.noiseIntensity, delta.noiseIntensity)
         return EvaluationResult(
-            config: evaluated, blurRadius: max(0.0, delta.blurRadius), hueAngle: delta.hueAngle,
-            pixelateScale: delta.pixelateScale, rgbSplitIntensity: max(anim.rgbSplitIntensity, delta.glitchIntensity), overlay: overlay
+            config: evaluated,
+            blurRadius: max(0.0, delta.blurRadius),
+            pixelateScale: delta.pixelateScale,
+            rgbSplitIntensity: 0.0,
+            noiseIntensity: effectiveNoise,
+            overlay: overlay,
+            animationParameters: animationParameters
         )
+    }
+
+    private static func buildOverlay(from delta: TextUnitDelta, anim: TextAnimationConfiguration, t: Double) -> TextTransformOverlay {
+        var overlay = TextTransformOverlay()
+        overlay.rotationX = delta.rotationX
+        overlay.rotationY = delta.rotationY
+        overlay.trailingCursorOpacity = anim.isTypewriterCursorVisible ? delta.trailingCursorOpacity : 0.0
+        overlay.waveAmplitudeEm = delta.waveAmplitudeEm
+        overlay.waveFrequencyEm = delta.waveFrequencyEm
+        overlay.wavePhaseRadians = delta.wavePhaseRadians
+        overlay.clipRevealX = delta.clipRevealX
+        overlay.clipRevealY = delta.clipRevealY
+        overlay.maskShapeMode = delta.maskShapeMode
+        overlay.strokeTrimProgress = delta.strokeTrimProgress
+        overlay.scrambleStrength = delta.scrambleStrength
+        overlay.trackingEmDelta = delta.trackingEmDelta
+        overlay.echoCount = delta.echoCount
+        overlay.echoOffsetXEm = delta.echoOffsetXEm
+        overlay.echoOffsetYEm = delta.echoOffsetYEm
+        overlay.perspectiveX = delta.perspectiveX
+        overlay.perspectiveY = delta.perspectiveY
+        if anim.isMotionBlurEnabled && delta.motionBlurRadius > 0.5 {
+            overlay.motionBlurRadius = delta.motionBlurRadius
+            overlay.motionBlurAngle = delta.motionBlurAngle
+        }
+        overlay.sweepWidthRatio = delta.sweepWidthRatio
+        overlay.liquidWavePhase = delta.liquidWavePhase
+        overlay.liquidMorphIntensity = delta.liquidMorphIntensity
+        overlay.glitchSliceIntensity = delta.glitchSliceIntensity
+        overlay.glitchBlockIntensity = delta.glitchBlockIntensity
+        overlay.dissolveProgress = delta.dissolveProgress
+        overlay.dissolveAngleRadians = delta.dissolveAngleRadians
+        overlay.bloomIntensity = delta.bloomIntensity
+        overlay.bevelDepth = delta.bevelDepth
+        overlay.bevelLightAngle = delta.bevelLightAngle
+        overlay.bevelExtrudeDepth = delta.bevelExtrudeDepth
+        overlay.particleFieldProgress = delta.particleFieldProgress
+        overlay.particleFieldAngle = delta.particleFieldAngle
+        overlay.volumetricRaysIntensity = delta.volumetricRaysIntensity
+        overlay.volumetricRaysOriginX = delta.volumetricRaysOriginX
+        overlay.volumetricRaysOriginY = delta.volumetricRaysOriginY
+        if delta.lightSweepPhase >= 0.0 {
+            overlay.lightSweepPhase = delta.lightSweepPhase
+        } else if anim.lightSweepIntensity > 0.01 {
+            overlay.lightSweepPhase = (t * max(0.2, anim.scriptSpeed) * 0.7).truncatingRemainder(dividingBy: 1.0)
+        }
+        return overlay
     }
 
     private static func scaleScriptDelta(_ d: TextUnitDelta, intensity: Double) -> TextUnitDelta {
         let amp = max(0.2, min(2.0, intensity))
         guard abs(amp - 1.0) > 0.001 else { return d }
         return TextUnitDelta(
-            offsetX: d.offsetX * amp,
-            offsetY: d.offsetY * amp,
-            canvasOffsetXRatio: d.canvasOffsetXRatio,
-            canvasOffsetYRatio: d.canvasOffsetYRatio,
-            scaleX: max(0.02, 1.0 + (d.scaleX - 1.0) * amp),
-            scaleY: max(0.02, 1.0 + (d.scaleY - 1.0) * amp),
-            rotation: d.rotation * amp,
-            skewX: d.skewX * amp,
-            skewY: d.skewY * amp,
-            opacity: d.opacity,
-            trailingCursorOpacity: d.trailingCursorOpacity,
-            waveAmplitudeEm: d.waveAmplitudeEm * amp,
-            waveFrequencyEm: d.waveFrequencyEm,
-            wavePhaseRadians: d.wavePhaseRadians,
-            clipRevealX: d.clipRevealX,
-            clipRevealY: d.clipRevealY,
-            trackingEmDelta: d.trackingEmDelta * amp,
-            anchorOverride: d.anchorOverride,
-            echoCount: d.echoCount,
-            echoOffsetXEm: d.echoOffsetXEm * amp,
-            echoOffsetYEm: d.echoOffsetYEm * amp,
-            glowIntensityDelta: d.glowIntensityDelta * amp,
-            shadowDistanceDelta: d.shadowDistanceDelta * amp,
-            blurRadius: d.blurRadius * amp,
-            glitchIntensity: d.glitchIntensity * amp,
-            noiseIntensity: d.noiseIntensity * amp,
-            perspectiveX: max(-0.85, min(0.85, d.perspectiveX * amp)),
-            perspectiveY: max(-0.85, min(0.85, d.perspectiveY * amp)),
-            motionBlurRadius: d.motionBlurRadius * amp,
-            motionBlurAngle: d.motionBlurAngle,
-            lightSweepPhase: d.lightSweepPhase,
-            liquidWavePhase: d.liquidWavePhase,
-            glitchSliceIntensity: d.glitchSliceIntensity * amp,
+            offsetX: d.offsetX * amp, offsetY: d.offsetY * amp,
+            canvasOffsetXRatio: d.canvasOffsetXRatio, canvasOffsetYRatio: d.canvasOffsetYRatio,
+            scaleX: max(0.02, 1.0 + (d.scaleX - 1.0) * amp), scaleY: max(0.02, 1.0 + (d.scaleY - 1.0) * amp),
+            rotation: d.rotation * amp, rotationX: d.rotationX * amp, rotationY: d.rotationY * amp,
+            skewX: d.skewX * amp, skewY: d.skewY * amp,
+            opacity: d.opacity, trailingCursorOpacity: d.trailingCursorOpacity,
+            waveAmplitudeEm: d.waveAmplitudeEm * amp, waveFrequencyEm: d.waveFrequencyEm, wavePhaseRadians: d.wavePhaseRadians,
+            clipRevealX: d.clipRevealX, clipRevealY: d.clipRevealY, maskShapeMode: d.maskShapeMode,
+            strokeTrimProgress: d.strokeTrimProgress, scrambleStrength: d.scrambleStrength,
+            trackingEmDelta: d.trackingEmDelta * amp, anchorOverride: d.anchorOverride,
+            echoCount: d.echoCount, echoOffsetXEm: d.echoOffsetXEm * amp, echoOffsetYEm: d.echoOffsetYEm * amp,
+            glowIntensityDelta: d.glowIntensityDelta * amp, shadowDistanceDelta: d.shadowDistanceDelta * amp,
+            blurRadius: d.blurRadius * amp, glitchIntensity: d.glitchIntensity * amp, noiseIntensity: d.noiseIntensity * amp,
+            perspectiveX: max(-0.85, min(0.85, d.perspectiveX * amp)), perspectiveY: max(-0.85, min(0.85, d.perspectiveY * amp)),
+            motionBlurRadius: d.motionBlurRadius * amp, motionBlurAngle: d.motionBlurAngle,
+            lightSweepPhase: d.lightSweepPhase, sweepWidthRatio: d.sweepWidthRatio,
+            liquidWavePhase: d.liquidWavePhase, liquidMorphIntensity: d.liquidMorphIntensity * amp,
+            glitchSliceIntensity: d.glitchSliceIntensity * amp, glitchBlockIntensity: d.glitchBlockIntensity * amp,
             pixelateScale: d.pixelateScale > 1.0 ? 1.0 + (d.pixelateScale - 1.0) * amp : d.pixelateScale,
-            hueAngle: d.hueAngle * amp
+            dissolveProgress: d.dissolveProgress, dissolveAngleRadians: d.dissolveAngleRadians,
+            bloomIntensity: d.bloomIntensity * amp,
+            bevelDepth: d.bevelDepth * amp, bevelLightAngle: d.bevelLightAngle,
+            bevelExtrudeDepth: d.bevelExtrudeDepth * amp,
+            particleFieldProgress: d.particleFieldProgress, particleFieldAngle: d.particleFieldAngle,
+            volumetricRaysIntensity: d.volumetricRaysIntensity * amp,
+            volumetricRaysOriginX: d.volumetricRaysOriginX, volumetricRaysOriginY: d.volumetricRaysOriginY
         )
     }
 

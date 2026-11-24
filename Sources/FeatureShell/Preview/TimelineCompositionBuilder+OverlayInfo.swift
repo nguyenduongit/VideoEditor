@@ -326,6 +326,10 @@ extension TimelineCompositionBuilder {
         if let size = clip.properties["fontSize"]?.asNumber { config.fontSize = size }
         if let font = clip.properties["fontName"]?.asString { config.fontName = font }
 
+        let reactiveTracks: [AudioReactiveTrackSnapshot] = (!allLayers.isEmpty && (config.animation.isBeatSyncEnabled || config.animation.graph != nil))
+            ? resolveAudioReactiveTracks(overlapping: clip.timeRange, in: allLayers)
+            : []
+
         let opacity = Float(clip.properties["opacity"]?.asNumber ?? config.opacity)
         return TimelineCustomVideoCompositionInstruction.LayerRenderInfo(
             trackID: kCMPersistentTrackID_Invalid,
@@ -335,7 +339,8 @@ extension TimelineCompositionBuilder {
             clipTimeRange: clip.timeRange,
             isText: true,
             textConfig: config,
-            clip: clip
+            clip: clip,
+            audioReactiveTracks: reactiveTracks
         )
     }
 

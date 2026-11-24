@@ -71,9 +71,11 @@ public struct PreviewView: View {
     private func textPresetPreviewContent(for preset: TextPreset) -> some View {
         let theme = TextThumbnailRenderer.computeTheme(for: preset.config)
         let baseSize = viewModel.aspectRatio.renderSize
-        let previewCanvasSize = CGSize(width: baseSize.width * 0.5, height: baseSize.height * 0.5)
         let isStatic = TextThumbnailRenderer.isDefaultStaticPreset(preset)
             || TextThumbnailRenderer.effectiveAnimatedConfig(for: preset).animation.isDefault
+        let previewCanvasSize = isStatic
+            ? baseSize
+            : CGSize(width: baseSize.width * 0.75, height: baseSize.height * 0.75)
 
         return ZStack {
             LinearGradient(

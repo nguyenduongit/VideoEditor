@@ -1,43 +1,44 @@
 import Foundation
 
-// MARK: - Kinetic 3: Pop-Up Hinge 3D (Bật dựng đứng từ bản lề đáy)
+// MARK: - Kinetic 3: Pop-Up Hinge 3D (Bật dựng đứng 3D thật từ bản lề đáy)
 public struct PopUpHinge3DScript: TextAnimationScript {
     public let id = "pop_up_hinge_3d"
     public let displayName = "Hinge 3D Pop"
-    public let description = "Characters hinge upward from the bottom baseline with 3D perspective depth"
-    public let category = TextAnimationCategory.pop
-    public let tags: [TextAnimationTag] = [.pop, .threeD]
+    public let description = "Characters hinge upward from the bottom baseline with true 3D X-axis perspective"
+    public let category = TextAnimationCategory.threeD
+    public let tags: [TextAnimationTag] = [.threeD, .pop]
     public let scope = TextAnimationScope.perCharacter
 
     public init() {}
 
     public func evaluatePhase(base: TextConfiguration, phase: TextScriptPhase, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
         let total = max(1, unitTotal)
-        let loopAt: (Double) -> (sx: Double, sy: Double, skew: Double) = { prog in
+        let loopAt: (Double) -> (rx: Double, sy: Double) = { prog in
             let a = prog * .pi * 2.0 - Double(unitIndex) * 0.52, b = max(0.0, sin(a))
-            return (1.0 - b * 0.10, 1.0 + b * 0.22, cos(a) * b * 10.0)
+            return (cos(a) * b * 18.0, 1.0 + b * 0.08)
         }
         switch phase {
         case .intro(let progress):
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.45 / Double(total))) / 0.55))
-            guard p > 0.0 else { return TextUnitDelta(scaleY: 0.04, opacity: 0.0, anchorOverride: .bottom) }
-            let decay = exp(-p * 4.2) * (1.0 - p), stand = 1.0 - decay * cos(p * .pi * 3.0)
-            let swingSkew = decay * cos(p * .pi * 3.0) * 28.0, l = loopAt(progress)
+            guard p > 0.0 else { return TextUnitDelta(scaleY: 0.45, rotationX: -82.0, opacity: 0.0, anchorOverride: .bottom) }
+            let decay = exp(-p * 4.2) * (1.0 - p), swing = decay * cos(p * .pi * 2.8)
+            let l = loopAt(progress)
             return TextUnitDelta(
-                scaleX: (1.0 - p) * max(0.2, 1.0 - (stand - 1.0) * 0.35) + p * l.sx,
-                scaleY: (1.0 - p) * max(0.06, stand) + p * l.sy,
-                skewX: swingSkew + p * l.skew, opacity: min(1.0, p * 4.0), anchorOverride: .bottom,
-                glowIntensityDelta: max(0.0, stand - 1.0) * 40.0
+                scaleY: (1.0 - p) * 0.90 + p * l.sy,
+                rotationX: -swing * 82.0 + p * l.rx,
+                opacity: min(1.0, p * 4.0), anchorOverride: .bottom,
+                glowIntensityDelta: max(0.0, decay) * 32.0
             )
         case .loop(_, let cycleProgress):
             let l = loopAt(cycleProgress)
-            return TextUnitDelta(scaleX: l.sx, scaleY: l.sy, skewX: l.skew, opacity: 1.0, anchorOverride: .bottom)
+            return TextUnitDelta(scaleY: l.sy, rotationX: l.rx, opacity: 1.0, anchorOverride: .bottom)
         case .outro(let progress):
             let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.38 / Double(total))) / 0.62))
             let ease = p * p, stay = 1.0 - ease, l = loopAt(progress)
             return TextUnitDelta(
-                scaleX: stay * l.sx + ease * 1.20, scaleY: max(0.04, stay * l.sy + ease * 0.04),
-                skewX: stay * l.skew - ease * 26.0, opacity: stay, anchorOverride: .bottom
+                scaleY: max(0.35, stay * l.sy + ease * 0.40),
+                rotationX: stay * l.rx + ease * 82.0,
+                opacity: stay, anchorOverride: .bottom
             )
         }
     }
