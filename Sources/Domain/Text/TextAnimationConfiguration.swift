@@ -30,12 +30,9 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
     public var staggerDirection: TextStaggerDirection
     public var staggerDelay: Double
     public var anchorPoint: TextAnchorPoint
-    public var rgbSplitIntensity: Double
-    public var lightSweepIntensity: Double
     public var isMaskEnabled: Bool
     public var isMotionBlurEnabled: Bool
     public var isTypewriterCursorVisible: Bool
-    public var highlightColorHex: String
     public var motionEasing: TextMotionEasing
     /// Optional data-driven animation graph; takes precedence over compiled `scriptId` when set.
     public var graph: TextAnimationGraph?
@@ -57,12 +54,9 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         staggerDirection: TextStaggerDirection = .forward,
         staggerDelay: Double = 0.04,
         anchorPoint: TextAnchorPoint = .center,
-        rgbSplitIntensity: Double = 0.0,
-        lightSweepIntensity: Double = 0.0,
         isMaskEnabled: Bool = false,
         isMotionBlurEnabled: Bool = true,
         isTypewriterCursorVisible: Bool = true,
-        highlightColorHex: String = "#FDE047",
         motionEasing: TextMotionEasing = .smooth,
         graph: TextAnimationGraph? = nil
     ) {
@@ -82,12 +76,9 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         self.staggerDirection = staggerDirection
         self.staggerDelay = max(0.01, min(0.2, staggerDelay))
         self.anchorPoint = anchorPoint
-        self.rgbSplitIntensity = max(0.0, min(20.0, rgbSplitIntensity))
-        self.lightSweepIntensity = max(0.0, min(1.0, lightSweepIntensity))
         self.isMaskEnabled = isMaskEnabled
         self.isMotionBlurEnabled = isMotionBlurEnabled
         self.isTypewriterCursorVisible = isTypewriterCursorVisible
-        self.highlightColorHex = highlightColorHex
         self.motionEasing = motionEasing
         self.graph = graph
     }
@@ -96,8 +87,8 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         case scriptId, scriptDuration, scriptInDuration, scriptLoopDuration, scriptOutDuration
         case isScriptLoop, scriptSpeed, scriptIntensity, scopeOverride, isBeatSyncEnabled, beatBPM, beatBarMode
         case scope, staggerDirection, staggerDelay, anchorPoint
-        case rgbSplitIntensity, lightSweepIntensity, isMaskEnabled, isMotionBlurEnabled
-        case isTypewriterCursorVisible, highlightColorHex, motionEasing, graph
+        case isMaskEnabled, isMotionBlurEnabled
+        case isTypewriterCursorVisible, motionEasing, graph
     }
 
     private enum LegacyCodingKeys: String, CodingKey {
@@ -127,12 +118,9 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         self.staggerDirection = (try? c.decodeIfPresent(TextStaggerDirection.self, forKey: .staggerDirection)) ?? .forward
         self.staggerDelay = max(0.01, min(0.2, (try? c.decodeIfPresent(Double.self, forKey: .staggerDelay)) ?? 0.04))
         self.anchorPoint = (try? c.decodeIfPresent(TextAnchorPoint.self, forKey: .anchorPoint)) ?? .center
-        self.rgbSplitIntensity = max(0.0, min(20.0, (try? c.decodeIfPresent(Double.self, forKey: .rgbSplitIntensity)) ?? 0.0))
-        self.lightSweepIntensity = max(0.0, min(1.0, (try? c.decodeIfPresent(Double.self, forKey: .lightSweepIntensity)) ?? 0.0))
         self.isMaskEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .isMaskEnabled)) ?? false
         self.isMotionBlurEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .isMotionBlurEnabled)) ?? true
         self.isTypewriterCursorVisible = (try? c.decodeIfPresent(Bool.self, forKey: .isTypewriterCursorVisible)) ?? true
-        self.highlightColorHex = (try? c.decodeIfPresent(String.self, forKey: .highlightColorHex)) ?? "#FDE047"
         self.motionEasing = (try? c.decodeIfPresent(TextMotionEasing.self, forKey: .motionEasing)) ?? .smooth
         self.graph = try? c.decodeIfPresent(TextAnimationGraph.self, forKey: .graph)
     }
@@ -190,13 +178,13 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
     }
 
     public var isDefault: Bool {
-        graph == nil && !hasScriptAnimation && rgbSplitIntensity == 0.0 && lightSweepIntensity == 0.0 && !isMaskEnabled
+        graph == nil && !hasScriptAnimation && !isMaskEnabled
     }
 
     private static func migrateLegacyScriptId(from legacy: KeyedDecodingContainer<LegacyCodingKeys>?) -> String {
         guard let legacy else { return "none" }
         let comboRaw = (try? legacy.decodeIfPresent(String.self, forKey: .comboType)) ?? ""
-        if comboRaw == "Karaoke Box" || comboRaw == "Karaoke Glow" { return "typewriter_staccato" }
+        if comboRaw == "Karaoke Box" || comboRaw == "Karaoke Glow" { return "karaoke_glow_flow" }
 
         let inRaw = ((try? legacy.decodeIfPresent(String.self, forKey: .inType)) ?? "").lowercased()
         let loopRaw = ((try? legacy.decodeIfPresent(String.self, forKey: .loopType)) ?? "").lowercased()
@@ -209,14 +197,10 @@ public struct TextAnimationConfiguration: Codable, Sendable, Equatable, Hashable
         if inRaw.contains("fade") { return "fade_soft_glow" }
 
         if loopRaw.contains("wave") || loopRaw.contains("float") { return "title_wave_float" }
-        if loopRaw.contains("flicker") { return "neon_cyber_shift" }
-        if loopRaw.contains("breathe") { return "soft_breathe_cascade" }
-        if loopRaw.contains("pulse") || loopRaw.contains("bounce") { return "liquid_wave_pulse" }
 
         if outRaw.contains("fade") { return "fade_soft_glow" }
         if outRaw.contains("zoom") { return "pop_elastic_bounce" }
         if outRaw.contains("drop") { return "kinetic_drop_glow" }
-        if outRaw.contains("tv") { return "glitch_rgb_pop" }
         return "none"
     }
 

@@ -26,15 +26,17 @@ public struct TextAnimationTabContent: View {
         if anim.isBeatSyncEnabled, let detected = audioTempo.bpm {
             anim.beatBPM = detected
         }
-        let cycleSec = TextAnimationScriptRegistry.shared.script(for: anim.scriptId)?.loopCycleDuration ?? 1.0
+        let cycleSec = anim.graph?.loopCycleDuration
+            ?? TextAnimationScriptRegistry.shared.script(for: anim.scriptId)?.loopCycleDuration
+            ?? 1.0
         return anim.resolvedPhases(forClipDuration: clipDurationSeconds, baseCycleSeconds: cycleSec)
     }
 
     public var body: some View {
         TextScriptAnimationCardsGrid(
-            selectedScriptId: currentConfig.animation.scriptId,
+            selectedScriptId: currentConfig.animation.graph?.id ?? currentConfig.animation.scriptId,
             showBottomPanel: currentConfig.animation.hasScriptAnimation,
-            onSelectScript: selectScript,
+            onSelectItem: selectCatalogItem,
             onClearScript: clearScript
         ) {
             animationBottomBar
@@ -139,7 +141,9 @@ public struct TextAnimationTabContent: View {
             get: { currentConfig.animation.scriptSpeed },
             set: { val in
                 var cfg = currentConfig
-                let cycleSec = TextAnimationScriptRegistry.shared.script(for: cfg.animation.scriptId)?.loopCycleDuration ?? 1.0
+                let cycleSec = cfg.animation.graph?.loopCycleDuration
+                    ?? TextAnimationScriptRegistry.shared.script(for: cfg.animation.scriptId)?.loopCycleDuration
+                    ?? 1.0
                 cfg.animation.updateTimingForSpeed(val, clipDuration: clipDurationSeconds, baseCycleSeconds: cycleSec)
                 updateConfig(cfg, commit: false)
             }
@@ -220,13 +224,20 @@ public struct TextAnimationTabContent: View {
 
     // MARK: - Actions
 
-    private func selectScript(_ script: any TextAnimationScript) {
+    private func selectCatalogItem(_ item: TextAnimationCatalogItem) {
         var cfg = currentConfig
-        cfg.animation.scriptId = script.id
+        switch item {
+        case .script(let script):
+            cfg.animation.graph = nil
+            cfg.animation.scriptId = script.id
+        case .graph(let graph, _, _):
+            cfg.animation.graph = graph
+            cfg.animation.scriptId = graph.id
+        }
         if let detectedBPM = audioTempo.bpm {
             cfg.animation.beatBPM = detectedBPM
         }
-        cfg.animation.updateTimingForSpeed(1.0, clipDuration: clipDurationSeconds, baseCycleSeconds: script.loopCycleDuration)
+        cfg.animation.updateTimingForSpeed(1.0, clipDuration: clipDurationSeconds, baseCycleSeconds: item.loopCycleDuration)
         updateConfig(cfg, commit: true)
         viewModel.ensureAudioBeatsAnalyzedForSelectedClip()
 
@@ -237,6 +248,7 @@ public struct TextAnimationTabContent: View {
 
     private func clearScript() {
         var cfg = currentConfig
+        cfg.animation.graph = nil
         cfg.animation.scriptId = "none"
         cfg.animation.scopeOverride = nil
         updateConfig(cfg, commit: true)

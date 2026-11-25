@@ -10,7 +10,6 @@ public enum TextAnimationEvaluator {
         public var config: TextConfiguration
         public var blurRadius: Double
         public var pixelateScale: Double
-        public var rgbSplitIntensity: Double
         public var noiseIntensity: Double
         public var overlay: TextTransformOverlay
         /// Preserves evaluated graph channels (built-in & custom) for shaders and modular render plugins.
@@ -20,7 +19,6 @@ public enum TextAnimationEvaluator {
             config: TextConfiguration,
             blurRadius: Double = 0.0,
             pixelateScale: Double = 0.0,
-            rgbSplitIntensity: Double = 0.0,
             noiseIntensity: Double = 0.0,
             overlay: TextTransformOverlay = TextTransformOverlay(),
             animationParameters: TextAnimationParameterBag = TextAnimationParameterBag()
@@ -28,7 +26,6 @@ public enum TextAnimationEvaluator {
             self.config = config
             self.blurRadius = blurRadius
             self.pixelateScale = pixelateScale
-            self.rgbSplitIntensity = rgbSplitIntensity
             self.noiseIntensity = noiseIntensity
             self.overlay = overlay
             self.animationParameters = animationParameters
@@ -67,7 +64,6 @@ public enum TextAnimationEvaluator {
                 delta: delta,
                 baseConfig: config,
                 canvasSize: canvasSize,
-                t: t,
                 linearRevealProgress: mapped.linearRevealProgress,
                 animationParameters: mapped.parameters
             )
@@ -86,17 +82,12 @@ public enum TextAnimationEvaluator {
             )
         }
 
-        var overlay = TextTransformOverlay()
-        if anim.lightSweepIntensity > 0.01 {
-            overlay.lightSweepPhase = (t * max(0.2, anim.scriptSpeed) * 0.7).truncatingRemainder(dividingBy: 1.0)
-        }
         return EvaluationResult(
             config: config,
             blurRadius: 0.0,
             pixelateScale: 0.0,
-            rgbSplitIntensity: 0.0,
             noiseIntensity: config.noiseIntensity,
-            overlay: overlay
+            overlay: TextTransformOverlay()
         )
     }
 
@@ -118,19 +109,18 @@ public enum TextAnimationEvaluator {
         let phase = script.resolvePhase(anim: anim, localTime: t, duration: totalDuration)
         let rawDelta = script.evaluatePhase(base: baseConfig, phase: phase, unitIndex: effectiveIndex, unitTotal: charCount)
         let delta = scaleScriptDelta(rawDelta, intensity: anim.scriptIntensity)
-        return assembleScriptResult(delta: delta, baseConfig: baseConfig, canvasSize: canvasSize, t: t)
+        return assembleScriptResult(delta: delta, baseConfig: baseConfig, canvasSize: canvasSize)
     }
 
     private static func assembleScriptResult(
         delta: TextUnitDelta,
         baseConfig: TextConfiguration,
         canvasSize: CGSize,
-        t: Double,
         linearRevealProgress: Double = -1.0,
         animationParameters: TextAnimationParameterBag = TextAnimationParameterBag()
     ) -> EvaluationResult {
         var evaluated = baseConfig
-        var overlay = buildOverlay(from: delta, anim: baseConfig.animation, t: t)
+        var overlay = buildOverlay(from: delta, anim: baseConfig.animation)
         if linearRevealProgress >= 0.0 {
             overlay.revealProgress = max(0.0, min(1.0, linearRevealProgress))
         }
@@ -149,9 +139,6 @@ public enum TextAnimationEvaluator {
         evaluated.rotation += delta.rotation
         evaluated.opacity = max(0.0, min(1.0, evaluated.opacity * delta.opacity))
         if let anchorOverride = delta.anchorOverride { evaluated.animation.anchorPoint = anchorOverride }
-        if delta.glowIntensityDelta != 0.0, baseConfig.glow.isActive {
-            evaluated.glow.intensity = max(0.0, min(100.0, baseConfig.glow.intensity + delta.glowIntensityDelta))
-        }
         if delta.shadowDistanceDelta != 0.0, baseConfig.shadow.isActive {
             evaluated.shadow.distance = max(0.0, baseConfig.shadow.distance + delta.shadowDistanceDelta)
         }
@@ -161,17 +148,18 @@ public enum TextAnimationEvaluator {
             config: evaluated,
             blurRadius: max(0.0, delta.blurRadius),
             pixelateScale: delta.pixelateScale,
-            rgbSplitIntensity: 0.0,
             noiseIntensity: effectiveNoise,
             overlay: overlay,
             animationParameters: animationParameters
         )
     }
 
-    private static func buildOverlay(from delta: TextUnitDelta, anim: TextAnimationConfiguration, t: Double) -> TextTransformOverlay {
+    private static func buildOverlay(from delta: TextUnitDelta, anim: TextAnimationConfiguration) -> TextTransformOverlay {
         var overlay = TextTransformOverlay()
         overlay.rotationX = delta.rotationX
         overlay.rotationY = delta.rotationY
+        overlay.offsetZEm = delta.offsetZEm
+        overlay.anchorPoint = delta.anchorOverride ?? anim.anchorPoint
         overlay.trailingCursorOpacity = anim.isTypewriterCursorVisible ? delta.trailingCursorOpacity : 0.0
         overlay.waveAmplitudeEm = delta.waveAmplitudeEm
         overlay.waveFrequencyEm = delta.waveFrequencyEm
@@ -191,27 +179,19 @@ public enum TextAnimationEvaluator {
             overlay.motionBlurRadius = delta.motionBlurRadius
             overlay.motionBlurAngle = delta.motionBlurAngle
         }
-        overlay.sweepWidthRatio = delta.sweepWidthRatio
         overlay.liquidWavePhase = delta.liquidWavePhase
         overlay.liquidMorphIntensity = delta.liquidMorphIntensity
-        overlay.glitchSliceIntensity = delta.glitchSliceIntensity
-        overlay.glitchBlockIntensity = delta.glitchBlockIntensity
         overlay.dissolveProgress = delta.dissolveProgress
         overlay.dissolveAngleRadians = delta.dissolveAngleRadians
-        overlay.bloomIntensity = delta.bloomIntensity
         overlay.bevelDepth = delta.bevelDepth
         overlay.bevelLightAngle = delta.bevelLightAngle
         overlay.bevelExtrudeDepth = delta.bevelExtrudeDepth
         overlay.particleFieldProgress = delta.particleFieldProgress
         overlay.particleFieldAngle = delta.particleFieldAngle
-        overlay.volumetricRaysIntensity = delta.volumetricRaysIntensity
-        overlay.volumetricRaysOriginX = delta.volumetricRaysOriginX
-        overlay.volumetricRaysOriginY = delta.volumetricRaysOriginY
-        if delta.lightSweepPhase >= 0.0 {
-            overlay.lightSweepPhase = delta.lightSweepPhase
-        } else if anim.lightSweepIntensity > 0.01 {
-            overlay.lightSweepPhase = (t * max(0.2, anim.scriptSpeed) * 0.7).truncatingRemainder(dividingBy: 1.0)
-        }
+        overlay.meshWarpMode = delta.meshWarpMode
+        overlay.meshWarpAmount = delta.meshWarpAmount
+        overlay.meshWarpFrequency = delta.meshWarpFrequency
+        overlay.meshWarpPhase = delta.meshWarpPhase
         return overlay
     }
 
@@ -219,7 +199,7 @@ public enum TextAnimationEvaluator {
         let amp = max(0.2, min(2.0, intensity))
         guard abs(amp - 1.0) > 0.001 else { return d }
         return TextUnitDelta(
-            offsetX: d.offsetX * amp, offsetY: d.offsetY * amp,
+            offsetX: d.offsetX * amp, offsetY: d.offsetY * amp, offsetZEm: d.offsetZEm * amp,
             canvasOffsetXRatio: d.canvasOffsetXRatio, canvasOffsetYRatio: d.canvasOffsetYRatio,
             scaleX: max(0.02, 1.0 + (d.scaleX - 1.0) * amp), scaleY: max(0.02, 1.0 + (d.scaleY - 1.0) * amp),
             rotation: d.rotation * amp, rotationX: d.rotationX * amp, rotationY: d.rotationY * amp,
@@ -230,21 +210,20 @@ public enum TextAnimationEvaluator {
             strokeTrimProgress: d.strokeTrimProgress, scrambleStrength: d.scrambleStrength,
             trackingEmDelta: d.trackingEmDelta * amp, anchorOverride: d.anchorOverride,
             echoCount: d.echoCount, echoOffsetXEm: d.echoOffsetXEm * amp, echoOffsetYEm: d.echoOffsetYEm * amp,
-            glowIntensityDelta: d.glowIntensityDelta * amp, shadowDistanceDelta: d.shadowDistanceDelta * amp,
-            blurRadius: d.blurRadius * amp, glitchIntensity: d.glitchIntensity * amp, noiseIntensity: d.noiseIntensity * amp,
+            shadowDistanceDelta: d.shadowDistanceDelta * amp,
+            blurRadius: d.blurRadius * amp, noiseIntensity: d.noiseIntensity * amp,
             perspectiveX: max(-0.85, min(0.85, d.perspectiveX * amp)), perspectiveY: max(-0.85, min(0.85, d.perspectiveY * amp)),
             motionBlurRadius: d.motionBlurRadius * amp, motionBlurAngle: d.motionBlurAngle,
-            lightSweepPhase: d.lightSweepPhase, sweepWidthRatio: d.sweepWidthRatio,
             liquidWavePhase: d.liquidWavePhase, liquidMorphIntensity: d.liquidMorphIntensity * amp,
-            glitchSliceIntensity: d.glitchSliceIntensity * amp, glitchBlockIntensity: d.glitchBlockIntensity * amp,
             pixelateScale: d.pixelateScale > 1.0 ? 1.0 + (d.pixelateScale - 1.0) * amp : d.pixelateScale,
             dissolveProgress: d.dissolveProgress, dissolveAngleRadians: d.dissolveAngleRadians,
-            bloomIntensity: d.bloomIntensity * amp,
             bevelDepth: d.bevelDepth * amp, bevelLightAngle: d.bevelLightAngle,
             bevelExtrudeDepth: d.bevelExtrudeDepth * amp,
             particleFieldProgress: d.particleFieldProgress, particleFieldAngle: d.particleFieldAngle,
-            volumetricRaysIntensity: d.volumetricRaysIntensity * amp,
-            volumetricRaysOriginX: d.volumetricRaysOriginX, volumetricRaysOriginY: d.volumetricRaysOriginY
+            meshWarpMode: d.meshWarpMode,
+            meshWarpAmount: max(-2.0, min(2.0, d.meshWarpAmount * amp)),
+            meshWarpFrequency: d.meshWarpFrequency,
+            meshWarpPhase: d.meshWarpPhase
         )
     }
 

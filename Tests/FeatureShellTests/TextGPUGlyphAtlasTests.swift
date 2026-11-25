@@ -117,8 +117,8 @@ struct TextGPUGlyphAtlasTests {
                     uniforms: MetalEffectUniforms(time: 0.6, intensity: 0.85, width: w, height: h, p0: 8.0, p1: 1.0, p2: 0.0)
                 ),
                 MetalTransparentPass(
-                    kernelName: "metal_text_prism_sweep",
-                    uniforms: MetalEffectUniforms(progress: 0.5, intensity: 0.9, width: w, height: h, p0: 0.16, p1: 0.42)
+                    kernelName: "metal_text_directional_blur",
+                    uniforms: MetalEffectUniforms(width: w, height: h, p0: 12.0, p1: 0.0)
                 )
             ],
             on: raw,

@@ -64,23 +64,21 @@ struct TextSuperEngineFXTests {
             }
         }
 
-        // Legacy Karaoke Box / Glow must never inject yellow background boxes or recolor Appearance text.
+        // Karaoke Glow must preserve original Appearance orange color without color tinting.
         var multiWordOrange = TextConfiguration(content: "TWO WORDS", fontSize: 64, textColorHex: "#FF5500", isBold: true)
-        for legacyKaraoke in ["karaoke_box_pop", "karaoke_glow_flow"] {
-            multiWordOrange.animation = TextAnimationConfiguration(scriptId: legacyKaraoke)
-            if let img = engine.renderAnimatedImage(for: multiWordOrange, localTime: 1.35, duration: 5.0, canvasSize: canvasSize) {
-                assertPreservesWarmOrangeTone(img, label: "legacy \(legacyKaraoke)")
-            }
+        multiWordOrange.animation = TextAnimationConfiguration(scriptId: "karaoke_glow_flow")
+        if let img = engine.renderAnimatedImage(for: multiWordOrange, localTime: 1.35, duration: 5.0, canvasSize: canvasSize) {
+            assertPreservesWarmOrangeTone(img, label: "karaoke_glow_flow")
         }
     }
 
-    @Test("GPU Particle Scatter, Volumetric Rays, and Audio Beat Kinetic graphs render cleanly")
+    @Test("GPU Particle Scatter, 3D Bevel Sculpt, and Audio Beat Kinetic graphs render cleanly")
     func testAllSuperGraphPresetsAndAudioBeatPulse() {
         let metal = MetalComputeRuntimeEngine.shared
         guard metal.isAvailable else { return }
 
         let engine = TextRendererEngine()
-        #expect(TextAnimationGraphLibrary.allGraphs.count == 4)
+        #expect(TextAnimationGraphLibrary.allGraphs.count == 21)
         for graph in TextAnimationGraphLibrary.allGraphs {
             let cfg = TextConfiguration(
                 content: "SUPER ENGINE",
@@ -111,6 +109,29 @@ struct TextSuperEngineFXTests {
         #expect(quiet != nil && hit != nil)
         if let quiet, let hit {
             #expect(imageDifference(quiet, hit) > 0.005)
+        }
+    }
+
+    @Test("Metal mesh warp kernel compiles and renders bend and wave ribbon visibly while keeping colors")
+    func testMetalMeshWarpKernelAndPresets() {
+        let metal = MetalComputeRuntimeEngine.shared
+        guard metal.isAvailable else { return }
+        #expect(metal.hasCompiledKernel(named: "metal_text_mesh_warp"))
+
+        let engine = TextRendererEngine()
+        let plain = engine.renderImage(
+            for: TextConfiguration(content: "WARP", fontSize: 72, textColorHex: "#FFFFFF", isBold: true),
+            canvasSize: canvasSize
+        )
+        let waveCfg = TextConfiguration(
+            content: "WARP", fontSize: 72, textColorHex: "#FFFFFF", isBold: true,
+            animation: TextAnimationConfiguration(graph: TextAnimationGraphLibrary.flagMeshFlutter)
+        )
+        let waveImg = engine.renderAnimatedImage(for: waveCfg, localTime: 1.25, duration: 5.0, canvasSize: canvasSize)
+        #expect(plain != nil && waveImg != nil)
+        if let plain, let waveImg {
+            #expect(waveImg.extent.size == canvasSize)
+            #expect(imageDifference(plain, waveImg) > 0.003)
         }
     }
 

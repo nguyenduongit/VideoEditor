@@ -60,8 +60,7 @@ public final class TextRendererEngine: Sendable {
         if config.background.isEnabled && config.background.sourceKind == .animatedAsset {
             return false
         }
-        let anim = config.animation
-        return !anim.hasScriptAnimation && anim.lightSweepIntensity <= 0.01 && anim.rgbSplitIntensity <= 0.01
+        return !config.animation.hasScriptAnimation
     }
 
     private func renderDynamicComposite(
@@ -88,7 +87,7 @@ public final class TextRendererEngine: Sendable {
                 canvasSize: canvasSize,
                 animationInputs: animationInputs
             )
-        } else if let rawText = renderImage(
+        } else if let wholeBlock = renderWholeBlockImage(
             for: evaluated.config,
             canvasSize: canvasSize,
             overlay: evaluated.overlay,
@@ -103,12 +102,10 @@ public final class TextRendererEngine: Sendable {
                 canvasSize: canvasSize
             )
             textImage = TextShaderFilterEngine.applyFilters(
-                to: rawText,
+                to: wholeBlock.image,
                 blurRadius: totalBlur,
                 pixelateScale: evaluated.pixelateScale,
-                rgbSplitIntensity: 0.0,
                 overlay: evaluated.overlay,
-                lightSweepIntensity: config.animation.lightSweepIntensity,
                 shadow: evaluated.config.shadow,
                 glow: evaluated.config.glow,
                 noiseIntensity: totalNoise,
@@ -116,7 +113,7 @@ public final class TextRendererEngine: Sendable {
                 animationParameters: evaluated.animationParameters,
                 renderPlugins: renderPlugins,
                 pluginContext: pluginCtx,
-                skipStages: [.sdfMaterial]
+                skipStages: wholeBlock.handledStages
             )
         } else {
             textImage = nil
@@ -177,14 +174,27 @@ public final class TextRendererEngine: Sendable {
         localTime: Double = 0.0,
         duration: Double = 4.0
     ) -> CIImage? {
+        renderWholeBlockImage(
+            for: config, canvasSize: canvasSize, overlay: overlay,
+            localTime: localTime, duration: duration
+        )?.image
+    }
+
+    internal func renderWholeBlockImage(
+        for config: TextConfiguration,
+        canvasSize: CGSize,
+        overlay: TextTransformOverlay = TextTransformOverlay(),
+        localTime: Double = 0.0,
+        duration: Double = 4.0
+    ) -> (image: CIImage, handledStages: TextShaderFilterEngine.AppliedStagesMask)? {
         guard !config.content.isEmpty, canvasSize.width > 0, canvasSize.height > 0 else { return nil }
         #if os(macOS)
         let font = resolveFont(name: config.fontName, size: CGFloat(config.fontSize), isBold: config.isBold, isItalic: config.isItalic)
-        if let gpuImage = TextGPUGlyphRenderer.renderWholeBlock(
+        if let gpuResult = TextGPUGlyphRenderer.renderWholeBlockResult(
             config: config, overlay: overlay, canvasSize: canvasSize, font: font,
             atlasCache: glyphAtlasCache, localTime: localTime
         ) {
-            return gpuImage
+            return gpuResult
         }
         #endif
 
@@ -198,7 +208,7 @@ public final class TextRendererEngine: Sendable {
 
         guard let cgImage = context.makeImage() else { return nil }
         let ciImage = CIImage(cgImage: cgImage)
-        return TextSVGAndAssetCache.applyPremultipliedOpacity(config.opacity, to: ciImage)
+        return (TextSVGAndAssetCache.applyPremultipliedOpacity(config.opacity, to: ciImage), [])
     }
 
     internal func createBitmapContext(width: Int, height: Int) -> CGContext? {
@@ -231,14 +241,13 @@ public final class TextRendererEngine: Sendable {
         let textHeight = max(1.0, layout.bounds.height)
         let cx = canvasSize.width / 2.0 + CGFloat(config.positionX)
         let cy = canvasSize.height / 2.0 - CGFloat(config.positionY)
-        let pivotY: CGFloat = switch config.animation.anchorPoint {
-        case .center: 0.0
-        case .bottom: -textHeight / 2.0
-        case .top: textHeight / 2.0
-        }
+        let pivot = TextUnitPivotHelper.pivotOffset(
+            for: overlay.anchorPoint, width: textWidth, height: textHeight
+        )
+        let depthScale = TextGPUSegmentedDepthSorter.perspectiveDepthScale(offsetZEm: overlay.offsetZEm)
 
         context.saveGState()
-        context.translateBy(x: cx, y: cy + pivotY)
+        context.translateBy(x: cx + pivot.x, y: cy + pivot.y)
         let maxSafeW = CGFloat(TextAutoFitter.maxSafeWidth(for: canvasSize))
         if textWidth > maxSafeW && textWidth > 0 {
             let safeguardScale = maxSafeW / textWidth
@@ -250,9 +259,10 @@ public final class TextRendererEngine: Sendable {
         if abs(totalSkewX) > 0.001 || abs(totalSkewY) > 0.001 {
             context.concatenate(CGAffineTransform(a: 1, b: CGFloat(totalSkewY), c: CGFloat(totalSkewX), d: 1, tx: 0, ty: 0))
         }
-        let sx = CGFloat(max(0.01, config.scale * overlay.scaleX)), sy = CGFloat(max(0.01, config.scale * overlay.scaleY))
+        let sx = CGFloat(max(0.01, config.scale * overlay.scaleX)) * depthScale
+        let sy = CGFloat(max(0.01, config.scale * overlay.scaleY)) * depthScale
         if abs(sx - 1.0) > 0.001 || abs(sy - 1.0) > 0.001 { context.scaleBy(x: sx, y: sy) }
-        context.translateBy(x: 0, y: -pivotY)
+        context.translateBy(x: -pivot.x, y: -pivot.y)
 
         if config.animation.isMaskEnabled { context.clip(to: layout.bounds.insetBy(dx: -20.0, dy: -12.0)) }
         if overlay.clipRevealX < 0.999 || overlay.clipRevealY < 0.999 {

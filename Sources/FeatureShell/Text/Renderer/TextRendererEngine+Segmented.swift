@@ -121,8 +121,7 @@ extension TextRendererEngine {
         return TextShaderFilterEngine.applyFilters(
             to: ciImage, blurRadius: config.blurRadius,
             pixelateScale: globalEval.pixelateScale,
-            rgbSplitIntensity: 0.0,
-            overlay: blockOverlay, lightSweepIntensity: config.animation.lightSweepIntensity,
+            overlay: blockOverlay,
             shadow: globalEval.config.shadow, glow: globalEval.config.glow,
             noiseIntensity: max(globalEval.noiseIntensity, config.noiseIntensity),
             localTime: localTime, animationParameters: globalEval.animationParameters,

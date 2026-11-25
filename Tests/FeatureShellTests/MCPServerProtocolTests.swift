@@ -175,8 +175,9 @@ struct MCPServerProtocolTests {
         #expect(script2 == "typewriter_cursor")
 
         let script3 = MCPTextPropertyResolver.resolveScriptId("neon pulse")
-        #expect(script3 == "neon_cyber_shift")
+        #expect(script3 == "beat_pulse_slam")
 
+        #expect(MCPTextPropertyResolver.resolveScriptId("glitch") == "slide_right_right")
         #expect(MCPTextPropertyResolver.resolveScriptId("slide up") == "slide_up_up")
         #expect(MCPTextPropertyResolver.resolveScriptId("slide up down") == "slide_up_down")
         #expect(MCPTextPropertyResolver.resolveScriptId("slide left right") == "slide_left_right")
@@ -219,5 +220,54 @@ struct MCPServerProtocolTests {
         #expect(cfg?.hasBackground == true)
         #expect(cfg?.animation.scriptId == "slide_right_right")
         #expect(cfg?.animation.scriptSpeed == 1.2)
+    }
+
+    @Test func testMCPApplyTemplateSupportsGraphPresetsAndInlineGraph() async throws {
+        let vm = TimelineViewModel(initialLayers: [])
+        let engine = TimelineScriptEngine(viewModel: vm)
+        let dispatcher = MCPTimelineToolDispatcher(scriptEngine: engine)
+
+        let argsPreset = """
+        {
+          "kind": "text",
+          "customText": "Door Open",
+          "animationScript": "graph_door_hinge_3d",
+          "animationSpeed": 1.0
+        }
+        """
+        let res1 = try await dispatcher.handleToolCallAsync(toolName: "timeline_apply_template", argumentsJSON: argsPreset)
+        #expect(res1.contains("\"status\":\"success\""))
+
+        let clip1 = vm.layers.flatMap(\.clips).first(where: { $0.kind == .text })
+        let cfg1 = TextConfiguration.decode(from: clip1?.properties["textConfig"]?.asString ?? "")
+        #expect(cfg1?.animation.graph?.id == "graph_door_hinge_3d")
+        #expect(cfg1?.animation.scriptId == "graph_door_hinge_3d")
+
+        let argsInline = """
+        {
+          "kind": "text",
+          "updateExisting": true,
+          "customText": "Inline Graph",
+          "animationGraph": {
+            "id": "custom_mcp_graph",
+            "name": "Custom MCP",
+            "scope": "Per Word",
+            "layers": [{
+              "name": "Base",
+              "tracks": [{
+                "channel": "transform.rotation",
+                "phase": "loop",
+                "signal": { "oscillator": { "waveform": "sine", "frequency": 1.0, "amplitude": 15.0, "phase": 0.0, "offset": 0.0, "pulseWidth": 0.5, "time": "loopProgress" } }
+              }]
+            }]
+          }
+        }
+        """
+        let res2 = try await dispatcher.handleToolCallAsync(toolName: "timeline_apply_template", argumentsJSON: argsInline)
+        #expect(res2.contains("\"status\":\"success\""))
+        let clip2 = vm.layers.flatMap(\.clips).first(where: { $0.kind == .text })
+        let cfg2 = TextConfiguration.decode(from: clip2?.properties["textConfig"]?.asString ?? "")
+        #expect(cfg2?.animation.graph?.id == "custom_mcp_graph")
+        #expect(cfg2?.animation.graph?.tracks.count == 1)
     }
 }

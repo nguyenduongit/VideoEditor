@@ -47,28 +47,28 @@ enum TextAnimationGraphMapper {
             baseCycleSeconds: graph.loopCycleDuration
         )
         let loopEnd = phases.inDuration + phases.loopDuration
+        let effectiveCycle = phases.loopDuration > 0.0001
+            ? phases.loopDuration / Double(max(1, phases.cycleCount))
+            : max(0.05, phases.cycleDuration)
+        let rawCycles = (t - phases.inDuration) / max(0.05, effectiveCycle)
+        let loopProgress = rawCycles - floor(rawCycles)
         let phase: TextAnimationGraphPhase
         let phaseProgress: Double
-        let loopProgress: Double
         let phaseDuration: Double
 
         if phases.inDuration > 0.0001 && t < phases.inDuration {
             phase = .intro
             phaseProgress = t / phases.inDuration
-            loopProgress = 0.0
             phaseDuration = phases.inDuration
         } else if phases.loopDuration > 0.0001 && t < loopEnd {
             phase = .loop
             let loopElapsed = max(0.0, t - phases.inDuration)
             phaseProgress = loopElapsed / phases.loopDuration
-            let cycles = Double(max(1, phases.cycleCount)) * phaseProgress
-            loopProgress = cycles - floor(cycles)
             phaseDuration = phases.cycleDuration
         } else {
             phase = .outro
             phaseDuration = max(0.0001, phases.outDuration)
             phaseProgress = max(0.0, min(1.0, (t - loopEnd) / phaseDuration))
-            loopProgress = 0.0
         }
 
         let seed = graph.id.utf8.reduce(UInt64(1469598103934665603)) { ($0 ^ UInt64($1)) &* 1099511628211 }
@@ -84,7 +84,8 @@ enum TextAnimationGraphMapper {
             unitCount: unitCount,
             randomSeed: seed,
             externalInputs: externalInputs,
-            staggerDirectionOverride: overrideDir
+            staggerDirectionOverride: overrideDir,
+            isSeamlessLifecycle: true
         )
     }
 
@@ -109,10 +110,11 @@ enum TextAnimationGraphMapper {
         echoY: Double
     ) -> TextUnitDelta {
         let maskMode = resolveMaskShape(from: bag)
-        let anchor = bag.stringValue(for: TextAnimationChannel.anchor).flatMap(TextAnchorPoint.init(rawValue:))
+        let anchor = resolveAnchor(from: bag)
         return TextUnitDelta(
             offsetX: bag.firstValue(forKeys: [TextAnimationChannel.positionX, "transform.x"]),
             offsetY: bag.firstValue(forKeys: [TextAnimationChannel.positionY, "transform.y"]),
+            offsetZEm: bag[TextAnimationChannel.positionZ] ?? 0.0,
             canvasOffsetXRatio: bag[TextAnimationChannel.canvasOffsetX] ?? 0.0,
             canvasOffsetYRatio: bag[TextAnimationChannel.canvasOffsetY] ?? 0.0,
             scaleX: bag.firstValue(forKeys: [TextAnimationChannel.scaleX, "transform.scaleX"], default: 1.0),
@@ -137,34 +139,49 @@ enum TextAnimationGraphMapper {
             echoCount: echoCount,
             echoOffsetXEm: echoX,
             echoOffsetYEm: echoY,
-            glowIntensityDelta: bag[TextAnimationChannel.glowIntensity] ?? 0.0,
             shadowDistanceDelta: bag[TextAnimationChannel.shadowDistance] ?? 0.0,
             blurRadius: bag[TextAnimationChannel.blurRadius] ?? 0.0,
-            glitchIntensity: bag[TextAnimationChannel.glitchIntensity] ?? 0.0,
             noiseIntensity: bag[TextAnimationChannel.noiseIntensity] ?? 0.0,
             perspectiveX: bag[TextAnimationChannel.perspectiveX] ?? 0.0,
             perspectiveY: bag[TextAnimationChannel.perspectiveY] ?? 0.0,
             motionBlurRadius: bag[TextAnimationChannel.motionBlurRadius] ?? 0.0,
             motionBlurAngle: bag[TextAnimationChannel.motionBlurAngle] ?? 0.0,
-            lightSweepPhase: bag[TextAnimationChannel.lightSweepPhase] ?? -1.0,
-            sweepWidthRatio: bag[TextAnimationChannel.lightSweepWidth] ?? 0.16,
             liquidWavePhase: bag[TextAnimationChannel.liquidPhase] ?? -1.0,
             liquidMorphIntensity: bag[TextAnimationChannel.liquidAmount] ?? 0.0,
-            glitchSliceIntensity: bag[TextAnimationChannel.glitchSlice] ?? 0.0,
-            glitchBlockIntensity: bag[TextAnimationChannel.glitchBlock] ?? 0.0,
             pixelateScale: bag[TextAnimationChannel.pixelateScale] ?? 0.0,
             dissolveProgress: bag[TextAnimationChannel.dissolveProgress] ?? 0.0,
             dissolveAngleRadians: bag[TextAnimationChannel.dissolveAngle] ?? -0.75,
-            bloomIntensity: bag[TextAnimationChannel.bloomIntensity] ?? 0.0,
             bevelDepth: bag[TextAnimationChannel.bevelDepth] ?? 0.0,
             bevelLightAngle: bag[TextAnimationChannel.bevelLightAngle] ?? 0.75,
             bevelExtrudeDepth: bag[TextAnimationChannel.bevelExtrudeDepth] ?? 0.0,
             particleFieldProgress: bag[TextAnimationChannel.particleFieldProgress] ?? 0.0,
             particleFieldAngle: bag[TextAnimationChannel.particleFieldAngle] ?? -0.60,
-            volumetricRaysIntensity: bag[TextAnimationChannel.volumetricRaysIntensity] ?? 0.0,
-            volumetricRaysOriginX: bag[TextAnimationChannel.volumetricRaysOriginX] ?? 0.5,
-            volumetricRaysOriginY: bag[TextAnimationChannel.volumetricRaysOriginY] ?? 0.65
+            meshWarpMode: resolveMeshWarpMode(from: bag),
+            meshWarpAmount: bag[TextAnimationChannel.meshWarpAmount] ?? 0.0,
+            meshWarpFrequency: bag[TextAnimationChannel.meshWarpFrequency] ?? 1.5,
+            meshWarpPhase: bag[TextAnimationChannel.meshWarpPhase] ?? 0.0
         )
+    }
+
+    private static func resolveAnchor(from bag: TextAnimationParameterBag) -> TextAnchorPoint? {
+        let named = bag.stringValue(for: TextAnimationChannel.anchor).flatMap(TextAnchorPoint.init(rawValue:))
+        let ax = bag[TextAnimationChannel.anchorX]
+        let ay = bag[TextAnimationChannel.anchorY]
+        if ax != nil || ay != nil {
+            let base = named ?? .center
+            return TextAnchorPoint(x: ax ?? base.x, y: ay ?? base.y)
+        }
+        return named
+    }
+
+    private static func resolveMeshWarpMode(from bag: TextAnimationParameterBag) -> TextMeshWarpMode {
+        if let raw = bag.stringValue(for: TextAnimationChannel.meshWarpMode),
+           let mode = TextMeshWarpMode(rawValue: raw) {
+            return mode
+        }
+        guard let numeric = bag[TextAnimationChannel.meshWarpMode] else { return .none }
+        let idx = max(0, min(TextMeshWarpMode.allCases.count - 1, Int(numeric.rounded())))
+        return TextMeshWarpMode.allCases[idx]
     }
 
     private static func resolveMaskShape(from bag: TextAnimationParameterBag) -> TextMaskShapeMode {

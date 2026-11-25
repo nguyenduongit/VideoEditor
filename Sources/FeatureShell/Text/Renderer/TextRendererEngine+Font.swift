@@ -85,7 +85,8 @@ extension TextRendererEngine {
                     let ctx = TextAnimationGraphContext(
                         phase: phase, globalProgress: gProg, phaseProgress: p, loopProgress: p,
                         elapsedSeconds: totalDur * gProg, phaseDuration: max(0.2, totalDur / 3.0),
-                        unitIndex: uIdx, unitCount: rawUnits, randomSeed: seed, staggerDirectionOverride: overrideDir
+                        unitIndex: uIdx, unitCount: rawUnits, randomSeed: seed,
+                        staggerDirectionOverride: overrideDir, isSeamlessLifecycle: true
                     )
                     let d = TextAnimationGraphMapper.unitDelta(from: graph.evaluate(in: ctx))
                     guard d.opacity > 0.10 else { continue }

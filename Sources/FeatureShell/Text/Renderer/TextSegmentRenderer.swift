@@ -170,6 +170,8 @@ public enum TextSegmentRenderer: Sendable {
         let tokenLineHeight = max(16.0, font.pointSize * 1.24)
         var appliedMask: TextShaderFilterEngine.AppliedStagesMask = []
 
+        var depthEntries: [TextGPUSegmentedDepthSorter.DepthEntry] = []
+
         for (orderIndex, tokenIdx) in visibleIndices.enumerated() {
             let token = tokens[tokenIdx]
             var evaluated = evaluateTokenConfig(
@@ -192,16 +194,25 @@ public enum TextSegmentRenderer: Sendable {
                 evaluated: &evaluated, baseConfig: baseConfig, tokenCenter: startX + token.relativeX + token.width / 2.0,
                 tokenRelativeY: token.relativeY, totalWidth: -startX * 2.0, orderIndex: orderIndex, visibleCount: visibleCount
             )
-            let tokenMask = TextTokenFXRenderer.perTokenStages(evaluated: evaluated, baseConfig: baseConfig, plugins: renderPlugins)
+            let depthZ = TextGPUSegmentedDepthSorter.effectiveDepthZ(evaluated: evaluated, curveCenter: curvePt, baseConfig: baseConfig)
+            let depthScale = TextGPUSegmentedDepthSorter.perspectiveDepthScale(offsetZEm: evaluated.overlay.offsetZEm)
+            depthEntries.append(TextGPUSegmentedDepthSorter.DepthEntry(
+                orderIndex: orderIndex, tokenIndex: tokenIdx, evaluated: evaluated,
+                curveCenter: curvePt, depthZ: depthZ, depthScale: depthScale
+            ))
+        }
+
+        for item in TextGPUSegmentedDepthSorter.sortedBackToFront(depthEntries) {
+            let tokenMask = TextTokenFXRenderer.perTokenStages(evaluated: item.evaluated, baseConfig: baseConfig, plugins: renderPlugins)
             appliedMask.formUnion(tokenMask)
             let pluginCtx = TextAnimationRenderPluginContext(
                 localTime: localTime, duration: duration, canvasSize: canvasSize,
-                unitIndex: orderIndex, unitCount: visibleCount
+                unitIndex: item.orderIndex, unitCount: visibleCount
             )
             drawSingleToken(
-                evaluated, baseMask: tokenMask, font: font, center: curvePt,
-                tokenWidth: token.width, totalHeight: tokenLineHeight,
-                localTime: localTime, pluginContext: pluginCtx, renderPlugins: renderPlugins,
+                item.evaluated, baseMask: tokenMask, font: font, center: item.curveCenter,
+                tokenWidth: tokens[item.tokenIndex].width, totalHeight: tokenLineHeight,
+                depthScale: item.depthScale, localTime: localTime, pluginContext: pluginCtx, renderPlugins: renderPlugins,
                 blockRotationDegrees: baseConfig.rotation, in: context
             )
         }
@@ -243,6 +254,7 @@ public enum TextSegmentRenderer: Sendable {
         center: CGPoint,
         tokenWidth: CGFloat,
         totalHeight: CGFloat,
+        depthScale: CGFloat = 1.0,
         localTime: Double,
         pluginContext: TextAnimationRenderPluginContext,
         renderPlugins: TextAnimationRenderPluginPipeline,
@@ -252,7 +264,7 @@ public enum TextSegmentRenderer: Sendable {
         let config = evaluated.config
         let overlay = evaluated.overlay
         context.saveGState()
-        applyTokenTransform(config, overlay: overlay, center: center, totalHeight: totalHeight, in: context)
+        applyTokenTransform(config, overlay: overlay, center: center, tokenWidth: tokenWidth, totalHeight: totalHeight, depthScale: depthScale, in: context)
 
         if config.opacity > 0.005 {
             if !baseMask.isEmpty {

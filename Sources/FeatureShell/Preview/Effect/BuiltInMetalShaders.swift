@@ -46,11 +46,11 @@ public enum BuiltInMetalShaders {
             "metal_transition_light_leak", "metal_transition_geometric_wipe",
             "metal_grading_hsl", "metal_grading_wheels",
             "metal_grading_rgb_curves", "metal_grading_film_grain"
-        ] + creativeEffectsKernelNames + natureParticlesKernelNames + textFXKernelNames + textSDFKernelNames + textSuperFXKernelNames
+        ] + creativeEffectsKernelNames + natureParticlesKernelNames + textFXKernelNames + textSDFKernelNames + textSuperFXKernelNames + textMeshWarpKernelNames
     }
 
     public static var librarySource: String {
-        effectLibrarySource + "\n" + transitionLibrarySource + "\n" + gradingLibrarySource + "\n" + creativeEffectsSource + "\n" + natureParticlesSource + "\n" + textFXSource + "\n" + textDissolveSource + "\n" + textSDFSource + "\n" + textSuperFXSource
+        effectLibrarySource + "\n" + transitionLibrarySource + "\n" + gradingLibrarySource + "\n" + creativeEffectsSource + "\n" + natureParticlesSource + "\n" + textFXSource + "\n" + textDissolveSource + "\n" + textSDFSource + "\n" + textSuperFXSource + "\n" + textMeshWarpSource
     }
 
     public static let effectLibrarySource: String = """

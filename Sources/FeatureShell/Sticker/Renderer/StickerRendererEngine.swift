@@ -311,8 +311,8 @@ public final class StickerRendererEngine: Sendable {
             result = compositeEchoTrails(primary: result, evaluated: evaluated)
         }
         if evaluated.glitchIntensity > 0.01 {
-            let split = TextShaderFilterEngine.applyRGBSplit(to: result, offset: evaluated.glitchIntensity * 6.0)
-            result = TextShaderFilterEngine.applyGlitchSlices(to: split, intensity: evaluated.glitchIntensity * 0.45)
+            let split = StickerGlitchFilterHelper.applyRGBSplit(to: result, offset: evaluated.glitchIntensity * 6.0)
+            result = StickerGlitchFilterHelper.applyGlitchSlices(to: split, intensity: evaluated.glitchIntensity * 0.45)
         }
         if evaluated.blurRadius > 0.05 {
             let pad = CGFloat(min(40.0, evaluated.blurRadius * 2.0))

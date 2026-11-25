@@ -144,19 +144,8 @@ struct TextSlideEightDirectionsTests {
         }
     }
 
-    @Test("Legacy Slide IDs and old In-type JSON decode safely to new 8-direction Slide scripts")
+    @Test("Old In-type Slide JSON decodes safely to 8-direction Slide scripts while removed glitch IDs fallback to none")
     func testLegacySlideAliasesAndJSONMigration() throws {
-        let legacySlideIDs = [
-            "smooth_word_glide", "line_cascade_rise", "trailer_tracking_expand",
-            "whip_echo_slam", "anamorphic_split_reveal",
-            "slide_directional_whip", "slide_zipper_cross", "vhs_tracking_drift"
-        ]
-        for legacyID in legacySlideIDs {
-            let resolved = TextAnimationScriptRegistry.shared.script(for: legacyID)
-            #expect(resolved != nil, "Missing alias for \(legacyID)")
-            #expect(resolved?.category == .slide, "Legacy \(legacyID) must resolve into .slide")
-        }
-
         let oldProjectJSON = """
         {
             "content": "Old Slide",
@@ -165,6 +154,16 @@ struct TextSlideEightDirectionsTests {
         """
         let decoded = try #require(TextConfiguration.decode(from: oldProjectJSON))
         #expect(decoded.animation.scriptId == "slide_up_up")
+
+        let legacyGlitchJSON = """
+        {
+            "content": "Old TV Glitch",
+            "animation": { "outType": "TVGlitch" }
+        }
+        """
+        let decodedGlitch = try #require(TextConfiguration.decode(from: legacyGlitchJSON))
+        #expect(decodedGlitch.animation.scriptId == "none")
+        #expect(TextAnimationScriptRegistry.shared.script(for: "vhs_tracking_drift") == nil)
     }
 
     @Test("Hover preview starts immediately at Intro t=0 and renders distinct frames for all 8 Slide scripts")

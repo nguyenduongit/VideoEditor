@@ -9,10 +9,9 @@ public enum TextAnimationCategory: String, CaseIterable, Codable, Sendable, Equa
     case typewriter = "Typewriter"
     case threeD = "3D"
 
-    // Legacy static aliases preserving backward compatibility
+    // Legacy static aliases preserving backward compatibility for motion categories
     public static let title: Self = .wave, sub: Self = .slide, music: Self = .wave
     public static let kinetic: Self = .pop, cinematic: Self = .slide, editorial: Self = .typewriter
-    public static let glitch: Self = .pop, lightFX: Self = .fade
 
     public var displayName: String { rawValue }
 
@@ -28,10 +27,6 @@ public enum TextAnimationCategory: String, CaseIterable, Codable, Sendable, Equa
         let raw = (try? container.decode(String.self)) ?? ""
         if let exact = Self(rawValue: raw) {
             self = exact
-        } else if raw.caseInsensitiveCompare("Glitch") == .orderedSame {
-            self = .pop
-        } else if raw.caseInsensitiveCompare("Light FX") == .orderedSame {
-            self = .fade
         } else {
             self = .fade
         }
@@ -147,17 +142,17 @@ public struct TitleWaveFloatScript: TextAnimationScript {
             return evaluateIntro(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
         case .loop(_, let cycleProgress):
             let w = waveState(cycleProgress: cycleProgress, em: em, unitIndex: unitIndex)
-            return TextUnitDelta(offsetY: w.y, scaleX: w.sx, scaleY: w.sy, rotation: w.rot, opacity: 1.0, glowIntensityDelta: w.glow)
+            return TextUnitDelta(offsetY: w.y, scaleX: w.sx, scaleY: w.sy, rotation: w.rot, opacity: 1.0)
         case .outro(let progress):
             return evaluateOutro(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
         }
     }
 
-    private func waveState(cycleProgress: Double, em: Double, unitIndex: Int) -> (y: Double, sx: Double, sy: Double, rot: Double, glow: Double) {
+    private func waveState(cycleProgress: Double, em: Double, unitIndex: Int) -> (y: Double, sx: Double, sy: Double, rot: Double) {
         let angle = cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.55
         let s = sin(angle)
         let c = cos(angle)
-        return (-s * (0.20 * em), 1.0 - s * 0.05, 1.0 + s * 0.06, c * 3.5, max(0.0, s) * 18.0)
+        return (-s * (0.20 * em), 1.0 - s * 0.05, 1.0 + s * 0.06, c * 3.5)
     }
 
     private func evaluateIntro(progress: Double, em: Double, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
@@ -172,7 +167,7 @@ public struct TitleWaveFloatScript: TextAnimationScript {
             offsetX: -rem * (1.6 * em), offsetY: rem * (-1.2 * em) + ease * w.y,
             scaleX: rem * 0.55 + ease * w.sx, scaleY: rem * 0.55 + ease * w.sy,
             rotation: -rem * 16.0 + ease * w.rot, opacity: min(1.0, localP * 2.0),
-            glowIntensityDelta: ease * w.glow, blurRadius: rem * (0.08 * em)
+            blurRadius: rem * (0.08 * em)
         )
     }
 
@@ -187,7 +182,7 @@ public struct TitleWaveFloatScript: TextAnimationScript {
             offsetX: outEase * (1.6 * em), offsetY: stay * w.y + outEase * (-1.2 * em),
             scaleX: stay * w.sx + outEase * 0.55, scaleY: stay * w.sy + outEase * 0.55,
             rotation: stay * w.rot + outEase * 16.0, opacity: max(0.0, 1.0 - outEase),
-            glowIntensityDelta: stay * w.glow, blurRadius: outEase * (0.08 * em)
+            blurRadius: outEase * (0.08 * em)
         )
     }
 }
@@ -201,12 +196,12 @@ public final class TextAnimationScriptRegistry: Sendable {
 
     public init() {
         var activeList: [any TextAnimationScript] = [
-            // Fade (6)
+            // Fade (7)
             SoftGlowFadeScript(), CinematicDissolveScript(), BlurFocusDissolveScript(),
             CurtainBaselineRiseScript(), DiagonalSlashRevealScript(), PixelizeDissolveScript(),
             CenterSplitRevealScript()
         ]
-        // Slide (8 directional variants replacing legacy Slide presets)
+        // Slide (8 directional variants)
         activeList.append(contentsOf: DirectionalSlideScript.allEightVariants)
         let remainingScripts: [any TextAnimationScript] = [
             // Pop (5)
@@ -227,45 +222,6 @@ public final class TextAnimationScriptRegistry: Sendable {
 
         var map: [String: any TextAnimationScript] = [:]
         for item in activeList { map[item.id] = item }
-        // Legacy aliases guaranteeing backward compatibility for saved projects without color-changing animations
-        map["soft_breathe_cascade"] = map["blur_focus_dissolve"]
-        map["shutter_blind_reveal"] = map["fade_diagonal_slash"]
-        map["smooth_word_glide"] = map["slide_right_right"]
-        map["line_cascade_rise"] = map["slide_up_up"]
-        map["trailer_tracking_expand"] = map["slide_left_left"]
-        map["whip_echo_slam"] = map["slide_right_right"]
-        map["anamorphic_split_reveal"] = map["slide_up_down"]
-        map["slide_directional_whip"] = map["slide_right_right"]
-        map["slide_zipper_cross"] = map["slide_left_right"]
-        map["neon_cyber_shift"] = map["pop_elastic_bounce"]
-        map["wave_cascade_flow"] = map["title_wave_float"]
-        map["liquid_wave_pulse"] = map["title_wave_float"]
-        map["curved_arc_roller"] = map["title_wave_float"]
-        map["jelly_trampoline_wave"] = map["ripple_drop_wave"]
-        map["wave_flag_flutter"] = map["title_wave_float"]
-        map["quantum_teleport_flicker"] = map["pop_collision_slam"]
-        map["cyber_shutter_slice"] = map["curtain_baseline_rise"]
-        map["glitch_crt_slice_tear"] = map["slide_right_right"]
-        map["glitch_rgb_pop"] = map["pop_collision_slam"]
-        map["hologram_scan_beam"] = map["curtain_baseline_rise"]
-        map["vhs_tracking_drift"] = map["slide_right_right"]
-        map["glitch_signal_tear"] = map["slide_right_right"]
-        map["karaoke_box_pop"] = map["karaoke_glow_flow"]
-        map["typewriter_staccato"] = map["typewriter_cursor"]
-        map["three_d_swinging_door"] = map["elastic_flip_3d"]
-        map["three_d_depth_rush"] = map["three_d_tumble_drop"]
-        map["neon_color_shift"] = map["pop_elastic_bounce"]
-        map["cyber_glitch_pop"] = map["pop_collision_slam"]
-        map["kinetic_wave_bounce"] = map["title_wave_float"]
-        map["retro_skew_drift"] = map["title_wave_float"]
-        map["rainbow_flow"] = map["blur_focus_dissolve"]
-        map["fx_metallic_sweep"] = map["slide_center_split"]
-        map["fx_neon_ignition"] = map["fade_soft_glow"]
-        map["fx_chromatic_vapor"] = map["blur_focus_dissolve"]
-        map["fx_ember_dissolve"] = map["fade_cinematic"]
-        map["fx_liquid_chrome"] = map["wave_liquid_ripple"]
-        map["elastic_drop"] = map["kinetic_drop_glow"]
-        map["typewriter_glow"] = map["typewriter_cursor"]
         self.scriptMap = map
     }
 

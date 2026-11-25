@@ -28,6 +28,7 @@ public indirect enum TextAnimationSignal: Codable, Hashable, Sendable {
         time: TextAnimationTimeSource
     )
     case noise(seed: UInt64, frequency: Double, amplitude: Double, time: TextAnimationTimeSource)
+    case motionPath(TextAnimationMotionPath, output: TextAnimationMotionPath.SampleOutput, time: TextAnimationTimeSource)
     case add(TextAnimationSignal, TextAnimationSignal)
     case subtract(TextAnimationSignal, TextAnimationSignal)
     case multiply(TextAnimationSignal, TextAnimationSignal)
@@ -46,7 +47,7 @@ public indirect enum TextAnimationSignal: Codable, Hashable, Sendable {
         case .constant, .progress, .unitProgress, .unitIndex,
              .unitCenterDistance, .unitRandom, .externalInput:
             return evaluatePrimitive(in: context)
-        case .keyframes, .oscillator, .spring, .noise:
+        case .keyframes, .oscillator, .spring, .noise, .motionPath:
             return evaluateGenerator(in: context)
         default:
             return evaluateCompositeMath(in: context)
@@ -88,6 +89,8 @@ public indirect enum TextAnimationSignal: Codable, Hashable, Sendable {
         case .noise(let seed, let frequency, let amplitude, let source):
             let unitSeed = seed ^ context.randomSeed ^ (UInt64(context.unitIndex) &* 0x9E3779B97F4A7C15)
             return Self.noise(seed: unitSeed, position: context.value(for: source) * frequency) * amplitude
+        case .motionPath(let path, let output, let source):
+            return path.sampleValue(for: output, at: context.value(for: source))
         default:
             return 0.0
         }
@@ -136,18 +139,26 @@ public indirect enum TextAnimationSignal: Codable, Hashable, Sendable {
         damping: Double,
         t: Double
     ) -> Double {
+        if t >= 1.0 { return to }
         let zeta = min(2.0, max(0.0, damping))
         let omega = 2.0 * .pi * max(0.01, frequency)
+        let settleFade: Double
+        if t > 0.80 {
+            let u = (t - 0.80) / 0.20
+            settleFade = 1.0 - u * u * (3.0 - 2.0 * u)
+        } else {
+            settleFade = 1.0
+        }
         let response: Double
         if zeta < 0.0001 {
-            response = 1.0 - cos(omega * t)
+            response = 1.0 - cos(omega * t) * settleFade
         } else if zeta < 1.0 {
             let dampedRoot = sqrt(1.0 - zeta * zeta)
             let wd = omega * dampedRoot
-            let decay = exp(-zeta * omega * t)
+            let decay = exp(-zeta * omega * t) * settleFade
             response = 1.0 - decay * (cos(wd * t) + (zeta / dampedRoot) * sin(wd * t))
         } else {
-            response = 1.0 - exp(-omega * t)
+            response = 1.0 - exp(-omega * t) * settleFade
         }
         return from + (to - from) * response
     }

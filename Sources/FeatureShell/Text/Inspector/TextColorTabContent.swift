@@ -3,7 +3,7 @@ import Domain
 import DesignSystem
 
 /// Tab `"Appearance"` chuyên sâu cho Module Text:
-/// Gồm 4 Subtab: `Fill` (Tô mặt chữ) · `Stroke` (Viền kép) · `Style` (Glow + Shadow) · `Effects` (Blur, Distortion, Glitch, Noise).
+/// Gồm 4 Subtab: `Fill` (Tô mặt chữ) · `Stroke` (Viền kép) · `Style` (Glow + Shadow) · `Effects` (Blur, Distortion, Noise).
 /// Hỗ trợ chấm xanh chỉ báo trạng thái đang hoạt động (Active Dot Indicator).
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng, Hàm <= 50 dòng) của AGENTS.md.
 public struct TextColorTabContent: View {
@@ -96,7 +96,7 @@ public struct TextColorTabContent: View {
         case .style:
             return currentConfig.glow.isActive || currentConfig.shadow.isActive
         case .effects:
-            return currentConfig.blurRadius > 0.1 || currentConfig.curve.isActive || currentConfig.glitchIntensity > 0.1 || currentConfig.noiseIntensity > 0.1
+            return currentConfig.blurRadius > 0.1 || currentConfig.curve.isActive || currentConfig.noiseIntensity > 0.1
         }
     }
 

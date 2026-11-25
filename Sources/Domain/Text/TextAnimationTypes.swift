@@ -39,20 +39,3 @@ public enum TextStaggerDirection: String, Codable, Sendable, CaseIterable, Ident
         }
     }
 }
-
-/// Transform pivot / anchor point
-public enum TextAnchorPoint: String, Codable, Sendable, CaseIterable, Identifiable {
-    case center = "Center"
-    case bottom = "Bottom"
-    case top = "Top"
-
-    public var id: String { rawValue }
-
-    public var title: String {
-        switch self {
-        case .center: return "Center"
-        case .bottom: return "Bottom"
-        case .top: return "Top"
-        }
-    }
-}

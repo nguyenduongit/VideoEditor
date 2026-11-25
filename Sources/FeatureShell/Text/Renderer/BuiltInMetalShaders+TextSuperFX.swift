@@ -1,12 +1,11 @@
 import Foundation
 
 /// SDF-accelerated pure-motion Metal Compute Kernels for Typography:
-/// Color-Preserving 3D Bevel Extrusion, Contour-Normal GPU Particle Scatter, and Self-Colored Volumetric Rays.
+/// Color-Preserving 3D Bevel Extrusion and Contour-Normal GPU Particle Scatter.
 extension BuiltInMetalShaders {
     public static let textSuperFXKernelNames: [String] = [
         "metal_text_sdf_bevel_pbr",
-        "metal_text_gpu_particle_scatter",
-        "metal_text_volumetric_rays"
+        "metal_text_gpu_particle_scatter"
     ]
 
     public static let textSuperFXSource: String = """
@@ -169,50 +168,6 @@ extension BuiltInMetalShaders {
         }
         float4 outCol = eroded + sparks * (1.0 - eroded.a);
         outTex.write(clamp(outCol, 0.0, 1.0), gid);
-    }
-
-    // S3. Self-Colored Radial Volumetric God Rays preserving exact Appearance RGB.
-    // u.intensity = rayStrength, u.p0/p1 = normalized source origin, u.p2 = decay
-    kernel void metal_text_volumetric_rays(
-        texture2d<float, access::read> inTex [[texture(0)]],
-        texture2d<float, access::write> outTex [[texture(1)]],
-        constant MetalEffectUniforms &u [[buffer(0)]],
-        uint2 gid [[thread_position_in_grid]]
-    ) {
-        if (gid.x >= outTex.get_width() || gid.y >= outTex.get_height()) return;
-        float2 size = float2(max(1.0, u.width), max(1.0, u.height));
-        float2 pos = float2(gid);
-        float4 src = inTex.read(gid);
-        float inten = clamp(u.intensity, 0.0, 2.0);
-        if (inten <= 0.005) {
-            outTex.write(src, gid);
-            return;
-        }
-
-        float2 lightPos = float2(clamp(u.p0, 0.0, 1.0), clamp(u.p1, 0.0, 1.0)) * size;
-        float2 delta = (pos - lightPos) * (0.42 / 14.0);
-        float decay = clamp(u.p2 > 0.1 ? u.p2 : 0.89, 0.65, 0.97);
-        float illumDecay = 1.0;
-
-        float3 rayAccum = float3(0.0);
-        float rayAlpha = 0.0;
-        float2 coord = pos;
-
-        for (int i = 0; i < 14; i++) {
-            coord -= delta;
-            float4 s = sampleTransparentBilinear(inTex, coord);
-            float w = illumDecay * (1.0 / 14.0);
-            rayAccum += s.rgb * w;
-            rayAlpha += s.a * w;
-            illumDecay *= decay;
-        }
-
-        float3 raysRGB = rayAccum * (inten * 1.15);
-        float raysA = clamp(rayAlpha * inten * 0.90, 0.0, 1.0);
-
-        float3 outRgb = src.rgb + raysRGB * (1.0 - src.a);
-        float outA = max(src.a, raysA);
-        outTex.write(float4(clamp(outRgb, 0.0, outA), outA), gid);
     }
     """
 }

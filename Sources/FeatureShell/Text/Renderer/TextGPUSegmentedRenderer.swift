@@ -76,6 +76,8 @@ enum TextGPUSegmentedRenderer {
     ) -> (image: CIImage, mask: TextShaderFilterEngine.AppliedStagesMask)? {
         var accImage = initialImage
         var appliedMask: TextShaderFilterEngine.AppliedStagesMask = []
+        var depthEntries: [TextGPUSegmentedDepthSorter.DepthEntry] = []
+
         for (orderIndex, tokenIdx) in visibleIndices.enumerated() {
             var evaluated = evaluateToken(
                 token: tokens[tokenIdx], baseConfig: baseConfig, orderIndex: orderIndex,
@@ -90,20 +92,28 @@ enum TextGPUSegmentedRenderer {
                 wordLocalFrac: wordLocalFrac, isKaraokeGlow: isKaraokeGlow,
                 baseConfig: baseConfig
             )
-            let tokenMask = TextTokenFXRenderer.perTokenStages(evaluated: evaluated, baseConfig: baseConfig, plugins: renderPlugins)
-            appliedMask.formUnion(tokenMask)
-
             let curvePt = evaluated.config.content.isEmpty ? .zero : TextSegmentRenderer.resolveTokenWaveAndCurveCenter(
                 evaluated: &evaluated, baseConfig: baseConfig,
                 tokenCenter: startX + tokens[tokenIdx].relativeX + tokens[tokenIdx].width / 2.0,
                 tokenRelativeY: tokens[tokenIdx].relativeY, totalWidth: totalWidth,
                 orderIndex: orderIndex, visibleCount: visibleIndices.count
             )
+            let depthZ = TextGPUSegmentedDepthSorter.effectiveDepthZ(evaluated: evaluated, curveCenter: curvePt, baseConfig: baseConfig)
+            let depthScale = TextGPUSegmentedDepthSorter.perspectiveDepthScale(offsetZEm: evaluated.overlay.offsetZEm)
+            depthEntries.append(TextGPUSegmentedDepthSorter.DepthEntry(
+                orderIndex: orderIndex, tokenIndex: tokenIdx, evaluated: evaluated,
+                curveCenter: curvePt, depthZ: depthZ, depthScale: depthScale
+            ))
+        }
+
+        for item in TextGPUSegmentedDepthSorter.sortedBackToFront(depthEntries) {
+            let tokenMask = TextTokenFXRenderer.perTokenStages(evaluated: item.evaluated, baseConfig: baseConfig, plugins: renderPlugins)
+            appliedMask.formUnion(tokenMask)
             if let unitLayer = renderSingleGPUToken(
-                evaluated: evaluated, tokenMask: tokenMask, tokenWidth: tokens[tokenIdx].width,
-                totalHeight: tokenLineHeight, curveCenter: curvePt, blockTransform: blockTransform,
-                font: font, localTime: localTime, duration: duration, canvasSize: canvasSize,
-                orderIndex: orderIndex, visibleCount: visibleIndices.count,
+                evaluated: item.evaluated, tokenMask: tokenMask, tokenWidth: tokens[item.tokenIndex].width,
+                totalHeight: tokenLineHeight, curveCenter: item.curveCenter, depthScale: item.depthScale,
+                blockTransform: blockTransform, font: font, localTime: localTime, duration: duration,
+                canvasSize: canvasSize, orderIndex: item.orderIndex, visibleCount: visibleIndices.count,
                 renderPlugins: renderPlugins, atlasCache: atlasCache
             ) {
                 accImage = unitLayer.composited(over: accImage)
@@ -166,6 +176,7 @@ enum TextGPUSegmentedRenderer {
         tokenWidth: CGFloat,
         totalHeight: CGFloat,
         curveCenter: CGPoint,
+        depthScale: CGFloat,
         blockTransform: CGAffineTransform,
         font: NSFont,
         localTime: Double,
@@ -177,21 +188,20 @@ enum TextGPUSegmentedRenderer {
         atlasCache: TextGlyphAtlasCache
     ) -> CIImage? {
         let cfg = evaluated.config, ov = evaluated.overlay
-        let pivotY: CGFloat = switch cfg.animation.anchorPoint {
-        case .center: 0.0
-        case .bottom: -totalHeight / 2.0
-        case .top: totalHeight / 2.0
-        }
+        let pivot = TextUnitPivotHelper.pivotOffset(
+            for: ov.anchorPoint, width: max(1.0, tokenWidth), height: totalHeight
+        )
         let unitTransform = TextGPUGlyphRenderer.makeUnitTransform(
             center: CGPoint(x: curveCenter.x + CGFloat(cfg.positionX), y: curveCenter.y - CGFloat(cfg.positionY)),
-            pivotOffsetY: pivotY, rotationDegrees: cfg.rotation,
+            pivotOffset: pivot, rotationDegrees: cfg.rotation,
             skewX: ov.skewX + tan(cfg.skewX * .pi / 180.0), skewY: tan(cfg.skewY * .pi / 180.0),
-            scaleX: CGFloat(max(0.01, cfg.scale * ov.scaleX)), scaleY: CGFloat(max(0.01, cfg.scale * ov.scaleY)),
+            scaleX: CGFloat(max(0.01, cfg.scale * ov.scaleX)) * depthScale,
+            scaleY: CGFloat(max(0.01, cfg.scale * ov.scaleY)) * depthScale,
             safeguardScale: 1.0
         ).concatenating(blockTransform)
 
         let blockScale = max(1.0, hypot(blockTransform.a, blockTransform.b))
-        let tokenScale = CGFloat(max(0.01, cfg.scale)) * max(1.0, CGFloat(max(abs(ov.scaleX), abs(ov.scaleY))))
+        let tokenScale = CGFloat(max(0.01, cfg.scale)) * depthScale * max(1.0, CGFloat(max(abs(ov.scaleX), abs(ov.scaleY))))
         let desiredScale = max(2.0, blockScale * tokenScale)
         var compositeUnit: CIImage?
         if cfg.opacity > 0.005, let entry = atlasCache.entry(

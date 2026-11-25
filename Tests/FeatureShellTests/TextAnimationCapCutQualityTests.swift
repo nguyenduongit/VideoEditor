@@ -36,10 +36,10 @@ struct TextAnimationCapCutQualityTests {
         #expect(engine.shouldRenderSegmented(for: cfgDefault) == false)
     }
 
-    @Test("Smooth Word Glide script evaluates continuous Intro -> Loop -> Outro motion")
+    @Test("Slide Right script evaluates continuous Intro -> Loop -> Outro motion")
     func testSlideUpSpringOvershootAndArc() {
         var cfg = TextConfiguration(content: "CapCut Motion")
-        cfg.animation.scriptId = "smooth_word_glide"
+        cfg.animation.scriptId = "slide_right_right"
         cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: 2, speed: 1.0)
 
         let canvasSize = CGSize(width: 854, height: 480)
@@ -104,19 +104,35 @@ struct TextAnimationCapCutQualityTests {
         }
     }
 
-    @Test("Legacy and pruned script IDs still resolve cleanly via registry aliases")
-    func testLegacyScriptAliasesResolve() {
-        let legacyIDs = [
-            "soft_breathe_cascade", "shutter_blind_reveal", "slide_directional_whip", "slide_zipper_cross",
-            "smooth_word_glide", "line_cascade_rise", "trailer_tracking_expand", "whip_echo_slam", "anamorphic_split_reveal",
-            "neon_cyber_shift", "wave_cascade_flow", "liquid_wave_pulse", "curved_arc_roller",
-            "jelly_trampoline_wave", "wave_flag_flutter", "quantum_teleport_flicker",
-            "cyber_shutter_slice", "glitch_crt_slice_tear", "typewriter_staccato",
-            "three_d_swinging_door", "three_d_depth_rush"
+    @Test("Removed glitch/color script IDs resolve to nil and legacy JSON safely falls back to none")
+    func testLegacyGlitchAndColorScriptsRemovedSafely() throws {
+        let removedIDs = [
+            "glitch_rgb_pop", "glitch_crt_slice_tear", "glitch_signal_tear",
+            "hologram_scan_beam", "vhs_tracking_drift", "quantum_teleport_flicker",
+            "cyber_shutter_slice", "neon_color_shift", "neon_cyber_shift",
+            "rainbow_flow", "fx_chromatic_vapor", "cyber_glitch_pop"
         ]
-        for id in legacyIDs {
-            #expect(TextAnimationScriptRegistry.shared.script(for: id) != nil, "Alias missing for \(id)")
+        for id in removedIDs {
+            #expect(TextAnimationScriptRegistry.shared.script(for: id) == nil, "Removed script \(id) must not remain in registry")
         }
+
+        let legacyGlitchJSON = """
+        {
+            "content": "Legacy Glitch",
+            "glitchIntensity": 80.0,
+            "animation": {
+                "inType": "TVGlitch",
+                "loopType": "Flicker",
+                "rgbSplitIntensity": 12.0,
+                "lightSweepIntensity": 0.9,
+                "highlightColorHex": "#00FF00"
+            }
+        }
+        """
+        let decoded = try #require(TextConfiguration.decode(from: legacyGlitchJSON))
+        #expect(decoded.content == "Legacy Glitch")
+        #expect(decoded.animation.scriptId == "none")
+        #expect(decoded.animation.isDefault == true)
     }
 
     @Test("Breakthrough Metal GPU shaders, path trim, scramble, and 3D carousel render visibly on plain white text")
@@ -185,7 +201,7 @@ struct TextAnimationCapCutQualityTests {
         #expect(multiImg != nil)
 
         // 3. Optical blur & Karaoke scripts render non-empty animated frames
-        for specialScriptId in ["blur_focus_dissolve", "karaoke_box_pop", "karaoke_glow_flow"] {
+        for specialScriptId in ["blur_focus_dissolve", "karaoke_glow_flow"] {
             var spCfg = TextConfiguration(content: "Pro Upgrade", fontSize: 52.0)
             spCfg.animation.scriptId = specialScriptId
             let img = engine.renderAnimatedImage(for: spCfg, localTime: 0.4, duration: 5.0, canvasSize: canvas)
@@ -236,14 +252,13 @@ struct TextAnimationCapCutQualityTests {
         let cfg = TextConfiguration(content: "Grain", fontSize: 64.0, textColorHex: "#808080")
         let baseImg = try #require(engine.renderAnimatedImage(for: cfg, localTime: 0.0, duration: 4.0, canvasSize: canvas))
         let noisyImg = TextShaderFilterEngine.applyFilters(
-            to: baseImg, blurRadius: 0, pixelateScale: 0, rgbSplitIntensity: 0, noiseIntensity: 80.0
+            to: baseImg, blurRadius: 0, pixelateScale: 0, noiseIntensity: 80.0
         )
         #expect(renderRGBABytes(baseImg, size: canvas) != renderRGBABytes(noisyImg, size: canvas))
     }
 
-    @Test("HDR bloom halo decays smoothly outward without blocky ghost rings or non-monotonic spikes")
-    func testHDRBloomHaloDecaysSmoothlyWithoutBlockyGhostRings() throws {
-        // Reproduce exact HD canvas (1280x720) and ~10px letter stroke where sparse 16-tap ring bloom stamps ghost boxes
+    @Test("Static glow halo decays smoothly outward without blocky ghost rings or non-monotonic spikes")
+    func testGlowHaloDecaysSmoothlyWithoutBlockyGhostRings() throws {
         let canvas = CGSize(width: 1280, height: 720)
         let glyphRect = CGRect(x: 635, y: 310, width: 10, height: 100)
         let glyphImg = CIImage(color: CIColor(red: 1, green: 1, blue: 1, alpha: 1))
@@ -251,9 +266,9 @@ struct TextAnimationCapCutQualityTests {
             .composited(over: CIImage.clear.cropped(to: CGRect(origin: .zero, size: canvas)))
             .cropped(to: CGRect(origin: .zero, size: canvas))
 
-        let overlay = TextTransformOverlay(bloomIntensity: 0.9)
+        let glow = TextGlowStyle(isEnabled: true, colorHex: "#FFFFFF", intensity: 90.0, range: 16.0)
         let bloomed = TextShaderFilterEngine.applyFilters(
-            to: glyphImg, blurRadius: 0, pixelateScale: 0, rgbSplitIntensity: 0, overlay: overlay
+            to: glyphImg, blurRadius: 0, pixelateScale: 0, glow: glow
         )
         let bytes = renderRGBABytes(bloomed, size: canvas)
         let w = Int(canvas.width)
@@ -282,7 +297,7 @@ struct TextAnimationCapCutQualityTests {
         let canvas = CGSize(width: 1920, height: 1080)
         let core = engine.measureCoreGlyphBounds(for: cfg)
 
-        for scriptId in ["kinetic_drop_glow", "title_wave_float", "wave_cascade_flow"] {
+        for scriptId in ["kinetic_drop_glow", "title_wave_float", "ripple_drop_wave"] {
             cfg.animation.scriptId = scriptId
             let envelope = engine.measureBackgroundEnvelopeBounds(for: cfg)
             let halfBoxH = envelope.height * 0.5 + CGFloat(cfg.background.paddingY)

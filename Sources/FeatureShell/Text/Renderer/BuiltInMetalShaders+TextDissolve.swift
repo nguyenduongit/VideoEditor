@@ -1,50 +1,8 @@
 import Foundation
 
-/// Additional Metal Compute Kernels for Typography (`hdr_bloom`, `particle_dissolve`, `directional_blur`).
+/// Additional Metal Compute Kernels for Typography (`particle_dissolve`, `directional_blur`).
 extension BuiltInMetalShaders {
     public static let textDissolveSource: String = """
-    // T5. Dense 7x7 Gaussian HDR Bloom over Transparent Canvas (p0 = radiusPx, p1/p2/p3 = rgb, p4 = hasCustomColor)
-    kernel void metal_text_hdr_bloom(
-        texture2d<float, access::read> inTex [[texture(0)]],
-        texture2d<float, access::write> outTex [[texture(1)]],
-        constant MetalEffectUniforms &u [[buffer(0)]],
-        uint2 gid [[thread_position_in_grid]]
-    ) {
-        if (gid.x >= outTex.get_width() || gid.y >= outTex.get_height()) return;
-        float2 pos = float2(gid);
-        float4 src = inTex.read(gid);
-        float stepPx = clamp(u.p0 > 0.5 ? u.p0 * 0.22 : 2.2, 0.8, 3.0);
-        float strength = clamp(u.intensity, 0.0, 2.5);
-        if (strength <= 0.005) {
-            outTex.write(src, gid);
-            return;
-        }
-
-        float3 glowAccum = float3(0.0);
-        float alphaAccum = 0.0;
-        float weightSum = 0.0;
-
-        for (int dy = -3; dy <= 3; dy++) {
-            for (int dx = -3; dx <= 3; dx++) {
-                float d2 = float(dx * dx + dy * dy);
-                float w = exp(-d2 * 0.22);
-                float4 s = sampleTransparentBilinear(inTex, pos + float2(float(dx), float(dy)) * stepPx);
-                glowAccum += s.rgb * w;
-                alphaAccum += s.a * w;
-                weightSum += w;
-            }
-        }
-
-        float haloA = clamp((alphaAccum / max(1.0, weightSum)) * strength * 1.15, 0.0, 1.0);
-        float3 customTint = (alphaAccum > 0.01) ? clamp(glowAccum / alphaAccum, 0.0, 1.0) : float3(1.0);
-        float4 halo = float4(customTint * haloA, haloA);
-
-        float4 comp = src + halo * (1.0 - src.a);
-        float coreBoost = 1.0 + min(0.35, strength * 0.16) * src.a;
-        comp.rgb = clamp(comp.rgb * coreBoost, 0.0, comp.a);
-        outTex.write(comp, gid);
-    }
-
     // T6. Self-Colored Particle Dissolve Driven by Text Alpha Mask (progress = 0..1, p0 = driftAngleRad, p1 = travelPx)
     kernel void metal_text_particle_dissolve(
         texture2d<float, access::read> inTex [[texture(0)]],

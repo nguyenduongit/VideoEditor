@@ -87,11 +87,11 @@ struct TextAnimationEngineTests {
         #expect(evalFadeMid.config.opacity > 0.9)
 
         var configSlide = TextConfiguration(content: "Test Slide")
-        configSlide.animation.scriptId = "smooth_word_glide"
+        configSlide.animation.scriptId = "slide_right_right"
         configSlide.animation.applyUnifiedScriptTiming(baseLoopSeconds: 2, speed: 1.0)
 
         let evalSlide0 = TextAnimationEvaluator.evaluate(config: configSlide, localTime: 0.0, duration: 4.0, canvasSize: canvasSize)
-        #expect(abs(evalSlide0.config.positionY) > 0.0 || evalSlide0.config.opacity < 1.0)
+        #expect(abs(evalSlide0.config.positionX) > 0.0 || evalSlide0.config.opacity < 1.0)
 
         let evalSlideDone = TextAnimationEvaluator.evaluate(config: configSlide, localTime: 2.0, duration: 4.0, canvasSize: canvasSize)
         #expect(evalSlideDone.config.opacity > 0.95)
@@ -107,9 +107,9 @@ struct TextAnimationEngineTests {
         #expect(abs(evalDrop.config.positionY) > 1.0 || evalDrop.config.opacity < 1.0)
 
         var cfgWhip = TextConfiguration(content: "Whip")
-        cfgWhip.animation.scriptId = "whip_echo_slam"
+        cfgWhip.animation.scriptId = "slide_right_right"
         let evalWhip = TextAnimationEvaluator.evaluate(config: cfgWhip, localTime: 0.1, duration: 5.0, canvasSize: canvasSize, charIndex: 0, charCount: 4)
-        #expect(abs(evalWhip.config.positionX) > 1.0 || evalWhip.overlay.echoCount > 0)
+        #expect(abs(evalWhip.config.positionX) > 1.0)
     }
 
     @Test("Unified scripts evaluate outro transitions smoothly back to exit")
@@ -123,7 +123,7 @@ struct TextAnimationEngineTests {
         #expect(evalDropEnd.config.opacity <= 0.05)
 
         var cfgWhip = TextConfiguration(content: "Whip Out")
-        cfgWhip.animation.scriptId = "whip_echo_slam"
+        cfgWhip.animation.scriptId = "slide_right_right"
         let evalWhipEnd = TextAnimationEvaluator.evaluate(config: cfgWhip, localTime: 5.0, duration: dur, canvasSize: canvasSize, charIndex: 0, charCount: 8)
         #expect(evalWhipEnd.config.opacity <= 0.05)
     }
@@ -138,7 +138,7 @@ struct TextAnimationEngineTests {
         #expect(abs(evalWave.config.positionY) > 0.1 || abs(evalWave.config.rotation) > 0.1)
 
         var cfgPulse = TextConfiguration(content: "Pulse")
-        cfgPulse.animation.scriptId = "liquid_wave_pulse"
+        cfgPulse.animation.scriptId = "ripple_drop_wave"
         let evalPulse = TextAnimationEvaluator.evaluate(config: cfgPulse, localTime: 1.35, duration: 5.0, canvasSize: canvasSize, charIndex: 0, charCount: 5)
         #expect(evalPulse.overlay.scaleX != 1.0 || evalPulse.config.positionY != 0.0)
     }
@@ -190,7 +190,7 @@ struct TextAnimationEngineTests {
         guard let ciImg = renderer.renderAnimatedImage(for: config, localTime: 1.0, duration: 5.0, canvasSize: canvasSize),
               let ciAnim = {
                   var animCfg = config
-                  animCfg.animation.scriptId = "smooth_word_glide"
+                  animCfg.animation.scriptId = "slide_right_right"
                   return renderer.renderAnimatedImage(for: animCfg, localTime: 1.2, duration: 5.0, canvasSize: canvasSize)
               }() else {
             Issue.record("Failed to render background images")
@@ -208,7 +208,7 @@ struct TextAnimationEngineTests {
         guard let ciGlowStatic = renderer.renderAnimatedImage(for: glowConfig, localTime: 1.0, duration: 5.0, canvasSize: canvasSize),
               let ciGlowAnim = {
                   var animGlow = glowConfig
-                  animGlow.animation.scriptId = "smooth_word_glide"
+                  animGlow.animation.scriptId = "slide_right_right"
                   return renderer.renderAnimatedImage(for: animGlow, localTime: 1.2, duration: 5.0, canvasSize: canvasSize)
               }() else {
             Issue.record("Failed to render glow images")

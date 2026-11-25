@@ -17,18 +17,33 @@ enum TextGPUGlyphRenderer {
         atlasCache: TextGlyphAtlasCache,
         localTime: Double = 0.0
     ) -> CIImage? {
+        renderWholeBlockResult(
+            config: config, overlay: overlay, canvasSize: canvasSize,
+            font: font, atlasCache: atlasCache, localTime: localTime
+        )?.image
+    }
+
+    static func renderWholeBlockResult(
+        config: TextConfiguration,
+        overlay: TextTransformOverlay,
+        canvasSize: CGSize,
+        font: NSFont,
+        atlasCache: TextGlyphAtlasCache,
+        localTime: Double = 0.0
+    ) -> (image: CIImage, handledStages: TextShaderFilterEngine.AppliedStagesMask)? {
         guard overlay.strokeTrimProgress >= 0.999 else { return nil }
         let displayText = TextTokenFXRenderer.resolveDisplayText(
             config.content, scrambleStrength: overlay.scrambleStrength, unitIndex: 0
         )
-        let desiredScale = max(2.0, CGFloat(config.scale) * max(1.0, CGFloat(max(abs(overlay.scaleX), abs(overlay.scaleY)))))
+        let depthScale = TextGPUSegmentedDepthSorter.perspectiveDepthScale(offsetZEm: overlay.offsetZEm)
+        let desiredScale = max(2.0, CGFloat(config.scale) * depthScale * max(1.0, CGFloat(max(abs(overlay.scaleX), abs(overlay.scaleY)))))
         guard let entry = atlasCache.entry(
             forText: displayText, font: font, config: config, requestedScale: desiredScale
         ) else {
             return nil
         }
 
-        var localPixels = applyGlyphLocalSDFFX(to: entry, overlay: overlay, localTime: localTime)
+        var (localPixels, handledStages) = applyGlyphLocalPixelFX(to: entry, overlay: overlay, localTime: localTime)
         let toPixel = entry.toLogicalTransform.inverted()
         if config.animation.isMaskEnabled {
             localPixels = localPixels.cropped(to: entry.shapedBounds.insetBy(dx: -20.0, dy: -12.0).applying(toPixel))
@@ -49,13 +64,30 @@ enum TextGPUGlyphRenderer {
                 .applying(toPixel)
             localPixels = localPixels.cropped(to: revealPx)
         }
+        if abs(overlay.rotationX) > 0.2 || abs(overlay.rotationY) > 0.2 ||
+            abs(overlay.perspectiveX) > 0.01 || abs(overlay.perspectiveY) > 0.01 {
+            let pad3D = CGFloat(Int(ceil(max(entry.pixelSize.width, entry.pixelSize.height) * 0.45)))
+            let box3D = CGRect(origin: .zero, size: entry.pixelSize).insetBy(dx: -pad3D, dy: -pad3D)
+            let padded = localPixels.composited(over: CIImage.clear.cropped(to: box3D)).cropped(to: box3D)
+            let refSize = CGSize(
+                width: max(4.0, entry.shapedBounds.width * entry.rasterScale),
+                height: max(4.0, entry.shapedBounds.height * entry.rasterScale)
+            )
+            localPixels = TextShaderFilterEngine.applyTrue3DPerspective(
+                to: padded, pitchX: overlay.perspectiveX, yawY: overlay.perspectiveY,
+                rotXDegrees: overlay.rotationX, rotYDegrees: overlay.rotationY,
+                anchor: overlay.anchorPoint, anchorReferenceSize: refSize
+            )
+            handledStages.insert(.perspective3D)
+        }
 
         let maxSafeW = CGFloat(TextAutoFitter.maxSafeWidth(for: canvasSize))
         let safeguard: CGFloat = (entry.shapedBounds.width > maxSafeW && entry.shapedBounds.width > 0)
             ? (maxSafeW / entry.shapedBounds.width)
             : 1.0
         let worldTransform = wholeBlockTransform(
-            config: config, overlay: overlay, textHeight: max(1.0, entry.shapedBounds.height),
+            config: config, overlay: overlay,
+            textSize: CGSize(width: max(1.0, entry.shapedBounds.width), height: max(1.0, entry.shapedBounds.height)),
             canvasSize: canvasSize, safeguardScale: safeguard
         )
         let canvasRect = CGRect(origin: .zero, size: canvasSize)
@@ -65,34 +97,35 @@ enum TextGPUGlyphRenderer {
             .transformed(by: combinedTransform)
             .composited(over: CIImage.clear.cropped(to: canvasRect))
             .cropped(to: canvasRect)
-        return TextSVGAndAssetCache.applyPremultipliedOpacity(config.opacity, to: transformed)
+        return (TextSVGAndAssetCache.applyPremultipliedOpacity(config.opacity, to: transformed), handledStages)
     }
 
     static func wholeBlockTransform(
         config: TextConfiguration,
         overlay: TextTransformOverlay,
-        textHeight: CGFloat,
+        textSize: CGSize,
         canvasSize: CGSize,
         safeguardScale: CGFloat
     ) -> CGAffineTransform {
         let cx = canvasSize.width / 2.0 + CGFloat(config.positionX)
         let cy = canvasSize.height / 2.0 - CGFloat(config.positionY)
-        let pivotY: CGFloat = switch config.animation.anchorPoint {
-        case .center: 0.0
-        case .bottom: -textHeight / 2.0
-        case .top: textHeight / 2.0
-        }
+        let pivotOffset = TextUnitPivotHelper.pivotOffset(
+            for: overlay.anchorPoint, width: textSize.width, height: textSize.height
+        )
+        let depthScale = TextGPUSegmentedDepthSorter.perspectiveDepthScale(offsetZEm: overlay.offsetZEm)
         return makeUnitTransform(
             center: CGPoint(x: cx, y: cy),
-            pivotOffsetY: pivotY,
+            pivotOffset: pivotOffset,
             rotationDegrees: config.rotation,
-            skewX: overlay.skewX + tan(config.skewX * .pi / 180.0),
-            skewY: tan(config.skewY * .pi / 180.0),
-            scaleX: CGFloat(max(0.01, config.scale * overlay.scaleX)),
-            scaleY: CGFloat(max(0.01, config.scale * overlay.scaleY)),
+            skewX: overlay.skewX + tan(cfgSkewRadians(config.skewX)),
+            skewY: tan(cfgSkewRadians(config.skewY)),
+            scaleX: CGFloat(max(0.01, config.scale * overlay.scaleX)) * depthScale,
+            scaleY: CGFloat(max(0.01, config.scale * overlay.scaleY)) * depthScale,
             safeguardScale: safeguardScale
         )
     }
+
+    private static func cfgSkewRadians(_ degrees: Double) -> Double { degrees * .pi / 180.0 }
 
     static func applyGPUMaskInPixelSpace(
         to pixelImage: CIImage,
@@ -131,7 +164,7 @@ enum TextGPUGlyphRenderer {
     ) -> CGAffineTransform {
         makeUnitTransform(
             center: CGPoint(x: canvasSize.width / 2.0 + CGFloat(config.positionX), y: canvasSize.height / 2.0 - CGFloat(config.positionY)),
-            pivotOffsetY: 0.0,
+            pivotOffset: .zero,
             rotationDegrees: config.rotation,
             skewX: 0.0,
             skewY: 0.0,
@@ -143,7 +176,7 @@ enum TextGPUGlyphRenderer {
 
     static func makeUnitTransform(
         center: CGPoint,
-        pivotOffsetY: CGFloat,
+        pivotOffset: CGPoint,
         rotationDegrees: Double,
         skewX: Double,
         skewY: Double,
@@ -151,7 +184,7 @@ enum TextGPUGlyphRenderer {
         scaleY: CGFloat,
         safeguardScale: CGFloat
     ) -> CGAffineTransform {
-        var t = CGAffineTransform(translationX: 0.0, y: -pivotOffsetY)
+        var t = CGAffineTransform(translationX: -pivotOffset.x, y: -pivotOffset.y)
         if abs(scaleX - 1.0) > 0.001 || abs(scaleY - 1.0) > 0.001 {
             t = t.concatenating(CGAffineTransform(scaleX: scaleX, y: scaleY))
         }
@@ -164,7 +197,7 @@ enum TextGPUGlyphRenderer {
         if safeguardScale < 0.999 {
             t = t.concatenating(CGAffineTransform(scaleX: safeguardScale, y: safeguardScale))
         }
-        return t.concatenating(CGAffineTransform(translationX: center.x, y: center.y + pivotOffsetY))
+        return t.concatenating(CGAffineTransform(translationX: center.x + pivotOffset.x, y: center.y + pivotOffset.y))
     }
 
     static func makeTrailingCursorBar(
@@ -181,15 +214,22 @@ enum TextGPUGlyphRenderer {
         return CIImage(color: ciCol).cropped(to: barRect)
     }
 
-    private static func applyGlyphLocalSDFFX(
+    private static func applyGlyphLocalPixelFX(
         to entry: TextGlyphAtlasEntry,
         overlay: TextTransformOverlay,
         localTime: Double
-    ) -> CIImage {
+    ) -> (image: CIImage, handledStages: TextShaderFilterEngine.AppliedStagesMask) {
         let s = Float(entry.rasterScale)
-        let w = Float(entry.pixelSize.width)
-        let h = Float(entry.pixelSize.height)
+        var targetRect = CGRect(origin: .zero, size: entry.pixelSize)
+        let hasMeshWarp = overlay.meshWarpMode != .none && abs(overlay.meshWarpAmount) > 0.005
+        if hasMeshWarp {
+            let padX = CGFloat(Int(ceil(entry.pixelSize.width * 0.08)))
+            let padY = CGFloat(Int(ceil(max(18.0, entry.pixelSize.height * 0.42))))
+            targetRect = targetRect.insetBy(dx: -padX, dy: -padY)
+        }
+        let w = Float(targetRect.width), h = Float(targetRect.height)
         var passes: [MetalTransparentPass] = []
+        var handled: TextShaderFilterEngine.AppliedStagesMask = []
 
         if overlay.bevelDepth > 0.1 {
             let u = MetalEffectUniforms(
@@ -198,12 +238,23 @@ enum TextGPUGlyphRenderer {
                 p2: 0.0, p3: Float(overlay.bevelExtrudeDepth) * s
             )
             passes.append(MetalTransparentPass(kernelName: "metal_text_sdf_bevel_pbr", uniforms: u, secondaryTexture: entry.sdfTexture))
+            handled.insert(.sdfMaterial)
         }
-        guard !passes.isEmpty else { return entry.rawPixelCIImage }
-        let pixelRect = CGRect(origin: .zero, size: entry.pixelSize)
-        return MetalComputeRuntimeEngine.shared.dispatchTransparentEffectChain(
-            passes: passes, on: entry.rawPixelCIImage, canvasRect: pixelRect
+        if hasMeshWarp {
+            let u = MetalEffectUniforms(
+                time: Float(overlay.meshWarpPhase), intensity: 1.0, width: w, height: h,
+                p0: Float(overlay.meshWarpMode.shaderIndex),
+                p1: Float(overlay.meshWarpAmount),
+                p2: Float(overlay.meshWarpFrequency)
+            )
+            passes.append(MetalTransparentPass(kernelName: "metal_text_mesh_warp", uniforms: u))
+            handled.insert(.meshWarp)
+        }
+        guard !passes.isEmpty else { return (entry.rawPixelCIImage, handled) }
+        let out = MetalComputeRuntimeEngine.shared.dispatchTransparentEffectChain(
+            passes: passes, on: entry.rawPixelCIImage, canvasRect: targetRect
         )
+        return (out, handled)
     }
 }
 #endif

@@ -253,21 +253,92 @@ struct TextAnimationGraphDomainTests {
 
     @Test("TextAnimationGraphLibrary flagship presets evaluate across phases and roundtrip via Codable")
     func flagshipLibraryGraphsRoundTrip() throws {
-        #expect(TextAnimationGraphLibrary.allGraphs.count == 4)
+        #expect(TextAnimationGraphLibrary.allGraphs.count == 21)
+        let inputs: [String: Double] = [
+            TextAnimationChannel.audioRMS: 0.8,
+            TextAnimationChannel.audioBass: 0.7,
+            TextAnimationChannel.audioBeat: 0.9
+        ]
         for graph in TextAnimationGraphLibrary.allGraphs {
             #expect(TextAnimationGraphLibrary.graph(for: graph.id) == graph)
             let data = try JSONEncoder().encode(graph)
             let decoded = try JSONDecoder().decode(TextAnimationGraph.self, from: data)
             #expect(decoded == graph)
-            let loopResult = graph.evaluate(in: TextAnimationGraphContext(
-                phase: .loop, globalProgress: 0.45, phaseProgress: 0.5, loopProgress: 0.5,
-                externalInputs: [
-                    TextAnimationChannel.audioRMS: 0.8,
-                    TextAnimationChannel.audioBass: 0.7,
-                    TextAnimationChannel.audioBeat: 0.9
-                ]
+            let introResult = graph.evaluate(in: TextAnimationGraphContext(
+                phase: .intro, globalProgress: 0.1, phaseProgress: 0.5, loopProgress: 0.0, externalInputs: inputs
             ))
-            #expect(!loopResult.channelNames.isEmpty)
+            let loopResult = graph.evaluate(in: TextAnimationGraphContext(
+                phase: .loop, globalProgress: 0.45, phaseProgress: 0.5, loopProgress: 0.5, externalInputs: inputs
+            ))
+            let outroResult = graph.evaluate(in: TextAnimationGraphContext(
+                phase: .outro, globalProgress: 0.9, phaseProgress: 0.5, loopProgress: 1.0, externalInputs: inputs
+            ))
+            let combinedChannels = Set(introResult.channelNames)
+                .union(loopResult.channelNames)
+                .union(outroResult.channelNames)
+            #expect(!combinedChannels.isEmpty)
+            #expect(!introResult.channelNames.isEmpty && !outroResult.channelNames.isEmpty)
         }
+        let particlesIntro = TextAnimationGraphLibrary.quantumParticleAssembly.evaluate(
+            in: TextAnimationGraphContext(phase: .intro, globalProgress: 0.1, phaseProgress: 0.5)
+        )
+        #expect(particlesIntro[TextAnimationChannel.particleFieldProgress] != nil)
+        #expect(particlesIntro[TextAnimationChannel.opacity] != nil)
+    }
+
+    @Test("2D TextAnchorPoint decodes legacy strings and extended coordinates safely")
+    func anchorPoint2DBackwardCompatibleCodable() throws {
+        let legacyCenter = try JSONDecoder().decode(TextAnchorPoint.self, from: Data(#""Center""#.utf8))
+        let legacyBottom = try JSONDecoder().decode(TextAnchorPoint.self, from: Data(#""Bottom""#.utf8))
+        let legacyTop = try JSONDecoder().decode(TextAnchorPoint.self, from: Data(#""Top""#.utf8))
+        #expect(legacyCenter == .center)
+        #expect(legacyBottom == .bottom)
+        #expect(legacyTop == .top)
+
+        let leading = try JSONDecoder().decode(TextAnchorPoint.self, from: Data(#""Leading""#.utf8))
+        #expect(leading == .leading)
+        #expect(leading.x == -1.0 && leading.y == 0.0)
+
+        let custom = TextAnchorPoint(x: -0.25, y: 0.75)
+        let encoded = try JSONEncoder().encode(custom)
+        let decoded = try JSONDecoder().decode(TextAnchorPoint.self, from: encoded)
+        #expect(abs(decoded.x - (-0.25)) < 0.001)
+        #expect(abs(decoded.y - 0.75) < 0.001)
+
+        #expect(TextAnimationCatalogItem.allItems.count == 55)
+    }
+
+    @Test("TextAnimationMotionPath samples Bezier, Catmull-Rom, Orbital Arc and tangent angles")
+    func motionPathSignalsEvaluateCleanly() {
+        let bezier = TextAnimationMotionPath.cubicBezier(
+            p0: .init(x: -100, y: 40),
+            c1: .init(x: -40, y: -60),
+            c2: .init(x: 40, y: -60),
+            p1: .init(x: 100, y: 0)
+        )
+        let start = bezier.sample(at: 0.0)
+        let end = bezier.sample(at: 1.0)
+        #expect(abs(start.x - (-100.0)) < 0.001 && abs(start.y - 40.0) < 0.001)
+        #expect(abs(end.x - 100.0) < 0.001 && abs(end.y) < 0.001)
+
+        let spline = TextAnimationMotionPath.catmullRom(
+            points: [.init(x: 0, y: 0), .init(x: 50, y: 50), .init(x: 100, y: 0)],
+            isClosed: false
+        )
+        #expect(abs(spline.sample(at: 0.5).x - 50.0) < 0.5)
+
+        let arc = TextAnimationMotionPath.orbitalArc(radiusX: 60, radiusY: 30, startDegrees: 0, endDegrees: 180)
+        #expect(abs(arc.sample(at: 0.0).x - 60.0) < 0.01)
+        #expect(abs(arc.sample(at: 1.0).x - (-60.0)) < 0.01)
+
+        let graph = TextAnimationGraph(
+            id: "path-graph",
+            name: "Path Graph",
+            tracks: [
+                TextAnimationTrack(channel: TextAnimationChannel.positionX, signal: .motionPath(bezier, output: .positionX, time: .phaseProgress))
+            ]
+        )
+        let bag = graph.evaluate(in: TextAnimationGraphContext(phase: .intro, globalProgress: 1.0, phaseProgress: 1.0))
+        #expect(abs((bag[TextAnimationChannel.positionX] ?? 0.0) - 100.0) < 0.01)
     }
 }

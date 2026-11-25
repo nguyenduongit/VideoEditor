@@ -29,7 +29,7 @@ struct TextAnimationGraphIntegrationTests {
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
     private let canvasSize = CGSize(width: 640, height: 360)
 
-    @Test("GraphMapper propagates echo count defaults, bloom intensity, cursor, anchor, and mask shape")
+    @Test("GraphMapper propagates echo count defaults, bevel depth, cursor, anchor, and mask shape")
     func testCompleteGraphChannelMapping() {
         let graph = TextAnimationGraph(
             id: "full-map",
@@ -37,7 +37,7 @@ struct TextAnimationGraphIntegrationTests {
             tracks: [
                 TextAnimationTrack(channel: TextAnimationChannel.echoOffsetX, signal: .constant(0.12)),
                 TextAnimationTrack(channel: TextAnimationChannel.trailingCursorOpacity, signal: .constant(0.85)),
-                TextAnimationTrack(channel: TextAnimationChannel.bloomIntensity, signal: .constant(0.9))
+                TextAnimationTrack(channel: TextAnimationChannel.bevelDepth, signal: .constant(6.0))
             ],
             staticStringChannels: [
                 TextAnimationChannel.maskShape: TextMaskShapeMode.diagonalSlash.rawValue,
@@ -55,7 +55,7 @@ struct TextAnimationGraphIntegrationTests {
         #expect(evaluated.overlay.echoCount == 3)
         #expect(abs(evaluated.overlay.echoOffsetXEm - 0.12) < 0.001)
         #expect(abs(evaluated.overlay.trailingCursorOpacity - 0.85) < 0.001)
-        #expect(abs(evaluated.overlay.bloomIntensity - 0.9) < 0.001)
+        #expect(abs(evaluated.overlay.bevelDepth - 6.0) < 0.001)
         #expect(evaluated.overlay.maskShapeMode == .diagonalSlash)
         #expect(evaluated.config.animation.anchorPoint == .bottom)
     }
@@ -107,8 +107,8 @@ struct TextAnimationGraphIntegrationTests {
                     signal: .remap(.externalInput(name: TextAnimationChannel.audioRMS, fallback: 0.0), inputMin: 0.0, inputMax: 1.0, outputMin: 0.85, outputMax: 1.45)
                 ),
                 TextAnimationTrack(
-                    channel: TextAnimationChannel.bloomIntensity,
-                    signal: .externalInput(name: TextAnimationChannel.audioBeat, fallback: 0.0)
+                    channel: TextAnimationChannel.scaleY,
+                    signal: .remap(.externalInput(name: TextAnimationChannel.audioBeat, fallback: 0.0), inputMin: 0.0, inputMax: 1.0, outputMin: 0.85, outputMax: 1.45)
                 )
             ]
         )
@@ -204,6 +204,45 @@ struct TextAnimationGraphIntegrationTests {
         #expect((onBeat[TextAnimationChannel.audioBeat] ?? 0.0) > 0.7)
         #expect((offBeat[TextAnimationChannel.audioBeat] ?? 1.0) < 0.15)
         #expect(onBeat[TextAnimationChannel.audioIsSynced] == 1.0)
+    }
+
+    @Test("2D Anchor pivot, Z-Depth Sorting, and Unified Graph Thumbnail Previews execute cleanly")
+    @MainActor
+    func test2DAnchorZDepthSortingAndCatalogThumbnails() {
+        let evalA = TextAnimationEvaluator.EvaluationResult(
+            config: TextConfiguration(content: "A"),
+            overlay: TextTransformOverlay(offsetZEm: 0.8)
+        )
+        let evalB = TextAnimationEvaluator.EvaluationResult(
+            config: TextConfiguration(content: "B"),
+            overlay: TextTransformOverlay(offsetZEm: -0.8)
+        )
+        let entryA = TextGPUSegmentedDepthSorter.DepthEntry(
+            orderIndex: 0, tokenIndex: 0, evaluated: evalA, curveCenter: .zero, depthZ: 40.0, depthScale: 1.15
+        )
+        let entryB = TextGPUSegmentedDepthSorter.DepthEntry(
+            orderIndex: 1, tokenIndex: 1, evaluated: evalB, curveCenter: .zero, depthZ: -40.0, depthScale: 0.85
+        )
+        let sorted = TextGPUSegmentedDepthSorter.sortedBackToFront([entryA, entryB])
+        #expect(sorted.map(\.orderIndex) == [1, 0])
+        #expect(TextGPUSegmentedDepthSorter.perspectiveDepthScale(offsetZEm: 1.0) > 1.0)
+        #expect(TextGPUSegmentedDepthSorter.perspectiveDepthScale(offsetZEm: -1.0) < 1.0)
+
+        for graph in TextAnimationGraphLibrary.allGraphs {
+            let heroT = TextThumbnailRenderer.heroPreviewTime(for: graph.id)
+            let thumb = TextThumbnailRenderer.renderScriptPreviewFrame(scriptId: graph.id, localTime: heroT, duration: 2.8)
+            #expect(thumb != nil, "Thumbnail preview failed for graph \(graph.id)")
+        }
+
+        let engine = TextRendererEngine()
+        let doorCfg = TextConfiguration(
+            content: "HINGE",
+            fontSize: 64,
+            textColorHex: "#FFFFFF",
+            animation: TextAnimationConfiguration(graph: TextAnimationGraphLibrary.doorHingeSwing3D)
+        )
+        let doorImg = engine.renderAnimatedImage(for: doorCfg, localTime: 0.25, duration: 5.0, canvasSize: canvasSize)
+        #expect(doorImg?.extent.size == canvasSize)
     }
 
     private func meanLuma(of image: CIImage) -> Double {

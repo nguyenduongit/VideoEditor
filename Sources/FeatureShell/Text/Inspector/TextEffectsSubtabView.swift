@@ -3,7 +3,7 @@ import Domain
 import DesignSystem
 
 /// Subtab `"Effects"` trong Tab Appearance:
-/// Gồm Blur (Làm mờ), Distortion (Uốn cong / Sóng), Glitch (Lệch dải màu RGB) và Noise (Hạt nhiễu).
+/// Gồm Blur (Làm mờ), Distortion (Uốn cong / Sóng) và Noise (Hạt nhiễu).
 /// Tuân thủ quy tắc R3.1 (File <= 300 dòng, View body <= 80 dòng) của AGENTS.md.
 public struct TextEffectsSubtabView: View {
     @Bindable private var viewModel: InspectorViewModel
@@ -14,12 +14,12 @@ public struct TextEffectsSubtabView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.md) {
-            blurAndGlitchCard
+            visualFiltersCard
             TextCurvedSectionView(viewModel: viewModel)
         }
     }
 
-    private var blurAndGlitchCard: some View {
+    private var visualFiltersCard: some View {
         VStack(alignment: .leading, spacing: DSSpacing.md) {
             Text(String(localized: "Visual Filters"))
                 .font(.system(size: 11, weight: .semibold))
@@ -39,23 +39,6 @@ public struct TextEffectsSubtabView: View {
                 step: 0.5,
                 defaultValue: 0.0,
                 unit: "px",
-                onEditingChanged: onSliderEditingEnded
-            )
-
-            DSSliderWithInput(
-                title: "Glitch (RGB Split)",
-                value: Binding(
-                    get: { currentConfig.glitchIntensity },
-                    set: { val in
-                        var cfg = currentConfig
-                        cfg.glitchIntensity = val
-                        updateConfig(cfg, commit: false)
-                    }
-                ),
-                range: 0.0...100.0,
-                step: 1.0,
-                defaultValue: 0.0,
-                unit: "%",
                 onEditingChanged: onSliderEditingEnded
             )
 

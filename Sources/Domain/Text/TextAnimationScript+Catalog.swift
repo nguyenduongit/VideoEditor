@@ -91,16 +91,32 @@ public struct KineticDropGlowScript: TextAnimationScript {
         switch phase {
         case .intro(let progress):
             let raw = evaluateIntro(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
-            guard progress > 0.72 else { return raw }
-            let t = (progress - 0.72) / 0.28, s = t * t * (3.0 - 2.0 * t)
+            let s = introLoopBlendFactor(progress: progress, unitIndex: unitIndex, unitTotal: unitTotal)
+            guard s > 0.0 else { return raw }
             return blendKinetic(from: raw, to: loopDelta(cycleProgress: progress, em: em, unitIndex: unitIndex), t: s)
         case .loop(_, let cycleProgress):
             return loopDelta(cycleProgress: cycleProgress, em: em, unitIndex: unitIndex)
         case .outro(let progress):
             let raw = evaluateOutro(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
             let localP = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.35 / Double(max(1, unitTotal)))) / 0.65))
-            return blendKinetic(from: loopDelta(cycleProgress: progress, em: em, unitIndex: unitIndex), to: raw, t: localP)
+            let s = localP * localP * (3.0 - 2.0 * localP)
+            return blendKinetic(from: loopDelta(cycleProgress: progress, em: em, unitIndex: unitIndex), to: raw, t: s)
         }
+    }
+
+    private func introLoopBlendFactor(progress: Double, unitIndex: Int, unitTotal: Int) -> Double {
+        let unitP: Double
+        if unitIndex == 0 {
+            unitP = min(1.0, max(0.0, progress / 0.58))
+        } else {
+            let tailCount = max(1, unitTotal - 1), tailIdx = Double(unitIndex - 1)
+            let normTail = tailIdx / Double(max(1, tailCount - 1))
+            let dropStart = 0.42 + tailIdx * (0.26 / Double(tailCount))
+            let dropEnd = 0.72 + normTail * 0.28
+            unitP = progress <= dropStart ? 0.0 : min(1.0, (progress - dropStart) / max(0.18, dropEnd - dropStart))
+        }
+        let t = min(1.0, max(0.0, (unitP - 0.52) / 0.48))
+        return t * t * (3.0 - 2.0 * t)
     }
 
     private func loopDelta(cycleProgress: Double, em: Double, unitIndex: Int) -> TextUnitDelta {
@@ -109,7 +125,7 @@ public struct KineticDropGlowScript: TextAnimationScript {
         return TextUnitDelta(
             offsetY: -hop * (0.18 * em), scaleX: 1.0 - hop * 0.06 + max(0.0, -wave) * 0.05,
             scaleY: 1.0 + hop * 0.08 - max(0.0, -wave) * 0.04, rotation: cos(phaseAngle) * 3.5,
-            opacity: 1.0, glowIntensityDelta: hop * 20.0
+            opacity: 1.0
         )
     }
 
@@ -118,8 +134,7 @@ public struct KineticDropGlowScript: TextAnimationScript {
         return TextUnitDelta(
             offsetX: inv * a.offsetX + k * b.offsetX, offsetY: inv * a.offsetY + k * b.offsetY,
             scaleX: inv * a.scaleX + k * b.scaleX, scaleY: inv * a.scaleY + k * b.scaleY,
-            rotation: inv * a.rotation + k * b.rotation, opacity: inv * a.opacity + k * b.opacity,
-            glowIntensityDelta: inv * a.glowIntensityDelta + k * b.glowIntensityDelta
+            rotation: inv * a.rotation + k * b.rotation, opacity: inv * a.opacity + k * b.opacity
         )
     }
 
@@ -137,7 +152,7 @@ public struct KineticDropGlowScript: TextAnimationScript {
             return TextUnitDelta(
                 offsetX: (-0.65 * em) + (apexX + 0.65 * em) * easeOut, offsetY: (0.75 * em) + (apexY - 0.75 * em) * sin(tossP * .pi * 0.5),
                 scaleX: popScale, scaleY: popScale, rotation: (1.0 - easeOut) * 58.0 + apexRot * easeOut,
-                opacity: min(1.0, tossP * 4.5), glowIntensityDelta: 24.0
+                opacity: min(1.0, tossP * 4.5)
             )
         }
         return evaluateDropToBaseline(dropP: min(1.0, (progress - dropStart) / max(0.18, 0.98 - dropStart)), em: em, apexX: apexX, apexY: apexY, apexRot: apexRot)
@@ -151,7 +166,7 @@ public struct KineticDropGlowScript: TextAnimationScript {
         let squash = decay * sin(p * .pi * 3.0) * 0.24
         return TextUnitDelta(
             offsetY: offsetY, scaleX: 1.0 + squash, scaleY: 1.0 - squash,
-            opacity: min(1.0, p * 5.0), glowIntensityDelta: decay * 22.0
+            opacity: min(1.0, p * 5.0)
         )
     }
 
@@ -163,7 +178,7 @@ public struct KineticDropGlowScript: TextAnimationScript {
             return TextUnitDelta(
                 offsetX: apexX * (1.0 - t), offsetY: apexY * (1.0 - t * t),
                 scaleX: 1.0 - 0.14 * sin(t * .pi), scaleY: 1.0 + 0.18 * sin(t * .pi),
-                rotation: apexRot * (1.0 - t), opacity: 1.0, glowIntensityDelta: 26.0
+                rotation: apexRot * (1.0 - t), opacity: 1.0
             )
         }
         let t = (dropP - 0.52) / 0.48
@@ -171,9 +186,7 @@ public struct KineticDropGlowScript: TextAnimationScript {
         let squash = cos(t * .pi * 2.5) * decay * 0.26
         return TextUnitDelta(
             offsetY: -abs(sin(t * .pi * 2.0)) * decay * (0.36 * em),
-            scaleX: 1.0 + squash, scaleY: 1.0 - squash, opacity: 1.0,
-            glowIntensityDelta: decay * 20.0,
-            bloomIntensity: decay * 0.72
+            scaleX: 1.0 + squash, scaleY: 1.0 - squash, opacity: 1.0
         )
     }
 
@@ -185,136 +198,6 @@ public struct KineticDropGlowScript: TextAnimationScript {
             : (-0.42 * em) + pow((localP - 0.25) / 0.75, 2.2) * (2.2 * em)
         return TextUnitDelta(
             offsetY: offsetY, rotation: localP * 20.0, opacity: 1.0 - pow(localP, 1.6)
-        )
-    }
-}
-
-// MARK: - Script 3: Silk Ribbon Wave (Dải lụa lượn sóng S-Curve liên tục chuẩn tỷ lệ Font)
-public struct CurvedArcRollerScript: TextAnimationScript {
-    public let id = "curved_arc_roller"
-    public let displayName = "Silk Ribbon Wave"
-    public let description = "Text flows like a silk ribbon along an S-curve wave with tangent alignment"
-    public let category = TextAnimationCategory.wave
-    public let scope = TextAnimationScope.perCharacter
-
-    public init() {}
-
-    public func evaluatePhase(base: TextConfiguration, phase: TextScriptPhase, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
-        let em = max(16.0, base.fontSize)
-        let centerIdx = Double(max(1, unitTotal - 1)) * 0.5
-        let charEmX = (Double(unitIndex) - centerIdx) * 0.62
-
-        switch phase {
-        case .intro(let progress):
-            let p = min(1.0, max(0.0, progress))
-            let ease = 1.0 - pow(1.0 - p, 3.0)
-            let travelEm = -(1.0 - ease) * 4.2
-            return evaluateRibbonWave(charEmX: charEmX, travelEm: travelEm, wavePhase: 0.0, em: em, edgeFadeProgress: p, isIntro: true)
-
-        case .loop(_, let cycleProgress):
-            let wavePhase = cycleProgress * .pi * 2.0
-            let gentleSwayEm = sin(wavePhase) * 0.22
-            return evaluateRibbonWave(charEmX: charEmX, travelEm: gentleSwayEm, wavePhase: wavePhase, em: em, edgeFadeProgress: 1.0, isIntro: false)
-
-        case .outro(let progress):
-            let p = min(1.0, max(0.0, progress))
-            let ease = pow(p, 2.2)
-            let travelEm = ease * 4.2
-            return evaluateRibbonWave(charEmX: charEmX, travelEm: travelEm, wavePhase: 0.0, em: em, edgeFadeProgress: 1.0 - ease, isIntro: false)
-        }
-    }
-
-    private func evaluateRibbonWave(
-        charEmX: Double, travelEm: Double, wavePhase: Double, em: Double, edgeFadeProgress: Double, isIntro: Bool
-    ) -> TextUnitDelta {
-        let s = charEmX + travelEm
-        let k = 0.82
-        let theta = s * k - wavePhase
-        let ampRatio = 0.48
-        let offsetX = travelEm * em
-        let offsetY = -ampRatio * em * sin(theta)
-        let derivative = -ampRatio * k * cos(theta)
-        let tangentDegrees = atan(derivative) * 180.0 / .pi
-
-        let fadeAlpha = min(1.0, max(0.0, edgeFadeProgress * 1.6))
-        let scale = 0.72 + 0.28 * min(1.0, edgeFadeProgress * 1.4)
-        let blur = isIntro ? (1.0 - min(1.0, edgeFadeProgress * 1.5)) * (0.12 * em) : 0.0
-        return TextUnitDelta(
-            offsetX: offsetX, offsetY: offsetY, scaleX: scale, scaleY: scale,
-            rotation: tangentDegrees, opacity: fadeAlpha,
-            waveAmplitudeEm: ampRatio, waveFrequencyEm: k, wavePhaseRadians: -wavePhase,
-            blurRadius: blur
-        )
-    }
-}
-
-// MARK: - Script 4: Elastic Spring Pop (Bung nở lò xo lệch pha & Nhảy sóng đôi)
-public struct NeonCyberShiftScript: TextAnimationScript {
-    public let id = "neon_cyber_shift"
-    public let displayName = "Elastic Spring Pop"
-    public let description = "Springy character pop with overshoot, playful tilt, and double-beat bounce"
-    public let category = TextAnimationCategory.pop
-    public let scope = TextAnimationScope.perCharacter
-
-    public init() {}
-
-    public func evaluatePhase(base: TextConfiguration, phase: TextScriptPhase, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
-        let em = max(16.0, base.fontSize)
-        switch phase {
-        case .intro(let progress):
-            let raw = evaluateIntroRaw(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
-            guard progress > 0.72 else { return raw }
-            let t = (progress - 0.72) / 0.28
-            let s = t * t * (3.0 - 2.0 * t)
-            return TextUnitDelta.lerp(raw, loopDelta(cycleProgress: progress, em: em, unitIndex: unitIndex), t: s)
-        case .loop(_, let cycleProgress):
-            return loopDelta(cycleProgress: cycleProgress, em: em, unitIndex: unitIndex)
-        case .outro(let progress):
-            let raw = evaluateOutroRaw(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
-            let blendT = min(1.0, progress / 0.25)
-            return TextUnitDelta.lerp(loopDelta(cycleProgress: progress, em: em, unitIndex: unitIndex), raw, t: blendT)
-        }
-    }
-
-    private func loopDelta(cycleProgress: Double, em: Double, unitIndex: Int) -> TextUnitDelta {
-        let angle = cycleProgress * .pi * 2.0 - Double(unitIndex) * 0.58
-        let pulse = max(0.0, sin(angle))
-        return TextUnitDelta(
-            offsetY: -pulse * (0.28 * em),
-            scaleX: 1.0 - pulse * 0.08,
-            scaleY: 1.0 + pulse * 0.14,
-            rotation: cos(angle) * pulse * 8.0,
-            opacity: 1.0
-        )
-    }
-
-    private func evaluateIntroRaw(progress: Double, em: Double, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
-        let total = max(1, unitTotal)
-        let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.46 / Double(total))) / 0.54))
-        guard p > 0.0 else { return TextUnitDelta(scaleX: 0.05, scaleY: 0.05, opacity: 0.0) }
-        let decay = exp(-p * 4.2)
-        let spring = 1.0 - decay * cos(p * .pi * 3.2)
-        let overshoot = decay * sin(p * .pi * 3.2)
-        let dir = unitIndex.isMultiple(of: 2) ? 1.0 : -1.0
-        return TextUnitDelta(
-            offsetY: (1.0 - spring) * (0.65 * em),
-            scaleX: max(0.08, spring + overshoot * 0.22),
-            scaleY: max(0.08, spring - overshoot * 0.14),
-            rotation: decay * cos(p * .pi * 2.5) * 26.0 * dir,
-            opacity: min(1.0, p * 4.5),
-            glowIntensityDelta: max(0.0, overshoot) * 30.0
-        )
-    }
-
-    private func evaluateOutroRaw(progress: Double, em: Double, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
-        let total = max(1, unitTotal)
-        let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.38 / Double(total))) / 0.62))
-        let pop = p < 0.28 ? (1.0 + sin((p / 0.28) * .pi) * 0.22) : max(0.05, 1.0 - pow((p - 0.28) / 0.72, 2.0))
-        return TextUnitDelta(
-            offsetY: p < 0.28 ? -sin((p / 0.28) * .pi) * (0.25 * em) : pow((p - 0.28) / 0.72, 2.0) * (0.65 * em),
-            scaleX: pop,
-            scaleY: pop,
-            opacity: 1.0 - pow(p, 1.8)
         )
     }
 }

@@ -20,8 +20,11 @@ public struct NeonStrokeDrawScript: TextAnimationScript {
                 opacity: min(1.0, p * 8.0),
                 strokeTrimProgress: ease
             )
-        case .loop(_, _):
+        case .loop(_, let cycleProgress):
+            let breathe = 0.5 - 0.5 * cos(cycleProgress * .pi * 2.0)
             return TextUnitDelta(
+                scaleX: 1.0 + breathe * 0.025,
+                scaleY: 1.0 + breathe * 0.025,
                 opacity: 1.0,
                 strokeTrimProgress: 1.0
             )
@@ -64,10 +67,13 @@ public struct CipherMatrixDecodeScript: TextAnimationScript {
                 opacity: min(1.0, p * 4.5),
                 scrambleStrength: pow(1.0 - p, 1.5)
             )
-        case .loop(_, _):
+        case .loop(_, let cycleProgress):
+            let breathe = 0.5 - 0.5 * cos(cycleProgress * .pi * 2.0)
             return TextUnitDelta(
+                offsetY: -breathe * (0.06 * em),
                 opacity: 1.0,
-                scrambleStrength: 0.0
+                scrambleStrength: 0.0,
+                trackingEmDelta: breathe * 0.03
             )
         case .outro(let progress):
             let startP = normIdx * 0.36

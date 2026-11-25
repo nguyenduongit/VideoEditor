@@ -13,6 +13,7 @@ public struct TextAnimationGraphContext: Sendable, Equatable {
     public var randomSeed: UInt64
     public var externalInputs: [String: Double]
     public var staggerDirectionOverride: TextStaggerDirection?
+    public var isSeamlessLifecycle: Bool
 
     public init(
         phase: TextAnimationGraphPhase,
@@ -25,7 +26,8 @@ public struct TextAnimationGraphContext: Sendable, Equatable {
         unitCount: Int = 1,
         randomSeed: UInt64 = 0,
         externalInputs: [String: Double] = [:],
-        staggerDirectionOverride: TextStaggerDirection? = nil
+        staggerDirectionOverride: TextStaggerDirection? = nil,
+        isSeamlessLifecycle: Bool = false
     ) {
         self.phase = phase
         self.globalProgress = min(1.0, max(0.0, globalProgress))
@@ -39,6 +41,7 @@ public struct TextAnimationGraphContext: Sendable, Equatable {
         self.randomSeed = randomSeed
         self.externalInputs = externalInputs.filter { !$0.key.isEmpty && $0.value.isFinite }
         self.staggerDirectionOverride = staggerDirectionOverride
+        self.isSeamlessLifecycle = isSeamlessLifecycle
     }
 
     func value(for source: TextAnimationTimeSource) -> Double {
@@ -65,15 +68,25 @@ public struct TextAnimationGraphContext: Sendable, Equatable {
         var copy = self
         copy.globalProgress = min(1.0, max(0.0, (globalProgress - start) / available))
         copy.phaseProgress = min(1.0, max(0.0, (phaseProgress - start) / available))
-        if phase == .loop {
-            // Keep periodic waveforms continuous around [0, 1) without boundary stalls.
-            let shifted = (loopProgress - start).truncatingRemainder(dividingBy: 1.0)
-            copy.loopProgress = shifted < 0.0 ? shifted + 1.0 : shifted
-        } else {
-            copy.loopProgress = min(1.0, max(0.0, (loopProgress - start) / available))
-        }
+        // Keep periodic waveforms continuous around [0, 1) across all phases without boundary stalls.
+        let shifted = (loopProgress - start).truncatingRemainder(dividingBy: 1.0)
+        copy.loopProgress = shifted < 0.0 ? shifted + 1.0 : shifted
         copy.elapsedSeconds = max(0.0, elapsedSeconds - phaseDuration * start)
         return copy
+    }
+
+    func unitStaggerProgress(fraction: Double, direction: TextStaggerDirection) -> Double {
+        guard fraction > 0.0, unitCount > 1 else { return phaseProgress }
+        let effectiveDirection = staggerDirectionOverride ?? direction
+        let order = Self.staggerOrder(
+            index: unitIndex,
+            count: unitCount,
+            direction: effectiveDirection,
+            seed: randomSeed
+        )
+        let start = fraction * Double(order) / Double(unitCount - 1)
+        let available = max(0.0001, 1.0 - fraction)
+        return min(1.0, max(0.0, (phaseProgress - start) / available))
     }
 
     /// Zero-allocation O(1) deterministic rank computation for all stagger directions (O(N) scalar loop for random).

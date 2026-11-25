@@ -84,73 +84,20 @@ public struct DNAHelixTwistScript: TextAnimationScript {
                     opacity: min(1.0, p * 3.5)
                 )
             }
-            guard progress > 0.72 else { return raw }
-            let t = (progress - 0.72) / 0.28
-            return TextUnitDelta.lerp(raw, loopAt(progress), t: t * t * (3.0 - 2.0 * t))
+            let blendT = min(1.0, max(0.0, (p - 0.40) / 0.60))
+            return TextUnitDelta.lerp(raw, loopAt(progress), t: blendT * blendT * (3.0 - 2.0 * blendT))
         case .loop(_, let cycleProgress):
             return loopAt(cycleProgress)
         case .outro(let progress):
-            let p = min(1.0, max(0.0, progress)), ease = p * p
+            let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.36 / Double(total))) / 0.64))
+            let ease = p * p, s = p * p * (3.0 - 2.0 * p)
             let theta = ease * .pi * 1.5 + Double(unitIndex) * 0.55
             let outDelta = TextUnitDelta(
                 offsetY: sin(theta) * strandSign * (0.60 * em) * ease,
                 scaleX: max(0.08, 1.0 - ease * 0.90), scaleY: max(0.08, 1.0 - ease * 0.90),
                 rotation: strandSign * ease * 35.0, opacity: 1.0 - ease
             )
-            return TextUnitDelta.lerp(loopAt(progress), outDelta, t: min(1.0, progress / 0.25))
-        }
-    }
-}
-
-// MARK: - Wave 5: Jelly Trampoline Wave (Sóng nhún bạt lò xo neo đáy Squash & Stretch)
-public struct JellyTrampolineWaveScript: TextAnimationScript {
-    public let id = "jelly_trampoline_wave"
-    public let displayName = "Jelly Trampoline"
-    public let description = "Bottom-anchored spring bounce stretching tall at peaks and squashing low"
-    public let category = TextAnimationCategory.wave
-    public let scope = TextAnimationScope.perCharacter
-
-    public init() {}
-
-    public func evaluatePhase(base: TextConfiguration, phase: TextScriptPhase, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
-        let em = max(16.0, base.fontSize)
-        let centerIdx = Double(max(1, unitTotal - 1)) * 0.5
-        let charEmX = (Double(unitIndex) - centerIdx) * 0.62
-        let k = 0.88, amp = 0.34
-        let loopAt: (Double) -> TextUnitDelta = { prog in
-            let phaseRad = prog * .pi * 2.0, theta = -charEmX * k + phaseRad
-            let wave = sin(theta), stretch = wave * 0.22
-            return TextUnitDelta(
-                offsetY: -amp * em * wave, scaleX: 1.0 - stretch * 0.55, scaleY: 1.0 + stretch,
-                rotation: atan(amp * k * cos(theta)) * 180.0 / .pi, opacity: 1.0,
-                waveAmplitudeEm: amp, waveFrequencyEm: -k, wavePhaseRadians: phaseRad, anchorOverride: .bottom
-            )
-        }
-        switch phase {
-        case .intro(let progress):
-            let total = max(1, unitTotal)
-            let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.42 / Double(total))) / 0.58))
-            let raw: TextUnitDelta
-            if p <= 0.0 {
-                raw = TextUnitDelta(scaleX: 1.35, scaleY: 0.08, opacity: 0.0, anchorOverride: .bottom)
-            } else {
-                let decay = exp(-p * 3.8), bounce = decay * sin(p * .pi * 3.2)
-                raw = TextUnitDelta(
-                    offsetY: -max(0.0, bounce) * (0.48 * em), scaleX: max(0.4, 1.0 - bounce * 0.22),
-                    scaleY: max(0.1, 1.0 + bounce * 0.36), opacity: min(1.0, p * 4.2), anchorOverride: .bottom
-                )
-            }
-            guard progress > 0.72 else { return raw }
-            let t = (progress - 0.72) / 0.28
-            return TextUnitDelta.lerp(raw, loopAt(progress), t: t * t * (3.0 - 2.0 * t))
-        case .loop(_, let cycleProgress):
-            return loopAt(cycleProgress)
-        case .outro(let progress):
-            let total = max(1, unitTotal)
-            let p = min(1.0, max(0.0, (progress - Double(unitIndex) * (0.36 / Double(total))) / 0.64))
-            let ease = p * p
-            let outDelta = TextUnitDelta(scaleX: 1.0 + ease * 0.35, scaleY: max(0.06, 1.0 - ease * 0.94), opacity: 1.0 - ease, anchorOverride: .bottom)
-            return TextUnitDelta.lerp(loopAt(progress), outDelta, t: min(1.0, progress / 0.25))
+            return TextUnitDelta.lerp(loopAt(progress), outDelta, t: s)
         }
     }
 }

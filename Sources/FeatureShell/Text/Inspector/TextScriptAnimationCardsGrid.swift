@@ -2,12 +2,12 @@ import SwiftUI
 import Domain
 import DesignSystem
 
-/// Text Script-Driven Animation catalog powered by the shared `DSAnimationScriptBrowser` layout.
+/// Text Script & Graph Animation catalog powered by the shared `DSAnimationScriptBrowser` layout.
 /// Both static Hero thumbnails and live hover previews render 1:1 via `TextRendererEngine`.
 public struct TextScriptAnimationCardsGrid<BottomPanel: View>: View {
     public let selectedScriptId: String
     public let showBottomPanel: Bool
-    public let onSelectScript: (any TextAnimationScript) -> Void
+    public let onSelectItem: (TextAnimationCatalogItem) -> Void
     public let onClearScript: () -> Void
     private let bottomPanel: BottomPanel
 
@@ -16,15 +16,35 @@ public struct TextScriptAnimationCardsGrid<BottomPanel: View>: View {
     public init(
         selectedScriptId: String,
         showBottomPanel: Bool,
-        onSelectScript: @escaping (any TextAnimationScript) -> Void,
+        onSelectItem: @escaping (TextAnimationCatalogItem) -> Void,
         onClearScript: @escaping () -> Void,
         @ViewBuilder bottomPanel: () -> BottomPanel
     ) {
         self.selectedScriptId = selectedScriptId
         self.showBottomPanel = showBottomPanel
-        self.onSelectScript = onSelectScript
+        self.onSelectItem = onSelectItem
         self.onClearScript = onClearScript
         self.bottomPanel = bottomPanel()
+    }
+
+    public init(
+        selectedScriptId: String,
+        showBottomPanel: Bool,
+        onSelectScript: @escaping (any TextAnimationScript) -> Void,
+        onClearScript: @escaping () -> Void,
+        @ViewBuilder bottomPanel: () -> BottomPanel
+    ) {
+        self.init(
+            selectedScriptId: selectedScriptId,
+            showBottomPanel: showBottomPanel,
+            onSelectItem: { item in
+                if case .script(let script) = item {
+                    onSelectScript(script)
+                }
+            },
+            onClearScript: onClearScript,
+            bottomPanel: bottomPanel
+        )
     }
 
     private var selectedCategory: TextAnimationCategory? {
@@ -36,54 +56,53 @@ public struct TextScriptAnimationCardsGrid<BottomPanel: View>: View {
             DSAnimationBrowserCategory(
                 id: cat.rawValue,
                 title: cat.displayName,
-                count: TextAnimationScriptRegistry.shared.scripts(in: cat).count
+                count: TextAnimationCatalogItem.items(in: cat).count
             )
         }
     }
 
-    private var filteredItems: [TextBrowserScriptItem] {
-        TextAnimationScriptRegistry.shared.scripts(in: selectedCategory)
-            .map { TextBrowserScriptItem(id: $0.id, script: $0) }
+    private var filteredItems: [TextAnimationCatalogItem] {
+        TextAnimationCatalogItem.items(in: selectedCategory)
     }
 
     public var body: some View {
         DSAnimationScriptBrowser(
             selectedCategoryId: $selectedCategoryId,
-            totalCount: TextAnimationScriptRegistry.shared.scripts.count,
+            totalCount: TextAnimationCatalogItem.allItems.count,
             categories: browserCategories,
             items: filteredItems,
             selectedItemId: selectedScriptId,
             showBottomPanel: showBottomPanel,
             onClearSelection: onClearScript,
-            onSelectItem: { onSelectScript($0.script) },
-            itemTitle: { $0.script.displayName },
-            itemTooltip: { $0.script.description },
+            onSelectItem: onSelectItem,
+            itemTitle: { $0.displayName },
+            itemTooltip: { $0.description },
             itemPreview: { item, isSelected, isHovered in
-                scriptPreviewStage(script: item.script, isSelected: isSelected, isHovered: isHovered)
+                scriptPreviewStage(item: item, isSelected: isSelected, isHovered: isHovered)
             },
             bottomPanel: { bottomPanel }
         )
     }
 
     @ViewBuilder
-    private func scriptPreviewStage(script: any TextAnimationScript, isSelected: Bool, isHovered: Bool) -> some View {
+    private func scriptPreviewStage(item: TextAnimationCatalogItem, isSelected: Bool, isHovered: Bool) -> some View {
         if isHovered || isSelected {
             TextScriptLivePreviewStage(
-                script: script,
+                item: item,
                 isSelected: isSelected,
                 isHovered: isHovered
             )
         } else {
-            staticHeroStage(script: script, isSelected: isSelected)
+            staticHeroStage(item: item, isSelected: isSelected)
         }
     }
 
-    private func staticHeroStage(script: any TextAnimationScript, isSelected: Bool) -> some View {
-        let heroT = TextThumbnailRenderer.heroPreviewTime(for: script.id)
+    private func staticHeroStage(item: TextAnimationCatalogItem, isSelected: Bool) -> some View {
+        let heroT = TextThumbnailRenderer.heroPreviewTime(for: item.id)
         let heroFrame = TextThumbnailRenderer.renderScriptPreviewFrame(
-            scriptId: script.id,
+            scriptId: item.id,
             localTime: heroT,
-            duration: script.defaultDuration
+            duration: TextThumbnailRenderer.scriptPreviewDuration(for: item)
         )
         return ZStack(alignment: .topTrailing) {
             if let heroFrame {
@@ -98,15 +117,15 @@ public struct TextScriptAnimationCardsGrid<BottomPanel: View>: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            Image(systemName: iconName(for: script))
+            Image(systemName: iconName(for: item))
                 .font(.system(size: 8.5, weight: .semibold))
                 .foregroundStyle(isSelected ? DSColors.toggleCyan : DSColors.accent)
                 .padding(3)
         }
     }
 
-    private func iconName(for script: any TextAnimationScript) -> String {
-        TextScriptIconLookup.map[script.id] ?? script.category.iconName
+    private func iconName(for item: TextAnimationCatalogItem) -> String {
+        TextScriptIconLookup.map[item.id] ?? item.category.iconName
     }
 }
 
@@ -115,40 +134,19 @@ private enum TextScriptIconLookup {
         "title_wave_float": "water.waves",
         "typewriter_cursor": "character.cursor.ibeam",
         "kinetic_drop_glow": "arrow.down.to.line",
-        "curved_arc_roller": "skew",
-        "neon_cyber_shift": "sparkles",
-        "liquid_wave_pulse": "water.waves",
-        "glitch_rgb_pop": "bolt.horizontal.fill",
-        "smooth_word_glide": "arrow.up.right",
         "elastic_flip_3d": "cube.transparent",
         "pop_up_hinge_3d": "rectangle.portrait.bottomhalf.inset.filled",
-        "whip_echo_slam": "wind",
         "tornado_spiral_pop": "tornado",
-        "trailer_tracking_expand": "arrow.left.and.right.text.vertical",
         "pendulum_hinge_swing": "metronome",
-        "anamorphic_split_reveal": "rectangle.split.1x2",
         "ripple_drop_wave": "drop.circle",
         "dna_helix_twist": "waveform.path.ecg",
-        "jelly_trampoline_wave": "figure.jumprope",
-        "hologram_scan_beam": "barcode.viewfinder",
-        "vhs_tracking_drift": "recordingtape",
-        "quantum_teleport_flicker": "sparkle.magnifyingglass",
-        "cyber_shutter_slice": "slider.horizontal.below.square.and.square.filled",
         "curtain_baseline_rise": "arrow.up.to.line.compact",
-        "shutter_blind_reveal": "sidebar.left",
-        "soft_breathe_cascade": "aqi.medium",
         "flip_counter_roll": "123.rectangle",
         "karaoke_glow_flow": "waveform.badge.mic",
-        "line_cascade_rise": "text.alignleft",
         "blur_focus_dissolve": "camera.aperture",
         "beat_pulse_slam": "metronome.fill",
         "three_d_tumble_drop": "rotate.3d",
-        "three_d_swinging_door": "door.left.hand.open",
-        "three_d_depth_rush": "view.3d",
         "fx_pixel_dissolve": "square.grid.3x3.fill",
-        "slide_directional_whip": "arrow.forward.circle",
-        "slide_zipper_cross": "arrow.left.and.right",
-        "wave_flag_flutter": "flag.fill",
         "wave_liquid_ripple": "drop.halffull",
         "typewriter_neon_draw": "scribble.variable",
         "typewriter_cipher_decode": "lock.rotation",
@@ -163,12 +161,33 @@ private enum TextScriptIconLookup {
         "slide_left_left": "arrow.left",
         "slide_left_right": "arrow.uturn.right",
         "slide_right_left": "arrow.uturn.left",
-        "slide_right_right": "arrow.right"
+        "slide_right_right": "arrow.right",
+        "graph_chrome_bevel_3d": "cube.fill",
+        "graph_quantum_particles": "sparkles",
+        "graph_audio_beat_pulse": "waveform.path.ecg",
+        "graph_door_hinge_3d": "door.left.hand.open",
+        "graph_orbit_carousel_3d": "globe.americas.fill",
+        "graph_bezier_ribbon_fly": "point.topleft.down.curvedto.point.bottomright.up",
+        "graph_flag_mesh_flutter": "flag.fill",
+        "graph_arc_bend_bounce": "archway",
+        "graph_tracked_expand": "arrow.left.and.right.text.vertical",
+        "graph_origami_corner_unfold": "square.topthird.inset.filled",
+        "graph_spiral_vortex_orbit": "hurricane",
+        "graph_ribbon_twist_snap": "tornado.circle",
+        "graph_lens_bubble_pop": "circle.hexagongrid.fill",
+        "graph_domino_bottom_cascade": "rectangle.split.3x1.fill",
+        "graph_audio_eq_bounce": "slider.vertical.3",
+        "graph_slalom_spline_glide": "scribble",
+        "graph_right_hinge_trapdoor": "door.right.hand.open",
+        "graph_jelly_mercury_wave": "water.waves.and.arrow.up",
+        "graph_pendulum_top_corner": "gyroscope",
+        "graph_iris_laser_carve": "circle.dashed.inset.filled",
+        "graph_cipher_scramble_draw": "chevron.left.forwardslash.chevron.right"
     ]
 }
 
 private struct TextScriptLivePreviewStage: View {
-    let script: any TextAnimationScript
+    let item: TextAnimationCatalogItem
     let isSelected: Bool
     let isHovered: Bool
 
@@ -176,14 +195,14 @@ private struct TextScriptLivePreviewStage: View {
 
     var body: some View {
         SwiftUI.TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { context in
-            let cycle = TextThumbnailRenderer.scriptPreviewDuration(for: script)
+            let cycle = TextThumbnailRenderer.scriptPreviewDuration(for: item)
             let t = TextThumbnailRenderer.scriptPreviewLocalTime(
                 startDate: previewStartDate,
                 currentDate: context.date,
                 duration: cycle
             )
             if let frame = TextThumbnailRenderer.renderScriptPreviewFrame(
-                scriptId: script.id,
+                scriptId: item.id,
                 localTime: t,
                 duration: cycle
             ) {
@@ -203,9 +222,4 @@ private struct TextScriptLivePreviewStage: View {
             if hovering { previewStartDate = Date() }
         }
     }
-}
-
-private struct TextBrowserScriptItem: Identifiable {
-    let id: String
-    let script: any TextAnimationScript
 }

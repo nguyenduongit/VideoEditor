@@ -278,7 +278,6 @@ struct TextIntegrationTests {
         cfg.skewX = 15.0
         cfg.skewY = -8.0
         cfg.blurRadius = 6.0
-        cfg.glitchIntensity = 45.0
         cfg.noiseIntensity = 20.0
         cfg.innerStroke.width = 3.0
         cfg.outerStroke.width = 6.0
@@ -292,7 +291,6 @@ struct TextIntegrationTests {
         #expect(decoded.skewX == 15.0)
         #expect(decoded.skewY == -8.0)
         #expect(decoded.blurRadius == 6.0)
-        #expect(decoded.glitchIntensity == 45.0)
         #expect(decoded.noiseIntensity == 20.0)
         #expect(decoded.innerStroke.width == 3.0)
         #expect(decoded.outerStroke.width == 6.0)
@@ -309,9 +307,10 @@ struct TextIntegrationTests {
         #expect(registry.scripts(in: .pop).count >= 5)
         #expect(registry.scripts(in: .typewriter).count == 5)
         #expect(registry.scripts(in: .threeD).count >= 4)
-        #expect(registry.script(for: "wave_cascade_flow") != nil)
-        #expect(registry.script(for: "karaoke_box_pop")?.id == "karaoke_glow_flow")
-        #expect(registry.script(for: "line_cascade_rise")?.id == "slide_up_up")
+        #expect(registry.script(for: "glitch_rgb_pop") == nil)
+        #expect(registry.script(for: "neon_color_shift") == nil)
+        #expect(registry.script(for: "karaoke_glow_flow")?.id == "karaoke_glow_flow")
+        #expect(registry.script(for: "slide_up_up")?.id == "slide_up_up")
 
         guard let titleWave = registry.script(for: "title_wave_float") else {
             Issue.record("Missing title_wave_float script")
@@ -348,20 +347,21 @@ struct TextIntegrationTests {
             #expect(abs(endLoop.opacity - startOut.opacity) < 1e-9)
         }
 
-        guard let neonScript = registry.script(for: "neon_color_shift") else {
-            Issue.record("Missing neon_color_shift script")
+        guard let popScript = registry.script(for: "pop_elastic_bounce") else {
+            Issue.record("Missing pop_elastic_bounce script")
             return
         }
 
-        #expect(neonScript.scope == .perCharacter)
+        #expect(popScript.scope == .perCharacter)
         var cfg = TextConfiguration(content: "HELLO")
         cfg.textColorHex = "#38BDF8"
         cfg.innerStroke = TextStrokeStyle(isEnabled: true, width: 3.0, colorHex: "#0F172A")
-        cfg.animation.scriptId = "neon_color_shift"
+        cfg.glow = TextGlowStyle(isEnabled: true, colorHex: "#38BDF8", intensity: 50.0, range: 10.0)
+        cfg.animation.scriptId = "pop_elastic_bounce"
         cfg.animation.scriptDuration = 2.0
         #expect(cfg.animation.hasScriptAnimation)
 
-        // Evaluate at mid-progress: User Fill & Stroke must be 100% preserved without color clash
+        // Evaluate at mid-progress: User Fill, Stroke & Glow intensity must be 100% preserved without color/glow mutation
         let evalMid = TextAnimationEvaluator.evaluate(
             config: cfg,
             localTime: 1.0,
@@ -374,6 +374,7 @@ struct TextIntegrationTests {
         #expect(evalMid.config.textColorHex == "#38BDF8")
         #expect(evalMid.config.innerStroke.width == 3.0)
         #expect(evalMid.config.innerStroke.colorHex == "#0F172A")
+        #expect(evalMid.config.glow.intensity == 50.0)
         #expect(evalMid.config.opacity > 0.5)
 
         // Verify the 4 new rendering primitives across themes
@@ -418,7 +419,7 @@ struct TextIntegrationTests {
 
     @Test func testScriptThreePhaseTransitionsAndDurations() {
         var cfg = TextConfiguration(content: "UNIFIED")
-        cfg.animation.scriptId = "neon_color_shift"
+        cfg.animation.scriptId = "pop_elastic_bounce"
         cfg.animation.scriptInDuration = 1.0
         cfg.animation.scriptLoopDuration = 3.0
         cfg.animation.scriptOutDuration = 1.0
@@ -461,7 +462,7 @@ struct TextIntegrationTests {
         let registry = TextAnimationScriptRegistry.shared
         #expect(registry.script(for: "typewriter_cursor") != nil)
         #expect(registry.script(for: "kinetic_drop_glow") != nil)
-        #expect(registry.script(for: "curved_arc_roller") != nil)
+        #expect(registry.script(for: "title_wave_float") != nil)
 
         // Basic preset is hardcoded local and cannot be modified
         let loader = TextTemplateLoader()
@@ -491,9 +492,9 @@ struct TextIntegrationTests {
         #expect(eval2.config.innerStroke.width == 2.5)
         #expect(eval2.config.innerStroke.colorHex == "#B45309")
 
-        // Evaluate Video Sample 3: Curved Wave Path Roller ("hello, june")
+        // Evaluate Video Sample 3: Wave Float ("hello, june")
         var cfg3 = TextConfiguration(content: "hello, june")
-        cfg3.animation.scriptId = "curved_arc_roller"
+        cfg3.animation.scriptId = "title_wave_float"
         let eval3Left = TextAnimationEvaluator.evaluate(config: cfg3, localTime: 1.2, duration: 5.0, canvasSize: CGSize(width: 720, height: 720), charIndex: 1, charCount: 10)
         let eval3Right = TextAnimationEvaluator.evaluate(config: cfg3, localTime: 1.2, duration: 5.0, canvasSize: CGSize(width: 720, height: 720), charIndex: 8, charCount: 10)
         #expect(eval3Left.config.opacity > 0.0)
@@ -572,19 +573,17 @@ struct TextIntegrationTests {
         #expect(TextAnimationScriptRegistry.shared.script(for: "pendulum_hinge_swing")?.category == .wave)
         #expect(TextAnimationScriptRegistry.shared.script(for: "curtain_baseline_rise")?.category == .fade)
 
-        // 6. GPU shader & pure-motion scripts wire perspective3D, motionBlur, pixelate, liquidWave, slice displacement without altering colors
+        // 6. GPU shader & pure-motion scripts wire perspective3D, motionBlur, pixelate, liquidWave without altering colors
         let renderEngine = TextRendererEngine()
         let shaderProbeCases: [(String, Double)] = [
             ("three_d_tumble_drop", 0.25),
-            ("three_d_swinging_door", 0.25),
-            ("three_d_depth_rush", 0.25),
+            ("elastic_flip_3d", 0.25),
+            ("three_d_card_carousel", 0.25),
             ("slide_center_split", 0.45),
             ("fx_pixel_dissolve", 0.20),
-            ("slide_directional_whip", 0.20),
-            ("slide_zipper_cross", 0.25),
-            ("wave_flag_flutter", 1.25),
-            ("wave_liquid_ripple", 1.25),
-            ("glitch_crt_slice_tear", 0.15)
+            ("slide_right_right", 0.20),
+            ("ripple_drop_wave", 1.25),
+            ("wave_liquid_ripple", 1.25)
         ]
         for (sid, probeT) in shaderProbeCases {
             var pcfg = TextConfiguration(content: "GPU FX")

@@ -57,20 +57,17 @@ public enum TextTokenFXRenderer: Sendable {
         if overlay.motionBlurRadius > 0.5 {
             mask.insert(.motionBlur)
         }
-        if overlay.glitchBlockIntensity > 0.01 || overlay.glitchSliceIntensity > 0.02 {
-            mask.insert(.glitch)
-        }
         if overlay.dissolveProgress > 0.004 || overlay.particleFieldProgress > 0.004 {
             mask.insert(.dissolve)
-        }
-        if overlay.bloomIntensity > 0.01 || overlay.volumetricRaysIntensity > 0.01 {
-            mask.insert(.bloom)
         }
         if overlay.bevelDepth > 0.1 {
             mask.insert(.sdfMaterial)
         }
+        if overlay.meshWarpMode != .none, abs(overlay.meshWarpAmount) > 0.005 {
+            mask.insert(.meshWarp)
+        }
         if evaluated.pixelateScale > 1.0 {
-            mask.insert(.huePixelate)
+            mask.insert(.pixelate)
         }
         if plugins.hasMatchingPlugin(for: evaluated.animationParameters) {
             mask.insert(.plugins)
@@ -109,7 +106,6 @@ public enum TextTokenFXRenderer: Sendable {
     ) {
         let config = evaluated.config
         var tokenOverlay = evaluated.overlay
-        tokenOverlay.lightSweepPhase = -1.0
         if tokenOverlay.motionBlurRadius > 0.5 {
             tokenOverlay.motionBlurAngle += totalRotationDegrees * .pi / 180.0
         }
@@ -127,8 +123,7 @@ public enum TextTokenFXRenderer: Sendable {
         }
         let filtered = TextShaderFilterEngine.applyFilters(
             to: CIImage(cgImage: cg), blurRadius: blurR, pixelateScale: evaluated.pixelateScale,
-            rgbSplitIntensity: 0.0, overlay: tokenOverlay, lightSweepIntensity: 0.0,
-            shadow: TextShadowStyle(), glow: TextGlowStyle(), noiseIntensity: 0.0,
+            overlay: tokenOverlay, shadow: TextShadowStyle(), glow: TextGlowStyle(), noiseIntensity: 0.0,
             localTime: localTime, animationParameters: evaluated.animationParameters,
             renderPlugins: plugins, pluginContext: pluginContext
         )
@@ -143,7 +138,8 @@ public enum TextTokenFXRenderer: Sendable {
         let motionPad = overlay.motionBlurRadius > 0.5 ? CGFloat(min(45.0, overlay.motionBlurRadius)) * 1.25 : 0.0
         let has3D = abs(overlay.rotationX) > 0.5 || abs(overlay.rotationY) > 0.5 ||
             abs(overlay.perspectiveX) > 0.01 || abs(overlay.perspectiveY) > 0.01
-        let hasWideFX = overlay.bloomIntensity > 0.01 || overlay.dissolveProgress > 0.004 || overlay.glitchBlockIntensity > 0.01
+        let hasWideFX = overlay.dissolveProgress > 0.004 ||
+            (overlay.meshWarpMode != .none && abs(overlay.meshWarpAmount) > 0.005)
         return ceil(CGFloat(blurR) * 2.5 + motionPad + (has3D ? max(24.0, totalHeight * 0.45) : 16.0) + (hasWideFX ? max(24.0, totalHeight * 0.40) : 0.0))
     }
 
@@ -178,7 +174,6 @@ public enum TextTokenFXRenderer: Sendable {
     ) -> CIImage {
         let config = evaluated.config
         var tokenOverlay = evaluated.overlay
-        tokenOverlay.lightSweepPhase = -1.0
 
         let s = Double(entry.rasterScale)
         let blurR = min(28.0, max(0.0, config.blurRadius)) * s
@@ -192,9 +187,9 @@ public enum TextTokenFXRenderer: Sendable {
         }
 
         let hasMotionBlur = evaluated.overlay.motionBlurRadius > 0.5
-        let hasWideFX = tokenOverlay.bloomIntensity > 0.01 || tokenOverlay.dissolveProgress > 0.004 ||
-            tokenOverlay.particleFieldProgress > 0.004 || tokenOverlay.volumetricRaysIntensity > 0.01 ||
-            tokenOverlay.glitchBlockIntensity > 0.01 || hasMotionBlur ||
+        let hasMeshWarp = tokenOverlay.meshWarpMode != .none && abs(tokenOverlay.meshWarpAmount) > 0.005
+        let hasWideFX = tokenOverlay.dissolveProgress > 0.004 ||
+            tokenOverlay.particleFieldProgress > 0.004 || hasMotionBlur || hasMeshWarp ||
             abs(tokenOverlay.rotationX) > 0.5 || abs(tokenOverlay.rotationY) > 0.5 || config.blurRadius > 0.4
         let motionPadLogical = hasMotionBlur ? CGFloat(evaluated.overlay.motionBlurRadius) * 1.25 / max(0.01, blockScale) : 0.0
         let extraPad = hasWideFX ? ceil(max(18.0, CGFloat(config.blurRadius) * 2.0 + motionPadLogical + totalHeight * 0.35)) : 0.0
@@ -207,9 +202,7 @@ public enum TextTokenFXRenderer: Sendable {
             to: pixelImage,
             blurRadius: blurR,
             pixelateScale: evaluated.pixelateScale * s,
-            rgbSplitIntensity: 0.0,
             overlay: tokenOverlay,
-            lightSweepIntensity: 0.0,
             shadow: TextShadowStyle(),
             glow: TextGlowStyle(),
             noiseIntensity: 0.0,

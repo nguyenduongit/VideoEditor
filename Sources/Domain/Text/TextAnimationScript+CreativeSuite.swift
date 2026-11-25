@@ -1,10 +1,10 @@
 import Foundation
 
-// MARK: - Fade 1: Soft Glow Fade (Hiện mờ ảo kết hợp ánh sáng dịu và nhịp thở quang năng)
+// MARK: - Fade 1: Soft Glow Fade (Hiện mờ ảo kết hợp lấy nét nhẹ nhàng thuần chuyển động)
 public struct SoftGlowFadeScript: TextAnimationScript {
     public let id = "fade_soft_glow"
     public let displayName = "Soft Glow"
-    public let description = "Fades in softly with gentle aura, breathes in a 1.0s cycle, then dissolves"
+    public let description = "Fades in softly with optical defocus, breathes in a 1.0s cycle, then dissolves"
     public let category = TextAnimationCategory.fade
     public let loopCycleDuration: Double = 1.0
     public let scope = TextAnimationScope.perCharacter
@@ -17,16 +17,15 @@ public struct SoftGlowFadeScript: TextAnimationScript {
         case .intro(let progress):
             return evaluateIntro(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
         case .loop(_, let cycleProgress):
-            let g = glowState(cycleProgress: cycleProgress, em: em)
-            return TextUnitDelta(opacity: 1.0, glowIntensityDelta: g.glow, blurRadius: g.blur, bloomIntensity: 0.28 + (g.glow / 28.0) * 0.45)
+            return TextUnitDelta(opacity: 1.0, blurRadius: loopBlur(cycleProgress: cycleProgress, em: em))
         case .outro(let progress):
             return evaluateOutro(progress: progress, em: em, unitIndex: unitIndex, unitTotal: unitTotal)
         }
     }
 
-    private func glowState(cycleProgress: Double, em: Double) -> (glow: Double, blur: Double) {
+    private func loopBlur(cycleProgress: Double, em: Double) -> Double {
         let s = 0.5 - 0.5 * cos(cycleProgress * .pi * 2.0)
-        return (glow: s * 28.0, blur: s * (0.015 * em))
+        return s * (0.015 * em)
     }
 
     private func evaluateIntro(progress: Double, em: Double, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
@@ -36,12 +35,10 @@ public struct SoftGlowFadeScript: TextAnimationScript {
         let localP = max(0.0, min(1.0, (progress - startP) / (1.0 - startP)))
         let ease = 1.0 - pow(1.0 - localP, 3.0)
         let rem = 1.0 - ease
-        let g = glowState(cycleProgress: progress, em: em)
+        let blurBreathe = loopBlur(cycleProgress: progress, em: em)
         return TextUnitDelta(
             opacity: min(1.0, localP * 1.5),
-            glowIntensityDelta: rem * 35.0 + ease * g.glow,
-            blurRadius: rem * (0.14 * em) + ease * g.blur,
-            bloomIntensity: rem * 0.65 + ease * (0.28 + (g.glow / 28.0) * 0.45)
+            blurRadius: rem * (0.14 * em) + ease * blurBreathe
         )
     }
 
@@ -51,11 +48,10 @@ public struct SoftGlowFadeScript: TextAnimationScript {
         let localP = progress <= startP ? 0.0 : max(0.0, min(1.0, (progress - startP) / (1.0 - startP)))
         let outEase = pow(localP, 2.5)
         let stay = 1.0 - outEase
-        let g = glowState(cycleProgress: progress, em: em)
+        let blurBreathe = loopBlur(cycleProgress: progress, em: em)
         return TextUnitDelta(
             opacity: max(0.0, 1.0 - outEase),
-            glowIntensityDelta: stay * g.glow + outEase * 30.0,
-            blurRadius: stay * g.blur + outEase * (0.14 * em)
+            blurRadius: stay * blurBreathe + outEase * (0.14 * em)
         )
     }
 }
@@ -156,130 +152,6 @@ public struct ElasticBouncePopScript: TextAnimationScript {
             scaleX: scale,
             scaleY: scale,
             opacity: max(0.0, 1.0 - outEase)
-        )
-    }
-}
-
-// MARK: - Typewriter 2: Word Staccato (Từng từ nảy dứt khoát theo nhịp đọc voice-over)
-public struct WordStaccatoScript: TextAnimationScript {
-    public let id = "typewriter_staccato"
-    public let displayName = "Word Staccato"
-    public let description = "Snappy voice-over rhythm per word while maintaining smooth sentence flow"
-    public let category = TextAnimationCategory.typewriter
-    public let loopCycleDuration: Double = 1.0
-    public let scope = TextAnimationScope.perCharacter
-
-    public init() {}
-
-    public func evaluatePhase(base: TextConfiguration, phase: TextScriptPhase, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
-        switch phase {
-        case .intro(let progress):
-            let total = max(1, unitTotal)
-            let step = 0.85 / Double(total)
-            let charStart = Double(unitIndex) * step
-            let charEnd = charStart + step
-            if progress < charStart {
-                return TextUnitDelta(opacity: 0.0)
-            } else if progress < charEnd {
-                let p = (progress - charStart) / max(0.001, step)
-                let pop = 1.0 + sin(p * .pi) * 0.25
-                return TextUnitDelta(scaleX: pop, scaleY: pop, opacity: 1.0)
-            } else {
-                let breathe = sin(progress * .pi * 2.0) * 0.02
-                return TextUnitDelta(scaleX: 1.0 + breathe, scaleY: 1.0 + breathe, opacity: 1.0)
-            }
-        case .loop(_, let cycleProgress):
-            let breathe = sin(cycleProgress * .pi * 2.0) * 0.02
-            return TextUnitDelta(scaleX: 1.0 + breathe, scaleY: 1.0 + breathe, opacity: 1.0)
-        case .outro(let progress):
-            let total = max(1, unitTotal)
-            let step = 0.85 / Double(total)
-            let charStart = Double(unitIndex) * step
-            if progress > charStart {
-                let p = min(1.0, (progress - charStart) / max(0.001, step))
-                let ease = p * p
-                return TextUnitDelta(scaleX: max(0.1, 1.0 - ease), scaleY: max(0.1, 1.0 - ease), opacity: 1.0 - ease)
-            }
-            return TextUnitDelta(opacity: 1.0)
-        }
-    }
-}
-
-// MARK: - Wave 4: Cascade Wave Flow (Sóng lướt uốn lượn từng ký tự từ trên xuống, tan biến hào quang sương mù từ trái qua phải)
-public struct CascadeWaveFlowScript: TextAnimationScript {
-    public let id = "wave_cascade_flow"
-    public let displayName = "Cascade Wave"
-    public let description = "Characters cascade in an undulating wave and dissolve left to right in mist"
-    public let category = TextAnimationCategory.wave
-    public let loopCycleDuration: Double = 1.0
-    public let scope = TextAnimationScope.perCharacter
-
-    public init() {}
-
-    public func evaluatePhase(base: TextConfiguration, phase: TextScriptPhase, unitIndex: Int, unitTotal: Int) -> TextUnitDelta {
-        let em = max(16.0, base.fontSize)
-        let total = max(1, unitTotal)
-        let normIdx = total > 1 ? Double(unitIndex) / Double(total - 1) : 0.0
-
-        switch phase {
-        case .intro(let progress):
-            return evaluateIntro(progress: progress, em: em, normIdx: normIdx)
-        case .loop(_, let cycleProgress):
-            let w = waveState(cycleProgress: cycleProgress, em: em, normIdx: normIdx)
-            return TextUnitDelta(offsetY: w.y, scaleX: w.scale, scaleY: w.scale, rotation: w.rot, opacity: 1.0, glowIntensityDelta: w.glow)
-        case .outro(let progress):
-            return evaluateOutro(progress: progress, em: em, normIdx: normIdx)
-        }
-    }
-
-    private func waveState(cycleProgress: Double, em: Double, normIdx: Double) -> (y: Double, scale: Double, rot: Double, glow: Double) {
-        let angle = cycleProgress * .pi * 2.0 - normIdx * .pi * 1.6
-        let s = sin(angle)
-        let c = cos(angle)
-        return (y: -s * (0.12 * em), scale: 1.0 + s * 0.035, rot: c * 2.5, glow: max(0.0, s) * 16.0)
-    }
-
-    private func evaluateIntro(progress: Double, em: Double, normIdx: Double) -> TextUnitDelta {
-        let delaySpan = 0.52
-        let charDur = 0.48
-        let charStart = normIdx * delaySpan
-        guard progress > charStart else { return TextUnitDelta(opacity: 0.0) }
-        let localP = min(1.0, (progress - charStart) / charDur)
-        let ease = 1.0 - pow(1.0 - localP, 3.0)
-        let bounce = sin(localP * .pi) * 0.14
-        let rem = 1.0 - ease
-        let w = waveState(cycleProgress: progress, em: em, normIdx: normIdx)
-
-        return TextUnitDelta(
-            offsetX: rem * (0.35 * em),
-            offsetY: -rem * (1.1 * em) - bounce * (0.10 * em) + ease * w.y,
-            scaleX: rem * 0.65 + ease * w.scale + bounce * 0.08,
-            scaleY: rem * 0.65 + ease * w.scale + bounce * 0.08,
-            rotation: rem * 14.0 + ease * w.rot,
-            opacity: min(1.0, localP * 2.2),
-            glowIntensityDelta: ease * w.glow + bounce * 25.0,
-            blurRadius: rem * (0.14 * em)
-        )
-    }
-
-    private func evaluateOutro(progress: Double, em: Double, normIdx: Double) -> TextUnitDelta {
-        let delaySpan = 0.48
-        let charDur = 0.52
-        let charStart = normIdx * delaySpan
-        let localP = progress <= charStart ? 0.0 : min(1.0, (progress - charStart) / charDur)
-        let outEase = pow(localP, 2.2)
-        let stay = 1.0 - outEase
-        let w = waveState(cycleProgress: progress, em: em, normIdx: normIdx)
-        let flareGlow = sin(localP * .pi) * 32.0
-
-        return TextUnitDelta(
-            offsetY: stay * w.y - outEase * (0.22 * em),
-            scaleX: stay * w.scale + outEase * 1.15,
-            scaleY: stay * w.scale + outEase * 1.15,
-            rotation: stay * w.rot,
-            opacity: max(0.0, 1.0 - outEase),
-            glowIntensityDelta: stay * w.glow + flareGlow,
-            blurRadius: stay * 0.0 + outEase * (0.32 * em)
         )
     }
 }

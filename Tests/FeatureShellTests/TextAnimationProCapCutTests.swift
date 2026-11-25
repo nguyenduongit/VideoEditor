@@ -20,14 +20,12 @@ struct TextAnimationProCapCutTests {
         #expect(config.anchorPoint == .center)
         #expect(config.scriptId == "none")
         #expect(config.staggerDelay == 0.04)
-        #expect(config.rgbSplitIntensity == 0.0)
-        #expect(config.lightSweepIntensity == 0.0)
         #expect(config.isMaskEnabled == false)
         #expect(config.isMotionBlurEnabled == true)
         #expect(config.isDefault == true)
     }
 
-    @Test("KineticDrop and SmoothGlide unified scripts evaluate motion offsets seamlessly")
+    @Test("KineticDrop and Slide unified scripts evaluate motion offsets seamlessly")
     func testDropAndBounceEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
@@ -37,19 +35,19 @@ struct TextAnimationProCapCutTests {
         #expect(abs(evalDrop.config.positionY) > 0.001 || evalDrop.config.opacity < 1.0)
 
         var cfgSlide = TextConfiguration(content: "Slide")
-        cfgSlide.animation.scriptId = "smooth_word_glide"
+        cfgSlide.animation.scriptId = "slide_right_right"
         let evalSlide = TextAnimationEvaluator.evaluate(config: cfgSlide, localTime: 0.15, duration: 5.0, canvasSize: canvasSize)
         #expect(abs(evalSlide.config.positionY) > 0.001 || abs(evalSlide.config.positionX) > 0.001 || evalSlide.config.opacity < 1.0)
     }
 
-    @Test("Unified scripts evaluate WhipEchoSlam and TypewriterCursor smoothly")
+    @Test("Unified scripts evaluate Slide and TypewriterCursor smoothly")
     func testCapCutProInAnimationsEvaluation() {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
         var cfgMove = TextConfiguration(content: "Move")
-        cfgMove.animation.scriptId = "whip_echo_slam"
+        cfgMove.animation.scriptId = "slide_right_right"
         let evalMove = TextAnimationEvaluator.evaluate(config: cfgMove, localTime: 0.15, duration: 5.0, canvasSize: canvasSize)
-        #expect(abs(evalMove.config.positionX) > 0.5 || evalMove.overlay.echoCount > 0)
+        #expect(abs(evalMove.config.positionX) > 0.5)
 
         var cfgType = TextConfiguration(content: "TypewriterAnimation")
         cfgType.animation.scriptId = "typewriter_cursor"
@@ -64,7 +62,7 @@ struct TextAnimationProCapCutTests {
         let canvasSize = CGSize(width: 1000, height: 1000)
 
         var cfg = TextConfiguration(content: "LoopTest")
-        cfg.animation.scriptId = "liquid_wave_pulse"
+        cfg.animation.scriptId = "wave_liquid_ripple"
         cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: 3, speed: 1.0)
 
         let evalIn = TextAnimationEvaluator.evaluate(config: cfg, localTime: 0.1, duration: 5.0, canvasSize: canvasSize)
@@ -118,8 +116,6 @@ struct TextAnimationProCapCutTests {
     func testSegmentedAndKaraokeRenderingProducesValidImage() {
         var config = TextConfiguration(content: "CAPCUT PRO VIBE")
         config.animation.scriptId = "kinetic_drop_glow"
-        config.animation.rgbSplitIntensity = 3.0
-        config.animation.lightSweepIntensity = 0.6
 
         let canvasSize = CGSize(width: 800, height: 500)
         let image = TextRendererEngine().renderAnimatedImage(

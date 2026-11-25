@@ -212,23 +212,7 @@ extension MCPTimelineToolDispatcher {
         } else if let posY = dict["positionY"] as? Double {
             cfg.positionY = posY
         }
-        let rawScript = (dict["animationScript"] as? String)
-            ?? (dict["scriptId"] as? String)
-            ?? (dict["inAnimation"] as? String)
-            ?? (dict["loopAnimation"] as? String)
-            ?? (dict["outAnimation"] as? String)
-        if let rawScript {
-            let resolvedId = MCPTextPropertyResolver.resolveScriptId(rawScript)
-            cfg.animation.scriptId = resolvedId
-            if let script = TextAnimationScriptRegistry.shared.script(for: resolvedId) {
-                let speed = (dict["animationSpeed"] as? Double) ?? cfg.animation.scriptSpeed
-                let baseSteps = max(1, Int(script.defaultLoopDuration.rounded()))
-                cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: baseSteps, speed: speed)
-            }
-        } else if let speed = dict["animationSpeed"] as? Double, cfg.animation.hasScriptAnimation {
-            let steps = cfg.animation.scriptBaseLoopSeconds
-            cfg.animation.applyUnifiedScriptTiming(baseLoopSeconds: steps, speed: speed)
-        }
+        MCPTextPropertyResolver.applyAnimationOverrides(from: dict, to: &cfg)
     }
 }
 

@@ -48,7 +48,6 @@ extension TextSegmentRenderer {
             config: cfg,
             blurRadius: evaluated.blurRadius,
             pixelateScale: evaluated.pixelateScale,
-            rgbSplitIntensity: 0.0,
             noiseIntensity: evaluated.noiseIntensity,
             overlay: ov,
             animationParameters: evaluated.animationParameters
@@ -180,16 +179,15 @@ extension TextSegmentRenderer {
         _ config: TextConfiguration,
         overlay: TextTransformOverlay,
         center: CGPoint,
+        tokenWidth: CGFloat,
         totalHeight: CGFloat,
+        depthScale: CGFloat = 1.0,
         in context: CGContext
     ) {
-        let pivotOffsetY: CGFloat
-        switch config.animation.anchorPoint {
-        case .center: pivotOffsetY = 0.0
-        case .bottom: pivotOffsetY = -totalHeight / 2.0
-        case .top: pivotOffsetY = totalHeight / 2.0
-        }
-        context.translateBy(x: center.x + CGFloat(config.positionX), y: center.y - CGFloat(config.positionY) + pivotOffsetY)
+        let pivot = TextUnitPivotHelper.pivotOffset(
+            for: overlay.anchorPoint, width: max(1.0, tokenWidth), height: totalHeight
+        )
+        context.translateBy(x: center.x + CGFloat(config.positionX) + pivot.x, y: center.y - CGFloat(config.positionY) + pivot.y)
         if abs(config.rotation) > 0.001 {
             context.rotate(by: CGFloat(-config.rotation * .pi / 180.0))
         }
@@ -198,12 +196,12 @@ extension TextSegmentRenderer {
         if abs(totalSkewX) > 0.001 || abs(totalSkewY) > 0.001 {
             context.concatenate(CGAffineTransform(a: 1, b: CGFloat(totalSkewY), c: CGFloat(totalSkewX), d: 1, tx: 0, ty: 0))
         }
-        let sx = CGFloat(max(0.01, config.scale * overlay.scaleX))
-        let sy = CGFloat(max(0.01, config.scale * overlay.scaleY))
+        let sx = CGFloat(max(0.01, config.scale * overlay.scaleX)) * depthScale
+        let sy = CGFloat(max(0.01, config.scale * overlay.scaleY)) * depthScale
         if abs(sx - 1.0) > 0.001 || abs(sy - 1.0) > 0.001 {
             context.scaleBy(x: sx, y: sy)
         }
-        context.translateBy(x: 0, y: -pivotOffsetY)
+        context.translateBy(x: -pivot.x, y: -pivot.y)
     }
     #endif
 }

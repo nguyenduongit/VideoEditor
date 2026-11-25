@@ -96,12 +96,12 @@ public struct TextAnimationParameterBag: Codable, Sendable, Equatable {
         case "transform.scale.x", "transform.scale.y", "transform.scaleX", "transform.scaleY",
              "transform.opacity", "opacity", "mask.reveal.x", "mask.reveal.y", "path.trim.progress":
             return 1.0
-        case "mask.reveal.linear", "effects.lightSweep.phase", "effects.liquid.phase", "effects.iridescence.phase":
+        case "mask.reveal.linear", "effects.liquid.phase":
             return -1.0
-        case "effects.lightSweep.width":
-            return 0.16
         case "effects.dissolve.angle":
             return -0.75
+        case "effects.meshWarp.frequency":
+            return 1.5
         default:
             return 0.0
         }

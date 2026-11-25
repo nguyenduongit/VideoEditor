@@ -41,7 +41,6 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
     public var skewY: Double
     public var opacity: Double
     public var blurRadius: Double
-    public var glitchIntensity: Double
     public var noiseIntensity: Double
     public var animation: TextAnimationConfiguration
 
@@ -83,7 +82,6 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
         skewY: Double = 0.0,
         opacity: Double = 1.0,
         blurRadius: Double = 0.0,
-        glitchIntensity: Double = 0.0,
         noiseIntensity: Double = 0.0,
         animation: TextAnimationConfiguration = TextAnimationConfiguration()
     ) {
@@ -113,7 +111,6 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
         self.skewY = max(-60.0, min(60.0, skewY))
         self.opacity = max(0.0, min(1.0, opacity))
         self.blurRadius = max(0.0, min(60.0, blurRadius))
-        self.glitchIntensity = max(0.0, min(100.0, glitchIntensity))
         self.noiseIntensity = max(0.0, min(100.0, noiseIntensity))
         self.animation = animation
     }
@@ -124,7 +121,7 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
         case colorFillMode, textColorHex, gradientColors, gradientAngle
         case innerStroke, outerStroke, glow, shadow, curve, background
         case positionX, positionY, scale, rotation, skewX, skewY, opacity
-        case blurRadius, glitchIntensity, noiseIntensity, animation
+        case blurRadius, noiseIntensity, animation
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -155,7 +152,6 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
         try c.encode(skewY, forKey: .skewY)
         try c.encode(opacity, forKey: .opacity)
         try c.encode(blurRadius, forKey: .blurRadius)
-        try c.encode(glitchIntensity, forKey: .glitchIntensity)
         try c.encode(noiseIntensity, forKey: .noiseIntensity)
         try c.encode(animation, forKey: .animation)
     }
@@ -195,7 +191,6 @@ public struct TextConfiguration: Codable, Equatable, Hashable, Sendable {
         self.skewY = (try? c.decodeIfPresent(Double.self, forKey: .init("skewY"))) ?? 0.0
         self.opacity = max(0.0, min(1.0, (try? c.decodeIfPresent(Double.self, forKey: .init("opacity"))) ?? 1.0))
         self.blurRadius = (try? c.decodeIfPresent(Double.self, forKey: .init("blurRadius"))) ?? 0.0
-        self.glitchIntensity = (try? c.decodeIfPresent(Double.self, forKey: .init("glitchIntensity"))) ?? 0.0
         self.noiseIntensity = (try? c.decodeIfPresent(Double.self, forKey: .init("noiseIntensity"))) ?? 0.0
         self.animation = (try? c.decodeIfPresent(TextAnimationConfiguration.self, forKey: .init("animation")))
             ?? TextAnimationConfiguration()
